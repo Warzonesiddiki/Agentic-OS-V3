@@ -13,8 +13,9 @@ import { getEnv } from "../lib/env.js";
 import * as schema from "./schema.js";
 
 export type Schema = typeof schema;
+export type PostgresClient = ReturnType<typeof postgres>;
 
-let _queryClient: ReturnType<typeof postgres> | null = null;
+let _queryClient: PostgresClient | null = null;
 let _instance: ReturnType<typeof drizzle<Schema>> | null = null;
 
 function getInstance() {
