@@ -144,7 +144,7 @@ async function runMaintenance(actor: string): Promise<void> {
   if (options.autoKillEnabled) {
     try {
       const { verifyAndAutoKill } = await import("./audit-engine.js");
-      await verifyAndAutoKill(actor);
+      await verifyAndAutoKill();
     } catch (e) {
       log.warn("worker_auto_kill_check_failed", { error: e instanceof Error ? e.message : String(e) });
     }

@@ -10,7 +10,7 @@ import { memories } from "../db/schema.js";
 import { appendAudit } from "../lib/audit.js";
 import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
-import { desc, sql, eq } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 
 export interface SyncResult {
   filesWritten: string[];
@@ -18,7 +18,6 @@ export interface SyncResult {
   backupsCreated: string[];
 }
 
-const CONVENTION_KINDS = ["preference", "fact", "reflexion"];
 
 /**
  * Extract coding conventions from high-importance memories and format
@@ -88,7 +87,7 @@ export async function syncWorkspace(workspaceDir: string, actor: string): Promis
       mkdirSync(dirname(fullPath), { recursive: true });
       writeFileSync(fullPath, target.content, "utf8");
       filesWritten.push(target.path);
-    } catch (e) {
+    } catch {
       // Skip files we can't write (permissions, etc.)
     }
   }

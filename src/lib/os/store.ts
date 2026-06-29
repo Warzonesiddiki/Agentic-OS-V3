@@ -242,7 +242,6 @@ async function syncOSFromRemote(): Promise<void> {
   try {
     const agentsRes = await mod.remote.listAgents() as { items: AgentRecord[] };
     if (agentsRes?.items) {
-      const existingIds = new Set(state.agents.map((a) => a.id));
       const merged = [...state.agents];
       for (const sa of agentsRes.items) {
         const idx = merged.findIndex((a) => a.id === sa.id);

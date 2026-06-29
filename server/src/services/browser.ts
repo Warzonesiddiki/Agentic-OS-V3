@@ -21,7 +21,9 @@ export interface BrowserResult {
 }
 
 // Lazy-load Playwright — the server works without it; browser tools just error.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _chromium: any = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function getChromium(): Promise<any> {
   if (_chromium === false) return null;
   if (_chromium) return _chromium;
@@ -42,6 +44,7 @@ async function getChromium(): Promise<any> {
 }
 
 async function withBrowser<T>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   fn: (page: any) => Promise<T>
 ): Promise<T> {
   const chromium = await getChromium();

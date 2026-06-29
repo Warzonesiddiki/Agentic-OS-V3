@@ -51,7 +51,6 @@ async function getRedisBackend(): Promise<BucketBackend | null> {
     await client.connect();
     _redisBackend = {
       async consume(nsKey: string, cap: number): Promise<RateResult> {
-        const now = Date.now();
         const windowMs = 60000;
         const key = `rl:${nsKey}`;
         const val = await client.get(key);

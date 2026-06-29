@@ -354,7 +354,7 @@ api.delete("/api/v1/admin/keys/:id", async (c) => {
 
 api.get("/api/v1/audit/verify", async (c) => {
   await requireScope(c, "audit:read");
-  const result = await verifyAndAutoKill(c.get("principal")?.id ?? "system");
+  const result = await verifyAndAutoKill();
   return c.json(ok(result, c.get("requestId") ?? ""));
 });
 

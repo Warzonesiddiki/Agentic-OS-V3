@@ -12,7 +12,6 @@ import { db } from "../db/client.js";
 import { trajectoryLogs, toolReceipts, systemMeta } from "../db/schema.js";
 import { appendAudit } from "../lib/audit.js";
 import { verifyAuditChain } from "../lib/audit.js";
-import { eq, sql } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
 
 // ── Secret Redaction ──────────────────────────────────────────
@@ -148,7 +147,7 @@ export async function logToolReceipt(input: ToolReceiptInput, actor: string): Pr
  *
  * Returns true if the system is healthy (chain valid).
  */
-export async function verifyAndAutoKill(actor: string): Promise<{ healthy: boolean; reason?: string }> {
+export async function verifyAndAutoKill(): Promise<{ healthy: boolean; reason?: string }> {
   const result = await verifyAuditChain();
 
   if (result.valid) {

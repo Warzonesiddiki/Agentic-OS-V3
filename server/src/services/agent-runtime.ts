@@ -1,4 +1,3 @@
-import { log } from "../lib/logging.js";
 import { appendAudit } from "../lib/audit.js";
 import { callLLM } from "./llm.js";
 import { recall } from "./recall.js";

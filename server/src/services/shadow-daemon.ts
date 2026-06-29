@@ -10,10 +10,7 @@
  */
 
 import { db } from "../db/client.js";
-import { memories, agentTasks, auditLog } from "../db/schema.js";
-import { getEnv } from "../lib/env.js";
 import { log } from "../lib/logging.js";
-import { asc, desc, gte, sql } from "drizzle-orm";
 
 /* ── Shadow Analysis Results ── */
 
@@ -109,14 +106,7 @@ async function detectAnomalies(): Promise<ShadowInsight[]> {
 
 /* ── Trend Tracking ── */
 
-interface TrendData {
-  totalTasks7d: number;
-  totalTasks30d: number;
-  totalAuditEntries7d: number;
-  uniqueActors7d: number;
-  topAction: string | null;
-  taskSuccessRate7d: number;
-}
+
 
 async function trackTrends(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
@@ -125,7 +115,7 @@ async function trackTrends(): Promise<ShadowInsight[]> {
     const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000);
     const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 3600_000);
 
-    const [tasks7d, tasks30d, audit7d, actors7d, topActionResult, successRateResult] = await Promise.all([
+    const [tasks7d, tasks30d, , topActionResult, successRateResult] = await Promise.all([
       // Tasks in last 7 days
       db.query.agentTasks.findMany({
         where: (t, { and, gte }) => and(gte(t.createdAt, SEVEN_DAYS_AGO)),
@@ -141,18 +131,9 @@ async function trackTrends(): Promise<ShadowInsight[]> {
       // Audit entries in last 7 days
       db.query.auditLog.findMany({
         where: (t, { and, gte }) => and(gte(t.createdAt, SEVEN_DAYS_AGO)),
-        limit: 1,
-        columns: { id: true },
-      }).then((r) => r.length),
-      // Unique actors in last 7 days
-      (async () => {
-        const rows = await db.query.auditLog.findMany({
-          where: (t, { and, gte }) => and(gte(t.createdAt, SEVEN_DAYS_AGO)),
-          columns: { actor: true },
-          limit: 100,
-        });
-        return new Set(rows.map((r) => r.actor)).size;
-      })(),
+        limit: 100,
+        columns: { id: true, actor: true },
+      }).then((r) => ({ count: r.length, uniqueActors: new Set(r.map((x) => x.actor)).size })),
       // Most frequent action in last 7 days
       (async () => {
         const rows = await db.query.auditLog.findMany({

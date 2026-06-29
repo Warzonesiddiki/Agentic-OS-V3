@@ -122,7 +122,8 @@ async function gracefulShutdown(signal: string): Promise<void> {
   // closes the pub/sub connection; memory backend is a no-op.
   try {
     const bus = await import("./services/bus.js");
-    if (typeof (bus as any).closeBus === "function") (bus as any).closeBus();
+    const busModule = bus as { closeBus?: () => void };
+    if (typeof busModule.closeBus === "function") busModule.closeBus();
   } catch { /* best-effort */ }
 
   // Close the HTTP server with a 5s drain timeout.

@@ -95,7 +95,7 @@ interface PrincipalRow {
 async function loadPrincipals(db: import("../db/client.js").Db): Promise<PrincipalRow[]> {
   const now = Date.now();
   if (principalCache && now - principalCache.at < PRINCIPAL_TTL_MS) return principalCache.rows;
-  const rows = await db.query.apiKeys.findMany();
+  const rows = await db.query.apiKeys.findMany({ where: eq(apiKeys.status, "active") });
   // Map the Drizzle row to our internal PrincipalRow shape (validates the columns exist).
   const mapped: PrincipalRow[] = rows.map((r: typeof rows[number]) => ({
     id: r.id,

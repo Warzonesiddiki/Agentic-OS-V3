@@ -14,9 +14,9 @@
  * deterministic tasks, drastically reducing token spend and latency.
  */
 import { db } from "../db/client.js";
-import { auditLog, trajectoryLogs, agentTasks, compiledScripts } from "../db/schema.js";
+import { trajectoryLogs, agentTasks, compiledScripts } from "../db/schema.js";
 import { appendAudit } from "../lib/audit.js";
-import { eq, sql, desc, and, gte } from "drizzle-orm";
+import { eq, desc, and, gte } from "drizzle-orm";
 import { randomUUID, createHash } from "node:crypto";
 import { env } from "../lib/env.js";
 

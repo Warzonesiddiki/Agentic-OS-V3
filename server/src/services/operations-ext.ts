@@ -5,7 +5,7 @@
  * HITL approval gates, Zod auto-correction loop, circuit breaker.
  */
 import { db } from "../db/client.js";
-import { cronJobs, agentTasks, agents, stateSnapshots } from "../db/schema.js";
+import { cronJobs, agentTasks, stateSnapshots } from "../db/schema.js";
 import { appendAudit } from "../lib/audit.js";
 import { enqueueTask, spawnAgent } from "./kernel.js";
 import { randomUUID } from "node:crypto";

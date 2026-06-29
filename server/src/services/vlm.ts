@@ -4,9 +4,8 @@
  * visual understanding and desktop GUI actuation.
  */
 
-import { getEnv, llmConfigured } from "../lib/env.js";
+import { getEnv } from "../lib/env.js";
 import { safeFetch } from "../lib/http.js";
-import { log } from "../lib/logging.js";
 
 export function vlmConfigured(): boolean {
   const e = getEnv();

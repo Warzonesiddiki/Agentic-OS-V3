@@ -11,7 +11,6 @@
  * back to vm-isolated in-process execution (for development convenience).
  */
 import { getEnv } from "../lib/env.js";
-import { log } from "../lib/logging.js";
 import { db } from "../db/client.js";
 import { sandboxExecutions } from "../db/schema.js";
 import { randomUUID } from "node:crypto";

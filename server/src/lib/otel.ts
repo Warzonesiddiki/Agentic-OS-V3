@@ -8,8 +8,9 @@ import { getEnv } from "./env.js";
 import { log } from "./logging.js";
 
 let _initialized = false;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _provider: any = null;
+// Provider type is dynamic via OTel SDK imports — we only call .shutdown() on it.
+interface OtelProvider { shutdown(): Promise<void> }
+let _provider: OtelProvider | null = null;
 
 export function isOtelEnabled(): boolean {
   return Boolean(getEnv().NEXUS_OTEL_ENDPOINT);
@@ -35,29 +36,31 @@ export async function initOtel(): Promise<void> {
       [semantic.SemanticResourceAttributes.DEPLOYMENT_ENVIRONMENT]: env.NODE_ENV,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const provider = new (traceNode as any).NodeTracerProvider({ resource });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const exporter = new (traceHttp as any).OTLPTraceExporter({
+    // OTel SDKs ship without TS declarations for every class — cast through Record
+    // to avoid eslint noise while preserving runtime correctness.
+    /* eslint-disable @typescript-eslint/no-explicit-any */
+    const provider = new (traceNode as Record<string, any>).NodeTracerProvider({ resource });
+    const exporter = new (traceHttp as Record<string, any>).OTLPTraceExporter({
       url: env.NEXUS_OTEL_ENDPOINT,
       headers: env.NEXUS_OTEL_API_KEY
         ? { Authorization: `Bearer ${env.NEXUS_OTEL_API_KEY}` }
         : undefined,
     });
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    provider.addSpanProcessor(new (traceBase as any).SimpleSpanProcessor(exporter));
+    provider.addSpanProcessor(new (traceBase as Record<string, any>).SimpleSpanProcessor(exporter));
     provider.register();
 
     instr.registerInstrumentations({
-      instrumentations: [new (instrHttp as any).HttpInstrumentation()],
+      instrumentations: [new (instrHttp as Record<string, any>).HttpInstrumentation()],
     });
+    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     _provider = provider;
     _initialized = true;
     log.info("otel_initialized", { endpoint: env.NEXUS_OTEL_ENDPOINT });
   } catch (e) {
     log.warn("otel_init_failed", { error: e instanceof Error ? e.message : String(e) });
+    _provider = null;
   }
 }
 

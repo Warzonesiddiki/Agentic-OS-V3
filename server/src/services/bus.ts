@@ -65,7 +65,6 @@ async function getRedisBackend(): Promise<BusBackend> {
 
   sub.on("message", (_channel: string, message: string) => {
     try {
-      const event = JSON.parse(message) as SSEEvent;
       const payload = `data: ${message}\n\n`;
       for (const [id, writer] of writers) {
         try {

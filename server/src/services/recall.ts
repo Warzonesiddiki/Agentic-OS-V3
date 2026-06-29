@@ -14,7 +14,7 @@
  * When embeddings are not available (no provider configured), it gracefully
  * degrades to BM25-only (lexical mode).
  */
-import { inArray, sql, isNotNull } from "drizzle-orm";
+import { inArray, sql, isNotNull, desc } from "drizzle-orm";
 import { db } from "../db/client.js";
 import { memories, skills, tokenLedger, notes } from "../db/schema.js";
 import { bm25, estimateTokens, packByBudget } from "../lib/tokens.js";
@@ -75,10 +75,22 @@ export async function recall(
   const useSemantic = embeddingsAvailable();
 
   // ---- Load corpus with cap to prevent OOM ----
+  // Select only columns needed for BM25 scoring and metadata lookup,
+  // avoiding loading full content for the entire corpus into memory.
   const [allMemories, allSkills, allNotes] = await Promise.all([
-    db.query.memories.findMany({ limit: MAX_CORPUS }),
-    db.query.skills.findMany({ limit: MAX_CORPUS }),
-    db.query.notes.findMany({ limit: MAX_CORPUS }),
+    db.select({
+      id: memories.id, kind: memories.kind, title: memories.title, content: memories.content,
+      tags: memories.tags, importance: memories.importance, source: memories.source,
+      updatedAt: memories.updatedAt,
+    }).from(memories).orderBy(desc(memories.importance), desc(memories.updatedAt)).limit(MAX_CORPUS),
+    db.select({
+      id: skills.id, title: skills.title, description: skills.description,
+      content: skills.content, rating: skills.rating, updatedAt: skills.updatedAt,
+    }).from(skills).orderBy(desc(skills.rating)).limit(Math.min(MAX_CORPUS, 2000)),
+    db.select({
+      id: notes.id, title: notes.title, content: notes.content, tags: notes.tags,
+      wikilinks: notes.wikilinks, indexedAt: notes.indexedAt, path: notes.path,
+    }).from(notes).orderBy(desc(notes.indexedAt)).limit(Math.min(MAX_CORPUS, 2000)),
   ]);
 
   // ---- Build document sets for BM25 ----
@@ -199,8 +211,8 @@ export async function recall(
   }
 
   // ---- Feedback bonus lookup ----
-  // Cap at 50k rows to prevent unbounded memory usage on large feedback tables.
-  const fbRows = await db.query.feedback.findMany({ limit: 50_000 });
+  // Cap feedback at 5k rows (the top-N by item frequency dominates the bonus).
+  const fbRows = await db.query.feedback.findMany({ limit: 5_000 });
   const helpful = new Map<string, number>();
   const total = new Map<string, number>();
   for (const f of fbRows) {
