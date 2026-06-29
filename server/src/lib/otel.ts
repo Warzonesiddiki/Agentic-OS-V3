@@ -8,6 +8,8 @@ import { getEnv } from "./env.js";
 import { log } from "./logging.js";
 
 let _initialized = false;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let _provider: any = null;
 
 export function isOtelEnabled(): boolean {
   return Boolean(getEnv().NEXUS_OTEL_ENDPOINT);
@@ -51,9 +53,28 @@ export async function initOtel(): Promise<void> {
       instrumentations: [new (instrHttp as any).HttpInstrumentation()],
     });
 
+    _provider = provider;
     _initialized = true;
     log.info("otel_initialized", { endpoint: env.NEXUS_OTEL_ENDPOINT });
   } catch (e) {
     log.warn("otel_init_failed", { error: e instanceof Error ? e.message : String(e) });
+  }
+}
+
+/**
+ * Gracefully shut down OpenTelemetry — flush pending spans and close exporters.
+ * Safe to call even if OTEL was never initialized.
+ */
+export async function shutdownOtel(): Promise<void> {
+  if (!_initialized || !_provider) return;
+  try {
+    if (typeof _provider.shutdown === "function") {
+      await _provider.shutdown();
+    }
+    _initialized = false;
+    _provider = null;
+    log.info("otel_shutdown");
+  } catch (e) {
+    log.warn("otel_shutdown_failed", { error: e instanceof Error ? e.message : String(e) });
   }
 }

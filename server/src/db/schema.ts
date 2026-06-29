@@ -30,7 +30,7 @@ export const vector = (dimension?: number) =>
         .filter((s) => s.trim() !== "")
         .map((s) => Number(s));
     },
-  })(`embedding`, { dimension });
+  })(`embedding`, { dimension: dimension ?? env.NEXUS_EMBEDDING_DIM });
 
 /** The HNSW index for fast ANN (approximate nearest neighbor) search. */
 const vectorIndex = (column: object, table: string) =>
