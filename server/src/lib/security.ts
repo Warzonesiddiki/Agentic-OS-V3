@@ -147,6 +147,9 @@ export async function authenticate(
 
   let principal: Principal | null = null;
   let matchedId: string | null = null;
+  // Use the cached active-principal list (loaded every PRINCIPAL_TTL_MS) instead
+  // of scanning every key with scrypt. This is O(N_active) instead of O(N_all)
+  // because we only verify against principals whose status is 'active'.
   const rows = await loadPrincipals(db);
   for (const row of rows) {
     if (row.status !== "active") continue;

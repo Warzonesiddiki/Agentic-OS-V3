@@ -199,7 +199,8 @@ export async function recall(
   }
 
   // ---- Feedback bonus lookup ----
-  const fbRows = await db.query.feedback.findMany();
+  // Cap at 50k rows to prevent unbounded memory usage on large feedback tables.
+  const fbRows = await db.query.feedback.findMany({ limit: 50_000 });
   const helpful = new Map<string, number>();
   const total = new Map<string, number>();
   for (const f of fbRows) {
