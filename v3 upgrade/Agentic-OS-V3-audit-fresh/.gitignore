@@ -1,0 +1,20 @@
+# dependencies
+node_modules/
+
+# build artifacts — NEVER commit
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+
+# env / secrets — NEVER commit
+.env
+.env.*
+!.env.example
+
+# editor / OS
+.DS_Store
+.vscode/
+.idea/
+*.log

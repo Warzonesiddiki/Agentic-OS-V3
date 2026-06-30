@@ -3,11 +3,42 @@
  * Matches the NEXUS 2.0 spec: NOT NULL columns, unique constraints, and
  * indexes on every hot query path. Audit log is append-only + hash-chained.
  */
-import { pgTable, text, timestamp, integer, real, jsonb, boolean, uniqueIndex, index, bigint } from "drizzle-orm/pg-core";
+import { pgTable, text, timestamp, integer, real, jsonb, boolean, uniqueIndex, index, bigint, customType } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-/** Embedding column — real[] for pgvector compatibility; falls back to jsonb in dev mode via dev-schema.ts. */
-const embeddingCol = () => real("embedding").array();
+function embeddingDimension(): number {
+  const parsed = Number(process.env.NEXUS_EMBEDDING_DIM ?? 1536);
+  return Number.isInteger(parsed) && parsed >= 64 && parsed <= 8192 ? parsed : 1536;
+}
+
+/**
+ * pgvector column type (vector(NEXUS_EMBEDDING_DIM)).
+ * Non-destructive: the column is nullable. Existing rows keep working;
+ * embeddings are populated by the rebuild job. If pgvector is not installed,
+ * queries referencing this column fall back to lexical-only recall.
+ */
+export const vector = (dimension?: number) =>
+  customType<{ data: number[]; driverData: string; config: { dimension: number } }>({
+    dataType(config) {
+      const dim = config?.dimension ?? embeddingDimension();
+      return `vector(${dim})`;
+    },
+    toDriver(value: number[]): string {
+      return `[${value.join(",")}]`;
+    },
+    fromDriver(value: string): number[] {
+      // pgvector returns "[0.1,0.2,...]" — parse to number[]
+      return value
+        .replace(/[[\]"]/g, "")
+        .split(",")
+        .filter((s) => s.trim() !== "")
+        .map((s) => Number(s));
+    },
+  })(`embedding`, { dimension: dimension ?? embeddingDimension() });
+
+/** The HNSW index for fast ANN (approximate nearest neighbor) search. */
+const vectorIndex = (column: object, table: string) =>
+  index(`${table}_embedding_hnsw`).using("hnsw", sql`${column} vector_cosine_ops`);
 
 export const memories = pgTable(
   "memories",
@@ -25,13 +56,15 @@ export const memories = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
     lastRecalledAt: timestamp("last_recalled_at", { withTimezone: true }),
-    embedding: embeddingCol(),
+    // pgvector column — nullable for non-destructive migration
+    embedding: vector(),
   },
   (t) => ({
     kindIdx: index("mem_kind_idx").on(t.kind),
     importanceIdx: index("mem_importance_idx").on(t.importance),
     createdIdx: index("mem_created_idx").on(t.createdAt),
     projectIdx: index("mem_project_idx").on(t.projectId),
+    embeddingIdx: vectorIndex(t.embedding, "memories"),
   })
 );
 
@@ -54,7 +87,8 @@ export const skills = pgTable(
     projectId: text("project_id").references(() => projects.id, { onDelete: "set null" }),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-    embedding: embeddingCol(),
+    // pgvector column — nullable for non-destructive migration
+    embedding: vector(),
   },
   (t) => ({
     // Skill name is unique within a project (or globally when project is null).
@@ -63,6 +97,7 @@ export const skills = pgTable(
     nameUnique: uniqueIndex("skill_name_unique").on(t.name, sql`COALESCE(${t.projectId}, '')`),
     categoryIdx: index("skill_category_idx").on(t.category),
     ratingIdx: index("skill_rating_idx").on(t.rating),
+    embeddingIdx: vectorIndex(t.embedding, "skills"),
   })
 );
 
@@ -93,9 +128,10 @@ export const notes = pgTable("notes", {
   charCount: integer("char_count").notNull().default(0),
   mtime: timestamp("mtime", { withTimezone: true }),
   indexedAt: timestamp("indexed_at", { withTimezone: true }).notNull().defaultNow(),
-  embedding: embeddingCol(),
+  embedding: vector(),
 }, (t) => ({
   pathUnique: uniqueIndex("note_path_unique").on(t.path),
+  embeddingIdx: vectorIndex(t.embedding, "notes"),
 }));
 
 export const auditLog = pgTable(
@@ -381,239 +417,5 @@ export const compiledScripts = pgTable(
   (t) => ({
     sigUnique: uniqueIndex("script_sig_unique").on(t.patternSignature),
     statusIdx: index("script_status_idx").on(t.status),
-  })
-);
-
-/* ════════════════════════════════════════════════════════════════ *
- * V3 100x UPGRADE — Re-export all V3 tables from schema-v3-100x
- * ════════════════════════════════════════════════════════════════ */
-
-/* ════════════════════════════════════════════════════════════════════════════
- * V3 100x UPGRADE tables — defined inline so drizzle-kit CJS loader resolves
- * them (re-exports from schema-v3-100x.js fail in CJS).
- * ════════════════════════════════════════════════════════════════════════════ */
-
-/* ─── PILLAR I — Self-Improvement Harness ─────────────────────────── */
-
-export const metricSnapshots = pgTable(
-  "metric_snapshots",
-  {
-    id: text("id").primaryKey(),
-    metric: text("metric").notNull(),
-    value: real("value").notNull(),
-    windowStart: timestamp("window_start", { withTimezone: true }).notNull(),
-    windowEnd: timestamp("window_end", { withTimezone: true }).notNull(),
-    tags: jsonb("tags").notNull().default({}),
-    capturedAt: timestamp("captured_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    metricCapturedIdx: index("metric_snap_metric_captured_idx").on(t.metric, t.capturedAt),
-    windowIdx: index("metric_snap_window_idx").on(t.windowStart, t.windowEnd),
-  })
-);
-
-export const improvementProposals = pgTable(
-  "improvement_proposals",
-  {
-    id: text("id").primaryKey(),
-    title: text("title").notNull(),
-    summary: text("summary").notNull(),
-    hypothesis: text("hypothesis").notNull(),
-    targetMetric: text("target_metric").notNull(),
-    baselineValue: real("baseline_value").notNull(),
-    expectedDelta: real("expected_delta").notNull(),
-    riskClass: text("risk_class").notNull().default("ADVISORY"),
-    status: text("status").notNull().default("draft"),
-    patch: jsonb("patch").notNull().default({}),
-    rationale: text("rationale").notNull().default(""),
-    author: text("author").notNull().default("harness"),
-    reviewer: text("reviewer"),
-    rolloutPct: integer("rollout_pct").notNull().default(0),
-    measuredDelta: real("measured_delta"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-    decidedAt: timestamp("decided_at", { withTimezone: true }),
-  },
-  (t) => ({
-    statusIdx: index("imp_prop_status_idx").on(t.status),
-    metricIdx: index("imp_prop_metric_idx").on(t.targetMetric),
-    riskIdx: index("imp_prop_risk_idx").on(t.riskClass),
-    createdIdx: index("imp_prop_created_idx").on(t.createdAt),
-  })
-);
-
-/* ─── PILLAR II — WASM Plugin Runtime ─────────────────────────────── */
-
-export const plugins = pgTable(
-  "plugins",
-  {
-    id: text("id").primaryKey(),
-    name: text("name").notNull(),
-    version: text("version").notNull(),
-    description: text("description").notNull().default(""),
-    authorPubkey: text("author_pubkey").notNull(),
-    signature: text("signature").notNull(),
-    contentSha256: text("content_sha256").notNull(),
-    manifest: jsonb("manifest").notNull(),
-    wasmBytes: text("wasm_bytes"),
-    source: text("source").notNull().default("local"),
-    homepage: text("homepage"),
-    license: text("license"),
-    ratingAvg: real("rating_avg").notNull().default(0),
-    ratingCount: integer("rating_count").notNull().default(0),
-    installCount: integer("install_count").notNull().default(0),
-    trustState: text("trust_state").notNull().default("untrusted"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    nameVersionUnique: uniqueIndex("plugin_name_version_unique").on(t.name, t.version),
-    nameIdx: index("plugin_name_idx").on(t.name),
-    shaIdx: index("plugin_sha_idx").on(t.contentSha256),
-    trustIdx: index("plugin_trust_idx").on(t.trustState),
-  })
-);
-
-export const pluginInstallations = pgTable(
-  "plugin_installations",
-  {
-    id: text("id").primaryKey(),
-    pluginId: text("plugin_id").notNull(),
-    enabled: boolean("enabled").notNull().default(true),
-    ringOverride: integer("ring_override"),
-    config: jsonb("config").notNull().default({}),
-    installedAt: timestamp("installed_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    pluginIdx: index("plugin_install_plugin_idx").on(t.pluginId),
-    installUnique: uniqueIndex("plugin_install_unique").on(t.pluginId),
-  })
-);
-
-export const pluginReceipts = pgTable(
-  "plugin_receipts",
-  {
-    id: text("id").primaryKey(),
-    pluginId: text("plugin_id").notNull(),
-    installId: text("install_id"),
-    agentId: text("agent_id").notNull(),
-    capability: text("capability").notNull(),
-    inputSha256: text("input_sha256").notNull(),
-    outputSha256: text("output_sha256").notNull(),
-    exitCode: integer("exit_code").notNull().default(0),
-    fuelUsed: bigint("fuel_used", { mode: "number" }).notNull().default(0),
-    durationMs: integer("duration_ms").notNull().default(0),
-    authorized: boolean("authorized").notNull().default(false),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    pluginIdx: index("plugin_receipt_plugin_idx").on(t.pluginId),
-    agentIdx: index("plugin_receipt_agent_idx").on(t.agentId),
-    createdIdx: index("plugin_receipt_created_idx").on(t.createdAt),
-  })
-);
-
-/* ─── PILLAR III — Federated Recall ───────────────────────────────── */
-
-export const federatedMemoryProofs = pgTable(
-  "federated_memory_proofs",
-  {
-    id: text("id").primaryKey(),
-    originPeerId: text("origin_peer_id").notNull(),
-    originPubkey: text("origin_pubkey").notNull(),
-    signature: text("signature").notNull(),
-    contentSha256: text("content_sha256").notNull(),
-    embedding: jsonb("embedding").notNull().default([]),
-    topicTags: text("topic_tags").array().notNull().default([]),
-    importance: real("importance").notNull().default(0.5),
-    privacyClass: text("privacy_class").notNull().default("public"),
-    materialized: boolean("materialized").notNull().default(false),
-    rejectReason: text("reject_reason"),
-    receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
-    expiresAt: timestamp("expires_at", { withTimezone: true }),
-  },
-  (t) => ({
-    originIdx: index("fed_proof_origin_idx").on(t.originPeerId),
-    materializedIdx: index("fed_proof_materialized_idx").on(t.materialized),
-    receivedIdx: index("fed_proof_received_idx").on(t.receivedAt),
-  })
-);
-
-/* ─── PILLAR IV — LLM Gateway v2 ──────────────────────────────────── */
-
-export const llmProviderHealth = pgTable(
-  "llm_provider_health",
-  {
-    provider: text("provider").primaryKey(),
-    state: text("state").notNull().default("closed"),
-    failureCount: integer("failure_count").notNull().default(0),
-    successCount: integer("success_count").notNull().default(0),
-    p95Ms: real("p95_ms").notNull().default(0),
-    lastFailureAt: timestamp("last_failure_at", { withTimezone: true }),
-    lastSuccessAt: timestamp("last_success_at", { withTimezone: true }),
-    openedAt: timestamp("opened_at", { withTimezone: true }),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    stateIdx: index("llm_prov_state_idx").on(t.state),
-  })
-);
-
-export const llmTokenBudgets = pgTable(
-  "llm_token_budgets",
-  {
-    sessionId: text("session_id").primaryKey(),
-    budget: integer("budget").notNull().default(100000),
-    used: integer("used").notNull().default(0),
-    hardKill: boolean("hard_kill").notNull().default(false),
-    reason: text("reason"),
-    expiresAt: timestamp("expires_at", { withTimezone: true }),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    expiresIdx: index("llm_budget_expires_idx").on(t.expiresAt),
-  })
-);
-
-/* ─── PILLAR V — Pipeline Builder ─────────────────────────────────── */
-
-export const pipelines = pgTable(
-  "pipelines",
-  {
-    id: text("id").primaryKey(),
-    name: text("name").notNull(),
-    description: text("description").notNull().default(""),
-    dag: jsonb("dag").notNull(),
-    trigger: jsonb("trigger").notNull().default({}),
-    enabled: boolean("enabled").notNull().default(true),
-    author: text("author").notNull().default("user"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    enabledIdx: index("pipeline_enabled_idx").on(t.enabled),
-  })
-);
-
-export const pipelineRuns = pgTable(
-  "pipeline_runs",
-  {
-    id: text("id").primaryKey(),
-    pipelineId: text("pipeline_id").notNull(),
-    status: text("status").notNull().default("pending"),
-    startedAt: timestamp("started_at", { withTimezone: true }),
-    finishedAt: timestamp("finished_at", { withTimezone: true }),
-    durationMs: integer("duration_ms").notNull().default(0),
-    nodeResults: jsonb("node_results").notNull().default({}),
-    error: text("error"),
-    triggeredBy: text("triggered_by").notNull().default("manual"),
-    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  },
-  (t) => ({
-    pipelineIdx: index("pipeline_run_pipeline_idx").on(t.pipelineId),
-    statusIdx: index("pipeline_run_status_idx").on(t.status),
-    createdIdx: index("pipeline_run_created_idx").on(t.createdAt),
   })
 );
