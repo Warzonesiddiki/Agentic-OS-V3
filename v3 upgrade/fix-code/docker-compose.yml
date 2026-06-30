@@ -1,0 +1,55 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nexus
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d nexus"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    ports:
+      - "9900:9900"
+    environment:
+      # This compose file is for local development. Production mode rejects
+      # localhost origins by design; use a real origin in production.
+      NODE_ENV: development
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/nexus
+      NEXUS_REDIS_URL: redis://redis:6379
+      NEXUS_BUS_BACKEND: redis
+      NEXUS_ALLOWED_ORIGINS: http://localhost:9900,http://localhost:5173
+      NEXUS_DASHBOARD_DIR: /app/public
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  redisdata:

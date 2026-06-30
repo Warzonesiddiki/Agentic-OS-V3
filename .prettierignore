@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.next/
+out/
+coverage/
+*.tsbuildinfo
+server/node_modules/
+server/dist/
+server/coverage/
+pnpm-lock.yaml
+package-lock.json
+yarn.lock

@@ -288,6 +288,13 @@ export const remote = {
   async syncWorkspace(dir?: string): Promise<unknown> {
     return call("/api/v1/workspace/sync", { method: "POST", body: JSON.stringify({ dir }) });
   },
+  // ── V3 100x endpoints ──
+  async listProviders(): Promise<unknown> {
+    return call("/api/v1/v3/llm/providers");
+  },
+  async chat(body: unknown): Promise<unknown> {
+    return call("/api/v1/v3/llm/chat", { method: "POST", body: JSON.stringify(body) });
+  },
   /** Ping the configured server — used by the connection panel. */
   async ping(): Promise<{ ok: boolean; status?: string; error?: string }> {
     try {
@@ -296,5 +303,21 @@ export const remote = {
     } catch (e) {
       return { ok: false, error: e instanceof Error ? e.message : "unreachable" };
     }
+  },
+};
+
+/** v3 sub-client for 100x upgrade endpoints — mirrors `remote` but returns full Envelope. */
+export const v3 = {
+  async call<T = unknown>(path: string, init?: RequestInit): Promise<import("./types").Envelope<T>> {
+    if (!remoteEnabled()) throw new Error("Remote not enabled.");
+    const res = await fetch(`${cfg.baseUrl}${path}`, {
+      ...init,
+      headers: {
+        "content-type": "application/json",
+        ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
+    return res.json().catch(() => ({ ok: false, error: { code: "NETWORK_ERROR", message: "Failed to parse response" }, traceId: "" }));
   },
 };

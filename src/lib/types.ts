@@ -275,6 +275,30 @@ export const killSwitchInputSchema = z.object({
   reason: z.string().trim().max(300).optional(),
 });
 
+/* ── V3 100x: Skill registry types ────────────────────────────────── */
+
+export interface SkillManifest {
+  skillId: string;
+  name: string;
+  description: string;
+  category: string;
+  tags: string[];
+  version: string;
+}
+
+export interface SkillResult<T = unknown> {
+  ok: boolean;
+  data?: T;
+  error?: string;
+  durationMs: number;
+}
+
+export interface InvocationContext {
+  principalId: string;
+  scopes: string[];
+  requestId: string;
+}
+
 export const principalInputSchema = z.object({
   name: z.string().trim().min(1).max(80),
   scopes: z.array(z.enum(SCOPES)).min(1),

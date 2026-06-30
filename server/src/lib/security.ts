@@ -46,6 +46,10 @@ export function generateApiKey(): string {
 export const ALL_SCOPES = [
   "memory:read", "memory:write", "skill:read", "skill:write",
   "brain:admin", "vault:read", "vault:write", "safety:write", "audit:read",
+  "llm:chat", "llm:admin",
+  "plugin:admin", "plugin:invoke",
+  "federated:read", "federated:write",
+  "pipeline:admin", "pipeline:execute",
 ] as const;
 export type Scope = (typeof ALL_SCOPES)[number];
 
