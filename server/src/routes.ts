@@ -27,6 +27,7 @@ import { metricsOutput, metricsContentType } from "./services/metrics.js";
 import { agents } from "./routes/agents.js";
 import { automation } from "./routes/automation.js";
 import { sse } from "./routes/sse.js";
+import { v3upgrade } from "./routes/v3-upgrade.js";
 
 export const api = new Hono<NexusEnv>();
 
@@ -36,6 +37,7 @@ api.onError((e, c) => fail(c, e));
 api.route("/", agents);
 api.route("/", automation);
 api.route("/", sse);
+api.route("/", v3upgrade);
 
 // ---- Public ----
 api.get("/api/v1/health", async (c) => {

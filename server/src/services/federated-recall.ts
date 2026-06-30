@@ -90,18 +90,16 @@ export async function publishMemoryProof(input: {
     ttl_seconds: input.ttlSeconds,
   };
   const canonical = canonicalizeProof(envelope);
-  const { createSign } = await import("node:crypto");
-  const signer = createSign("sha256");
-  signer.update(canonical);
-  signer.end();
-  const signature = signer.sign(Buffer.from(input.publisherPrivKeyB64, "base64")).toString("base64");
+  const { sign, createPrivateKey } = await import("node:crypto");
+  const privKeyObj = createPrivateKey({ key: Buffer.from(input.publisherPrivKeyB64, "base64"), format: "der", type: "pkcs8" });
+  const signature = sign(null, Buffer.from(canonical, "utf-8"), privKeyObj).toString("base64");
   return { ...envelope, signature };
 }
 
 function derivePubkey(privKeyB64: string): string {
-  // We use a deterministic Derive: SPKI pubkey from PKCS8 private key.
-  const { createPrivateKey } = require("node:crypto") as typeof import("node:crypto");
-  const pubKeyObj = createPrivateKey({ key: Buffer.from(privKeyB64, "base64"), format: "der", type: "pkcs8" });
+  const { createPrivateKey, createPublicKey } = require("node:crypto") as typeof import("node:crypto");
+  const privKeyObj = createPrivateKey({ key: Buffer.from(privKeyB64, "base64"), format: "der", type: "pkcs8" });
+  const pubKeyObj = createPublicKey(privKeyObj);
   return pubKeyObj.export({ format: "der", type: "spki" }).toString("base64");
 }
 
