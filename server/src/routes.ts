@@ -21,7 +21,7 @@ import { dbReachable, isPgvectorInstalled } from "./setup.js";
 import { llmConfigured, getEnv } from "./lib/env.js";
 import { z } from "zod";
 import { verifyAndAutoKill, logTrajectory, logToolReceipt } from "./services/audit-engine.js";
-import { broadcastSSE, getSSEClientCount } from "./services/bus.js";
+import { broadcastSSE, getSSEClientCount } from "./services/sse-bus.js";
 import { runCompilationPipeline, listCompiledScripts } from "./services/skill-compiler.js";
 import { metricsOutput, metricsContentType } from "./services/metrics.js";
 import { agents } from "./routes/agents.js";

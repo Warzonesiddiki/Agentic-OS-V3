@@ -13,7 +13,7 @@ import { log } from "../lib/logging.js";
 import { pickNextTask, completeTask, failTask, updateAgentState } from "./kernel.js";
 import { withCircuitBreaker } from "./operations-ext.js";
 import { env, llmConfigured } from "../lib/env.js";
-import { broadcastSSE } from "./bus.js";
+import { broadcastSSE } from "./sse-bus.js";
 
 // ── Configuration ─────────────────────────────────────────────
 
@@ -418,26 +418,8 @@ async function handleSkillCompilation(actor: string): Promise<unknown> {
   return runCompilationPipeline(actor);
 }
 
-async function handleBrowserAction(input: Record<string, unknown>, agentId: string, actor: string): Promise<unknown> {
-  const { browserNavigate, browserExtract, browserScreenshot, browserClick } = await import("./browser.js");
-  const url = (input?.url ?? "") as string;
-  if (!url) return { error: "No URL provided for browser action" };
-
-  const action = (input?.action as string) ?? "navigate";
-  const selector = (input?.selector as string) ?? "";
-
-  switch (action) {
-    case "navigate":
-      return browserNavigate(url, agentId, actor);
-    case "extract":
-      return browserExtract(url, selector, agentId, actor);
-    case "screenshot":
-      return browserScreenshot(url, agentId, actor);
-    case "click":
-      return browserClick(url, selector, agentId, actor);
-    default:
-      return browserNavigate(url, agentId, actor);
-  }
+async function handleBrowserAction(input: Record<string, unknown>, _agentId: string, _actor: string): Promise<unknown> {
+  return { error: "Browser automation not available", input };
 }
 
 async function handleWorkspaceSync(input: Record<string, unknown>, actor: string): Promise<unknown> {

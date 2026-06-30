@@ -9,7 +9,7 @@
   <img src="https://img.shields.io/badge/node-%3E%3D20-339933" alt="Node >=20">
   <img src="https://img.shields.io/badge/postgresql-17-336791" alt="PostgreSQL 17">
   <img src="https://img.shields.io/badge/pgvector-0.8-4169e1" alt="pgvector 0.8">
-  <img src="https://img.shields.io/badge/license-MIT-yellow" alt="MIT License">
+  <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache 2.0 License">
 </p>
 
 ---
@@ -706,6 +706,4 @@ Additional docs are in the `docs/` directory:
 
 ## License
 
-MIT — see LICENSE for details.
-
-Built with ❤️ by the NEXUS team.
+Apache 2.0 — see LICENSE for details.

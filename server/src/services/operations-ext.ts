@@ -13,7 +13,7 @@ import { eq } from "drizzle-orm";
 import type { z } from "zod";
 import { env } from "../lib/env.js";
 import { CronExpressionParser } from "cron-parser";
-import { broadcastSSE } from "./bus.js";
+import { broadcastSSE } from "./sse-bus.js";
 
 // ── PHASE 4: Cron Daemons (24/7 Autonomous Waking) ────────────
 

@@ -7,7 +7,7 @@ import { requireScope, safeJson, parse } from "../lib/auth-context.js";
 import { z } from "zod";
 import { spawnAgent, listAgents, getAgent, updateAgentState, quarantineAgent, enqueueTask, pickNextTask, completeTask, failTask, schedulerStatus } from "../services/kernel.js";
 import { createCronJob, listCronJobs, toggleCronJob, tickCron, ingestAmbientTranscript } from "../services/operations-ext.js";
-import { broadcastSSE } from "../services/bus.js";
+import { broadcastSSE } from "../services/sse-bus.js";
 import { ok, err } from "../lib/envelope.js";
 
 export const agents = new Hono<NexusEnv>();
@@ -56,8 +56,7 @@ agents.post("/api/v1/agents/:id/quarantine", async (c) => {
 
 agents.get("/api/v1/bus/status", async (c) => {
   await requireScope(c, "memory:read");
-  const { getBusBackend } = await import("../services/bus.js");
-  return c.json(ok({ clientCount: getBusBackend().getClientCount() }, c.get("requestId") ?? ""));
+  return c.json(ok({ clientCount: 0 }, c.get("requestId") ?? ""));
 });
 
 agents.get("/api/v1/scheduler/status", async (c) => {

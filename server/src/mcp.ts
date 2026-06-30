@@ -15,7 +15,7 @@ import { memories, skills, tokenLedger, auditLog, notes } from "./db/schema.js";
 import { dbReachable } from "./setup.js";
 import type { Scope } from "./lib/security.js";
 import { spawnAgent, listAgents, enqueueTask, schedulerStatus, checkACL } from "./services/kernel.js";
-import { browserNavigate, browserExtract, browserScreenshot } from "./services/browser.js";
+
 import { createCronJob, listCronJobs, ingestAmbientTranscript } from "./services/operations-ext.js";
 import { statsCache } from "./lib/lru-cache.js";
 
@@ -177,32 +177,27 @@ export function createNexusMcpServer(actor: string, scopes: Scope[]): McpServer 
     return { content: [{ type: "text", text: JSON.stringify({ jobs }) }] };
   });
 
-  /* ---- Phase 5: Browser Automation ---- */
+  /* ---- Phase 5: Browser Automation (stubbed — browser service removed) ---- */
 
   server.tool("nexus_browser_navigate", "Navigate to a URL and extract page text.", {
     url: z.string().url(), agentId: z.string(),
-  }, async ({ url, agentId }) => {
+  }, async () => {
     if (!can("memory:write")) return deny("nexus_browser_navigate", "memory:write");
-    const result = await browserNavigate(url, agentId, actor);
-    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    return { content: [{ type: "text", text: JSON.stringify({ error: "Browser automation not available" }) }] };
   });
 
   server.tool("nexus_browser_extract", "Extract text content from a web page.", {
     url: z.string().url(), selector: z.string().optional(), agentId: z.string(),
-  }, async ({ url, selector, agentId }) => {
+  }, async () => {
     if (!can("memory:read")) return deny("nexus_browser_extract", "memory:read");
-    const result = await browserExtract(url, selector ?? "", agentId, actor);
-    return { content: [{ type: "text", text: JSON.stringify(result) }] };
+    return { content: [{ type: "text", text: JSON.stringify({ error: "Browser automation not available" }) }] };
   });
 
   server.tool("nexus_browser_screenshot", "Take a screenshot of a web page.", {
     url: z.string().url(), agentId: z.string(),
-  }, async ({ url, agentId }) => {
+  }, async () => {
     if (!can("memory:read")) return deny("nexus_browser_screenshot", "memory:read");
-    const result = await browserScreenshot(url, agentId, actor);
-    // Don't include base64 screenshot in text — too large
-    const summary = { ok: result.ok, url: result.url, error: result.error, hasScreenshot: Boolean(result.screenshot), durationMs: result.durationMs };
-    return { content: [{ type: "text", text: JSON.stringify(summary) }] };
+    return { content: [{ type: "text", text: JSON.stringify({ error: "Browser automation not available" }) }] };
   });
 
   /* ---- Phase 4: Ambient Ingestion ---- */

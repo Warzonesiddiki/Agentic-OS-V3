@@ -7,14 +7,22 @@ dist/
 out/
 coverage/
 *.tsbuildinfo
+*.tsbuildinfo.*
+server/dist/
 
 # env / secrets — NEVER commit
-.env
-.env.*
+**/.env
+**/.env.*
 !.env.example
+!server/.env.example
 
 # editor / OS
 .DS_Store
 .vscode/
 .idea/
 *.log
+*.swp
+*.swo
+*.bak
+Thumbs.db
+*.tgz

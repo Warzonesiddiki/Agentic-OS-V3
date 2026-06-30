@@ -1,43 +1,14 @@
-/**
- * routes/automation.ts — Browser automation, HITL approval gates, workspace sync.
- */
 import { Hono } from "hono";
 import type { NexusEnv } from "../lib/hono-env.js";
 import { requireScope, safeJson, parse } from "../lib/auth-context.js";
 import { z } from "zod";
-import { browserNavigate, browserClick, browserExtract, browserScreenshot } from "../services/browser.js";
 import { requestApproval, resolveApproval } from "../services/operations-ext.js";
 import { syncWorkspace } from "../services/workspace-sync.js";
 import { safeVaultPath } from "../lib/guards.js";
-import { broadcastSSE } from "../services/bus.js";
+import { broadcastSSE } from "../services/sse-bus.js";
 import { ok, err } from "../lib/envelope.js";
 
 export const automation = new Hono<NexusEnv>();
-
-// Browser automation
-automation.post("/api/v1/browser/navigate", async (c) => {
-  const p = await requireScope(c, "memory:write");
-  const body = parse(z.object({ url: z.string().url(), agentId: z.string() }), await safeJson(c));
-  return c.json(ok(await browserNavigate(body.url, body.agentId, p.id), c.get("requestId") ?? ""));
-});
-
-automation.post("/api/v1/browser/click", async (c) => {
-  const p = await requireScope(c, "memory:write");
-  const body = parse(z.object({ url: z.string().url(), selector: z.string(), agentId: z.string() }), await safeJson(c));
-  return c.json(ok(await browserClick(body.url, body.selector, body.agentId, p.id), c.get("requestId") ?? ""));
-});
-
-automation.post("/api/v1/browser/extract", async (c) => {
-  const p = await requireScope(c, "memory:read");
-  const body = parse(z.object({ url: z.string().url(), selector: z.string().optional(), agentId: z.string() }), await safeJson(c));
-  return c.json(ok(await browserExtract(body.url, body.selector ?? "", body.agentId, p.id), c.get("requestId") ?? ""));
-});
-
-automation.post("/api/v1/browser/screenshot", async (c) => {
-  const p = await requireScope(c, "memory:read");
-  const body = parse(z.object({ url: z.string().url(), agentId: z.string() }), await safeJson(c));
-  return c.json(ok(await browserScreenshot(body.url, body.agentId, p.id), c.get("requestId") ?? ""));
-});
 
 // HITL approvals
 automation.post("/api/v1/approvals/request", async (c) => {

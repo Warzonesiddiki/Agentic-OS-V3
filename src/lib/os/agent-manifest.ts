@@ -1,5 +1,5 @@
-"""
-* agent-manifest.ts - Core Agent Manifest Parser and Manager for Agentic OS V3
+/**
+ * agent-manifest.ts - Core Agent Manifest Parser and Manager for Agentic OS V3
 
 * Complete implementation for Phase 2a - YAML Agent Manifests (systemd for agents)
 *

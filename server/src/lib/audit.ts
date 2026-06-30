@@ -128,10 +128,7 @@ export async function appendAudit(
 
   const entry = tx ? await doAppend(tx) : await db.transaction(doAppend);
 
-  // Fire-and-forget blockchain anchoring (non-blocking, outside the DB tx)
-  if (createdCpSequence > 0) {
-    import("../services/blockchain.js").then((m) => m.anchorLatestCheckpoint()).catch((e) => { log.error("blockchain_anchor_failed", { error: e instanceof Error ? e.message : String(e) }); });
-  }
+
 
   return entry;
 }

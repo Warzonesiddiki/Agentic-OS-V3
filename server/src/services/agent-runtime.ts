@@ -20,7 +20,7 @@ import { appendAudit } from "../lib/audit.js";
 import { callLLM } from "./llm.js";
 import { recall } from "./recall.js";
 import { createMemory, createSkill } from "../services.js";
-import { browserNavigate, browserExtract } from "./browser.js";
+
 import { getAgent, incrementTokenUsage, listAgents } from "./kernel.js";
 import { db } from "../db/client.js";
 import { memories, skills } from "../db/schema.js";
@@ -408,8 +408,8 @@ export function createDefaultActions(): Action[] {
       schema: z.object({
         url: zStr("The URL to visit"),
       }),
-      handler: async (input, ctx) => {
-        return browserNavigate(String(input.url), ctx.agentId, ctx.actor);
+      handler: async () => {
+        return { error: "Browser automation not available" };
       },
       similes: ["visit", "open url", "browse", "fetch page", "open page"],
       examples: [
@@ -428,8 +428,8 @@ export function createDefaultActions(): Action[] {
         url: zStr(),
         selector: zStr("CSS selector (optional)").optional().default("body"),
       }),
-      handler: async (input, ctx) => {
-        return browserExtract(String(input.url), String(input.selector ?? "body"), ctx.agentId, ctx.actor);
+      handler: async () => {
+        return { error: "Browser automation not available" };
       },
       similes: ["extract", "scrape", "get text", "parse page"],
       examples: [

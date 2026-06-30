@@ -15,7 +15,7 @@ import { db } from "./db/client.js";
 import { log } from "./lib/logging.js";
 import type { Envelope } from "./lib/envelope.js";
 import type { NexusEnv } from "./lib/hono-env.js";
-import { consume, clientIpFromHeaders } from "./lib/rateLimit.js";
+import { consume, clientIpFromHeaders } from "./lib/rate-limit.js";
 
 const ALLOWED_ORIGINS = env.NEXUS_ALLOWED_ORIGINS.split(",").map((s) => s.trim());
 

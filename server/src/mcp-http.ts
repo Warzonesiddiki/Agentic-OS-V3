@@ -16,7 +16,7 @@ import { createNexusMcpServer } from "./mcp.js";
 import { authenticate } from "./lib/security.js";
 import { db } from "./db/client.js";
 import { env } from "./lib/env.js";
-import { consume, clientIpFromHeaders } from "./lib/rateLimit.js";
+import { consume, clientIpFromHeaders } from "./lib/rate-limit.js";
 
 const SECURITY_HEADERS: Record<string, string> = {
   "x-content-type-options": "nosniff",

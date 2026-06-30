@@ -449,7 +449,7 @@ export class Scheduler {
 
   /** Dispatch the job's action handler. For now emits an SSE event. */
   private async dispatchAction(row: typeof cronJobs.$inferSelect, execution: JobExecution): Promise<unknown> {
-    const { broadcastSSE } = await import("./bus.js");
+    const { broadcastSSE } = await import("./sse-bus.js");
     broadcastSSE({
       type: "cron.fired",
       data: {

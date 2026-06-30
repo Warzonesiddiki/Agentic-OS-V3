@@ -46,7 +46,7 @@ sse.get("/api/v1/events", async (c) => {
       if (!principal) return c.json(err("UNAUTHORIZED", "Invalid API key.", c.get("requestId") ?? ""), 401);
     }
   }
-  const { addSSEClient } = await import("../services/bus.js");
+  const { addSSEClient } = await import("../services/sse-bus.js");
   const stream = new ReadableStream({
     start(controller) {
       const encoder = new TextEncoder();
@@ -65,6 +65,6 @@ sse.get("/api/v1/events", async (c) => {
 });
 
 sse.get("/api/v1/events/count", async (c) => {
-  const { getSSEClientCount } = await import("../services/bus.js");
+  const { getSSEClientCount } = await import("../services/sse-bus.js");
   return c.json(ok({ clients: getSSEClientCount() }, c.get("requestId") ?? ""));
 });

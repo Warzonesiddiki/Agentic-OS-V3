@@ -1,22 +1,22 @@
-"""
-* agent-orchestrator-infrastructure.ts - Extended Agent Orchestrator with Tool Integration Hub
-*
-* This file enhances the AgentOrchestratorImpl to provide complete Tool Integration Hub capabilities
-* for Phase 3.1 (Tool Integration Hub) following the AGENTIC_OS_PLAN.md roadmap.
-*
-* Key enhancements:
-* - Tool discovery and management across all CLIs
-* - Cross-client tool sharing and synchronization
-* - Tool execution bridge and middleware
-* - Tool authentication and authorization
-* - Comprehensive tool inventory and status tracking
-* 
-* Integrates with existing Phase 2 components (agent-orchestrator.ts, agent-manifest.ts)
-* and prepares for Phase 3.2 (IPC Message Bus) and Phase 3.3 (MCP Server Registry)
-*
-* Source: Extended from agent-orchestrator.ts with Phase 3.1 additions
-* Status: ✅ COMPLETE - Ready for Phase 3.2 implementation
-"""
+/**
+ * agent-orchestrator-infrastructure.ts - Extended Agent Orchestrator with Tool Integration Hub
+ *
+ * This file enhances the AgentOrchestratorImpl to provide complete Tool Integration Hub capabilities
+ * for Phase 3.1 (Tool Integration Hub) following the AGENTIC_OS_PLAN.md roadmap.
+ *
+ * Key enhancements:
+ * - Tool discovery and management across all CLIs
+ * - Cross-client tool sharing and synchronization
+ * - Tool execution bridge and middleware
+ * - Tool authentication and authorization
+ * - Comprehensive tool inventory and status tracking
+ * 
+ * Integrates with existing Phase 2 components (agent-orchestrator.ts, agent-manifest.ts)
+ * and prepares for Phase 3.2 (IPC Message Bus) and Phase 3.3 (MCP Server Registry)
+ *
+ * Source: Extended from agent-orchestrator.ts with Phase 3.1 additions
+ * Status: COMPLETE - Ready for Phase 3.2 implementation
+ */
 
 import { rid, now } from "./core";
 import { appendAudit, getState as getBrain } from "../engine";

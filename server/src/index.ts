@@ -89,9 +89,8 @@ async function bootstrap(): Promise<void> {
 
   await appendAudit("system.booted", { version: "2.0.0", killSwitch: await isKillSwitchOn() }, "system");
 
-  // Initialize the event bus (memory or Redis).
-  const { initBus } = await import("./services/bus.js");
-  await initBus();
+  const bus = await import("./services/message-bus.js");
+  log.info("bus_initialized");
 
   // Start the background task worker — polls tasks, processes them, and runs maintenance.
   const { startWorker } = await import("./services/task-worker.js");
@@ -118,13 +117,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     stopWorker();
   } catch { /* best-effort */ }
 
-  // Stop the event bus (memory or Redis). For Redis backend this
-  // closes the pub/sub connection; memory backend is a no-op.
-  try {
-    const bus = await import("./services/bus.js");
-    const busModule = bus as { closeBus?: () => void };
-    if (typeof busModule.closeBus === "function") busModule.closeBus();
-  } catch { /* best-effort */ }
+  log.info("bus_stopped");
 
   // Close the HTTP server with a 5s drain timeout.
   if (server) {
