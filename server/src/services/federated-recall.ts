@@ -2,8 +2,10 @@
 /**
  * federated-recall.ts
  * ───────────────────
- * Pillar III of the 100× upgrade.
+ * Pillar III of the 100× upgrade — Privacy-preserving federated memory proof
+ * protocol, enhanced with Phase 4b: Federated Recall Enhancements.
  *
+ * ## Layer 1 — Federated Memory Protocol (original pillar III)
  * Privacy-preserving protocol so multiple NEXUS instances can share memories
  * without leaking raw content. The wire format is a `MemoryProof` envelope:
  *
@@ -15,37 +17,49 @@
  *     privacy_class,             // public | team | private
  *   }
  *
- * Steps on the wire:
- *   1. publisher hashes content, computes embedding, signs canonical envelope
- *   2. gossip on topic "nexus.recall.v1"
- *   3. receiver validates signature, dedupes by content_sha256,
- *      checks privacy budget, decides to materialize or reject
+ * ## Layer 2 — Federated Recall Enhancements (Phase 4b)
+ * Adds intelligent multi-signal recall on top of local + federated memories:
+ *   - Recency scoring      (exponential decay on age)
+ *   - Importance weighting (prioritize high-value memories)
+ *   - BM25 lexical search  (term-frequency ranking)
+ *   - Semantic similarity  (pgvector cosine distance)
+ *   - Reciprocal Rank Fusion (RRF blending)
+ *   - Budget-aware packing (token-budgeted result selection)
+ *   - LRU state cache      (composed agent state caching)
+ *   - Cross-session persistence (memories survive session boundaries)
  *
- * Raw content is NEVER transmitted. Receivers can only reconstruct what they
- * already had, OR — if they don't — they get a *pointer* (content_sha256) and
- * can pull the full content through a separate, authorized channel.
+ * Integration points:
+ *   - `src/lib/os/types.ts`     → MemoryCard, OSState
+ *   - `src/lib/os/store.ts`     → OS state persistence
+ *   - `src/lib/os/kernel.ts`    → doGraphRecall, compactContext
  */
 import { createHash, verify, randomUUID } from "node:crypto";
 import { db } from "../db/client.js";
 import { federatedMemoryProofs } from "../db/schema-v3-100x.js";
-import { desc, eq, and, sql } from "drizzle-orm";
+import { memories, skills, notes } from "../db/schema.js";
+import { desc, eq, and, sql, isNotNull, inArray } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
+import { embedQuery, embeddingsAvailable } from "./embeddings.js";
+import { estimateTokens, packByBudget, bm25 as bm25Score } from "../lib/tokens.js";
+import { truncate } from "../lib/strings.js";
+import { env } from "../lib/env.js";
 
-/* ─── Public types ───────────────────────────────────────────────────────── */
+/* ════════════════════════════════════════════════════════════════════════════
+ * LAYER 1 — Federated Memory Protocol (original)
+ * ════════════════════════════════════════════════════════════════════════════ */
 
 export type PrivacyClass = "public" | "team" | "private";
 
 export interface MemoryProof {
   origin_peer_id: string;
-  origin_pubkey: string;        // base64 ed25519 pubkey
-  signature: string;             // base64 ed25519 sig over canonical envelope (excluding signature)
+  origin_pubkey: string;
+  signature: string;
   content_sha256: string;
   embedding: number[];
   topic_tags: string[];
-  importance: number;            // 0..1
+  importance: number;
   privacy_class: PrivacyClass;
-  /** Optional TTL in seconds. */
   ttl_seconds?: number;
 }
 
@@ -53,8 +67,6 @@ export interface MaterializationDecision {
   materialize: boolean;
   reason: string;
 }
-
-/* ─── Canonicalization (must match the publisher side) ───────────────────── */
 
 const CANONICAL_KEY_ORDER = [
   "origin_peer_id", "origin_pubkey", "content_sha256",
@@ -67,11 +79,9 @@ export function canonicalizeProof(proof: Omit<MemoryProof, "signature">): string
   return JSON.stringify(ordered);
 }
 
-/* ─── Publisher side: produce a proof ────────────────────────────────────── */
-
 export async function publishMemoryProof(input: {
   peerId: string;
-  publisherPrivKeyB64: string;   // base64 ed25519 private key (DER)
+  publisherPrivKeyB64: string;
   contentSha256: string;
   embedding: number[];
   topicTags: string[];
@@ -103,8 +113,6 @@ function derivePubkey(privKeyB64: string): string {
   return pubKeyObj.export({ format: "der", type: "spki" }).toString("base64");
 }
 
-/* ─── Receiver side: validate a proof ────────────────────────────────────── */
-
 export function verifyMemoryProofSignature(proof: MemoryProof): boolean {
   try {
     const canonical = canonicalizeProof({
@@ -130,8 +138,6 @@ export function verifyMemoryProofSignature(proof: MemoryProof): boolean {
   }
 }
 
-/* ─── Privacy budget (per-topic daily cap) ───────────────────────────────── */
-
 const DEFAULT_BUDGET_PER_TOPIC_PER_DAY = 100;
 const budgetState = new Map<string, { count: number; resetAt: number }>();
 
@@ -140,10 +146,9 @@ function budgetKey(topic: string): string {
   return `${day}:${topic}`;
 }
 
-/** Returns the per-topic daily limit. Override via env if needed. */
 export function privacyBudgetForTopic(topic: string): number {
-  const env = process.env[`NEXUS_FED_BUDGET_${topic.toUpperCase().replace(/\W+/g, "_")}`];
-  const parsed = env ? Number(env) : NaN;
+  const envVal = process.env[`NEXUS_FED_BUDGET_${topic.toUpperCase().replace(/\W+/g, "_")}`];
+  const parsed = envVal ? Number(envVal) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_BUDGET_PER_TOPIC_PER_DAY;
 }
 
@@ -167,8 +172,6 @@ export function refundBudget(topic: string): void {
   if (entry && entry.count > 0) entry.count--;
 }
 
-/* ─── Materialization decision (default-deny for private, default-allow for public) ── */
-
 export async function decideMaterialization(proof: MemoryProof): Promise<MaterializationDecision> {
   if (proof.privacy_class === "private") {
     return { materialize: false, reason: "private_class_default_deny" };
@@ -187,10 +190,7 @@ export async function decideMaterialization(proof: MemoryProof): Promise<Materia
   return { materialize: true, reason: "ok" };
 }
 
-/* ─── Ingest (the hot path on the receiver side) ────────────────────────── */
-
 export async function ingestMemoryProof(proof: MemoryProof): Promise<{ id: string; materialized: boolean; reason: string }> {
-  // 1. Signature MUST verify
   if (!verifyMemoryProofSignature(proof)) {
     await appendAudit("federated.signature_invalid", {
       originPeerId: proof.origin_peer_id,
@@ -199,7 +199,6 @@ export async function ingestMemoryProof(proof: MemoryProof): Promise<{ id: strin
     throw new Error("federated_signature_invalid");
   }
 
-  // 2. Dedupe by (origin_peer_id, content_sha256)
   const existing = await db.query.federatedMemoryProofs.findFirst({
     where: and(
       eq(federatedMemoryProofs.originPeerId, proof.origin_peer_id),
@@ -210,7 +209,6 @@ export async function ingestMemoryProof(proof: MemoryProof): Promise<{ id: strin
     return { id: existing.id, materialized: existing.materialized, reason: existing.rejectReason ?? "duplicate" };
   }
 
-  // 3. Decide whether to materialize
   const decision = await decideMaterialization(proof);
   const id = `fmp_${randomUUID()}`;
   const expiresAt = proof.ttl_seconds
@@ -256,8 +254,6 @@ export async function ingestMemoryProof(proof: MemoryProof): Promise<{ id: strin
   return { id, materialized: decision.materialize, reason: decision.reason };
 }
 
-/* ─── Query (used by the recall UI to surface federated hints) ──────────── */
-
 export async function listRecentProofs(opts?: { materialized?: boolean; topic?: string; limit?: number }) {
   const where = and(
     opts?.materialized !== undefined ? eq(federatedMemoryProofs.materialized, opts.materialized) : undefined,
@@ -267,14 +263,11 @@ export async function listRecentProofs(opts?: { materialized?: boolean; topic?: 
     orderBy: [desc(federatedMemoryProofs.receivedAt)],
     limit: opts?.limit ?? 50,
   });
-  // Filter by topic in-app (the GIN index helps but only with a query DSL Drizzle doesn't expose)
   if (opts?.topic) {
     return rows.filter((r) => (r.topicTags ?? []).includes(opts.topic!));
   }
   return rows;
 }
-
-/* ─── Stats (used by the analytics page) ────────────────────────────────── */
 
 export async function federatedStats(): Promise<{
   total: number;
@@ -293,4 +286,781 @@ export async function federatedStats(): Promise<{
     for (const t of r.topicTags ?? []) byTopic[t] = (byTopic[t] ?? 0) + 1;
   }
   return { total: rows.length, materialized, rejected: rows.length - materialized, byReason, byTopic };
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * LAYER 2 — Federated Recall Enhancements (Phase 4b)
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/* ─── Constants ─────────────────────────────────────────────────────────── */
+
+const DAY_MS = 86_400_000;
+const RRF_K = env.NEXUS_RRF_K;
+const RECENCY_HALFLIFE_DAYS = env.NEXUS_RECENCY_HALFLIFE_DAYS;
+const W_RRF = env.NEXUS_RECALL_WEIGHT_RRF;
+const W_IMPORTANCE = env.NEXUS_RECALL_WEIGHT_IMPORTANCE;
+const W_RECENCY = env.NEXUS_RECALL_WEIGHT_RECENCY;
+const MAX_CORPUS = env.NEXUS_MAX_RECALL_CORPUS;
+const SEMANTIC_THRESHOLD = env.NEXUS_SEMANTIC_THRESHOLD;
+
+/* ─── Phase 4b: Types ──────────────────────────────────────────────────── */
+
+export interface RecallItem {
+  id: string;
+  type: "memory" | "skill" | "note" | "federated";
+  title: string;
+  content: string;
+  score: number;
+  tokenCost: number;
+  source: string;
+  importance: number;
+  recency: number;
+  matchedBy: ("bm25" | "semantic")[];
+}
+
+export interface RecallResult {
+  query: string;
+  returned: RecallItem[];
+  tokensUsed: number;
+  tokenBudget: number;
+  truncated: number;
+  mode: "lexical" | "semantic";
+  federatedContribution: number;
+  nextCursor?: number;
+}
+
+export interface RecallFilters {
+  types?: ("memory" | "skill" | "note" | "federated")[];
+  importanceMin?: number;
+  importanceMax?: number;
+  topicTags?: string[];
+  privacyClass?: PrivacyClass;
+  peerIds?: string[];
+  since?: Date;
+  until?: Date;
+}
+
+export interface RecallOptions {
+  cursor?: number;
+  limit?: number;
+  includeFederated?: boolean;
+  minScore?: number;
+  dedupeContent?: boolean;
+}
+
+export interface RecallQuery {
+  text: string;
+  budget: number;
+  actor: string;
+  filters?: RecallFilters;
+  options?: RecallOptions;
+}
+
+export interface LRUStats {
+  size: number;
+  capacity: number;
+  hits: number;
+  misses: number;
+  evictions: number;
+  hitRate: number;
+}
+
+interface RawItem {
+  id: string;
+  type: "memory" | "skill" | "note" | "federated";
+  title: string;
+  content: string;
+  importance: number;
+  updatedAt: Date;
+  source: string;
+}
+
+/* ─── Phase 4b: Enhanced LRU Cache with Statistics ──────────────────────── */
+
+interface CacheEntry<V> {
+  value: V;
+  expiresAt: number;
+}
+
+export class LRUCache<K, V> {
+  private map = new Map<K, CacheEntry<V>>();
+  private readonly capacity: number;
+  private readonly ttlMs: number;
+  hits = 0;
+  misses = 0;
+  evictions = 0;
+
+  constructor(capacity = 256, ttlMs = 30_000) {
+    this.capacity = capacity;
+    this.ttlMs = ttlMs;
+  }
+
+  get(key: K): V | undefined {
+    const entry = this.map.get(key);
+    if (!entry) {
+      this.misses++;
+      return undefined;
+    }
+    if (Date.now() > entry.expiresAt) {
+      this.map.delete(key);
+      this.evictions++;
+      this.misses++;
+      return undefined;
+    }
+    this.map.delete(key);
+    this.map.set(key, entry);
+    this.hits++;
+    return entry.value;
+  }
+
+  set(key: K, value: V, customTtlMs?: number): void {
+    if (this.map.size >= this.capacity && !this.map.has(key)) {
+      const oldestKey = this.map.keys().next().value;
+      if (oldestKey !== undefined) {
+        this.map.delete(oldestKey);
+        this.evictions++;
+      }
+    }
+    this.map.set(key, {
+      value,
+      expiresAt: Date.now() + (customTtlMs ?? this.ttlMs),
+    });
+  }
+
+  delete(key: K): void {
+    this.map.delete(key);
+  }
+
+  clear(): void {
+    this.map.clear();
+    this.hits = 0;
+    this.misses = 0;
+    this.evictions = 0;
+  }
+
+  get hitRate(): number {
+    const total = this.hits + this.misses;
+    return total === 0 ? 0 : this.hits / total;
+  }
+
+  get size(): number {
+    return this.map.size;
+  }
+
+  stats(): LRUStats {
+    return {
+      size: this.map.size,
+      capacity: this.capacity,
+      hits: this.hits,
+      misses: this.misses,
+      evictions: this.evictions,
+      hitRate: this.hitRate,
+    };
+  }
+}
+
+/* ─── Phase 4b: Scoring Functions ─────────────────────────────────────── */
+
+export function computeRecency(updatedAt: Date | number, halfLifeDays = RECENCY_HALFLIFE_DAYS): number {
+  const age = Date.now() - (updatedAt instanceof Date ? updatedAt.getTime() : updatedAt);
+  return Math.exp(-(age / (halfLifeDays * DAY_MS)));
+}
+
+export function computeImportance(raw: number): number {
+  return Math.max(0, Math.min(1, raw));
+}
+
+export function cosineSimilarity(a: number[], b: number[]): number {
+  const dim = Math.min(a.length, b.length);
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < dim; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  const mag = Math.sqrt(na) * Math.sqrt(nb);
+  return mag === 0 ? 0 : dot / mag;
+}
+
+export function reciprocalRankFusion(
+  ranks: Map<string, number>[],
+  k = RRF_K,
+): Map<string, number> {
+  const fused = new Map<string, number>();
+  for (const rankMap of ranks) {
+    for (const [id, rank] of rankMap) {
+      fused.set(id, (fused.get(id) ?? 0) + 1 / (k + rank + 1));
+    }
+  }
+  if (fused.size === 0) return fused;
+  const maxPossible = 1 / (k + 1) * ranks.length;
+  for (const [id, score] of fused) {
+    fused.set(id, score / maxPossible);
+  }
+  return fused;
+}
+
+/* ─── Phase 4b: State Cache for Composed Agent State ───────────────────── */
+
+type StateCacheKey = `agent:${string}`;
+interface CachedState {
+  items: RecallItem[];
+  tokens: number;
+  cachedAt: number;
+}
+
+export const agentStateCache = new LRUCache<StateCacheKey, CachedState>(128, 60_000);
+
+export function getCachedAgentState(agentId: string): CachedState | undefined {
+  return agentStateCache.get(`agent:${agentId}` as StateCacheKey);
+}
+
+export function setCachedAgentState(agentId: string, state: CachedState): void {
+  agentStateCache.set(`agent:${agentId}` as StateCacheKey, state);
+}
+
+export function invalidateAgentState(agentId: string): void {
+  agentStateCache.delete(`agent:${agentId}` as StateCacheKey);
+}
+
+export function getAgentStateCacheStats(): LRUStats {
+  return agentStateCache.stats();
+}
+
+/* ─── Phase 4b: Cross-session Persistence ──────────────────────────────── */
+
+const SESSION_MEMORY_KEY = "nexus:fed:session_memories";
+const sessionMemoryStore = new Map<string, { items: RecallItem[]; savedAt: number }>();
+
+export function persistSessionMemories(sessionId: string, items: RecallItem[]): void {
+  sessionMemoryStore.set(sessionId, { items, savedAt: Date.now() });
+}
+
+export function loadSessionMemories(sessionId: string): RecallItem[] {
+  const entry = sessionMemoryStore.get(sessionId);
+  if (!entry) return [];
+  const age = Date.now() - entry.savedAt;
+  if (age > DAY_MS * 30) {
+    sessionMemoryStore.delete(sessionId);
+    return [];
+  }
+  return entry.items;
+}
+
+export function pruneStaleSessions(maxAgeDays = 30): number {
+  const cutoff = Date.now() - maxAgeDays * DAY_MS;
+  let pruned = 0;
+  for (const [id, entry] of sessionMemoryStore) {
+    if (entry.savedAt < cutoff) {
+      sessionMemoryStore.delete(id);
+      pruned++;
+    }
+  }
+  return pruned;
+}
+
+export function listActiveSessions(): { sessionId: string; itemCount: number; age: number }[] {
+  const now = Date.now();
+  return Array.from(sessionMemoryStore.entries()).map(([id, entry]) => ({
+    sessionId: id,
+    itemCount: entry.items.length,
+    age: Math.floor((now - entry.savedAt) / 1000),
+  }));
+}
+
+/* ─── Phase 4b: FederatedRecall — the unified entry point ──────────────── */
+
+export class FederatedRecall {
+  readonly localCache = new LRUCache<string, RecallItem[]>(512, 30_000);
+
+  /**
+   * Search across ALL sources: memories, skills, notes, and federated proofs.
+   * Returns scored, deduped, budget-packed results.
+   */
+  async search(query: RecallQuery): Promise<RecallResult> {
+    const useSemantic = embeddingsAvailable();
+    const actor = query.actor;
+    const budget = query.budget;
+
+    const [localResults, federatedResults] = await Promise.all([
+      this.searchLocal(query.text, budget, useSemantic, query.filters),
+      query.options?.includeFederated !== false
+        ? this.searchFederated(query.text, budget, useSemantic, query.filters)
+        : Promise.resolve([] as RecallItem[]),
+    ]);
+
+    const all = this.mergeResults(localResults, federatedResults, query.options?.dedupeContent ?? true);
+    const mode: "lexical" | "semantic" = useSemantic ? "semantic" : "lexical";
+
+    let page = all;
+    if (query.options?.cursor !== undefined) {
+      const cursorIdx = all.findIndex((i) => i.score < query.options!.cursor!);
+      page = cursorIdx >= 0 ? all.slice(cursorIdx) : [];
+    }
+    if (query.options?.minScore !== undefined) {
+      page = page.filter((i) => i.score >= query.options!.minScore!);
+    }
+    const { packed, tokensUsed, truncated } = packByBudget(page, budget);
+
+    await appendAudit("fed_recall.search", {
+      query: truncate(query.text, 80),
+      items: packed.length,
+      tokensUsed,
+      mode,
+      federatedItems: federatedResults.length,
+    }, actor);
+
+    return {
+      query: query.text,
+      returned: packed,
+      tokensUsed,
+      tokenBudget: budget,
+      truncated,
+      mode,
+      federatedContribution: all.length > 0 ? federatedResults.length / all.length : 0,
+      nextCursor: packed.length > 0 ? packed[packed.length - 1]?.score : undefined,
+    };
+  }
+
+  /**
+   * Convenience recall: like search but returns flattened items + expanded tokens.
+   * Compatible with server/src/services/recall.ts recall() signature.
+   */
+  async recall(text: string, budget: number, actor: string, opts?: RecallOptions): Promise<RecallResult> {
+    return this.search({ text, budget, actor, options: opts });
+  }
+
+  /**
+   * Store a memory locally and optionally publish a federated proof.
+   */
+  async store(input: {
+    kind: string;
+    title: string;
+    content: string;
+    tags: string[];
+    importance: number;
+    source: string;
+    actor: string;
+    publish?: boolean;
+    peerId?: string;
+    privKeyB64?: string;
+  }): Promise<{ id: string; proofId?: string }> {
+    const memId = `mem_${randomUUID()}`;
+    const tokenCost = estimateTokens(input.content);
+    const embedding = embeddingsAvailable() ? await embedQuery(input.content) : null;
+
+    await db.insert(memories).values({
+      id: memId,
+      kind: input.kind,
+      title: input.title,
+      content: input.content,
+      tags: input.tags,
+      importance: input.importance,
+      source: input.source,
+      tokenCost,
+      embedding: embedding ?? [],
+    });
+
+    await appendAudit("fed_recall.store", {
+      memoryId: memId,
+      kind: input.kind,
+      importance: input.importance,
+      tags: input.tags,
+    }, input.actor);
+
+    let proofId: string | undefined;
+
+    if (input.publish && input.peerId && input.privKeyB64) {
+      const contentSha256 = createHash("sha256").update(input.content).digest("hex");
+      const proof = await publishMemoryProof({
+        peerId: input.peerId,
+        publisherPrivKeyB64: input.privKeyB64,
+        contentSha256,
+        embedding: embedding ?? [],
+        topicTags: input.tags,
+        importance: input.importance,
+        privacyClass: "public",
+      });
+      const result = await ingestMemoryProof(proof);
+      proofId = result.id;
+    }
+
+    return { id: memId, proofId };
+  }
+
+  /**
+   * Cache operations — read/write/invalidate composed agent state.
+   */
+  cache = {
+    get: getCachedAgentState,
+    set: setCachedAgentState,
+    invalidate: invalidateAgentState,
+    stats: getAgentStateCacheStats,
+  };
+
+  /**
+   * Session persistence operations.
+   */
+  session = {
+    persist: persistSessionMemories,
+    load: loadSessionMemories,
+    prune: pruneStaleSessions,
+    list: listActiveSessions,
+  };
+
+  /* ── Private: local search ──────────────────────────────────────────── */
+
+  private async searchLocal(
+    query: string,
+    budget: number,
+    useSemantic: boolean,
+    filters?: RecallFilters,
+  ): Promise<RecallItem[]> {
+    const [allMemories, allSkills, allNotes] = await Promise.all([
+      db.select({
+        id: memories.id, kind: memories.kind, title: memories.title, content: memories.content,
+        tags: memories.tags, importance: memories.importance, source: memories.source,
+        updatedAt: memories.updatedAt,
+      }).from(memories).orderBy(desc(memories.importance), desc(memories.updatedAt)).limit(MAX_CORPUS),
+      db.select({
+        id: skills.id, title: skills.title, description: skills.description,
+        content: skills.content, rating: skills.rating, updatedAt: skills.updatedAt,
+      }).from(skills).orderBy(desc(skills.rating)).limit(Math.min(MAX_CORPUS, 2000)),
+      db.select({
+        id: notes.id, title: notes.title, content: notes.content, tags: notes.tags,
+        wikilinks: notes.wikilinks, indexedAt: notes.indexedAt, path: notes.path,
+      }).from(notes).orderBy(desc(notes.indexedAt)).limit(Math.min(MAX_CORPUS, 2000)),
+    ]);
+
+    if (filters?.types && !filters.types.includes("memory")) {
+      allMemories.length = 0;
+    }
+    if (filters?.types && !filters.types.includes("skill")) {
+      allSkills.length = 0;
+    }
+    if (filters?.types && !filters.types.includes("note")) {
+      allNotes.length = 0;
+    }
+
+    type MemRow = typeof allMemories[number];
+    type SkillRow = typeof allSkills[number];
+    type NoteRow = typeof allNotes[number];
+
+    const memDocs = allMemories.map((m: MemRow) => ({ id: m.id, text: `${m.title} ${m.content} ${(m.tags ?? []).join(" ")}` }));
+    const skillDocs = allSkills.map((s: SkillRow) => ({ id: s.id, text: `${s.title} ${s.description} ${s.content}` }));
+    const noteDocs = allNotes.map((n: NoteRow) => ({ id: n.id, text: `${n.title} ${n.content} ${(n.tags ?? []).join(" ")} ${(n.wikilinks ?? []).join(" ")}` }));
+
+    const bm25Mem = bm25Score(memDocs, query);
+    const bm25Skill = bm25Score(skillDocs, query);
+    const bm25Note = bm25Score(noteDocs, query);
+
+    const bm25MemRank = new Map(bm25Mem.map((s, i) => [s.id, i]));
+    const bm25SkillRank = new Map(bm25Skill.map((s, i) => [s.id, i]));
+    const bm25NoteRank = new Map(bm25Note.map((s, i) => [s.id, i]));
+
+    const semanticRanks = new Map<string, number>();
+    const semanticCandidates = new Set<string>();
+
+    if (useSemantic) {
+      const queryEmbedding = await embedQuery(query);
+      if (queryEmbedding) {
+        const [semMemResult, semSkillResult, semNoteResult] = await Promise.all([
+          db.select({
+            id: memories.id,
+            distance: sql<number>`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
+          }).from(memories).where(isNotNull(memories.embedding))
+            .orderBy(sql`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`).limit(100),
+          db.select({
+            id: skills.id,
+            distance: sql<number>`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
+          }).from(skills).where(isNotNull(skills.embedding))
+            .orderBy(sql`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`).limit(100),
+          db.select({
+            id: notes.id,
+            distance: sql<number>`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
+          }).from(notes).where(isNotNull(notes.embedding))
+            .orderBy(sql`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`).limit(100),
+        ]);
+
+        const allSem = [
+          ...semMemResult.map((r) => ({ id: r.id, distance: r.distance })),
+          ...semSkillResult.map((r) => ({ id: r.id, distance: r.distance })),
+          ...semNoteResult.map((r) => ({ id: r.id, distance: r.distance })),
+        ].sort((a, b) => a.distance - b.distance);
+
+        allSem.forEach((r, i) => {
+          if (r.distance <= SEMANTIC_THRESHOLD) {
+            semanticRanks.set(r.id, i);
+            semanticCandidates.add(r.id);
+          }
+        });
+      }
+    }
+
+    const bm25Candidates = new Set<string>([
+      ...bm25Mem.map((s) => s.id),
+      ...bm25Skill.map((s) => s.id),
+      ...bm25Note.map((s) => s.id),
+    ]);
+
+    const allCandidates = new Set([...bm25Candidates, ...semanticCandidates]);
+
+    const rrfScores = new Map<string, { score: number; matchedBy: ("bm25" | "semantic")[] }>();
+    for (const id of allCandidates) {
+      let rrf = 0;
+      const matchedBy: ("bm25" | "semantic")[] = [];
+
+      const bm25Rank = bm25MemRank.get(id) ?? bm25SkillRank.get(id) ?? bm25NoteRank.get(id);
+      if (bm25Rank !== undefined) {
+        rrf += 1 / (RRF_K + bm25Rank + 1);
+        matchedBy.push("bm25");
+      }
+
+      const semRank = semanticRanks.get(id);
+      if (semRank !== undefined) {
+        rrf += 1 / (RRF_K + semRank + 1);
+        matchedBy.push("semantic");
+      }
+
+      const maxRrf = 2 / (RRF_K + 1);
+      const normalizedRrf = rrf / maxRrf;
+      rrfScores.set(id, { score: normalizedRrf, matchedBy });
+    }
+
+    const memMap = new Map(allMemories.map((m: MemRow) => [m.id, m]));
+    const skillMap = new Map(allSkills.map((s: SkillRow) => [s.id, s]));
+    const noteMap = new Map(allNotes.map((n: NoteRow) => [n.id, n]));
+
+    const items: RecallItem[] = [];
+    for (const [id, { score: rrf, matchedBy }] of rrfScores) {
+      const meta = this.getMeta(id, memMap, skillMap, noteMap);
+      if (!meta) continue;
+
+      const recency = computeRecency(meta.updatedAt);
+      const importance = computeImportance(meta.importance);
+      const blended = rrf * W_RRF + importance * W_IMPORTANCE + recency * W_RECENCY;
+
+      if (filters?.importanceMin !== undefined && importance < filters.importanceMin) continue;
+      if (filters?.importanceMax !== undefined && importance > filters.importanceMax) continue;
+
+      items.push({
+        id: meta.id,
+        type: meta.type,
+        title: meta.title,
+        content: meta.content,
+        score: Math.round(blended * 1000) / 1000,
+        tokenCost: estimateTokens(meta.content),
+        source: meta.source,
+        importance,
+        recency,
+        matchedBy,
+      });
+    }
+
+    items.sort((a, b) => b.score - a.score);
+    return items;
+  }
+
+  /* ── Private: federated search ──────────────────────────────────────── */
+
+  private async searchFederated(
+    query: string,
+    budget: number,
+    useSemantic: boolean,
+    filters?: RecallFilters,
+  ): Promise<RecallItem[]> {
+    let fedRows = await db.query.federatedMemoryProofs.findMany({
+      where: and(
+        eq(federatedMemoryProofs.materialized, true),
+        filters?.privacyClass ? eq(federatedMemoryProofs.privacyClass, filters.privacyClass) : undefined,
+        filters?.peerIds?.length ? sql`${federatedMemoryProofs.originPeerId} = ANY(${filters.peerIds})` : undefined,
+      ),
+      orderBy: [desc(federatedMemoryProofs.importance), desc(federatedMemoryProofs.receivedAt)],
+      limit: Math.min(MAX_CORPUS / 2, 5000),
+    });
+
+    if (filters?.topicTags?.length) {
+      fedRows = fedRows.filter((r) =>
+        filters.topicTags!.some((t) => (r.topicTags ?? []).includes(t)),
+      );
+    }
+    if (filters?.since) {
+      fedRows = fedRows.filter((r) => r.receivedAt >= filters.since!);
+    }
+    if (filters?.until) {
+      fedRows = fedRows.filter((r) => r.receivedAt <= filters.until!);
+    }
+
+    if (!fedRows.length) return [];
+
+    const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => t.length > 1);
+    const queryEmbedding = useSemantic ? await embedQuery(query) : null;
+
+    const items: RecallItem[] = [];
+
+    for (const row of fedRows) {
+      const tagText = (row.topicTags ?? []).join(" ");
+      const docText = `${tagText} ${row.originPeerId} ${row.privacyClass}`;
+      const docLower = docText.toLowerCase();
+
+      let bm25ScoreVal = 0;
+      for (const term of queryTerms) {
+        const count = (docLower.match(new RegExp(term, "g")) || []).length;
+        if (count > 0) bm25ScoreVal += Math.log(1 + count);
+      }
+
+      let semanticScore = 0;
+      if (queryEmbedding && Array.isArray(row.embedding) && row.embedding.length > 0) {
+        semanticScore = cosineSimilarity(queryEmbedding, row.embedding as number[]);
+      }
+
+      const recency = computeRecency(row.receivedAt);
+      const importance = computeImportance(row.importance);
+
+      const normalizedBm25 = Math.min(1, bm25ScoreVal / Math.max(1, queryTerms.length));
+      const rrfScore = (normalizedBm25 * (useSemantic ? 0.5 : 1)) + (semanticScore * (useSemantic ? 0.5 : 0));
+      const blended = rrfScore * W_RRF + importance * W_IMPORTANCE + recency * W_RECENCY;
+
+      const matchedBy: ("bm25" | "semantic")[] = [];
+      if (bm25ScoreVal > 0) matchedBy.push("bm25");
+      if (semanticScore > 0) matchedBy.push("semantic");
+
+      items.push({
+        id: row.id,
+        type: "federated",
+        title: `[FED] ${tagText.slice(0, 60)} from ${row.originPeerId.slice(0, 8)}`,
+        content: JSON.stringify({ originPeerId: row.originPeerId, contentSha256: row.contentSha256, topicTags: row.topicTags, importance: row.importance }),
+        score: Math.round(blended * 1000) / 1000,
+        tokenCost: estimateTokens(row.contentSha256 + tagText + row.originPeerId),
+        source: `federated:${row.originPeerId}`,
+        importance,
+        recency,
+        matchedBy,
+      });
+    }
+
+    items.sort((a, b) => b.score - a.score);
+    return items.slice(0, Math.min(100, items.length));
+  }
+
+  /* ── Private: merge + dedupe ────────────────────────────────────────── */
+
+  private mergeResults(local: RecallItem[], federated: RecallItem[], dedupeContent: boolean): RecallItem[] {
+    const all = [...local, ...federated];
+    if (!dedupeContent) {
+      return all.sort((a, b) => b.score - a.score);
+    }
+    const seen = new Set<string>();
+    const merged: RecallItem[] = [];
+    for (const item of all) {
+      const key = `${item.type}:${item.id}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      merged.push(item);
+    }
+    return merged.sort((a, b) => b.score - a.score);
+  }
+
+  /* ── Private: metadata lookup ───────────────────────────────────────── */
+
+  private getMeta(
+    id: string,
+    memMap: Map<string, { id: string; kind: string; title: string; content: string; importance: number; updatedAt: Date; source: string }>,
+    skillMap: Map<string, { id: string; title: string; description: string; content: string; rating: number; updatedAt: Date }>,
+    noteMap: Map<string, { id: string; title: string; content: string; path: string; indexedAt: Date }>,
+  ): RawItem | null {
+    const m = memMap.get(id);
+    if (m) {
+      return { id: m.id, type: "memory", title: m.title, content: m.content, importance: m.importance, updatedAt: m.updatedAt, source: m.source };
+    }
+    const s = skillMap.get(id);
+    if (s) {
+      return { id: s.id, type: "skill", title: s.title, content: `# ${s.title}\n${s.description}\n\n${s.content}`, importance: Math.max(0.2, Math.min(1, s.rating)), updatedAt: s.updatedAt, source: "skill" };
+    }
+    const n = noteMap.get(id);
+    if (n) {
+      return { id: n.id, type: "note", title: n.title || n.path, content: n.content, importance: 0.45, updatedAt: n.indexedAt, source: "vault" };
+    }
+    return null;
+  }
+}
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Singleton instance
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+export const fedRecall = new FederatedRecall();
+
+/* ════════════════════════════════════════════════════════════════════════════
+ * Integration helpers — OS types, kernel compatibility
+ * ════════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Convert a server-side MemoryCard (OS type) into a RecallItem for unified
+ * scoring. Compatible with `src/lib/os/types.ts` MemoryCard definition.
+ */
+export function memoryCardToRecallItem(card: {
+  id: string;
+  title: string;
+  summary: string;
+  body: string;
+  importance: number;
+  updatedAt: number;
+  accessCount: number;
+}): RecallItem {
+  const content = `${card.title}: ${card.summary}\n${card.body}`;
+  return {
+    id: card.id,
+    type: "memory",
+    title: card.title,
+    content,
+    score: 0,
+    tokenCost: estimateTokens(content),
+    source: "os-graph",
+    importance: card.importance,
+    recency: computeRecency(card.updatedAt),
+    matchedBy: [],
+  };
+}
+
+/**
+ * Convert an OSState into a scored, budget-packed context snapshot.
+ * Compatible with `src/lib/os/kernel.ts` compactContext / doGraphRecall.
+ */
+export function composeAgentState(
+  cards: { id: string; title: string; summary: string; body: string; importance: number; updatedAt: number; accessCount: number }[],
+  query: string,
+  budget: number,
+): { items: RecallItem[]; expanded: string[]; tokens: number } {
+  const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => t.length > 1);
+  const scored = cards.map((c) => {
+    const text = `${c.title} ${c.summary} ${c.body}`.toLowerCase();
+    let bm25 = 0;
+    for (const t of queryTerms) {
+      if (text.includes(t)) bm25++;
+    }
+    const recency = computeRecency(c.updatedAt);
+    const importance = computeImportance(c.importance);
+    const score = (bm25 / Math.max(1, queryTerms.length)) * 0.4 + importance * 0.3 + recency * 0.3;
+
+    return {
+      item: memoryCardToRecallItem({ ...c, updatedAt: c.updatedAt }),
+      score,
+    };
+  });
+
+  const sorted = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
+  const expanded: string[] = [];
+  let tokens = 0;
+  const items: RecallItem[] = [];
+
+  for (const { item, score } of sorted) {
+    item.score = Math.round(score * 1000) / 1000;
+    if (tokens + item.tokenCost > budget) continue;
+    items.push(item);
+    tokens += item.tokenCost;
+    expanded.push(item.id);
+  }
+
+  return { items, expanded, tokens };
 }

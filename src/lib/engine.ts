@@ -425,3 +425,44 @@ export function wipeBrain(): void {
   persist();
   emit();
 }
+
+// ── Phase 3.3: MCP Event Logging ────────────────────────────────────
+
+export interface MCPAuditPayload {
+  serverId: string;
+  serverName: string;
+  transport: string;
+  toolCount?: number;
+  error?: string;
+}
+
+export function logMCPEvent(
+  state: NexusState,
+  action: "mcp.connected" | "mcp.disconnected" | "mcp.connect_failed" | "mcp.tools_discovered" | "mcp.health_check_failed",
+  payload: MCPAuditPayload,
+  actor: string
+): NexusState {
+  return appendAudit(state, action, payload, actor);
+}
+
+export function setMCPState(
+  state: NexusState,
+  servers: { id: string; name: string; transport: string; status: string; toolCount: number; error?: string }[]
+): NexusState {
+  return {
+    ...state,
+    osState: {
+      ...(state as unknown as Record<string, unknown>).osState as Record<string, unknown>,
+      mcpServers: servers.map((s) => ({
+        id: s.id,
+        name: s.name,
+        transport: s.transport,
+        status: s.status,
+        toolCount: s.toolCount,
+        error: s.error,
+        lastConnected: undefined as number | undefined,
+        createdAt: Date.now(),
+      })),
+    } as unknown as undefined,
+  };
+}

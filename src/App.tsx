@@ -22,8 +22,10 @@ import Evals from "./pages/os/Evals";
 import LiveAgents from "./pages/os/LiveAgents";
 import Analytics from "./pages/os/Analytics";
 import Approvals from "./pages/os/Approvals";
+import ProcessExplorer from "./pages/ProcessExplorer";
 import Docs from "./pages/Docs";
 import Settings from "./pages/Settings";
+import PipelineBuilder from "./pages/PipelineBuilder";
 
 const PAGE_COMPONENTS: Record<PageId, React.FC<{ setPage?: (p: PageId) => void }>> = {
   dashboard: Dashboard as React.FC<{ setPage?: (p: PageId) => void }>,
@@ -41,8 +43,10 @@ const PAGE_COMPONENTS: Record<PageId, React.FC<{ setPage?: (p: PageId) => void }
   dream: Dream,
   evals: Evals,
   liveagents: LiveAgents,
+  processexplorer: ProcessExplorer,
   analytics: Analytics,
   approvals: Approvals,
+  pipelines: PipelineBuilder,
   docs: Docs,
   settings: Settings,
 };

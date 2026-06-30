@@ -182,15 +182,54 @@ export interface Approval {
 
 /* Message bus */
 
+export type MessageKind = "event" | "command" | "query" | "response";
+
 export interface BusMessage {
   id: string;
   type: string;
+  kind: MessageKind;
   from: string;
   to?: string;
+  topic: string;
   payload: unknown;
+  correlationId?: string;
+  replyTo?: string;
+  headers?: Record<string, string>;
+  ttl?: number;
+  priority: number;
   acked: boolean;
   deliveries: number;
+  error?: string;
   createdAt: number;
+}
+
+export interface BusSubscription {
+  id: string;
+  subscriberId: string;
+  topicPattern: string;
+  filter?: (msg: BusMessage) => boolean;
+  queue?: string;
+  createdAt: number;
+}
+
+export interface BusDeadLetterEntry {
+  message: BusMessage;
+  reason: string;
+  failedDeliveries: number;
+  lastError: string;
+  movedAt: number;
+}
+
+export interface RpcRequest {
+  method: string;
+  params: unknown;
+  timeoutMs: number;
+}
+
+export interface RpcResponse {
+  success: boolean;
+  data?: unknown;
+  error?: string;
 }
 
 /* VFS */
@@ -334,6 +373,84 @@ export interface Metrics {
   auditAppendFailures: number;
 }
 
+/* LLM Scheduler types (Phase 4c) */
+
+export type SchedulerPriority = "interactive" | "background" | "maintenance";
+export type TaskCategory =
+  | "chat" | "reasoning" | "extraction" | "embedding"
+  | "vision" | "code" | "distillation" | "tool_call";
+
+export interface RateLimitConfig {
+  rpm: number;
+  tpm: number;
+  concurrency: number;
+  priority: SchedulerPriority;
+}
+
+export interface ModelRoute {
+  category: TaskCategory;
+  model: string;
+  maxTokens: number;
+  temperature: number;
+  costPer1kPrompt: number;
+  costPer1kCompletion: number;
+}
+
+export interface TokenBudget {
+  userId: string;
+  budget: number;
+  used: number;
+  resetAt: number;
+}
+
+export interface CostRecord {
+  requestId: string;
+  userId: string;
+  agentId: string;
+  model: string;
+  category: TaskCategory;
+  promptTokens: number;
+  completionTokens: number;
+  cost: number;
+  timestamp: number;
+}
+
+export interface SchedulerMetrics {
+  queueDepth: number;
+  running: number;
+  processed: number;
+  failed: number;
+  timedOut: number;
+  avgLatencyMs: number;
+  p95LatencyMs: number;
+  tokensProcessed: number;
+  totalCost: number;
+  byPriority: Record<SchedulerPriority, { queued: number; running: number }>;
+}
+
+export interface ScheduledRequest {
+  id: string;
+  userId: string;
+  agentId: string;
+  category: TaskCategory;
+  priority: SchedulerPriority;
+  model: string;
+  prompt: string;
+  maxTokens: number;
+  temperature: number;
+  status: "queued" | "running" | "completed" | "failed" | "timed_out" | "cancelled";
+  queuedAt: number;
+  startedAt?: number;
+  finishedAt?: number;
+  timeoutMs: number;
+  result?: unknown;
+  error?: string;
+  promptTokens?: number;
+  completionTokens?: number;
+  cost?: number;
+  traceId?: string;
+}
+
 export interface OSState {
   agents: AgentRecord[];
   cards: MemoryCard[];
@@ -342,6 +459,8 @@ export interface OSState {
   sagas: Saga[];
   approvals: Approval[];
   bus: BusMessage[];
+  subscriptions: BusSubscription[];
+  deadLetterBus: BusDeadLetterEntry[];
   vfs: VfsDir;
   vfsSnapshots: VfsSnapshot[];
   snapshots: ContextSnapshot[];
@@ -352,4 +471,43 @@ export interface OSState {
   connectors: string[];
   metrics: Metrics;
   meta: Record<string, string>;
+  // Phase 3.3: MCP Server Registry
+  mcpServers?: MCPServerState[];
+}
+
+// ── Phase 3.3: MCP Server Registry Types ────────────────────────────
+
+export type MCPTransport = "stdio" | "http-sse" | "streamable-http";
+
+export interface MCPServerState {
+  id: string;
+  name: string;
+  transport: MCPTransport;
+  status: "disconnected" | "connecting" | "connected" | "error";
+  toolCount: number;
+  error?: string;
+  lastConnected?: number;
+  createdAt: number;
+}
+
+export interface MCPDiscoveredTool {
+  name: string;
+  description?: string;
+  inputSchema?: unknown;
+  serverId: string;
+  serverName: string;
+  transport: MCPTransport;
+}
+
+export interface MCPPolicyEntry {
+  serverPattern?: string;
+  toolPattern?: string;
+  minRing?: Ring;
+  rateLimit?: number;
+  allowed: boolean;
+}
+
+export interface MCPPolicyConfig {
+  defaultPolicy: "allow" | "deny";
+  overrides: MCPPolicyEntry[];
 }

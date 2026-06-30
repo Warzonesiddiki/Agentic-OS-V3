@@ -19,8 +19,10 @@ export type PageId =
   | "dream"
   | "evals"
   | "liveagents"
+  | "processexplorer"
   | "analytics"
   | "approvals"
+  | "pipelines"
   | "docs"
   | "settings";
 
@@ -46,6 +48,7 @@ export const NAV: NavItem[] = [
   { id: "projects", label: "Projects", section: "Cognition", icon: I("M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7Z") },
   { id: "vault", label: "Vault", section: "Cognition", icon: I("M3 7l9-4 9 4-9 4-9-4Zm0 0v6l9 4 9-4V7M12 11v6") },
   { id: "audit", label: "Audit", section: "Operations", icon: I("M9 12l2 2 4-4M12 3l8 4v5c0 5-3.5 8-8 9-4.5-1-8-4-8-9V7l8-4Z") },
+  { id: "pipelines", label: "Pipeline Builder", section: "Agent OS", icon: I("M3 5h4v14H3zM10 5h4v14h-4zM17 5h4v14h-4z") },
   { id: "safety", label: "Safety", section: "Operations", icon: I("M12 2l8 4v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-4ZM12 8v4M12 16h.01") },
   { id: "kernel", label: "Kernel", section: "Agent OS", icon: I("M4 4h6v6H4zM14 4h6v6h-6zM4 14h6v6H4zM14 14h6v6h-6zM10 7h4M10 17h4M7 10v4M17 10v4") },
   { id: "graph", label: "Memory Graph", section: "Agent OS", icon: I("M5 7a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm14 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM12 21a2 2 0 1 0 0-4 2 2 0 0 0 0 4ZM6.5 6.5l4 4M17.5 6.5l-4 4M12 17v-4") },
@@ -53,6 +56,7 @@ export const NAV: NavItem[] = [
   { id: "dream", label: "Dream & Doctor", section: "Agent OS", icon: I("M12 3a6 6 0 0 0 4 10.5V17H8v-3.5A6 6 0 0 0 12 3ZM9 20h6M10 6c1 1 3 1 4 0") },
   { id: "evals", label: "Evals & Safety", section: "Agent OS", icon: I("M9 12l2 2 4-4M4 6h16v12H4z") },
   { id: "liveagents", label: "Live Agents", section: "Agent OS", icon: I("M12 12a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM6 21v-1a6 6 0 0 1 12 0v1M19 8a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm0 0v2M5 8a2 2 0 1 1 0-4 2 2 0 0 1 0 4Zm0 0v2") },
+  { id: "processexplorer", label: "Process Explorer", section: "Agent OS", icon: I("M4 5h16v11H7l-3 3V5ZM8 9h8M8 12h5M8 15h2") },
   { id: "analytics", label: "Analytics", section: "Agent OS", icon: I("M3 3v18h18M7 14l3-4 3 2 4-6") },
   { id: "approvals", label: "Approvals", section: "Agent OS", icon: I("M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11") },
   { id: "docs", label: "API & MCP", section: "Developer", icon: I("M8 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h1M16 3h1a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-1M10 8l2 4-2 4M14 8v8") },

@@ -10,8 +10,9 @@ import { appendAudit, commit, getState as getBrain } from "../engine";
 import { commitOS, getOSState, updateOS } from "./store";
 import { decideAccess, getTool, isSensitivePath, withinAllowedRoot } from "./policy";
 import type {
-  AgentRecord, Approval, BusMessage, CommandObservation, ContextSnapshot,
-  MemoryCard, OSState, QueueId, Ring, Saga, SagaStep, Task, VfsDir, VfsNode,
+  AgentRecord, Approval, BusDeadLetterEntry, BusMessage, BusSubscription,
+  CommandObservation, ContextSnapshot, MemoryCard, MessageKind, OSState, QueueId,
+  Ring, RpcRequest, RpcResponse, Saga, SagaStep, Task, VfsDir, VfsNode,
 } from "./types";
 
 /* ------------------------------------------------------------------ *
@@ -339,17 +340,104 @@ export function runSaga(sagaId: string): Saga {
 }
 
 /* ------------------------------------------------------------------ *
- * Message bus — publish/subscribe, ack/nack, dead-letter
+ * Message bus — publish/subscribe, topic routing, RPC, dead-letter
  * ------------------------------------------------------------------ */
 
 const busListeners = new Set<(m: BusMessage) => void>();
+
+function topicMatch(pattern: string, topic: string): boolean {
+  const p = pattern.split("/");
+  const t = topic.split("/");
+  let pi = 0;
+  for (let ti = 0; ti < t.length; ti++) {
+    if (pi >= p.length) return false;
+    if (p[pi] === "**") return true;
+    if (p[pi] === "*" || p[pi] === t[ti]) {
+      pi++;
+      continue;
+    }
+    return false;
+  }
+  return pi === p.length;
+}
+
+function createBusMessage(
+  type: string,
+  kind: MessageKind,
+  from: string,
+  to: string | undefined,
+  topic: string,
+  payload: unknown,
+  extras?: Partial<Pick<BusMessage, "correlationId" | "replyTo" | "headers" | "ttl" | "priority">>
+): BusMessage {
+  return {
+    id: rid("msg"),
+    type,
+    kind,
+    from,
+    to: to ?? null ?? undefined,
+    topic,
+    payload,
+    correlationId: extras?.correlationId,
+    replyTo: extras?.replyTo,
+    headers: extras?.headers,
+    ttl: extras?.ttl,
+    priority: extras?.priority ?? 50,
+    acked: false,
+    deliveries: 0,
+    createdAt: now(),
+  };
+}
+
 export function subscribeBus(fn: (m: BusMessage) => void): () => void {
   busListeners.add(fn);
   return () => busListeners.delete(fn);
 }
 
-export function publish(type: string, from: string, to: string | undefined, payload: unknown): BusMessage {
-  const m: BusMessage = { id: rid("msg"), type, from, to, payload, acked: false, deliveries: 0, createdAt: now() };
+export function subscribeTopic(
+  subscriberId: string,
+  topicPattern: string,
+  handler: (m: BusMessage) => void,
+  filter?: (m: BusMessage) => boolean
+): BusSubscription {
+  const sub: BusSubscription = {
+    id: rid("sub"),
+    subscriberId,
+    topicPattern,
+    filter,
+    createdAt: now(),
+  };
+  const wrapped = (m: BusMessage) => {
+    if (!topicMatch(topicPattern, m.topic)) return;
+    if (filter && !filter(m)) return;
+    handler(m);
+  };
+  busListeners.add(wrapped);
+  const subs = [...getOSState().subscriptions, sub];
+  updateOS((s) => ({ ...s, subscriptions: subs }));
+  return sub;
+}
+
+export function unsubscribeTopic(subscriptionId: string): boolean {
+  const s = getOSState();
+  const idx = s.subscriptions.findIndex((x) => x.id === subscriptionId);
+  if (idx < 0) return false;
+  const newSubs = s.subscriptions.filter((x) => x.id !== subscriptionId);
+  updateOS((os) => ({ ...os, subscriptions: newSubs }));
+  return true;
+}
+
+export function publish(
+  type: string,
+  from: string,
+  to: string | undefined,
+  payload: unknown,
+  kind: MessageKind = "event",
+  topic?: string,
+  extras?: Partial<Pick<BusMessage, "correlationId" | "replyTo" | "headers" | "ttl" | "priority">>
+): BusMessage {
+  const topicStr = topic ?? `system:${type}`;
+  const m = createBusMessage(type, kind, from, to, topicStr, payload, extras);
   commitOS({ ...getOSState(), bus: [m, ...getOSState().bus] });
   for (const fn of busListeners) fn(m);
   return m;
@@ -361,13 +449,114 @@ export function ackMessage(id: string, ack: boolean): void {
     if (m.id !== id) return m;
     if (ack) return { ...m, acked: true };
     const deliveries = m.deliveries + 1;
-    return { ...m, deliveries }; // after 3 nacks it stays as dead-letter signal
+    return { ...m, deliveries };
   });
   commitOS({ ...s, bus });
 }
 
 export function deadLetterBus(): BusMessage[] {
   return getOSState().bus.filter((m) => !m.acked && m.deliveries >= 3);
+}
+
+export function moveToDeadLetter(messageId: string, reason: string): BusDeadLetterEntry | null {
+  const s = getOSState();
+  const msg = s.bus.find((m) => m.id === messageId);
+  if (!msg) return null;
+  const entry: BusDeadLetterEntry = {
+    message: msg,
+    reason,
+    failedDeliveries: msg.deliveries,
+    lastError: reason,
+    movedAt: now(),
+  };
+  const bus = s.bus.filter((m) => m.id !== messageId);
+  updateOS((os) => ({
+    ...os,
+    bus,
+    deadLetterBus: [entry, ...os.deadLetterBus],
+  }));
+  return entry;
+}
+
+export function retryDeadLetter(entryId: number): BusMessage | null {
+  const s = getOSState();
+  const entry = s.deadLetterBus[entryId];
+  if (!entry) return null;
+  const restored = { ...entry.message, deliveries: 0, acked: false };
+  const deadLetterBus = s.deadLetterBus.filter((_, i) => i !== entryId);
+  updateOS((os) => ({
+    ...os,
+    bus: [restored, ...os.bus],
+    deadLetterBus,
+  }));
+  for (const fn of busListeners) fn(restored);
+  return restored;
+}
+
+export function request(
+  topic: string,
+  from: string,
+  rpc: RpcRequest,
+  timeoutMs: number = 30000
+): Promise<RpcResponse> {
+  return new Promise((resolve) => {
+    const correlationId = rid("rpc");
+    const unsub = subscribeBus((m) => {
+      if (m.correlationId === correlationId && m.kind === "response") {
+        unsub();
+        resolve({
+          success: !m.error,
+          data: m.payload,
+          error: m.error,
+        });
+      }
+    });
+    publish(
+      rpc.method,
+      from,
+      undefined,
+      rpc.params,
+      "command",
+      topic,
+      { correlationId, ttl: timeoutMs, priority: 80 }
+    );
+    setTimeout(() => {
+      unsub();
+      resolve({ success: false, error: `RPC timeout: ${rpc.method} on ${topic} after ${timeoutMs}ms` });
+    }, timeoutMs);
+  });
+}
+
+export function respond(correlationId: string, from: string, to: string, data: unknown, error?: string): BusMessage {
+  return publish(
+    "rpc.response",
+    from,
+    to,
+    error ? undefined : data,
+    "response",
+    `rpc:${correlationId}`,
+    { correlationId, headers: error ? { error } : undefined }
+  );
+}
+
+export function fireEvent(
+  type: string,
+  from: string,
+  topic: string,
+  payload: unknown,
+  ttlMs?: number
+): BusMessage {
+  return publish(type, from, undefined, payload, "event", topic, { ttl: ttlMs, priority: 30 });
+}
+
+export function sendCommand(
+  type: string,
+  from: string,
+  to: string,
+  topic: string,
+  payload: unknown
+): BusMessage {
+  return publish(type, from, to, payload, "command", topic, { priority: 70 });
 }
 
 /* ------------------------------------------------------------------ *

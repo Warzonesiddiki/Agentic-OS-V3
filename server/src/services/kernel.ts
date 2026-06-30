@@ -107,6 +107,78 @@ export async function quarantineAgent(id: string, reason: string, actor: string)
   await appendAudit("agent.quarantined", { agentId: id, reason }, actor);
 }
 
+/**
+ * Pause an agent (state transition: idle|thinking|executing_tool → paused).
+ */
+export async function pauseAgent(id: string, actor: string) {
+  const [updated] = await db.update(agents).set({
+    status: "paused",
+    currentTool: null,
+    updatedAt: new Date(),
+  }).where(eq(agents.id, id)).returning();
+
+  if (updated) {
+    await appendAudit("agent.paused", { agentId: id }, actor);
+  }
+  return updated;
+}
+
+/**
+ * Resume a paused agent (state transition: paused → idle).
+ */
+export async function resumeAgent(id: string, actor: string) {
+  const [updated] = await db.update(agents).set({
+    status: "idle",
+    updatedAt: new Date(),
+  }).where(and(
+    eq(agents.id, id),
+    eq(agents.status, "paused"),
+  )).returning();
+
+  if (updated) {
+    await appendAudit("agent.resumed", { agentId: id }, actor);
+  }
+  return updated;
+}
+
+/**
+ * Terminate (kill) an agent — final state, cannot be resumed.
+ */
+export async function terminateAgent(id: string, reason: string, actor: string) {
+  const [updated] = await db.update(agents).set({
+    status: "terminated",
+    currentTool: null,
+    updatedAt: new Date(),
+    metadata: sql`jsonb_set(metadata, '{terminateReason}', to_jsonb(${reason}::text))`,
+  }).where(eq(agents.id, id)).returning();
+
+  if (updated) {
+    await appendAudit("agent.terminated", { agentId: id, reason }, actor);
+  }
+  return updated;
+}
+
+/**
+ * Get full agent state including computed fields (alive, etc).
+ */
+export async function getAgentState(id: string) {
+  const agent = await db.query.agents.findFirst({ where: eq(agents.id, id) });
+  if (!agent) return null;
+  const alive = ["idle", "thinking", "executing_tool", "paused"].includes(agent.status);
+  return { ...agent, alive };
+}
+
+/**
+ * List tasks assigned to a given agent, newest first.
+ */
+export async function listAgentTasks(agentId: string, limit = 50) {
+  return db.query.agentTasks.findMany({
+    where: eq(agentTasks.agentId, agentId),
+    orderBy: sql`${agentTasks.createdAt} DESC`,
+    limit: Math.min(200, Math.max(1, limit)),
+  });
+}
+
 /** Increment token usage for an agent. Returns updated usage. */
 export async function incrementTokenUsage(id: string, tokens: number) {
   const [updated] = await db.update(agents).set({

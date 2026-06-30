@@ -7,12 +7,14 @@
 import { now, rid } from "../core";
 import { getState as getBrain } from "../engine";
 import type {
-  AgentRecord, BusMessage, MemoryCard, OSState, Saga, Task, VfsDir, VfsFile,
+  AgentRecord, BusDeadLetterEntry, BusMessage, BusSubscription, MemoryCard, OSState, Saga, Task, VfsDir, VfsFile,
 } from "./types";
 
 const KEY = "nexus.os.v2";
 const MAX_TASKS = 200;
 const MAX_BUS = 200;
+const MAX_BUS_DEAD_LETTER = 100;
+const MAX_SUBSCRIPTIONS = 200;
 const MAX_OBS = 150;
 const MAX_SNAPSHOTS = 80;
 const MAX_DREAM = 30;
@@ -86,6 +88,8 @@ function seed(): OSState {
     sagas: [],
     approvals: [],
     bus: [],
+    subscriptions: [],
+    deadLetterBus: [],
     vfs: seedVfs(),
     vfsSnapshots: [],
     snapshots: [],
@@ -100,7 +104,7 @@ function seed(): OSState {
 }
 
 function empty(): OSState {
-  return { agents: [], cards: [], edges: [], tasks: [], sagas: [], approvals: [], bus: [], vfs: { type: "dir", name: "/", children: {} }, vfsSnapshots: [], snapshots: [], handoffs: [], sessions: [], observations: [], dreamLog: [], connectors: [], metrics: { syscallCount: 0, toolInvocations: 0, policyDenials: 0, approvalCount: 0, recallLatencyMs: 0, taskSucceeded: 0, taskFailed: 0, sagaFailures: 0, auditAppendFailures: 0 }, meta: {} };
+  return { agents: [], cards: [], edges: [], tasks: [], sagas: [], approvals: [], bus: [], subscriptions: [], deadLetterBus: [], vfs: { type: "dir", name: "/", children: {} }, vfsSnapshots: [], snapshots: [], handoffs: [], sessions: [], observations: [], dreamLog: [], connectors: [], metrics: { syscallCount: 0, toolInvocations: 0, policyDenials: 0, approvalCount: 0, recallLatencyMs: 0, taskSucceeded: 0, taskFailed: 0, sagaFailures: 0, auditAppendFailures: 0 }, meta: {} };
 }
 
 function load(): OSState {
@@ -118,10 +122,12 @@ function load(): OSState {
 function prune(s: OSState): OSState {
   const tasks = s.tasks.length > MAX_TASKS ? s.tasks.slice(s.tasks.length - MAX_TASKS) : s.tasks;
   const bus = s.bus.length > MAX_BUS ? s.bus.slice(s.bus.length - MAX_BUS) : s.bus;
+  const subscriptions = s.subscriptions.length > MAX_SUBSCRIPTIONS ? s.subscriptions.slice(0, MAX_SUBSCRIPTIONS) : s.subscriptions;
+  const deadLetterBus = s.deadLetterBus.length > MAX_BUS_DEAD_LETTER ? s.deadLetterBus.slice(s.deadLetterBus.length - MAX_BUS_DEAD_LETTER) : s.deadLetterBus;
   const observations = s.observations.length > MAX_OBS ? s.observations.slice(s.observations.length - MAX_OBS) : s.observations;
   const snapshots = s.snapshots.length > MAX_SNAPSHOTS ? s.snapshots.slice(s.snapshots.length - MAX_SNAPSHOTS) : s.snapshots;
   const dreamLog = s.dreamLog.length > MAX_DREAM ? s.dreamLog.slice(s.dreamLog.length - MAX_DREAM) : s.dreamLog;
-  return { ...s, tasks, bus, observations, snapshots, dreamLog };
+  return { ...s, tasks, bus, subscriptions, deadLetterBus, observations, snapshots, dreamLog };
 }
 
 let state: OSState = load();

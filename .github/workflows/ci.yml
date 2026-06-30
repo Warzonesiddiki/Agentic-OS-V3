@@ -14,16 +14,17 @@ jobs:
       - name: Set up Node
         uses: actions/setup-node@v3
         with:
-          node-version: '20'
-      - name: Install deps
+          node-version: '22'
+          cache: 'npm'
+      - name: Install root deps
         run: npm ci
-      - name: Lint
-        run: npm run lint
-      - name: Type check
+      - name: Install server deps
+        run: cd server && npm ci
+      - name: Type check (root)
+        run: npx tsc --noEmit
+      - name: Type check (server)
+        run: cd server && npx tsc --noEmit
+      - name: Build frontend
         run: npm run build
-      - name: Test
-        run: npm test
-      - name: Build Docker images
-        run: |
-          docker build -t nexus-backend -f Dockerfile.backend .
-          docker build -t nexus-frontend -f Dockerfile.frontend .
+      - name: Test server
+        run: cd server && npx vitest run

@@ -28,6 +28,7 @@ import { agents } from "./routes/agents.js";
 import { automation } from "./routes/automation.js";
 import { sse } from "./routes/sse.js";
 import { v3upgrade } from "./routes/v3-upgrade.js";
+import { agentLifecycle } from "./routes/agent-lifecycle.js";
 
 export const api = new Hono<NexusEnv>();
 
@@ -38,6 +39,7 @@ api.route("/", agents);
 api.route("/", automation);
 api.route("/", sse);
 api.route("/", v3upgrade);
+api.route("/", agentLifecycle);
 
 // ---- Public ----
 api.get("/api/v1/health", async (c) => {

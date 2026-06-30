@@ -318,6 +318,32 @@ export const cronJobs = pgTable(
  * PHASE 5: Execution & Safety — Sandboxing + Snapshots
  * ════════════════════════════════════════════════════════════════ */
 
+/* ─── PHASE 5a: Trace/Telemetry ─────────────────────────────────── */
+
+export const spanLogs = pgTable(
+  "span_logs",
+  {
+    id: text("id").primaryKey(),
+    traceId: text("trace_id").notNull(),
+    parentId: text("parent_id"),
+    name: text("name").notNull(),
+    type: text("type").notNull(), // agent_span | tool_span | llm_span | handoff_span
+    status: text("status").notNull().default("ok"), // ok | error | cancelled
+    startTimeMs: bigint("start_time_ms", { mode: "number" }).notNull(),
+    endTimeMs: bigint("end_time_ms", { mode: "number" }),
+    durationMs: integer("duration_ms").notNull().default(0),
+    attributes: jsonb("attributes").notNull().default({}),
+    events: jsonb("events").notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    traceIdx: index("span_trace_idx").on(t.traceId),
+    typeIdx: index("span_type_idx").on(t.type),
+    createdIdx: index("span_created_idx").on(t.createdAt),
+    parentIdx: index("span_parent_idx").on(t.parentId),
+  })
+);
+
 export const sandboxExecutions = pgTable(
   "sandbox_executions",
   {

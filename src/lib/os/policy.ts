@@ -95,6 +95,73 @@ export function decideAccess(ring: Ring, scopes: string[], tool: ToolSpec, args?
   return { allowed: true, needsApproval: false, blocked: false, reason: "permitted", riskLevel: tool.riskLevel };
 }
 
+// ── Phase 3.3: MCP Tool Integration ─────────────────────────────────
+
+let mcpPolicy: import("./types").MCPPolicyConfig = {
+  defaultPolicy: "deny",
+  overrides: [],
+};
+
+export function setMCPPolicy(policy: import("./types").MCPPolicyConfig): void {
+  mcpPolicy = policy;
+}
+
+export function getMCPPolicy(): import("./types").MCPPolicyConfig {
+  return mcpPolicy;
+}
+
+function matchGlob(value: string, pattern: string): boolean {
+  if (pattern === "*") return true;
+  if (pattern.endsWith("*")) return value.startsWith(pattern.slice(0, -1));
+  return value === pattern;
+}
+
+/**
+ * Check whether a discovered MCP tool is accessible at a given ring.
+ * The tool's effective name is "serverName.toolName" for matching.
+ */
+export function isMCPToolAllowed(serverName: string, toolName: string, ring: number): boolean {
+  const effectiveName = `${serverName}.${toolName}`;
+  for (const o of mcpPolicy.overrides) {
+    const serverMatch = o.serverPattern ? matchGlob(serverName, o.serverPattern) : true;
+    const toolMatch = o.toolPattern ? matchGlob(toolName, o.toolPattern) : true;
+    if (serverMatch && toolMatch) {
+      if (!o.allowed) return false;
+      if (o.minRing !== undefined && ring < o.minRing) return false;
+      return true;
+    }
+  }
+  if (mcpPolicy.defaultPolicy === "deny") return false;
+  const tool = TOOL_REGISTRY.find((t) => t.name === effectiveName);
+  if (!tool) return false;
+  return ring <= tool.minRing;
+}
+
+/**
+ * Register a discovered MCP tool as a ToolSpec so the existing
+ * decideAccess pipeline can evaluate it.
+ */
+export function registerMCPTool(serverName: string, tool: import("./types").MCPDiscoveredTool): ToolSpec {
+  const spec: ToolSpec = {
+    name: `${serverName}.${tool.name}`,
+    description: tool.description ?? "MCP-discovered tool",
+    provider: "mcp",
+    scopesRequired: ["tool:invoke"],
+    riskLevel: "safe",
+    minRing: 2,
+    timeoutMs: 30000,
+    retryable: false,
+    approvalRequired: false,
+  };
+  const existing = TOOL_REGISTRY.findIndex((t) => t.name === spec.name);
+  if (existing >= 0) {
+    TOOL_REGISTRY[existing] = spec;
+  } else {
+    TOOL_REGISTRY.push(spec);
+  }
+  return spec;
+}
+
 /** Files that require approval to read/write (secrets/config). */
 export const SENSITIVE_FILES = [".env", "id_rsa", "id_ed25519", "credentials", ".npmrc", ".pypirc"];
 
