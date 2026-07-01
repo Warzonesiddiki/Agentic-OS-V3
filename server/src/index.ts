@@ -18,6 +18,7 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { getRequestListener } from "@hono/node-server";
 import { log, fatal } from "./lib/logging.js";
+import * as path from "node:path";
 
 let server: ReturnType<typeof createServer> | null = null;
 
@@ -102,7 +103,9 @@ async function bootstrap(): Promise<void> {
         if (actualPort === undefined) {
             throw new Error('Failed to get server port');
         }
-        require('fs').writeFileSync('/tmp/nexus-port.txt', actualPort.toString());
+        const { writeFileSync } = await import("node:fs");
+        const portFile = process.platform === 'win32' ? path.join(process.env.TEMP || 'C:\\tmp', 'nexus-port.txt') : '/tmp/nexus-port.txt';
+        writeFileSync(portFile, actualPort.toString());
     });
 
 }
