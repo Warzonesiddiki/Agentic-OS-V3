@@ -15,7 +15,7 @@ import { randomUUID } from "node:crypto";
 /* ── Screenshot Capture ── */
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _screenshotFn: ((opts?: any) => Promise<Buffer>) | null = null;
+let _screenshotFn: ((opts?: Record<string,unknown>) => Promise<Buffer>) | null = null;
 
 async function captureScreenshotBase64(): Promise<string> {
   try {

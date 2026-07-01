@@ -10,6 +10,9 @@ coverage/
 *.tsbuildinfo.*
 server/dist/
 
+# Rust build artifacts
+nexus-tauri/src-tauri/target/
+
 # env / secrets — NEVER commit
 **/.env
 **/.env.*
@@ -26,3 +29,9 @@ server/dist/
 *.bak
 Thumbs.db
 *.tgz
+
+# Tauri resources (generated at build time)
+nexus-tauri/src-tauri/resources/backend/
+
+# OS temp files
+nexus-port.txt

@@ -449,20 +449,21 @@ export function setMCPState(
   state: NexusState,
   servers: { id: string; name: string; transport: string; status: string; toolCount: number; error?: string }[]
 ): NexusState {
+  const mcpServers = servers.map((s) => ({
+    id: s.id,
+    name: s.name,
+    transport: s.transport,
+    status: s.status,
+    toolCount: s.toolCount,
+    error: s.error,
+    lastConnected: undefined as number | undefined,
+    createdAt: Date.now(),
+  }));
   return {
     ...state,
     osState: {
-      ...(state as unknown as Record<string, unknown>).osState as Record<string, unknown>,
-      mcpServers: servers.map((s) => ({
-        id: s.id,
-        name: s.name,
-        transport: s.transport,
-        status: s.status,
-        toolCount: s.toolCount,
-        error: s.error,
-        lastConnected: undefined as number | undefined,
-        createdAt: Date.now(),
-      })),
-    } as unknown as undefined,
+      ...((state.osState as Record<string, unknown>) ?? {}),
+      mcpServers,
+    },
   };
 }

@@ -1,3 +1,6 @@
+// agent-orchestrator-infrastructure.ts - Extended Agent Orchestrator with Tool Integration Hub
+
+
 /**
  * agent-orchestrator-infrastructure.ts - Extended Agent Orchestrator with Tool Integration Hub
  *
@@ -18,15 +21,13 @@
  * Status: COMPLETE - Ready for Phase 3.2 implementation
  */
 
-import { rid, now } from "./core";
+import { now, rid } from "../core";
 import { appendAudit, getState as getBrain } from "../engine";
-import { getOSState, updateOS } from "./store";
-import { lookupAgent, enqueueTask, schedulerStatus } from "./kernel";
-import type { 
-  AgentRecord, AgentPhase, SessionRecord, RingConfig, Task, 
-  ToolSpec, RiskLevel, ToolProvider, QueueId
+import { lookupAgent } from "./kernel";
+import { TOOL_REGISTRY, classifyCommand } from "./policy";
+import type {
+  ToolSpec, RiskLevel, SessionRecord,
 } from "./types";
-import type { AgentManifest } from "./agent-manifest";
 
 /**
  * Tool Integration Hub service interface
@@ -54,8 +55,8 @@ export interface ToolIntegrationHub {
   syncToolsAcrossClients(clientIds: string[]): Promise<void>;
   
   // Tool Execution Integration
-  executeTool(agentId: string, toolName: string, args: Record<string, any>): Promise<ToolExecutionResult>;
-  validateToolAccess(agentId: string, toolName: string, args: Record<string, any>): Promise<ToolAccessValidation>;
+  executeTool(agentId: string, toolName: string, args: Record<string,unknown>): Promise<ToolExecutionResult>;
+  validateToolAccess(agentId: string, toolName: string, args: Record<string,unknown>): Promise<ToolAccessValidation>;
   
   // Tool Configuration and Management
   registerTool(tool: ToolSpec): Promise<void>;
@@ -94,6 +95,9 @@ export interface ToolDiscoveryFilters {
   minRing?: number;
   clientTypes?: string[];
   status?: ToolStatus;
+  sort?: SortOptions;
+  limit?: number;
+  offset?: number;
 }
 
 /** Tool Availability Status across clients */
@@ -117,14 +121,14 @@ export interface ToolSearchQuery {
 
 /** Sort Options for tool discovery */
 export interface SortOptions {
-  field: 'name' | 'provider' | 'riskLevel' | 'popularity' | 'lastUpdated';
+  field: 'name' | 'provider' | 'riskLevel';
   direction: 'asc' | 'desc';
 }
 
 /** Tool Execution Result */
 export interface ToolExecutionResult {
   success: boolean;
-  output?: any;
+  output?: unknown;
   error?: string;
   executionTime?: number;
   approvalId?: string;
@@ -138,12 +142,13 @@ export interface ToolAccessValidation {
   blocked: boolean;
   reason: string;
   token?: string;
+  riskLevel?: RiskLevel;
 }
 
 /** Auth Credentials for tool authentication */
 export interface AuthCredentials {
   type: 'oauth2' | 'api_key' | 'bearer_token' | 'basic_auth' | 'mutual_tls';
-  credentials: Record<string, any>;
+  credentials: Record<string,unknown>;
   token?: string;
   expiry?: number;
 }
@@ -181,7 +186,7 @@ export interface ToolUsageTracking {
   success: boolean;
   outputSize?: number;
   cost?: number;
-  metadata?: Record<string, any>;
+  metadata?: Record<string,unknown>;
 }
 
 /** Tool Usage Metrics */
@@ -232,7 +237,7 @@ export interface ToolHealth {
   uptime: number;
 }
 
-class ToolIntegrationHubImpl implements ToolIntegrationHub {
+export class ToolIntegrationHubImpl implements ToolIntegrationHub {
   private static instance?: ToolIntegrationHubImpl;
 
   private constructor() {}
@@ -256,7 +261,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
 
       // In production, this would query database/API for tools
       // For now, return tools matching agent's ring and scopes
-      const allTools = require("./policy").TOOL_REGISTRY;
+      const allTools = TOOL_REGISTRY;
       let filteredTools = allTools.filter(tool => {
         // Check ring compatibility
         if (agent.ring > tool.minRing) return false;
@@ -269,7 +274,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         
         // Apply additional filters
         if (filters?.provider && tool.provider !== filters.provider) return false;
-        if (filters?.capability && !agent.capabilities.includes(filters.capability)) 
+        if (filters?.capability && !(agent.capabilities ?? []).includes(filters.capability))
           return false;
         if (filters?.tags && !filters.tags.some(tag => agent.tag?.includes(tag))) 
           return false;
@@ -283,11 +288,13 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       // Sort tools
       if (filters?.sort) {
         filteredTools.sort((a, b) => {
-          const aVal = a[filters.sort.field];
-          const bVal = b[filters.sort.field];
-          return filters.sort.direction === 'asc' 
-            ? String(aVal).localeCompare(String(bVal)) 
-            : String(bVal).localeCompare(String(aVal));
+          const sortField = filters.sort?.field ?? "name";
+          const sortDir = filters.sort?.direction ?? "asc";
+          const aVal = String(a[sortField] ?? "");
+          const bVal = String(b[sortField] ?? "");
+          return sortDir === "asc" 
+            ? aVal.localeCompare(bVal) 
+            : bVal.localeCompare(aVal);
         });
       }
 
@@ -306,18 +313,18 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }, "tool-hub");
 
       return filteredTools;
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.discovery.error", {
         agentId,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
-      throw error;
+      throw e;
     }
   }
 
   public async getToolAvailability(toolId: string): Promise<ToolAvailabilityStatus> {
     try {
-      const tools = require("./policy").TOOL_REGISTRY;
+      const tools = TOOL_REGISTRY;
       const tool = tools.find(t => t.name === toolId);
       if (!tool) {
         return {
@@ -332,7 +339,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
 
       // For production, this would query actual tool status
       // Here we use risk level as a proxy for tool health
-      const status = this.getToolStatusFromRisk(tool);
+      // status = this.getToolStatusFromRisk(tool); // unused
       const healthScore = tool.riskLevel === "safe" ? 100 : 
                          tool.riskLevel === "read" ? 80 : 
                          tool.riskLevel === "write" ? 60 : 
@@ -346,7 +353,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         healthScore,
         lastChecked: now(),
       };
-    } catch (error) {
+    } catch (e: unknown) {
       return {
         toolId,
         available: false,
@@ -359,7 +366,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
   }
 
   public async searchTools(query: ToolSearchQuery): Promise<ToolSpec[]> {
-    const tools = require("./policy").TOOL_REGISTRY;
+    const tools = TOOL_REGISTRY;
     let results = tools;
 
     // Apply keyword search
@@ -397,7 +404,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }
 
       // Validate tool existence
-      const tools = require("./policy").TOOL_REGISTRY;
+      const tools = TOOL_REGISTRY;
       const tool = tools.find(t => t.name === toolName);
       if (!tool) {
         throw new Error(`Tool not found: ${toolName}`);
@@ -426,11 +433,11 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }, "tool-hub");
 
       return true;
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.share_error", {
         agentId,
         toolName,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
       return false;
     }
@@ -445,7 +452,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         throw new Error(`Agent not found: ${agentId}`);
       }
 
-      const tools = require("./policy").TOOL_REGISTRY;
+      const tools = TOOL_REGISTRY;
       const sharedTools = tools
         .filter(tool => tool.scopesRequired.some(scope => agent.scopes.includes(scope)))
         .map(tool => tool.name);
@@ -457,10 +464,10 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }, "tool-hub");
 
       return sharedTools;
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "shared_tools_error", {
         agentId,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
       return [];
     }
@@ -486,25 +493,25 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         syncStatus: "completed",
         syncDuration: Math.random() * 1000, // Simulated duration
       }, "tool-hub");
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool_sync_error", {
         clientIds,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
-      throw error;
+      throw e;
     }
   }
 
   // --- Tool Execution Integration ---
 
-  public async executeTool(agentId: string, toolName: string, args: Record<string, any>): Promise<ToolExecutionResult> {
+  public async executeTool(agentId: string, toolName: string, args: Record<string,unknown>): Promise<ToolExecutionResult> {
     try {
       const agent = lookupAgent(agentId);
       if (!agent) {
         throw new Error(`Agent not found: ${agentId}`);
       }
 
-      const tools = require("./policy").TOOL_REGISTRY;
+      const tools = TOOL_REGISTRY;
       const tool = tools.find(t => t.name === toolName);
       if (!tool) {
         throw new Error(`Tool not found: ${toolName}`);
@@ -531,8 +538,8 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
 
       // Simulate tool execution
       const startTime = now();
-      let output: any = { tool: toolName, status: "success" };
-      let error: string | undefined;
+      let output: Record<string,unknown> = { tool: toolName, status: "success" };
+      // let _error: string | undefined; // reserved for future use
 
       // In production, this would actually execute the tool
       // based on its provider (cli, http, builtin, mcp)
@@ -554,16 +561,16 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         executionTime,
         traceId: rid("exec"),
       };
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.execution.error", {
         agentId,
         toolName,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
 
       return {
         success: false,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
         traceId: rid("exec"),
       };
     }
@@ -572,7 +579,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
   public async validateToolAccess(
     agentId: string, 
     toolName: string, 
-    args: Record<string, any>
+    args: Record<string,unknown>
   ): Promise<ToolAccessValidation> {
     try {
       const agent = lookupAgent(agentId);
@@ -586,7 +593,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         };
       }
 
-      const tools = require("./policy").TOOL_REGISTRY;
+      const tools = TOOL_REGISTRY;
       const tool = tools.find(t => t.name === toolName);
       if (!tool) {
         return {
@@ -626,8 +633,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       // Check tool-specific validation (shell command inspection)
       if (tool.name === "shell" && args && typeof args === "object" && "cmd" in args) {
         const cmd = String(args.cmd);
-        const policy = require("./policy");
-        const inspection = policy.classifyCommand(cmd);
+        const inspection = classifyCommand(cmd);
 
         if (inspection.blocked) {
           return {
@@ -668,12 +674,12 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         reason: "permitted",
         riskLevel: tool.riskLevel,
       };
-    } catch (error) {
+    } catch (e: unknown) {
       return {
         allowed: false,
         needsApproval: false,
         blocked: true,
-        reason: `Validation error: ${error.message}`,
+        reason: `Validation error: ${(e instanceof Error ? e.message : String(e))}`,
         riskLevel: "privileged",
       };
     }
@@ -689,7 +695,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         throw new Error("Invalid tool specification - missing required fields");
       }
 
-      const existingTools = require("./policy").TOOL_REGISTRY;
+      const existingTools = TOOL_REGISTRY;
       const existingTool = existingTools.find(t => t.name === tool.name);
       if (existingTool) {
         throw new Error(`Tool already registered: ${tool.name}`);
@@ -704,12 +710,12 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }, "tool-hub");
 
       // In production, this would persist to database
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.registration.error", {
         toolName: tool.name,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
-      throw error;
+      throw e;
     }
   }
 
@@ -727,12 +733,12 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }, "tool-hub");
 
       // In production, this would update tool in database/storage
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.update.error", {
         toolId,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
-      throw error;
+      throw e;
     }
   }
 
@@ -744,33 +750,33 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }, "tool-hub");
 
       // In production, this would remove tool from database/storage
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.deletion.error", {
         toolId,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
-      throw error;
+      throw e;
     }
   }
 
   // --- Tool Inventory and Catalog ---
 
   public async getToolInventory(): Promise<ToolSpec[]> {
-    return require("./policy").TOOL_REGISTRY;
+    return TOOL_REGISTRY;
   }
 
   public async getToolsByProvider(provider: string): Promise<ToolSpec[]> {
-    const tools = require("./policy").TOOL_REGISTRY;
+    const tools = TOOL_REGISTRY;
     return tools.filter(tool => tool.provider === provider);
   }
 
   public async getToolsByCapability(capability: string): Promise<ToolSpec[]> {
-    const tools = require("./policy").TOOL_REGISTRY;
+    const tools = TOOL_REGISTRY;
     return tools.filter(tool => tool.scopesRequired.includes(capability));
   }
 
   public async getAvailableToolkits(): Promise<string[]> {
-    const tools = require("./policy").TOOL_REGISTRY;
+    const tools = TOOL_REGISTRY;
     const uniqueProviders = [...new Set(tools.map(tool => tool.provider))];
     return uniqueProviders;
   }
@@ -793,19 +799,19 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }, "tool-hub");
 
       // In production, this would store metrics to time-series database or metrics system
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.usage.tracking.error", {
         agentId,
         toolId,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
     }
   }
 
   public async getToolUsageMetrics(
-    agentId: string,
+    _agentId: string,
     toolId: string,
-    timeRange: TimeRange
+    _timeRange: TimeRange
   ): Promise<ToolUsageMetrics> {
     // In production, this would query metrics database
     // For now, return simulated metrics
@@ -822,8 +828,8 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
   }
 
   public async getToolInventoryMetrics(): Promise<ToolInventoryMetrics> {
-    const tools = require("./policy").TOOL_REGISTRY;
-    const riskCounts: Record<string, number> = {};
+    const tools = TOOL_REGISTRY;
+    const riskCounts: Partial<Record<RiskLevel, number>> = {};
 
     tools.forEach(tool => {
       riskCounts[tool.riskLevel] = (riskCounts[tool.riskLevel] || 0) + 1;
@@ -840,7 +846,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         acc[key] = value;
         return acc;
       }, {} as Record<string, number>),
-      toolsByRiskLevel: riskCounts,
+      toolsByRiskLevel: riskCounts as Record<RiskLevel, number>,
       toolsByClient: {
         "claude-code": Math.floor(tools.length * 0.3),
         "open-code": Math.floor(tools.length * 0.25),
@@ -896,14 +902,14 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }, "tool-hub");
 
       return { success: true, token, expiry };
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.authentication.error", {
         toolId,
         authType: credentials.type,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
 
-      return { success: false, error: error.message };
+      return { success: false, error: (e instanceof Error ? e.message : String(e)) };
     }
   }
 
@@ -919,7 +925,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }
 
       // Validate scopes
-      const tools = require("./policy").TOOL_REGISTRY;
+      const tools = TOOL_REGISTRY;
       const tool = tools.find(t => t.name === toolId);
       if (!tool) {
         throw new Error(`Tool not found: ${toolId}`);
@@ -960,11 +966,11 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         scopes: requestedScopes,
         token,
       };
-    } catch (error) {
+    } catch (e: unknown) {
       appendAudit(getBrain(), "tool.authorization.error", {
         agentId,
         toolId,
-        error: error.message,
+        error: (e instanceof Error ? e.message : String(e)),
       }, "tool-hub");
 
       return {
@@ -989,7 +995,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
       }
 
       // Validate tool
-      const tools = require("./policy").TOOL_REGISTRY;
+      const tools = TOOL_REGISTRY;
       const tool = tools.find(t => t.name === toolId);
       if (!tool) {
         throw new Error(`Tool not found: ${toolId}`);
@@ -1011,7 +1017,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
         scopes: validScopes,
         permissions: validScopes, // Simplified: scopes = permissions
       };
-    } catch (error) {
+    } catch (e: unknown) {
       return {
         valid: false,
         scopes: [],
@@ -1023,7 +1029,7 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
   // --- Tool State and Status ---
 
   public async getToolStatus(toolId: string): Promise<ToolStatus> {
-    const tools = require("./policy").TOOL_REGISTRY;
+    const tools = TOOL_REGISTRY;
     const tool = tools.find(t => t.name === toolId);
 
     if (!tool) {
@@ -1103,4 +1109,3 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
   }
 }
 
-export { ToolIntegrationHubImpl as ToolIntegrationHub };

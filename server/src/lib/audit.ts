@@ -13,7 +13,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { db, type Db } from "../db/client.js";
 import { auditLog, merkleCheckpoints } from "../db/schema.js";
 import { desc, asc, sql } from "drizzle-orm";
-import { log } from "./logging.js";
+// // import { log } from "./logging.js"; // removed unused // removed unused import
 
 /** A Drizzle transaction (or the db itself) — both expose query + execute + insert. */
 export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -85,7 +85,7 @@ export async function appendAudit(
   tx?: Tx
 ): Promise<AuditEntry> {
   const id = `aud_${randomUUID()}`;
-  let createdCpSequence = 0;
+  let _createdCpSequence = 0;
   const doAppend = async (client: Tx): Promise<AuditEntry> => {
     await client.execute(sql`SELECT pg_advisory_xact_lock(79231)`);
     const tip = await chainTip(client);
@@ -101,7 +101,7 @@ export async function appendAudit(
 
     // Store Merkle checkpoint every MERKLE_CHUNK_SIZE entries
     if (sequence % MERKLE_CHUNK_SIZE === 0) {
-      createdCpSequence = sequence;
+      _createdCpSequence = sequence;
       const chunkStart = Math.max(1, sequence - MERKLE_CHUNK_SIZE + 1);
       const chunkRows = await client.query.auditLog.findMany({
         where: (t, { and, gte, lte }) => and(gte(t.sequence, chunkStart), lte(t.sequence, sequence)),

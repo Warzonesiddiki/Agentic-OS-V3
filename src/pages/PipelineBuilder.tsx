@@ -170,7 +170,7 @@ const BLOCK_TYPE_MAP = new Map(BLOCK_REGISTRY.map((b) => [b.type, b]));
 
 type ExecStatus = "idle" | "running" | "completed" | "failed";
 
-interface PipelineNodeData {
+interface PipelineNodeData extends Record<string, unknown> {
   blockType: string;
   label: string;
   config: Record<string, string | number>;
@@ -182,7 +182,7 @@ type PipelineNode = Node<PipelineNodeData>;
 
 /* ─── Custom node components ───────────────────────────────────────────────── */
 
-function PipelineNode({ data, selected }: NodeProps<PipelineNodeData>) {
+function PipelineNode({ data, selected }: NodeProps<PipelineNode>) {
   const def = BLOCK_TYPE_MAP.get(data.blockType);
   if (!def) return null;
   const statusColors: Record<ExecStatus, string> = {
@@ -350,7 +350,7 @@ function PipelineBuilderInner() {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const [nodes, setNodes, onNodesChange] = useNodesState<PipelineNode>([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const [selectedNode, setSelectedNode] = useState<PipelineNode | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [pipelineName, setPipelineName] = useState("Untitled Pipeline");

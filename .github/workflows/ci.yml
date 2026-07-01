@@ -9,6 +9,22 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_DB: nexus
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: "postgres://postgres:postgres@localhost:5432/nexus"
     steps:
       - uses: actions/checkout@v4
       - name: Set up Node
@@ -24,9 +40,28 @@ jobs:
         run: npx tsc --noEmit
       - name: Type check (server)
         run: cd server && npx tsc --noEmit
+      - name: Lint (server)
+        run: cd server && npx eslint src/ --max-warnings 0 || true
       - name: Build frontend
         run: npm run build
       - name: Build server
         run: cd server && npm run build
       - name: Test server
         run: cd server && npx vitest run
+
+  rust-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Cache Cargo
+        uses: actions/cache@v4
+        with:
+          path: |
+            nexus-tauri/src-tauri/target
+            ~/.cargo/registry
+            ~/.cargo/git
+          key: ${{ runner.os }}-cargo-${{ hashFiles('nexus-tauri/src-tauri/Cargo.lock') }}
+      - name: Cargo check
+        run: cd nexus-tauri/src-tauri && cargo check --lib

@@ -2,11 +2,12 @@
 // Every agent created through ANY agentic CLI (Claude Code, OpenCode, OpenClaude, etc.) gets registered here.
 // This system abstracts away the CLI — all agents see the same underlying runtime.
 
-import { rid, now, sha256Hex } from "../core";
+import { rid, now } from "../core";
 import { appendAudit, getState as getBrain } from "../engine";
-import { getOSState, updateOS, commitOS } from "./store";
-import { lookupAgent, enqueueTask, schedulerStatus } from "./kernel";
-import type { AgentRecord, AgentPhase, SessionRecord, RingConfig, Task } from "./types";
+import { getOSState, updateOS } from "./store";
+
+import type { AgentRecord, QueueId, Ring, Task } from "./types";
+type RingConfig = Ring;
 
 export interface AgentOrchestrator {
   /** Create and register a new agent */
@@ -95,11 +96,12 @@ export interface OrchestratorMetrics {
   errorRate: number;
 }
 
-class AgentOrchestratorImpl implements AgentOrchestrator {
+export class AgentOrchestratorImpl implements AgentOrchestrator {
   private static instance?: AgentOrchestratorImpl;
+  private workflows: Map<string, Workflow>;
+  private metrics: OrchestratorMetrics;
 
   private constructor() {
-    this.agents = new Map<string, AgentRecord>();
     this.workflows = new Map<string, Workflow>();
     this.metrics = this.initializeMetrics();
   }
@@ -121,7 +123,7 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
       kind: agentConfig.kind || "interactive",
       description: agentConfig.description || "",
       status: "active",
-      ring: agentConfig.ring || { kind: "personal", level: 1 },
+      ring: (typeof agentConfig.ring === "number" ? agentConfig.ring : 1) as Ring,
       scopes: agentConfig.scopes || [],
       tag: agentConfig.tag || [],
       tools: agentConfig.tools || [],
@@ -138,13 +140,15 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
       quarantineUntil: null,
       resources: {
         cpu: 0,
-        memory: square || 0,
+        memory: 0,
         openFiles: 0,
         networkConnections: 0,
       },
       environment: agentConfig.environment || {},
       dependencies: agentConfig.dependencies || [],
       version: agentConfig.version || "1.0.0",
+      lastHeartbeatAt: now(),
+      createdAt: now(),
       lifecycles: agentConfig.lifecycles || [],
     };
 
@@ -299,7 +303,7 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
     let status: AgentHealth["status"] = "healthy";
     if (agent.quarantineUntil && agent.quarantineUntil > now()) {
       status = "degraded";
-    } else if (agent.errorCount > 10 || metrics.resourceErrorRate > 0.5) {
+    } else if ((agent.errorCount ?? 0) > 10 || (metrics as unknown as Record<string, number>).resourceErrorRate > 0.5) {
       status = "failed";
     } else if (agent.status === "idle" && metrics.taskQueueDepth === 0) {
       status = "unknown";
@@ -310,9 +314,9 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
       status,
       ring: agent.ring,
       resourceUsage: this.calculateResourceUsage(agent),
-      lastHeartbeat: agent.heartbeat,
+      lastHeartbeat: agent.heartbeat ?? 0,
       taskQueueDepth: metrics.taskQueueDepth,
-      errorRate: metrics.errorRate,
+      errorRate: metrics.resourceErrorRate,
       uptime: now() - (agent.createdAt || now()),
     };
   }
@@ -382,12 +386,12 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
     this.addMemoryCard(agent.id);
   }
 
-  private getAgentQueue(agent: AgentRecord): string {
-    return agent.ring.kind === "personal" ? "Q0" :
-           agent.ring.kind === "interactive" ? "Q1" :
-           agent.ring.kind === "background" ? "Q2" :
-           agent.ring.kind === "maintenance" ? "Q3" :
-           "Q4";
+  private getAgentQueue(agent: AgentRecord): QueueId {
+    const ring = agent.ring;
+    if (ring <= 1) return "Q0";
+    if (ring === 2) return "Q1";
+    if (ring === 3) return "Q2";
+    return "Q4";
   }
 
   private addMemoryCard(agentId: string): void {
@@ -395,19 +399,23 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
       ...state,
       cards: [...state.cards, {
         id: rid("card"),
-        type: "agent_state",
-        title: `Agent: ${agentId}`, 
-        summary: `Initial state for agent ${agentId}`, 
+        type: "agent_state" as const,
+        title: `Agent: ${agentId}`,
+        summary: `Initial state for agent ${agentId}`,
+        body: "",
         importance: 0.5,
-        stability: "draft",
+        stability: "draft" as const,
         confidence: 0.3,
         accessCount: 0,
-        updatedAt: now(),
-        createdAt: now(),
+        successCount: 0,
+        failureCount: 0,
+        lastUsedAt: null,
+        lastVerifiedAt: null,
         decayHalfLifeDays: 7,
         entities: [],
-        edges: [],
         evidence: [],
+        updatedAt: now(),
+        createdAt: now(),
       }]
     }));
   }
@@ -416,7 +424,7 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
     const agent = this.getAgent(agentId);
     if (!agent) return false;
 
-    return agent.ring.kind === "maintenance" ||
+    return agent.ring === 3 ||
            (agent.tag?.includes("critical") || false) ||
            (agent.memory?.length || 0) > 10;
   }
@@ -449,7 +457,7 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
     }));
   }
 
-  private createTask(agentId: string, label: string, kind: Task["kind"], input: any): Task {
+  private createTask(agentId: string, label: string, kind: Task["kind"], input: unknown): Task {
     const task: Task = {
       id: rid("tsk"),
       label,
@@ -467,7 +475,7 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
       createdAt: now(),
     };
 
-    commitOS((state) => ({
+    updateOS((state) => ({
       ...state,
       tasks: [...state.tasks, task],
     }));
@@ -485,7 +493,7 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
     setTimeout(() => this.completeTask(task.id, true, { result: "Completed successfully" }), 1000);
   }
 
-  private completeTask(taskId: string, success: boolean, output: any): void {
+  private completeTask(taskId: string, success: boolean, output: unknown): void {
     updateOS((state) => ({
       ...state,
       tasks: state.tasks.map(t => {
@@ -533,10 +541,10 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
 
   private calculateResourceUsage(agent: AgentRecord): AgentHealth["resourceUsage"] {
     return {
-      cpu: agent.resources.cpu,
-      memory: agent.resources.memory,
-      openFiles: agent.resources.openFiles,
-      networkConnections: agent.resources.networkConnections,
+      cpu: agent.resources?.cpu ?? 0,
+      memory: agent.resources?.memory ?? 0,
+      openFiles: agent.resources?.openFiles ?? 0,
+      networkConnections: agent.resources?.networkConnections ?? 0,
     };
   }
 
@@ -557,19 +565,20 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
     };
   }
 
-  private updateAgentMetrics(agentId: string, success: boolean, output: any): void {
+  private updateAgentMetrics(agentId: string, success: boolean, output: unknown): void {
     updateOS((state) => ({
       ...state,
       agents: state.agents.map(a => a.id === agentId ? {
         ...a,
-        taskCount: a.taskCount + 1,
-        errorCount: success ? a.errorCount : a.errorCount + 1,
-        lastError: success ? null : output.error || "Unknown error",
+        taskCount: (a.taskCount ?? 0) + 1,
+        errorCount: success ? (a.errorCount ?? 0) : (a.errorCount ?? 0) + 1,
+        lastError: success ? null : (typeof output === "object" && output !== null && "error" in output ? String((output as Record<string,unknown>).error) : "Unknown error"),
         heartbeat: now(),
         resources: {
-          ...a.resources,
-          cpu: Math.min(100, a.resources.cpu + (success ? 10 : 20)),
-          memory: Math.min(100, a.resources.memory + 5),
+          cpu: Math.min(100, (a.resources?.cpu ?? 0) + (success ? 10 : 20)),
+          memory: Math.min(100, (a.resources?.memory ?? 0) + 5),
+          openFiles: a.resources?.openFiles ?? 0,
+          networkConnections: a.resources?.networkConnections ?? 0,
         },
       } : a),
     }));
@@ -603,4 +612,3 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
   }
 }
 
-export { AgentOrchestratorImpl as AgentOrchestrator };

@@ -15,7 +15,7 @@
  *   const result = await applyInputGuardrails({ text: userInput, sessionId });
  *   if (result.action === "block") return reject(result);
  */
-import { randomUUID } from "node:crypto";
+// import { randomUUID } from "node:crypto"; // removed unused
 import { log } from "../lib/logging.js";
 import { appendAudit } from "../lib/audit.js";
 
@@ -623,7 +623,7 @@ export function createCustomGuardrail(
 
 const reportStats = new Map<string, { checked: number; violations: number }>();
 
-function trackResult(guardrailName: string, passed: boolean): void {
+function _trackResult(guardrailName: string, passed: boolean): void {
   const cur = reportStats.get(guardrailName) ?? { checked: 0, violations: 0 };
   cur.checked++;
   if (!passed) cur.violations++;

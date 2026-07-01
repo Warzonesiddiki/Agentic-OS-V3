@@ -85,7 +85,7 @@ export function syscall(call: Syscall): SyscallResult {
   }
 }
 
-function lookupAgent(id: string): AgentRecord | undefined {
+export function lookupAgent(id: string): AgentRecord | undefined {
   return getOSState().agents.find((a) => a.id === id || a.name === id);
 }
 
@@ -213,7 +213,8 @@ export function enqueueTask(agentId: string, label: string, kind: Task["kind"], 
 }
 
 function queuePriority(q: QueueId): number {
-  return { Q0: 100, Q1: 80, Q2: 60, Q3: 40, Q4: 20 }[q];
+  const priorities: Record<QueueId, number> = { Q0: 100, Q1: 80, Q2: 60, Q3: 40, Q4: 20, "default": 30 };
+  return priorities[q];
 }
 
 /** Process the next runnable task (highest priority, starvation-aware). */
@@ -278,6 +279,7 @@ export function schedulerStatus(): { depth: Record<QueueId, number>; running: nu
       Q2: t.filter((x) => x.queue === "Q2" && x.status === "queued").length,
       Q3: t.filter((x) => x.queue === "Q3" && x.status === "queued").length,
       Q4: t.filter((x) => x.queue === "Q4" && x.status === "queued").length,
+      "default": t.filter((x) => x.queue === "default" && x.status === "queued").length,
     },
     running: t.filter((x) => x.status === "running").length,
     deadLetter: t.filter((x) => x.status === "dead_letter").length,
@@ -375,7 +377,7 @@ function createBusMessage(
     type,
     kind,
     from,
-    to: to ?? null ?? undefined,
+    to: to ?? undefined,
     topic,
     payload,
     correlationId: extras?.correlationId,
@@ -691,7 +693,7 @@ export function heartbeat(agentId: string): void {
 
 export function detectStuck(): AgentRecord[] {
   const t = now();
-  return getOSState().agents.filter((a) => a.status === "active" && a.lastHeartbeatAt && t - a.lastHeartbeatAt > STUCK_MS);
+  return getOSState().agents.filter((a) => a.status === "active" && a.lastHeartbeatAt != null && t - a.lastHeartbeatAt > STUCK_MS);
 }
 
 export function quarantine(agentId: string): void {

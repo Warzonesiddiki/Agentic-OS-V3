@@ -27,6 +27,7 @@ export interface ToolSpec {
   timeoutMs: number;
   retryable: boolean;
   approvalRequired: boolean;
+  authRequired?: boolean;
 }
 
 /* Typed memory graph */
@@ -45,12 +46,14 @@ export type MemoryType =
   | "handoff"
   | "task_state"
   | "skill"
-  | "external_resource";
+  | "external_resource"
+  | "agent_state";
 
 export const MEMORY_TYPES: MemoryType[] = [
   "user_preference", "project_fact", "architecture_decision", "coding_convention",
   "known_pitfall", "debugging_lesson", "command_recipe", "api_contract",
   "dependency_note", "security_rule", "handoff", "task_state", "skill", "external_resource",
+  "agent_state",
 ];
 
 export type Stability = "draft" | "confirmed" | "deprecated" | "contradicted";
@@ -99,8 +102,15 @@ export interface GraphEdge {
 
 /* Agents */
 
-export type AgentKind = "claude-code" | "codex" | "gemini" | "opencode" | "cursor" | "cline" | "generic";
-export type AgentStatus = "active" | "idle" | "quarantined" | "disabled";
+export type AgentKind = "claude-code" | "codex" | "gemini" | "opencode" | "cursor" | "cline" | "generic" | "interactive";
+export type AgentStatus = "active" | "idle" | "paused" | "quarantined" | "disabled" | "terminating";
+
+export interface AgentResources {
+  cpu: number;
+  memory: number;
+  openFiles: number;
+  networkConnections: number;
+}
 
 export interface AgentRecord {
   id: string;
@@ -111,14 +121,32 @@ export interface AgentRecord {
   status: AgentStatus;
   cwd?: string;
   sessionId?: string;
-  lastHeartbeatAt: number | null;
+  capabilities?: string[];
+  tag?: string[];
+  tools?: string[];
+  systemPrompt?: string;
+  memory?: string[];
+  skills?: string[];
+  rules?: string[];
+  description?: string;
+  environment?: Record<string, string>;
+  dependencies?: string[];
+  version?: string;
+  lifecycles?: import("./agent-manifest").AgentLifecycle[];
   metadata: Record<string, string>;
+  lastHeartbeatAt: number | null;
+  heartbeat?: number;
+  taskCount?: number;
+  errorCount?: number;
+  lastError?: string | null;
+  quarantineUntil?: number | null;
+  resources?: AgentResources;
   createdAt: number;
 }
 
 /* Scheduler / tasks */
 
-export type QueueId = "Q0" | "Q1" | "Q2" | "Q3" | "Q4";
+export type QueueId = "Q0" | "Q1" | "Q2" | "Q3" | "Q4" | "default";
 export type TaskKind = "interactive" | "background" | "maintenance" | "safety" | "self_improvement";
 export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "dead_letter";
 
@@ -315,6 +343,8 @@ export interface SessionRecord {
   endedAt?: number;
   handoffId?: string;
   events: number;
+  scopes?: string[];
+  expiresAt?: number;
 }
 
 /* Diagnostics */

@@ -21,7 +21,7 @@ import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
 import { getEnv } from "../lib/env.js";
 import { estimateTokens } from "../lib/tokens.js";
-import { eq, sql, and, lt, gte } from "drizzle-orm";
+// import { eq, sql, and, lt, gte } from "drizzle-orm";  // removed unused
 import {
   agents,
   agentTasks,

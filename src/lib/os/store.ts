@@ -7,7 +7,7 @@
 import { now, rid } from "../core";
 import { getState as getBrain } from "../engine";
 import type {
-  AgentRecord, BusDeadLetterEntry, BusMessage, BusSubscription, MemoryCard, OSState, Saga, Task, VfsDir, VfsFile,
+  AgentRecord, BusMessage, MemoryCard, OSState, Saga, Task, VfsDir, VfsFile,
 } from "./types";
 
 const KEY = "nexus.os.v2";

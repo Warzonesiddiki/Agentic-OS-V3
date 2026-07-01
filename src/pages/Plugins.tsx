@@ -165,7 +165,7 @@ export default function Plugins() {
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
 
   const debouncedSearch = useDebounce(search, 300);
-  const { installed, install, uninstall, getStatus } = useMockRegistry();
+  const { install, uninstall, getStatus } = useMockRegistry();
 
   /* ── Derive data ── */
   const apiPlugins = pluginsResp?.items ?? [];

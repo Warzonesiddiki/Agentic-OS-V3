@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { remote as remoteApi, getRemote } from "../lib/remote";
 import { Badge, Button, Card, SectionTitle, Input, Select, cn, EmptyState } from "../components/ui";
-import { formatDateTime, timeAgo } from "../lib/core";
+import { formatDateTime } from "../lib/core";
 
 /* ── Types ─────────────────────────────────────────────────────────── */
 

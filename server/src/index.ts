@@ -37,6 +37,8 @@ async function bootstrap(): Promise<void> {
   const { isKillSwitchOn } = await import("./services.js");
   const { handleMcp } = await import("./mcp-http.js");
   const { randomUUID } = await import("node:crypto");
+  const { writeFileSync } = await import("node:fs");
+  const os = await import("node:os");
 
   // Initialize OpenTelemetry if configured.
   const { initOtel } = await import("./lib/otel.js");
@@ -90,21 +92,20 @@ async function bootstrap(): Promise<void> {
 
   await appendAudit("system.booted", { version: "2.0.0", killSwitch: await isKillSwitchOn() }, "system");
 
-  const bus = await import("./services/message-bus.js");
+  // bus import removed (unused)
   log.info("bus_initialized");
 
   // Start the background task worker — polls tasks, processes them, and runs maintenance.
   const { startWorker } = await import("./services/task-worker.js");
   startWorker("system-worker");
 
-  server.listen(env.PORT || 0, '127.0.0.1', () => {
+  server.listen(env.PORT || 0, "127.0.0.1", () => {
         const addr = server!.address();
-        const actualPort = typeof addr === 'string' ? addr : addr?.port;
+        const actualPort = typeof addr === "string" ? addr : addr?.port;
         if (actualPort === undefined) {
-            throw new Error('Failed to get server port');
+            throw new Error("Failed to get server port");
         }
-        const { writeFileSync } = await import("node:fs");
-        const portFile = process.platform === 'win32' ? path.join(process.env.TEMP || 'C:\\tmp', 'nexus-port.txt') : '/tmp/nexus-port.txt';
+        const portFile = path.join(os.tmpdir(), "nexus-port.txt");
         writeFileSync(portFile, actualPort.toString());
     });
 

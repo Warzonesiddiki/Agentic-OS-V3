@@ -2,7 +2,7 @@ import type { SkillManifest, SkillResult, InvocationContext } from "./lib/types"
 
 export class SkillRegistry {
   private manifests: Map<string, SkillManifest> = new Map();
-  private adapters: Map<string, (input: any, ctx: InvocationContext) => Promise<SkillResult<any>>> = new Map();
+  private adapters: Map<string, (input: unknown, ctx: InvocationContext) => Promise<SkillResult<unknown>>> = new Map();
 
   async list(category?: string): Promise<SkillManifest[]> {
     return Array.from(this.manifests.values()).filter(m => !category || m.category === category);
@@ -20,7 +20,7 @@ export class SkillRegistry {
     return (await fn(input, ctx)) as SkillResult<TOut>;
   }
 
-  register(manifest: SkillManifest, adapter: (input: any, ctx: InvocationContext) => Promise<SkillResult<any>>) {
+  register(manifest: SkillManifest, adapter: (input: unknown, ctx: InvocationContext) => Promise<SkillResult<unknown>>) {
     this.manifests.set(manifest.skillId, manifest);
     this.adapters.set(manifest.skillId, adapter);
   }

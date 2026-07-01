@@ -1,4 +1,9 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
+
+// Mock the audit module so guardrails tests don't need PostgreSQL
+vi.mock("../src/lib/audit.js", () => ({
+  appendAudit: vi.fn().mockResolvedValue({ id: "mock_audit", sequence: 0, actor: "test", action: "mock", payload: null, prevHash: "", entryHash: "", createdAt: new Date() }),
+}));
 
 // ── Phase 3.2: Message Bus ──────────────────────────────────
 import { getMessageBus, type BusMessage } from "../src/services/message-bus.js";

@@ -155,6 +155,7 @@ export interface NexusState {
   meta: Record<string, string>;
   principals: Principal[];
   vaultFiles: VaultFile[];
+  osState?: Record<string, unknown>;
 }
 
 export interface Envelope<T = unknown> {

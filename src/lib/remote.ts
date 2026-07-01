@@ -10,6 +10,12 @@
  */
 import type { Envelope } from "./types";
 
+declare global {
+  interface Window {
+    NEXUS_API_PORT?: number;
+  }
+}
+
 const KEY = "nexus.remote";
 
 export interface RemoteConfig {
@@ -21,7 +27,7 @@ export interface RemoteConfig {
 export function defaultRemote(): RemoteConfig {
   // If Tauri injects a global port variable, use it as the base URL.
   // This enables the frontend to talk to the side‑car backend.
-  const tauriPort = (typeof window !== "undefined" && (window as any).NEXUS_API_PORT) as number | undefined;
+  const tauriPort = typeof window !== "undefined" && window.NEXUS_API_PORT;
   const base = tauriPort ? `http://127.0.0.1:${tauriPort}` : typeof window !== "undefined" ? window.location.origin : "";
   return {
     enabled: !!tauriPort,
@@ -30,13 +36,6 @@ export function defaultRemote(): RemoteConfig {
   };
 }
 
-  return {
-    enabled: false,
-    // Same-origin when the dashboard is served by the NEXUS server.
-    baseUrl: typeof window !== "undefined" ? window.location.origin : "",
-    apiKey: "",
-  };
-}
 
 const listeners = new Set<() => void>();
 
