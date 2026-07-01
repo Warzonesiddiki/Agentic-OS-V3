@@ -9,7 +9,7 @@ import { describe, it, expect, beforeAll } from "vitest";
 import { db, closeDb } from "../../src/db/client.js";
 import { createApp } from "../../src/app.js";
 import { apiKeys, memories } from "../../src/db/schema.js";
-import { hashApiKey, generateApiKey } from "../../src/lib/security.js";
+import { hashApiKey, generateApiKey, invalidateAuthCache } from "../../src/lib/security.js";
 import { randomUUID } from "node:crypto";
 
 let operatorKey = "";
@@ -205,6 +205,8 @@ describe("API integration", () => {
       scopes: ["memory:read"],
       status: "active",
     });
+    // Invalidate auth cache so the new key is picked up
+    invalidateAuthCache();
     const res = await app.request("/api/v1/memories", {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${roKey}` },

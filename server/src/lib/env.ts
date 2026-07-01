@@ -74,6 +74,10 @@ const schema = z.object({
   NEXUS_WORKER_AUTO_KILL: z.coerce.boolean().default(false),
   // Recall corpus cap
   NEXUS_MAX_RECALL_CORPUS: z.coerce.number().int().min(100).max(500000).default(10000),
+  // Auth cache config
+  NEXUS_AUTH_PRINCIPAL_TTL_MS: z.coerce.number().int().min(1000).max(300000).default(30000),
+  NEXUS_AUTH_RESULT_TTL_MS: z.coerce.number().int().min(1000).max(300000).default(60000),
+  NEXUS_AUTH_RESULT_CACHE_CAP: z.coerce.number().int().min(100).max(10000).default(1024),
   // OpenTelemetry
   NEXUS_OTEL_ENDPOINT: z.string().default(""),
   NEXUS_OTEL_API_KEY: z.string().default(""),

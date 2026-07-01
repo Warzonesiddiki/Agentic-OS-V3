@@ -6,6 +6,7 @@
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { eq, sql, desc } from "drizzle-orm";
 import { apiKeys } from "../db/schema.js";
+import { env } from "../lib/env.js";
 
 const SCRYPT_KEYLEN = 32;
 
@@ -81,9 +82,9 @@ export function parseBearer(header: string | undefined): string | null {
  *  - The `lastUsedAt` of the matched principal is updated (best-effort) so the
  *    column is no longer dead.
  */
-const PRINCIPAL_TTL_MS = 30_000;
-const RESULT_TTL_MS = 60_000;
-const RESULT_CACHE_CAP = 1024;
+const PRINCIPAL_TTL_MS = env.NEXUS_AUTH_PRINCIPAL_TTL_MS;
+const RESULT_TTL_MS = env.NEXUS_AUTH_RESULT_TTL_MS;
+const RESULT_CACHE_CAP = env.NEXUS_AUTH_RESULT_CACHE_CAP;
 let principalCache: { rows: PrincipalRow[]; at: number } | null = null;
 let activePrincipalIds: Set<string> | null = null;
 const resultCache = new Map<string, { principal: Principal; at: number }>();
