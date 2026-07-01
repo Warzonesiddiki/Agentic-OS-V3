@@ -364,7 +364,8 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
 
     // Apply keyword search
     if (query.query) {
-      const queryLower = query.query.toLowerCase();n      results = results.filter(tool =>
+      const queryLower = query.query.toLowerCase();
+      results = results.filter(tool =>
         tool.name.toLowerCase().includes(queryLower) ||
         tool.description.toLowerCase().includes(queryLower) ||
         tool.provider.toLowerCase().includes(queryLower) ||
@@ -1049,10 +1050,9 @@ class ToolIntegrationHubImpl implements ToolIntegrationHub {
     return {
       toolId,
       status,
-      responseTime: status === "available" ? Math.random() * 100 + 50 :  // 50-150 ms
-        status === "degraded" ? Math.random() * 500 + 100 :   // 100-600 ms
-        status === "offline" ? 9999 : 0, // Very high
-        0,
+      responseTime: status === "available" ? Math.random() * 100 + 50 :
+        status === "degraded" ? Math.random() * 500 + 100 :
+        status === "offline" ? 9999 : 0,
       errorRate: status === "error" ? 1.0 : Math.random() * 0.1, // 0-10%
       usageCount: Math.floor(Math.random() * 50),
       lastSuccess: now() - Math.random() * 3600000,

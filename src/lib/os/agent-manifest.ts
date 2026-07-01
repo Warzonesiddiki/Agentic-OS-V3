@@ -574,7 +574,7 @@ class ${manifest.name}Agent {
 
   async execute(input: string): Promise<string> {
     // Agent execution logic
-    return `Agent ${manifest.name} executed input: ${input}`;
+    return \`Agent \${manifest.name} executed input: \${input}\`;
   }
 }
 

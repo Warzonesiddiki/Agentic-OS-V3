@@ -6,7 +6,7 @@
 import { pgTable, text, timestamp, integer, real, jsonb, boolean, uniqueIndex, index, bigint } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 
-/** Embedding column — real[] for pgvector compatibility; falls back to jsonb in dev mode via dev-schema.ts. */
+/** Embedding column — text for SQLite compatibility (stores JSON array); falls back to jsonb in dev mode via dev-schema.ts. */
 const embeddingCol = () => real("embedding").array();
 
 export const memories = pgTable(

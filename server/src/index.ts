@@ -96,9 +96,14 @@ async function bootstrap(): Promise<void> {
   const { startWorker } = await import("./services/task-worker.js");
   startWorker("system-worker");
 
-  server.listen(env.PORT, () => {
-    log.info("listening", { port: env.PORT, env: env.NODE_ENV, mcp: "/api/mcp", sse: "/api/v1/events" });
-  });
+  server.listen(env.PORT || 0, '127.0.0.1', () => {
+        const addr = server!.address();
+        const actualPort = typeof addr === 'string' ? addr : addr?.port;
+        if (actualPort === undefined) {
+            throw new Error('Failed to get server port');
+        }
+        require('fs').writeFileSync('/tmp/nexus-port.txt', actualPort.toString());
+    });
 
 }
 

@@ -513,7 +513,8 @@ class AgentOrchestratorImpl implements AgentOrchestrator {
   }
 
   private queuePriority(queue: string): number {
-    return { Q0: 100, Q1: 80, Q2: 60, Q3: 40, Q4: 20 }[queue as keyof typeof { Q0: 100, Q1: 80, Q2: 60, Q3: 40, Q4: 20 }] || 50;
+    const priorityMap: Record<string, number> = { Q0: 100, Q1: 80, Q2: 60, Q3: 40, Q4: 20 };
+    return priorityMap[queue] ?? 50;
   }
 
   private initializeMetrics(): OrchestratorMetrics {
