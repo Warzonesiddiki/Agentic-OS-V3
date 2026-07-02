@@ -1,4 +1,3 @@
-// @ts-nocheck — db.query.* pattern resolves at runtime through Proxy
 /**
  * federated-recall.ts
  * ───────────────────
@@ -35,7 +34,7 @@
  */
 import { createHash, verify, randomUUID } from "node:crypto";
 import { db } from "../db/client.js";
-import { federatedMemoryProofs } from "../db/schema-v3-100x.js";
+import { federatedMemoryProofs } from "../db/schema.js";
 import { memories, skills, notes } from "../db/schema.js";
 import { desc, eq, and, sql, isNotNull, inArray } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
@@ -91,7 +90,7 @@ export async function publishMemoryProof(input: {
 }): Promise<MemoryProof> {
   const envelope: Omit<MemoryProof, "signature"> = {
     origin_peer_id: input.peerId,
-    origin_pubkey: derivePubkey(input.publisherPrivKeyB64),
+    origin_pubkey: await derivePubkey(input.publisherPrivKeyB64),
     content_sha256: input.contentSha256,
     embedding: input.embedding,
     topic_tags: input.topicTags,
@@ -106,8 +105,8 @@ export async function publishMemoryProof(input: {
   return { ...envelope, signature };
 }
 
-function derivePubkey(privKeyB64: string): string {
-  const { createPrivateKey, createPublicKey } = require("node:crypto") as typeof import("node:crypto");
+async function derivePubkey(privKeyB64: string): Promise<string> {
+  const { createPrivateKey, createPublicKey } = await import("node:crypto");
   const privKeyObj = createPrivateKey({ key: Buffer.from(privKeyB64, "base64"), format: "der", type: "pkcs8" });
   const pubKeyObj = createPublicKey(privKeyObj);
   return pubKeyObj.export({ format: "der", type: "spki" }).toString("base64");
@@ -474,9 +473,9 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   const dim = Math.min(a.length, b.length);
   let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < dim; i++) {
-    dot += a[i] * b[i];
-    na += a[i] * a[i];
-    nb += b[i] * b[i];
+    dot += a[i]! * b[i]!;
+    na += a[i]! * a[i]!;
+    nb += b[i]! * b[i]!;
   }
   const mag = Math.sqrt(na) * Math.sqrt(nb);
   return mag === 0 ? 0 : dot / mag;
@@ -529,7 +528,6 @@ export function getAgentStateCacheStats(): LRUStats {
 
 /* ─── Phase 4b: Cross-session Persistence ──────────────────────────────── */
 
-const SESSION_MEMORY_KEY = "nexus:fed:session_memories";
 const sessionMemoryStore = new Map<string, { items: RecallItem[]; savedAt: number }>();
 
 export function persistSessionMemories(sessionId: string, items: RecallItem[]): void {

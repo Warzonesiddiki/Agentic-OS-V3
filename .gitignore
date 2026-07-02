@@ -34,4 +34,4 @@ Thumbs.db
 nexus-tauri/src-tauri/resources/backend/
 
 # OS temp files
-nexus-port.txt
+nexus-port*.txt

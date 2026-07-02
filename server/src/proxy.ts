@@ -29,7 +29,9 @@ export const securityHeaders: MiddlewareHandler<NexusEnv> = async (c, next) => {
   c.header("x-content-type-options", "nosniff");
   c.header("x-frame-options", "DENY");
   c.header("referrer-policy", "no-referrer");
-  c.header("content-security-policy", "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'");
+  // Note: style-src 'unsafe-inline' is required for Tailwind CSS runtime styles.
+  // script-src does NOT need unsafe-inline — all scripts are bundled by Vite.
+  c.header("content-security-policy", "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-ancestors 'none'");
   c.header("strict-transport-security", "max-age=31536000; includeSubDomains");
   c.header("cache-control", "no-store");
   c.header("x-request-id", c.get("requestId") ?? "unknown");

@@ -1,4 +1,3 @@
-// @ts-nocheck — db.query.* pattern resolves at runtime through Proxy
 /**
  * wasm-plugin-runtime.ts
  * ──────────────────────
@@ -32,8 +31,7 @@ import {
   plugins,
   pluginInstallations,
   pluginReceipts,
-  type plugins as Plugins,
-} from "../db/schema-v3-100x.js";
+} from "../db/schema.js";
 import { desc, eq } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";

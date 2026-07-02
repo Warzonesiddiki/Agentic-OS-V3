@@ -1,4 +1,3 @@
-// @ts-nocheck — db.query.* pattern resolves at runtime through Proxy
 /**
  * self-improvement-harness.ts
  * ────────────────────────────
@@ -31,9 +30,7 @@ import { db } from "../db/client.js";
 import {
   improvementProposals,
   metricSnapshots,
-  type improvementProposals as ImprovementProposals,
-  type metricSnapshots as MetricSnapshots,
-} from "../db/schema-v3-100x.js";
+} from "../db/schema.js";
 import { desc, eq, and, gte } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";

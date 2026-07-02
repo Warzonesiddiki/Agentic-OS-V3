@@ -1,4 +1,3 @@
-// @ts-nocheck — db.query.* pattern resolves at runtime through Proxy
 /**
  * pipeline-executor.ts
  * ────────────────────
@@ -19,7 +18,7 @@
  */
 import { randomUUID } from "node:crypto";
 import { db } from "../db/client.js";
-import { pipelines, pipelineRuns } from "../db/schema-v3-100x.js";
+import { pipelines, pipelineRuns } from "../db/schema.js";
 import { eq } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";

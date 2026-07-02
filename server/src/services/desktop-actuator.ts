@@ -14,8 +14,7 @@ import { randomUUID } from "node:crypto";
 
 /* ── Screenshot Capture ── */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _screenshotFn: ((opts?: Record<string,unknown>) => Promise<Buffer>) | null = null;
+let _screenshotFn: ((opts?: { format?: string }) => Promise<Buffer>) | null = null;
 
 async function captureScreenshotBase64(): Promise<string> {
   try {
@@ -33,11 +32,25 @@ async function captureScreenshotBase64(): Promise<string> {
 
 /* ── Action Execution ── */
 
+/** Sanitize a string for safe inclusion in a PowerShell command.
+ * Strips null bytes, backticks, dollar-sign interpolation, and pipes.
+ * This is defense-in-depth — callers should also validate inputs. */
+function sanitizePs(input: string): string {
+  return input
+    .replace(/\u0000/g, "")       // null bytes
+    .replace(/[`|&;()]/g, "")     // shell metacharacters
+    .replace(/\$\(/g, "")         // subexpression
+    .replace(/\$\{[^}]*\}/g, "") // interpolation
+    .replace(/\n/g, " ");         // newlines
+}
+
 async function executePowerShell(script: string): Promise<string> {
-  const { execSync } = await import("node:child_process");
-  return execSync(`powershell -NoProfile -Command "${script.replace(/"/g, '\\"')}"`, {
+  const { execFileSync } = await import("node:child_process");
+  // Use execFileSync to avoid shell interpolation — arguments are passed as an array.
+  return execFileSync("powershell", ["-NoProfile", "-Command", script], {
     timeout: 10_000,
     encoding: "utf-8",
+    windowsHide: true,
   });
 }
 
@@ -45,10 +58,12 @@ async function executeAction(action: DesktopAction): Promise<void> {
   switch (action.action) {
     case "click":
       if (action.x !== undefined && action.y !== undefined) {
-        await executePowerShell(`
+        const x = Math.round(Number(action.x) || 0);
+      const y = Math.round(Number(action.y) || 0);
+      await executePowerShell(`
           Add-Type -AssemblyName System.Windows.Forms
-          [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${Math.round(action.x)}, ${Math.round(action.y)})
-          [System.Windows.Forms.Mouse]::Click([System.Windows.Forms.MouseButtons]::Left, ${Math.round(action.x)}, ${Math.round(action.y)}, 0, 0)
+          [System.Windows.Forms.Cursor]::Position = New-Object System.Drawing.Point(${x}, ${y})
+          [System.Windows.Forms.Mouse]::Click([System.Windows.Forms.MouseButtons]::Left, ${x}, ${y}, 0, 0)
         `);
       }
       break;
@@ -56,7 +71,9 @@ async function executeAction(action: DesktopAction): Promise<void> {
     case "type":
       if (action.text) {
         // Type text via clipboard + Ctrl+V (more reliable than keystrokes for special chars)
-        const encoded = Buffer.from(action.text, "utf8").toString("base64");
+        // Base64 encode the text — it's safe for PowerShell string interpolation.
+        const safeText = sanitizePs(action.text);
+        const encoded = Buffer.from(safeText, "utf8").toString("base64");
         await executePowerShell(`
           Add-Type -AssemblyName System.Windows.Forms
           $bytes = [Convert]::FromBase64String('${encoded}')
@@ -68,16 +85,15 @@ async function executeAction(action: DesktopAction): Promise<void> {
       }
       break;
 
-    case "scroll":
+    case "scroll": {
+      const amount = Math.min(Math.max(Math.round(Number(action.amount) || 3), 1), 50);
+      const dir = action.direction === "up" ? "UP" : "DOWN";
       await executePowerShell(`
         Add-Type -AssemblyName System.Windows.Forms
-        ${action.direction === "up" ? `
-          [System.Windows.Forms.SendKeys]::SendWait('{UP ${action.amount ?? 3}}')
-        ` : `
-          [System.Windows.Forms.SendKeys]::SendWait('{DOWN ${action.amount ?? 3}}')
-        `}
+        [System.Windows.Forms.SendKeys]::SendWait('{${dir} ${amount}}')
       `);
       break;
+    }
 
     case "keypress":
       if (action.key) {
@@ -97,10 +113,15 @@ async function executeAction(action: DesktopAction): Promise<void> {
           pageup: "{PGUP}",
           pagedown: "{PGDN}",
         };
-        const key = keyMap[action.key.toLowerCase()] ?? action.key;
+        // Only allow known keys — reject anything not in the map to prevent injection.
+        const mapped = keyMap[action.key.toLowerCase()];
+        if (!mapped) {
+          log.warn("desktop_unknown_key", { key: action.key });
+          break;
+        }
         await executePowerShell(`
           Add-Type -AssemblyName System.Windows.Forms
-          [System.Windows.Forms.SendKeys]::SendWait('${key}')
+          [System.Windows.Forms.SendKeys]::SendWait('${mapped}')
         `);
       }
       break;

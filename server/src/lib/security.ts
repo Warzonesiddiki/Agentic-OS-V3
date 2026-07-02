@@ -171,6 +171,8 @@ export async function authenticate(
     // Errors are logged (never silently swallowed), but do not propagate.
     if (matchedId) {
       db.update(apiKeys).set({ lastUsedAt: sql`now()` }).where(eq(apiKeys.id, matchedId)).catch((e: unknown) => {
+        // Non-critical: metadata write failure should not block auth.
+        // eslint-disable-next-line no-console
         console.warn("[NEXUS] lastUsedAt update failed:", e instanceof Error ? e.message : String(e));
       });
     }

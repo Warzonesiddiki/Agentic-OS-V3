@@ -460,7 +460,7 @@ api.get("/api/v1/analytics", async (c) => {
       (SELECT count(*)::int FROM agents) AS agents,
       (SELECT count(*)::int FROM agent_tasks) AS tasks
   `);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw SQL result shape is not statically known
   const t: Record<string, any> = (Array.isArray(totalsQuery) ? totalsQuery[0] : totalsQuery) ?? {};
 
   return c.json(ok({

@@ -19,6 +19,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import { getRequestListener } from "@hono/node-server";
 import { log, fatal } from "./lib/logging.js";
 import * as path from "node:path";
+import * as os from "node:os";
+import { writeFileSync, unlinkSync } from "node:fs";
 
 let server: ReturnType<typeof createServer> | null = null;
 
@@ -37,8 +39,7 @@ async function bootstrap(): Promise<void> {
   const { isKillSwitchOn } = await import("./services.js");
   const { handleMcp } = await import("./mcp-http.js");
   const { randomUUID } = await import("node:crypto");
-  const { writeFileSync } = await import("node:fs");
-  const os = await import("node:os");
+  // os and writeFileSync are imported at module top level for use in both bootstrap and shutdown.
 
   // Initialize OpenTelemetry if configured.
   const { initOtel } = await import("./lib/otel.js");
@@ -99,14 +100,19 @@ async function bootstrap(): Promise<void> {
   const { startWorker } = await import("./services/task-worker.js");
   startWorker("system-worker");
 
-  server.listen(env.PORT || 0, "127.0.0.1", () => {
+  // In production/Docker, bind to all interfaces so the container is reachable.
+  // In development, bind to localhost only for security.
+  const host = env.NODE_ENV === "production" ? "0.0.0.0" : "127.0.0.1";
+  server.listen(env.PORT || 0, host, () => {
         const addr = server!.address();
         const actualPort = typeof addr === "string" ? addr : addr?.port;
         if (actualPort === undefined) {
             throw new Error("Failed to get server port");
         }
-        const portFile = path.join(os.tmpdir(), "nexus-port.txt");
+        // Use PID-qualified filename to avoid race conditions with multiple instances.
+        const portFile = path.join(os.tmpdir(), `nexus-port-${process.pid}.txt`);
         writeFileSync(portFile, actualPort.toString());
+        log.info("server_started", { host, port: actualPort, pid: process.pid });
     });
 
 }
@@ -147,6 +153,12 @@ async function gracefulShutdown(signal: string): Promise<void> {
     const { closeDb } = await import("./db/client.js");
     await closeDb();
   } catch { /* best-effort */ }
+
+  // Clean up the PID-qualified port file.
+  try {
+    const portFile = path.join(os.tmpdir(), `nexus-port-${process.pid}.txt`);
+    unlinkSync(portFile);
+  } catch { /* best-effort — file may not exist */ }
 
   // Flush OpenTelemetry if it was initialized.
   try {
