@@ -381,8 +381,7 @@ function safeWrite(key: string, value: string): void {
     // Log the specific error (quota exceeded, security policy, etc.) — never silent.
     persistence.lastError = `Failed to write ${key} to localStorage: ${e instanceof Error ? e.message : String(e)}`;
     persistence.lastWriteOk = false;
-    // eslint-disable-next-line no-console
-    console.warn("[NEXUS]", persistence.lastError);
+    import("./logger.js").then(({ logger }) => logger.warn("engine", persistence.lastError ?? ""));
   }
 }
 

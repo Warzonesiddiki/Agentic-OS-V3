@@ -1,32 +1,24 @@
 {
   "compilerOptions": {
-    "target": "ES2020",
-    "useDefineForClassFields": true,
-    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "target": "ES2022",
     "module": "ESNext",
-    "skipLibCheck": true,
-    "types": ["node"],
-
-    /* Bundler mode */
     "moduleResolution": "bundler",
-    "allowImportingTsExtensions": true,
+    "declaration": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": true,
-    "jsx": "react-jsx",
-
-    /* Path mapping */
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@shared/*": ["shared/*"]
-    },
-
-    /* Linting */
-    "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true
+      "@agentic-os/sdk": ["./packages/sdk/src"],
+      "@agentic-os/sdk/*": ["./packages/sdk/src/*"],
+      "@agentic-os/devtools": ["./packages/devtools/src"],
+      "@agentic-os/devtools/*": ["./packages/devtools/src/*"]
+    }
   },
-  "include": ["src", "vite.config.ts"]
+  "include": ["packages/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
 }

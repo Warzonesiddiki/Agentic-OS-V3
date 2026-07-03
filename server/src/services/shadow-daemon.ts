@@ -9,7 +9,7 @@
  * Runs as a daemon agent at ring 4 (lowest priority / no tool access).
  */
 
-import { db } from "../db/client.js";
+import { db } from "../db/client";
 import { log } from "../lib/logging.js";
 
 /* ── Shadow Analysis Results ── */
@@ -61,7 +61,7 @@ export async function runShadowCycle(): Promise<ShadowReport> {
 
 async function detectAnomalies(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
-  const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000);
+  const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
 
   // 1. Detect conflicting memories: same entity, opposite assertions
   const recentMemories = await db.query.memories.findMany({
@@ -112,8 +112,8 @@ async function trackTrends(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
 
   try {
-    const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000);
-    const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 3600_000);
+    const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
+    const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
 
     const [tasks7d, tasks30d, , topActionResult, successRateResult] = await Promise.all([
       // Tasks in last 7 days
@@ -201,7 +201,7 @@ async function generateImplicitConclusions(): Promise<ShadowInsight[]> {
   try {
     // Check for frequently paired tags across memories
     const recentMemories = await db.query.memories.findMany({
-      where: (t, { and, gte }) => and(gte(t.createdAt, new Date(Date.now() - 30 * 24 * 3600_000))),
+      where: (t, { and, gte }) => and(gte(t.createdAt, new Date(Date.now() - 30 * 24 * 3600_000).toISOString())),
       limit: 200,
     });
 
@@ -260,7 +260,7 @@ async function analyzeGaps(): Promise<ShadowInsight[]> {
 
   try {
     const recentSkills = await db.query.memories.findMany({
-      where: (t, { and, eq, gte }) => and(eq(t.kind, "skill"), gte(t.createdAt, new Date(Date.now() - 14 * 24 * 3600_000))),
+      where: (t, { and, eq, gte }) => and(eq(t.kind, "skill"), gte(t.createdAt, new Date(Date.now() - 14 * 24 * 3600_000).toISOString())),
       limit: 100,
     });
 

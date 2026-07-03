@@ -14,7 +14,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { createNexusMcpServer } from "./mcp.js";
 import { authenticate } from "./lib/security.js";
-import { db } from "./db/client.js";
+import { db } from "./db/client.ts";
 import { env } from "./lib/env.js";
 import { consume, clientIpFromHeaders } from "./lib/rate-limit.js";
 

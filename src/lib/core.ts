@@ -55,7 +55,7 @@ async function initWasmSha256(): Promise<void> {
       const got = _wasmSha256(v.input);
       if (got !== v.expected) {
         _wasmSha256 = null;
-        console.error("[NEXUS] FATAL: WASM SHA-256 self-test FAILED");
+        import("./logger.js").then(({ logger }) => logger.error("core", "FATAL: WASM SHA-256 self-test FAILED"));
         break;
       }
     }
@@ -180,8 +180,7 @@ let _hashError: string | null = null;
     if (got !== v.expected) {
       _hashOk = false;
       _hashError = `sha256("${v.input.slice(0, 12)}…") = ${got}, expected ${v.expected}`;
-      // eslint-disable-next-line no-console
-      console.error("[NEXUS] FATAL: SHA-256 self-test FAILED —", _hashError);
+      import("./logger.js").then(({ logger }) => logger.error("core", "FATAL: SHA-256 self-test FAILED —", _hashError));
       break;
     }
   }

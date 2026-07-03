@@ -10,8 +10,8 @@
  */
 import { getEnv, env, llmConfigured } from "../lib/env.js";
 import { safeFetch } from "../lib/http.js";
-import { db } from "../db/client.js";
-import { memories, skills, notes } from "../db/schema.js";
+import { db } from "../db/client";
+import { memories, skills, notes } from "../db/client.js";
 import { sql, isNull } from "drizzle-orm";
 
 const BATCH_SIZE = env.NEXUS_EMBEDDING_BATCH_SIZE;

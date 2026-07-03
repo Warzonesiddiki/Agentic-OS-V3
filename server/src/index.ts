@@ -31,9 +31,9 @@ async function bootstrap(): Promise<void> {
   const env = getEnv();
   const { ensureSchemaOrDie, dbReachable } = await import("./setup.js");
   const { createApp } = await import("./app.js");
-  const { db } = await import("./db/client.js");
+  const { db } = await import("./db/client");
   const { hashApiKey, generateApiKey, invalidateAuthCache } = await import("./lib/security.js");
-  const { apiKeys } = await import("./db/schema.js");
+  const { apiKeys } = await import("./db/client.js");
   const { eq } = await import("drizzle-orm");
   const { appendAudit } = await import("./lib/audit.js");
   const { isKillSwitchOn } = await import("./services.js");
@@ -82,7 +82,7 @@ async function bootstrap(): Promise<void> {
       id: `prn_${randomUUID()}`,
       name: "operator",
       keyHash: hashApiKey(raw),
-      scopes: ["memory:read", "memory:write", "skill:read", "skill:write", "brain:admin", "vault:read", "vault:write", "safety:write", "audit:read"],
+      scopes: JSON.stringify(["memory:read", "memory:write", "skill:read", "skill:write", "brain:admin", "vault:read", "vault:write", "safety:write", "audit:read"]),
       status: "active",
     });
     invalidateAuthCache();
@@ -150,7 +150,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
   // Close the database pool.
   try {
-    const { closeDb } = await import("./db/client.js");
+    const { closeDb } = await import("./db/client");
     await closeDb();
   } catch { /* best-effort */ }
 

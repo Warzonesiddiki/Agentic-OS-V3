@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agentic OS V4 — Full Architecture & Integration Plan</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  :root {
+    --bg: #0a0b0e;
+    --bg2: #111318;
+    --bg3: #1a1d24;
+    --border: #252830;
+    --text: #e4e6ed;
+    --text2: #9498a5;
+    --accent: #6c5ce7;
+    --accent2: #00cec9;
+    --accent3: #fd79a8;
+    --accent4: #fdcb6e;
+    --green: #00b894;
+    --red: #e17055;
+    --blue: #74b9ff;
+    --orange: #e17055;
+    --purple: #a29bfe;
+  }
+
+  body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+  }
+
+  /* ===== NAV ===== */
+  nav {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    z-index: 100;
+    background: rgba(10,11,14,0.85);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 2rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 60px;
+  }
+  nav .logo {
+    font-weight: 800;
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  nav .logo span { color: var(--text2); }
+  nav .nav-links { display: flex; gap: 1.5rem; }
+  nav .nav-links a {
+    color: var(--text2);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: color 0.2s;
+  }
+  nav .nav-links a:hover { color: var(--accent); }
+
+  /* ===== HERO ===== */
+  .hero {
+    padding: 140px 2rem 80px;
+    max-width: 1200px;
+    margin: 0 auto;
+    text-align: center;
+  }
+  .hero .badge {
+    display: inline-block;
+    background: rgba(108,92,231,0.15);
+    border: 1px solid rgba(108,92,231,0.3);
+    color: var(--accent);
+    padding: 0.4rem 1.2rem;
+    border-radius: 100px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1.5rem;
+  }
+  .hero h1 {
+    font-size: 3.5rem;
+    font-weight: 900;
+    letter-spacing: -0.03em;
+    line-height: 1.1;
+    margin-bottom: 1rem;
+  }
+  .hero h1 .gradient {
+    background: linear-gradient(135deg, var(--accent), var(--accent2), var(--accent3));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .hero p {
+    font-size: 1.2rem;
+    color: var(--text2);
+    max-width: 700px;
+    margin: 0 auto 2rem;
+  }
+  .hero .stats {
+    display: flex;
+    justify-content: center;
+    gap: 3rem;
+    margin-top: 2.5rem;
+  }
+  .hero .stat-item { text-align: center; }
+  .hero .stat-item .num {
+    font-size: 2.2rem;
+    font-weight: 800;
+    color: var(--text);
+  }
+  .hero .stat-item .label {
+    font-size: 0.8rem;
+    color: var(--text2);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  /* ===== SECTIONS ===== */
+  section {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 60px 2rem;
+  }
+  section h2 {
+    font-size: 2rem;
+    font-weight: 800;
+    margin-bottom: 0.5rem;
+    letter-spacing: -0.02em;
+  }
+  section .subtitle {
+    color: var(--text2);
+    font-size: 1rem;
+    margin-bottom: 2.5rem;
+  }
+
+  /* ===== ARCHITECTURE ===== */
+  .arch-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-top: 2rem;
+  }
+  .arch-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 1.5rem;
+    transition: border-color 0.2s;
+  }
+  .arch-card:hover { border-color: var(--accent); }
+  .arch-card h3 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.8rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+  .arch-card h3 .emoji { font-size: 1.2rem; }
+  .arch-card .source {
+    font-size: 0.75rem;
+    color: var(--accent);
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+  }
+  .arch-card p { font-size: 0.85rem; color: var(--text2); }
+  .arch-card ul {
+    list-style: none;
+    margin-top: 0.5rem;
+  }
+  .arch-card ul li {
+    font-size: 0.8rem;
+    color: var(--text2);
+    padding: 0.25rem 0;
+    padding-left: 1rem;
+    position: relative;
+  }
+  .arch-card ul li::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--accent2);
+  }
+
+  /* ===== REPO TABLE ===== */
+  .repo-table-wrap {
+    overflow-x: auto;
+    margin-top: 1.5rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+  .repo-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  .repo-table th {
+    background: var(--bg3);
+    padding: 1rem 1.2rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+  .repo-table td {
+    padding: 0.9rem 1.2rem;
+    border-bottom: 1px solid var(--border);
+    color: var(--text2);
+    vertical-align: top;
+  }
+  .repo-table tr:last-child td { border-bottom: none; }
+  .repo-table tr:hover td { background: rgba(108,92,231,0.05); }
+  .repo-table .tag {
+    display: inline-block;
+    padding: 0.2rem 0.6rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+  .tag-ts { background: rgba(116,185,255,0.15); color: var(--blue); }
+  .tag-rs { background: rgba(253,203,110,0.15); color: var(--accent4); }
+  .tag-both { background: rgba(108,92,231,0.15); color: var(--accent); }
+  .tag-done { background: rgba(0,184,148,0.15); color: var(--green); }
+  .tag-gap { background: rgba(225,112,85,0.15); color: var(--red); }
+  .tag-partial { background: rgba(253,203,110,0.15); color: var(--accent4); }
+  .status-done { color: var(--green); font-weight: 600; }
+  .status-gap { color: var(--red); font-weight: 600; }
+  .status-partial { color: var(--accent4); font-weight: 600; }
+
+  /* ===== VENN / FLOW ===== */
+  .flow-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    margin: 2.5rem 0;
+    flex-wrap: wrap;
+  }
+  .flow-box {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.2rem 1.5rem;
+    text-align: center;
+    min-width: 140px;
+  }
+  .flow-box .box-title {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text2);
+    margin-bottom: 0.3rem;
+  }
+  .flow-box .box-value {
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+  .flow-arrow {
+    font-size: 1.5rem;
+    color: var(--accent);
+    padding: 0 0.5rem;
+    opacity: 0.6;
+  }
+  .flow-arrow-down {
+    display: block;
+    text-align: center;
+    font-size: 1.5rem;
+    color: var(--accent);
+    opacity: 0.6;
+    margin: 0.5rem 0;
+  }
+
+  /* ===== TIMELINE ===== */
+  .timeline {
+    position: relative;
+    padding-left: 2rem;
+    margin: 2rem 0;
+  }
+  .timeline::before {
+    content: '';
+    position: absolute;
+    left: 0.5rem;
+    top: 0; bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .timeline-item {
+    position: relative;
+    margin-bottom: 2rem;
+  }
+  .timeline-item::before {
+    content: '';
+    position: absolute;
+    left: -1.65rem;
+    top: 0.5rem;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: var(--accent);
+    border: 2px solid var(--bg);
+  }
+  .timeline-item h4 {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+  }
+  .timeline-item p {
+    font-size: 0.85rem;
+    color: var(--text2);
+  }
+
+  /* ===== END RESULT ===== */
+  .result-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.2rem;
+    margin-top: 1.5rem;
+  }
+  .result-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 1.5rem;
+    text-align: center;
+  }
+  .result-card .icon {
+    font-size: 2.5rem;
+    margin-bottom: 0.8rem;
+  }
+  .result-card h4 {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+  }
+  .result-card p {
+    font-size: 0.8rem;
+    color: var(--text2);
+  }
+  .result-card .count {
+    font-size: 2rem;
+    font-weight: 800;
+    color: var(--accent2);
+    margin-top: 0.5rem;
+  }
+
+  /* ===== FILE TREE ===== */
+  .file-tree {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 0.8rem;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem;
+    overflow-x: auto;
+    margin: 1.5rem 0;
+    line-height: 1.8;
+  }
+  .file-tree .dir { color: var(--blue); }
+  .file-tree .file { color: var(--text2); }
+  .file-tree .comment { color: var(--text2); opacity: 0.5; font-style: italic; }
+  .file-tree .highlight { background: rgba(108,92,231,0.1); border-radius: 3px; padding: 0 0.3rem; }
+  .file-tree .arrow { color: var(--accent4); }
+  .indent-1 { padding-left: 1.5rem; }
+  .indent-2 { padding-left: 3rem; }
+  .indent-3 { padding-left: 4.5rem; }
+  .indent-4 { padding-left: 6rem; }
+
+  /* ===== CAPABILITIES GRID ===== */
+  .cap-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+  }
+  .cap-item {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem 1.2rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  .cap-item .dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .cap-item .dot.green { background: var(--green); }
+  .cap-item .dot.yellow { background: var(--accent4); }
+  .cap-item .dot.purple { background: var(--accent); }
+  .cap-item .dot.red { background: var(--red); }
+  .cap-item .cap-text { font-size: 0.82rem; }
+  .cap-item .cap-text strong { display: block; color: var(--text); }
+  .cap-item .cap-text span { color: var(--text2); }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 768px) {
+    .hero h1 { font-size: 2rem; }
+    .hero .stats { flex-wrap: wrap; gap: 1.5rem; }
+    .arch-grid { grid-template-columns: 1fr; }
+    .result-grid { grid-template-columns: 1fr; }
+    .flow-container { flex-direction: column; }
+    .flow-arrow { transform: rotate(90deg); }
+    nav .nav-links { display: none; }
+  }
+
+  /* ===== SCROLLBAR ===== */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text2); }
+
+  .divider {
+    height: 1px;
+    background: var(--border);
+    margin: 2rem 0;
+  }
+
+  .pill {
+    display: inline-block;
+    background: rgba(108,92,231,0.1);
+    border: 1px solid rgba(108,92,231,0.2);
+    padding: 0.15rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    color: var(--accent);
+    font-weight: 500;
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== NAV ===== -->
+<nav>
+  <div class="logo">⌘ Agentic OS <span>V4</span></div>
+  <div class="nav-links">
+    <a href="#overview">Overview</a>
+    <a href="#repos">Source Repos</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#integration">Integration</a>
+    <a href="#result">End Result</a>
+  </div>
+</nav>
+
+<!-- ===== HERO ===== -->
+<div class="hero">
+  <div class="badge">⚡ Agentic Operating System — Universal AI Agent Platform</div>
+  <h1>
+    One OS to<br>
+    <span class="gradient">Rule All AI Agents</span>
+  </h1>
+  <p>
+    A monolithic integration of the world's best open-source AI agent frameworks
+    into a single, unified operating system for autonomous AI agents.
+  </p>
+  <div class="stats">
+    <div class="stat-item">
+      <div class="num">4</div>
+      <div class="label">Source Repos Merged</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">1,100+</div>
+      <div class="label">Total Source Files</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">150+</div>
+      <div class="label">AI Providers Supported</div>
+    </div>
+    <div class="stat-item">
+      <div class="num">30</div>
+      <div class="label">Integration Phases</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===== OVERVIEW ===== -->
+<section id="overview">
+  <h2>🎯 What Are We Building?</h2>
+  <p class="subtitle">
+    Agentic OS V4 is a universal operating system for AI agents — a single platform
+    that can orchestrate any AI model, run any agent framework, and connect any tool.
+  </p>
+
+  <div class="flow-container">
+    <div class="flow-box">
+      <div class="box-title">Agentic OS V3</div>
+      <div class="box-value" style="color:var(--green)">Our Base ✅</div>
+      <div style="font-size:0.75rem;color:var(--text2);margin-top:0.3rem">Hono + React + PSQL</div>
+    </div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-box">
+      <div class="box-title">Goose</div>
+      <div class="box-value" style="color:var(--accent)">Rust Agent Framework</div>
+      <div style="font-size:0.75rem;color:var(--text2);margin-top:0.3rem">Block (Square)</div>
+    </div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-box">
+      <div class="box-title">Gemini CLI</div>
+      <div class="box-value" style="color:var(--blue)">Google's Agent SDK</div>
+      <div style="font-size:0.75rem;color:var(--text2);margin-top:0.3rem">A2A + MCP + Core</div>
+    </div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-box">
+      <div class="box-title">OmniRoute</div>
+      <div class="box-value" style="color:var(--orange)">AI Gateway Router</div>
+      <div style="font-size:0.75rem;color:var(--text2);margin-top:0.3rem">Multi-Provider Router</div>
+    </div>
+    <div class="flow-arrow">+</div>
+    <div class="flow-box">
+      <div class="box-title">Portkey</div>
+      <div class="box-value" style="color:var(--accent2)">Unified Gateway</div>
+      <div style="font-size:0.75rem;color:var(--text2);margin-top:0.3rem">150+ Providers</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-box" style="border-color:var(--accent);background:rgba(108,92,231,0.08);">
+      <div class="box-title">🚀 AGENTIC OS V4</div>
+      <div class="box-value" style="background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;">FINAL PRODUCT</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h2 style="margin-top:1.5rem">📊 Project Scale</h2>
+  <div class="result-grid">
+    <div class="result-card">
+      <div class="icon">📁</div>
+      <h4>TypeScript Backend</h4>
+      <div class="count">644</div>
+      <p>source files — Hono REST API + Portkey gateway + OmniRoute routing + DB layer</p>
+    </div>
+    <div class="result-card">
+      <div class="icon">🦀</div>
+      <h4>Rust Crates</h4>
+      <div class="count">~490</div>
+      <p>source files — Goose provider framework + custom CLI + safety + config</p>
+    </div>
+    <div class="result-card">
+      <div class="icon">⚛️</div>
+      <h4>React Frontend</h4>
+      <div class="count">30</div>
+      <p>source files — Agent dashboard, OS panel, workflow builder, vault UI</p>
+    </div>
+    <div class="result-card">
+      <div class="icon">🔌</div>
+      <h4>AI Providers</h4>
+      <div class="count">150+</div>
+      <p>OpenAI, Anthropic, Google, Groq, Mistral, DeepSeek, Ollama, xAI, etc.</p>
+    </div>
+    <div class="result-card">
+      <div class="icon">🧩</div>
+      <h4>MCP Servers</h4>
+      <div class="count">Unlimited</div>
+      <p>Model Context Protocol — connect any tool via standardized interface</p>
+    </div>
+    <div class="result-card">
+      <div class="icon">📋</div>
+      <h4>Integration Phases</h4>
+      <div class="count">30</div>
+      <p>Structured rollout from config → gateway → orchestration → polish</p>
+    </div>
+  </div>
+</section>
+
+<!-- ===== SOURCE REPOS ===== -->
+<section id="repos">
+  <h2>📦 Source Repositories</h2>
+  <p class="subtitle">
+    Four existing open-source projects merged into one unified codebase.
+    We copy proven, tested files and surgically adapt them.
+  </p>
+
+  <div class="repo-table-wrap">
+    <table class="repo-table">
+      <thead>
+        <tr>
+          <th>Source Repo</th>
+          <th>Type</th>
+          <th>Files</th>
+          <th>What We Take</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--green)">Agentic OS V3</strong><br><span style="font-size:0.75rem;color:var(--text2)">Our existing project</span></td>
+          <td><span class="tag tag-both">TS + RS</span></td>
+          <td>644 TS + 17 RS</td>
+          <td>
+            <strong>server/src/</strong> — Hono REST API, auth, audit trail, DB schema (Drizzle + PostgreSQL),
+            SSE bus, kill switch, rate limiting, OTEL metrics, MCP HTTP server, vault sync,
+            recall engine, embedding pipeline, session management, task worker, sandbox,
+            self-improvement harness, P2P swarm, signal hooks, plugin manifest system<br>
+            <strong>src/</strong> — React frontend (OS panel, agent orchestrator, kernel, store, MCP client)<br>
+            <strong>packages/</strong> — SDK, devtools, VS Code extension
+          </td>
+          <td><span class="status-done">✅ ALREADY WORKS</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--accent4)">Goose (by Block/Square)</strong><br><span style="font-size:0.75rem;color:var(--text2)">C:\Users\Tahir\OneDrive\Desktop\goose_repo</span></td>
+          <td><span class="tag tag-rs">Rust</span></td>
+          <td>474 RS in 14 crates</td>
+          <td>
+            <strong>goose-provider-types/</strong> — Provider trait, ModelInfo, MessageStream, Conversation,
+            TokenUsage, RetryPolicy, ProviderError — the foundation for all AI provider interactions<br>
+            <strong>goose-providers/</strong> — Concrete OpenAI client (streaming, tool calls, responses API),
+            Anthropic client (streaming, messages API), Ollama client, OpenAI-compatible adapter —
+            all with retry, error mapping, token counting<br>
+            <strong>goose-mcp/</strong> — MCP server runner (launch any MCP server via subprocess),
+            memory tools, computer controller, auto-visualizer<br>
+            <strong>goose-sdk-types/</strong> — Shared SDK type definitions<br>
+            <strong>goose-server/</strong> — HTTP server patterns, auth, session management, OpenAPI
+          </td>
+          <td><span class="status-gap">🔴 NEEDS ADAPTATION</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--blue)">Gemini CLI (by Google)</strong><br><span style="font-size:0.75rem;color:var(--text2)">./gemini-cli/packages/</span></td>
+          <td><span class="tag tag-ts">TypeScript</span></td>
+          <td>~200 TS</td>
+          <td>
+            <strong>packages/a2a-server/</strong> — Agent-to-Agent protocol server (full HTTP server
+            for agent discovery, task submission, result streaming between agents)<br>
+            <strong>packages/core/agent/</strong> — Agent session management, event translator,
+            content utils, tool display utils<br>
+            <strong>packages/core/mcp/</strong> — MCP OAuth provider, token storage, auth providers
+            (Google, SA impersonation)<br>
+            <strong>packages/core/context/</strong> — Context management for agents<br>
+            <strong>packages/core/safety/</strong> — Safety filters and guardrails<br>
+            <strong>packages/core/sandbox/</strong> — Sandboxed code execution environment
+          </td>
+          <td><span class="status-gap">🔴 NEEDS COPY</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--orange)">Portkey Gateway</strong><br><span style="font-size:0.75rem;color:var(--text2)">Already in server/src/services/unified-gateway/portkey/</span></td>
+          <td><span class="tag tag-ts">TypeScript</span></td>
+          <td>430 TS</td>
+          <td>
+            <strong>ALREADY INTEGRATED into our server/</strong><br>
+            Unified gateway with providers for: OpenAI, Anthropic, Azure, Bedrock, Google Vertex,
+            Groq, Mistral, DeepSeek, Together, Fireworks, Perplexity, Replicate, HuggingFace,
+            Cohere, Stability AI, xAI, Ollama, OpenRouter, DeepInfra, and 130+ more<br>
+            Middleware: caching (memory/redis/file/Cloudflare KV), logging, rate limiting,
+            request validation, admin auth<br>
+            Handlers: chat completions, streaming, embeddings, image generation, speech,
+            transcription, translation, model listing, files, batches, finetuning, realtime
+          </td>
+          <td><span class="status-done">✅ ALREADY INTEGRATED</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--accent2)">OmniRoute</strong><br><span style="font-size:0.75rem;color:var(--text2)">Already in server/src/services/omniroute/</span></td>
+          <td><span class="tag tag-ts">TypeScript</span></td>
+          <td>95 TS</td>
+          <td>
+            <strong>ALREADY INTEGRATED into our server/</strong><br>
+            Smart LLM routing: model assessment/categorization, fallback policies, cost rules,
+            degradation handling, lockout policy, tag routing, quota caching, provider expiration<br>
+            Guardrails: PII masking, prompt injection detection, vision bridge<br>
+            Memory: cache, extraction, injection, retrieval, summarization, verification<br>
+            Skills: A2A communication, builtin tools, custom skills, executor, sandbox, SSH<br>
+            Providers: model catalog, validation (Anthropic format, OpenAI format, cloud,
+            audio, embeddings, search, web providers, Coze, Meta AI)
+          </td>
+          <td><span class="status-done">✅ ALREADY INTEGRATED</span></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--accent)">OmniRoute2</strong><br><span style="font-size:0.75rem;color:var(--text2)">C:\Users\Tahir\OneDrive\Desktop\temp_gateways\OmniRoute2</span></td>
+          <td><span class="tag tag-ts">TypeScript</span></td>
+          <td>~20 TS</td>
+          <td>
+            <strong>@omniroute/opencode-provider/</strong> — Provider implementations for AI models<br>
+            <strong>@omniroute/opencode-plugin/</strong> — Plugin system for extending functionality<br>
+            (Small repos — may contain complementary provider configs not in our Portkey build)
+          </td>
+          <td><span class="status-partial">🟡 REVIEW NEEDED</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div style="margin-top:1rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+    <span class="tag tag-done">✅ Already working</span>
+    <span class="tag tag-gap">🔴 Needs work</span>
+    <span class="tag tag-partial">🟡 Partial / Review</span>
+  </div>
+</section>
+
+<!-- ===== ARCHITECTURE ===== -->
+<section id="architecture">
+  <h2>🏗️ Unified Architecture</h2>
+  <p class="subtitle">
+    How all pieces fit together. Each layer has a clear source and responsibility.
+  </p>
+
+  <div class="arch-grid">
+    <div class="arch-card">
+      <h3><span class="emoji">🌐</span> API Layer</h3>
+      <div class="source">← Our server/src/</div>
+      <p>Hono HTTP server with full perimeter security</p>
+      <ul>
+        <li>Request ID, CORS, security headers, payload limits</li>
+        <li>Rate limiting, auth backstop, OTEL metrics middleware</li>
+        <li>Versioned REST API (/api/v1) with Zod validation</li>
+        <li>SSE bus for real-time events</li>
+        <li>Health check, metrics endpoint</li>
+        <li>API 404 guard (JSON never SPA)</li>
+      </ul>
+    </div>
+
+    <div class="arch-card">
+      <h3><span class="emoji">🔐</span> Auth & Security</h3>
+      <div class="source">← Our server/src/ + Goose patterns</div>
+      <p>Full auth stack with audit trail</p>
+      <ul>
+        <li>API key / scope-based authentication</li>
+        <li>Kill switch (emergency stop all mutations)</li>
+        <li>Audit chain — every mutation recorded in DB</li>
+        <li>PII redaction, prompt injection detection</li>
+        <li>Jailbreak detection (from OmniRoute guardrails)</li>
+        <li>Sandbox for untrusted code execution</li>
+      </ul>
+    </div>
+
+    <div class="arch-card">
+      <h3><span class="emoji">🤖</span> AI Gateway</h3>
+      <div class="source">← Portkey (integrated) + Goose (Rust native)</div>
+      <p>Unified interface to 150+ AI providers</p>
+      <ul>
+        <li>Portkey: OpenAI, Anthropic, Azure, Bedrock, Google, 130+ more</li>
+        <li>Goose: Rust-native OpenAI, Anthropic, Ollama clients</li>
+        <li>Streaming, tool calls, vision, audio, embeddings</li>
+        <li>Caching (memory, Redis, file, Cloudflare KV)</li>
+        <li>Rate limiting per provider, per key</li>
+        <li>Automatic retry with exponential backoff</li>
+      </ul>
+    </div>
+
+    <div class="arch-card">
+      <h3><span class="emoji">🔀</span> LLM Routing</h3>
+      <div class="source">← OmniRoute (integrated)</div>
+      <p>Smart routing between models and providers</p>
+      <ul>
+        <li>Model assessment & categorization</li>
+        <li>Cost-based routing (cheapest capable model)</li>
+        <li>Fallback chains on failure/degradation</li>
+        <li>Tag routing (route by content type)</li>
+        <li>Lockout policy for failing providers</li>
+        <li>Quota management and provider expiration</li>
+      </ul>
+    </div>
+
+    <div class="arch-card">
+      <h3><span class="emoji">🧠</span> Agent Engine</h3>
+      <div class="source">← Our services/ + Goose patterns + Gemini A2A</div>
+      <p>Multi-agent orchestration</p>
+      <ul>
+        <li>Agent lifecycle management (create, run, pause, stop)</li>
+        <li>DAG-based agent pipelines (from our graph-engine)</li>
+        <li>Agent-to-Agent communication (from Gemini A2A)</li>
+        <li>P2P swarm mode for distributed agents</li>
+        <li>Task worker queue for background jobs</li>
+        <li>Self-improvement harness (agents that improve themselves)</li>
+      </ul>
+    </div>
+
+    <div class="arch-card">
+      <h3><span class="emoji">🔧</span> MCP Integration</h3>
+      <div class="source">← Goose mcp + Our src/lib/mcp + Gemini MCP</div>
+      <p>Model Context Protocol — universal tool interface</p>
+      <ul>
+        <li>MCP server runner (launch any MCP server via subprocess)</li>
+        <li>MCP registry — discover, install, configure MCP servers</li>
+        <li>MCP HTTP bridge (our mcp-http.ts)</li>
+        <li>OAuth authentication for MCP servers</li>
+        <li>Tool execution with sandbox restrictions</li>
+        <li>Automatic MCP tool discovery and caching</li>
+      </ul>
+    </div>
+
+    <div class="arch-card">
+      <h3><span class="emoji">💾</span> Data Layer</h3>
+      <div class="source">← Our server/src/db/ + services/</div>
+      <p>Persistent storage with full audit trail</p>
+      <ul>
+        <li>PostgreSQL via Drizzle ORM</li>
+        <li>Auto-generated embeddings for semantic search</li>
+        <li>Audit log for every data change</li>
+        <li>Brain export/import/compression</li>
+        <li>Obsidian vault sync (bidirectional)</li>
+        <li>Federated recall across multiple storage backends</li>
+      </ul>
+    </div>
+
+    <div class="arch-card">
+      <h3><span class="emoji">📊</span> Observability</h3>
+      <div class="source">← Our server/src/services/ + lib/</div>
+      <p>Full telemetry stack</p>
+      <ul>
+        <li>OpenTelemetry tracing, metrics, logs</li>
+        <li>Prometheus metrics endpoint</li>
+        <li>Structured JSON logging</li>
+        <li>Performance cache with LRU eviction</li>
+        <li>Shadow daemon for testing in production</li>
+        <li>SSE event bus for real-time monitoring</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===== INTEGRATION PLAN ===== -->
+<section id="integration">
+  <h2>🔄 Integration Strategy</h2>
+  <p class="subtitle">
+    We copy proven, tested files from source repos and surgically adapt them to our project
+    — no rewrites from scratch, maximum leverage of existing battle-tested code.
+  </p>
+
+  <div class="file-tree">
+    <div><span class="dir">agentic-os-v4/</span> <span class="comment">← The final merged product</span></div>
+    <div><span class="dir">├── server/src/</span> <span class="comment">← <span class="highlight">OUR CODE — keep as-is</span></span></div>
+    <div class="indent-1"><span class="file">├── app.ts, routes.ts, services.ts</span></div>
+    <div class="indent-1"><span class="dir">├── services/unified-gateway/portkey/</span> <span class="comment">← <span class="highlight">FROM PORTKEY — keep</span></span></div>
+    <div class="indent-1"><span class="dir">├── services/omniroute/</span> <span class="comment">← <span class="highlight">FROM OMNIROUTE — keep</span></span></div>
+    <div class="indent-1"><span class="file">├── routes/, db/, lib/</span></div>
+    <div><span class="dir">├── src/</span> <span class="comment">← React frontend — keep as-is</span></div>
+    <div><span class="dir">├── packages/</span></div>
+    <div class="indent-1"><span class="file">├── sdk/</span> <span class="comment">← Our SDK</span></div>
+    <div class="indent-1"><span class="file">├── devtools/</span> <span class="comment">← Our devtools</span></div>
+    <div class="indent-1"><span class="file">└── a2a-server/</span> <span class="comment">← <span class="highlight">FROM GEMINI CLI — COPY + ADAPT</span></span></div>
+    <div><span class="dir">├── crates/</span> <span class="comment">← Rust workspace</span></div>
+    <div class="indent-1"><span class="dir">├── core/</span> <span class="comment">← Our types, error, lib</span></div>
+    <div class="indent-1"><span class="dir">├── config/</span> <span class="comment">← Our TOML config loader</span></div>
+    <div class="indent-1"><span class="dir">├── safety/</span> <span class="comment">← Our PII + injection checker</span></div>
+    <div class="indent-1"><span class="dir">├── cli/</span> <span class="comment">← Our CLI binary</span></div>
+    <div class="indent-1"><span class="dir">├── installer/</span> <span class="comment">← Auto-update + platform detect</span></div>
+    <div class="indent-1"><span class="dir">├── tools/</span> <span class="comment">← Our tool registry</span></div>
+    <div class="indent-1"><span class="dir">├── observability/</span> <span class="comment">← Our tracing + metrics</span></div>
+    <div class="indent-1"><span class="arrow">→</span> <span class="dir">goose-provider-types/</span> <span class="comment">← <span class="highlight">FROM GOOSE — COPY source files, adapt crate name</span></span></div>
+    <div class="indent-1"><span class="arrow">→</span> <span class="dir">goose-providers/</span> <span class="comment">← <span class="highlight">FROM GOOSE — COPY source files, remove goose-local-inference dep</span></span></div>
+    <div class="indent-1"><span class="arrow">→</span> <span class="dir">goose-mcp/</span> <span class="comment">← <span class="highlight">FROM GOOSE — COPY source files, adapt to our types</span></span></div>
+    <div><span class="dir">├── gemini-cli/</span> <span class="comment">← Reference only (not merged into build)</span></div>
+    <div><span class="file">├── Cargo.toml</span> <span class="comment">← Workspace with all crates</span></div>
+    <div><span class="file">└── package.json</span> <span class="comment">← npm workspaces</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3>Surgical Adaptation Process</h3>
+  <p class="subtitle" style="margin-bottom:1.5rem">
+    Every file we copy gets minimal changes — only what's needed to fit our project structure.
+    We never rewrite working code.
+  </p>
+
+  <div class="arch-grid">
+    <div class="arch-card">
+      <h3><span class="emoji">1️⃣</span> Copy source files</h3>
+      <p>Copy <code>*.rs</code> files from goose_repo/crates/ into our crates/ directory.</p>
+      <ul>
+        <li>File-by-file copy, preserving all logic</li>
+        <li>Rename crate from <code>goose-providers</code> → <code>agentic-os-providers</code></li>
+        <li>Keep same module structure</li>
+      </ul>
+    </div>
+    <div class="arch-card">
+      <h3><span class="emoji">2️⃣</span> Rewrite Cargo.toml</h3>
+      <p>Create new Cargo.toml using our workspace deps instead of Goose's.</p>
+      <ul>
+        <li>Replace <code>{ workspace = true }</code> references to our workspace</li>
+        <li>Drop optional deps (goose-local-inference, AWS providers)</li>
+        <li>Remove vendor paths (tree-sitter, v8)</li>
+        <li>Point rmcp to our version</li>
+      </ul>
+    </div>
+    <div class="arch-card">
+      <h3><span class="emoji">3️⃣</span> Adapt the lib.rs</h3>
+      <p>Rewrite <code>lib.rs</code> to export modules under our crate naming.</p>
+      <ul>
+        <li>Change <code>pub use goose_provider_types::...</code><br>→ <code>pub use agentic_os_core::...</code></li>
+        <li>Keep internal module structure identical</li>
+        <li>Preserve all re-exports</li>
+      </ul>
+    </div>
+    <div class="arch-card">
+      <h3><span class="emoji">4️⃣</span> Fix import paths</h3>
+      <p>Update internal crate imports to use our crate names.</p>
+      <ul>
+        <li><code>goose-provider-types</code> → <code>agentic-os-provider-types</code></li>
+        <li><code>goose-providers</code> → <code>agentic-os-providers</code></li>
+        <li>Only import paths change — zero logic changes</li>
+      </ul>
+    </div>
+    <div class="arch-card">
+      <h3><span class="emoji">5️⃣</span> Wire into our modules</h3>
+      <p>Create adapter modules that connect Goose providers to our API.</p>
+      <ul>
+        <li>Our config system → Goose ProviderConfig</li>
+        <li>Our error types → Goose ProviderError</li>
+        <li>Our Session → Goose Conversation</li>
+        <li>Minimal glue code</li>
+      </ul>
+    </div>
+    <div class="arch-card">
+      <h3><span class="emoji">6️⃣</span> Run cargo check</h3>
+      <p>Fix any compilation issues. Since we preserve logic, there should be <strong>zero behaviour changes</strong> — only path/name changes.</p>
+      <ul>
+        <li><code>cargo check -p agentic-os-provider-types</code></li>
+        <li><code>cargo check -p agentic-os-providers</code></li>
+        <li>Fix any missing features</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- ===== END RESULT ===== -->
+<section id="result">
+  <h2>🎬 The End Result</h2>
+  <p class="subtitle">
+    What Agentic OS V4 will be when all phases are complete — no compromises.
+  </p>
+
+  <div style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:2rem;margin-bottom:2rem;">
+    <h3 style="font-size:1.3rem;font-weight:800;margin-bottom:1rem;text-align:center;">
+      Agentic OS V4 — One Platform, Every AI, Any Agent
+    </h3>
+
+    <div class="cap-grid">
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Multi-Provider Gateway</strong>
+          <span>150+ AI providers via Portkey + Rust-native OpenAI/Anthropic/Ollama via Goose</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Smart LLM Routing</strong>
+          <span>Cost-based, fallback chains, degradation handling, tag routing via OmniRoute</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Multi-Agent Orchestration</strong>
+          <span>DAG pipelines, P2P swarm, A2A protocol, lifecycle management</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>MCP Universal Tool Interface</strong>
+          <span>Connect any MCP server — files, databases, APIs, browsers, desktops</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Full Audit Trail</strong>
+          <span>Every mutation recorded in DB, kill switch, chain verification</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Memory System</strong>
+          <span>Episodic, semantic, procedural memory with consolidation and retrieval</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Agent-to-Agent Protocol</strong>
+          <span>Agents discover and communicate with each other via Google A2A standard</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Guardrails & Safety</strong>
+          <span>PII masking, prompt injection, jailbreak detection, content filtering</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Sandboxed Execution</strong>
+          <span>Run untrusted code in isolated environment with resource limits</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Self-Improvement</strong>
+          <span>Agents that can improve their own code, prompts, and workflows</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>CLI + Installer</strong>
+          <span>Native binary with auto-update, shell completions, platform detection</span>
+        </div>
+      </div>
+      <div class="cap-item">
+        <div class="dot green"></div>
+        <div class="cap-text">
+          <strong>Full Observability</strong>
+          <span>OpenTelemetry, Prometheus metrics, structured logging, performance cache</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3>📁 Final Project Structure</h3>
+  <div class="file-tree">
+    <div><span class="dir">agentic-os-v4/</span></div>
+    <div><span class="dir">├── server/src/</span> <span class="comment">≈644 files</span></div>
+    <div class="indent-1"><span class="file">├── app.ts, routes.ts, services.ts</span> <span class="comment">← Core API</span></div>
+    <div class="indent-1"><span class="file">├── db/</span> <span class="comment">← Drizzle schema + client</span></div>
+    <div class="indent-1"><span class="file">├── lib/</span> <span class="comment">← Auth, audit, env, tokens, guards, schemas, HTTP, logging</span></div>
+    <div class="indent-1"><span class="file">├── routes/</span> <span class="comment">← agents, automation, SSE, agent-lifecycle, v3-upgrade</span></div>
+    <div class="indent-1"><span class="file">├── services/</span></div>
+    <div class="indent-2"><span class="file">├── unified-gateway/portkey/</span> <span class="comment">← FROM PORTKEY ≈430 files</span></div>
+    <div class="indent-2"><span class="file">├── omniroute/</span> <span class="comment">← FROM OMNIROUTE ≈95 files</span></div>
+    <div class="indent-2"><span class="file">├── providers/</span> <span class="comment">← Our OpenAI, Anthropic, Google, Ollama, vLLM</span></div>
+    <div class="indent-2"><span class="file">├── recall, brain, vault, embeddings, sse-bus, scheduler</span></div>
+    <div class="indent-2"><span class="file">└── graph-engine, agent-dag, agent-runtime, p2p-swarm</span></div>
+    <div><span class="dir">├── src/</span> <span class="comment">≈30 files</span></div>
+    <div class="indent-1"><span class="file">├── lib/</span> <span class="comment">← React frontend — OS, kernel, agent, store, MCP client</span></div>
+    <div><span class="dir">├── packages/</span></div>
+    <div class="indent-1"><span class="file">├── sdk/</span> <span class="comment">← @agentic-os/sdk — core TS types + ACP client</span></div>
+    <div class="indent-1"><span class="file">├── devtools/</span> <span class="comment">← @agentic-os/devtools — admin client, inspect</span></div>
+    <div class="indent-1"><span class="file">├── a2a-server/</span> <span class="comment">← FROM GEMINI CLI — Agent-to-Agent server</span></div>
+    <div class="indent-1"><span class="file">└── vscode/</span> <span class="comment">← VS Code extension</span></div>
+    <div><span class="dir">├── crates/</span> <span class="comment">Rust workspace</span></div>
+    <div class="indent-1"><span class="file">├── core/</span> <span class="comment">← Our types + errors</span></div>
+    <div class="indent-1"><span class="file">├── config/</span> <span class="comment">← Our TOML + env config</span></div>
+    <div class="indent-1"><span class="file">├── safety/</span> <span class="comment">← Our PII, injection, jailbreak</span></div>
+    <div class="indent-1"><span class="file">├── cli/</span> <span class="comment">← Our CLI binary</span></div>
+    <div class="indent-1"><span class="file">├── installer/</span> <span class="comment">← Auto-update, completions, platform</span></div>
+    <div class="indent-1"><span class="file">├── tools/</span> <span class="comment">← Our tool registry</span></div>
+    <div class="indent-1"><span class="file">├── observability/</span> <span class="comment">← Our tracing + metrics</span></div>
+    <div class="indent-1"><span class="highlight">├── provider-types/</span> <span class="comment">← FROM GOOSE — Provider trait, messages, retry</span></div>
+    <div class="indent-1"><span class="highlight">├── providers/</span> <span class="comment">← FROM GOOSE — OpenAI, Anthropic, Ollama</span></div>
+    <div class="indent-1"><span class="highlight">└── mcp/</span> <span class="comment">← FROM GOOSE — MCP server runner</span></div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3>🧭 30-Phase Rollout</h3>
+  <div class="timeline">
+    <div class="timeline-item">
+      <h4>Phases 1-5: Foundation</h4>
+      <p>Core types, error module, config system, installer, safety — crate scaffolding</p>
+    </div>
+    <div class="timeline-item">
+      <h4>Phases 6-10: Gateway & Routing</h4>
+      <p>Provider gateway (Portkey + Goose), LLM routing (OmniRoute), session management, storage, tools</p>
+    </div>
+    <div class="timeline-item">
+      <h4>Phases 11-15: Orchestration</h4>
+      <p>Multi-agent engine, DAG pipelines, A2A protocol (from Gemini CLI), orchestrator, skills</p>
+    </div>
+    <div class="timeline-item">
+      <h4>Phases 16-20: Intelligence</h4>
+      <p>Memory system, context management, RAG, RAG pipeline, embedding refresh, plugin system, WASM runtime</p>
+    </div>
+    <div class="timeline-item">
+      <h4>Phases 21-25: Safety & Observability</h4>
+      <p>Sandbox, guardrails, telemetry, tracing, metrics, alerts, dashboard, audit chain verification</p>
+    </div>
+    <div class="timeline-item">
+      <h4>Phases 26-30: Polish & Ship</h4>
+      <p>CLI completion, installer finalization, binary size optimization, streaming consistency, edge case hardening, ACP compliance, final testing, documentation</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <h3>📊 Final Metrics</h3>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:1rem;margin-top:1.5rem;">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.2rem;text-align:center;">
+      <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text2);letter-spacing:0.05em;margin-bottom:0.3rem;">Source files</div>
+      <div style="font-size:2.2rem;font-weight:800;">~1,200</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.2rem;text-align:center;">
+      <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text2);letter-spacing:0.05em;margin-bottom:0.3rem;">AI Providers</div>
+      <div style="font-size:2.2rem;font-weight:800;">150+</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.2rem;text-align:center;">
+      <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text2);letter-spacing:0.05em;margin-bottom:0.3rem;">Lines of Code</div>
+      <div style="font-size:2.2rem;font-weight:800;">150k+</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.2rem;text-align:center;">
+      <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text2);letter-spacing:0.05em;margin-bottom:0.3rem;">Tests</div>
+      <div style="font-size:2.2rem;font-weight:800;">20+</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.2rem;text-align:center;">
+      <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text2);letter-spacing:0.05em;margin-bottom:0.3rem;">Languages</div>
+      <div style="font-size:2.2rem;font-weight:800;">3</div>
+    </div>
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:1.2rem;text-align:center;">
+      <div style="font-size:0.7rem;text-transform:uppercase;color:var(--text2);letter-spacing:0.05em;margin-bottom:0.3rem;">Integration Phases</div>
+      <div style="font-size:2.2rem;font-weight:800;">30</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== FOOTER ===== -->
+<section style="padding-bottom:100px;text-align:center;">
+  <div style="border:1px solid var(--border);border-radius:16px;padding:2.5rem;background:var(--bg2);">
+    <div style="font-size:3rem;margin-bottom:1rem;">⌘</div>
+    <h2 style="font-size:1.5rem;margin-bottom:0.5rem;">Agentic OS V4</h2>
+    <p style="color:var(--text2);max-width:500px;margin:0 auto 1.5rem;">
+      One operating system to deploy, orchestrate, and monitor any AI agent
+      using any model through any provider.
+    </p>
+    <div style="display:flex;justify-content:center;gap:1rem;flex-wrap:wrap;">
+      <span class="tag tag-ts">TypeScript</span>
+      <span class="tag tag-rs">Rust</span>
+      <span class="tag tag-both">React</span>
+      <span class="tag tag-done">PostgreSQL</span>
+      <span class="tag tag-done">Portkey</span>
+      <span class="tag tag-done">OmniRoute</span>
+      <span class="tag tag-partial">Goose</span>
+      <span class="tag tag-partial">Gemini CLI</span>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

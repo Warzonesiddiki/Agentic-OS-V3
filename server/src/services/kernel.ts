@@ -10,8 +10,8 @@
  *
  * Every operation appends to the hash-chained audit log.
  */
-import { db } from "../db/client.js";
-import { agents, agentTasks } from "../db/schema.js";
+import { db } from "../db/client";
+import { agents, agentTasks } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { logToolReceipt } from "./audit-engine.js";
 import { randomUUID } from "node:crypto";

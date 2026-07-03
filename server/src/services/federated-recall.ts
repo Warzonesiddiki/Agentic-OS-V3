@@ -33,9 +33,9 @@
  *   - `src/lib/os/kernel.ts`    → doGraphRecall, compactContext
  */
 import { createHash, verify, randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
-import { federatedMemoryProofs } from "../db/schema.js";
-import { memories, skills, notes } from "../db/schema.js";
+import { db } from "../db/client";
+import { federatedMemoryProofs } from "../db/client.js";
+import { memories, skills, notes } from "../db/client.js";
 import { desc, eq, and, sql, isNotNull, inArray } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
@@ -473,9 +473,9 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   const dim = Math.min(a.length, b.length);
   let dot = 0, na = 0, nb = 0;
   for (let i = 0; i < dim; i++) {
-    dot += a[i]! * b[i]!;
-    na += a[i]! * a[i]!;
-    nb += b[i]! * b[i]!;
+    dot += (a[i] ?? 0) * (b[i] ?? 0);
+    na += (a[i] ?? 0) * (a[i] ?? 0);
+    nb += (b[i] ?? 0) * (b[i] ?? 0);
   }
   const mag = Math.sqrt(na) * Math.sqrt(nb);
   return mag === 0 ? 0 : dot / mag;

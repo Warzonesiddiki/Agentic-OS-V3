@@ -55,8 +55,7 @@ function persist(): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(cfg));
   } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn("[NEXUS] Failed to persist remote config:", e instanceof Error ? e.message : String(e));
+    import("./logger.js").then(({ logger }) => logger.warn("remote", "Failed to persist remote config:", e instanceof Error ? e.message : String(e)));
   }
   for (const fn of listeners) fn();
 }

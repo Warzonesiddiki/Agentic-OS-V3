@@ -26,11 +26,11 @@
  *   - Harness NEVER reads raw content from `memories` — only metrics + counters.
  */
 import { randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
+import { db } from "../db/client";
 import {
   improvementProposals,
   metricSnapshots,
-} from "../db/schema.js";
+} from "../db/client.js";
 import { desc, eq, and, gte } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";

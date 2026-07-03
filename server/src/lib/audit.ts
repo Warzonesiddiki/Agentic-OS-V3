@@ -10,13 +10,12 @@
  * when the checkpoint count crosses the configured interval.
  */
 import { createHash, randomUUID } from "node:crypto";
-import { db, type Db } from "../db/client.js";
-import { auditLog, merkleCheckpoints } from "../db/schema.js";
+import { db, isSqlite, auditLog, merkleCheckpoints } from "../db/client.js";
 import { desc, asc, sql } from "drizzle-orm";
 // // import { log } from "./logging.js"; // removed unused // removed unused import
 
 /** A Drizzle transaction (or the db itself) — both expose query + execute + insert. */
-export type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+export type Tx = any;
 
 export const GENESIS_HASH = "0".repeat(64);
 const HASH_SEP = "|";
@@ -87,16 +86,29 @@ export async function appendAudit(
   const id = `aud_${randomUUID()}`;
   let _createdCpSequence = 0;
   const doAppend = async (client: Tx): Promise<AuditEntry> => {
-    await client.execute(sql`SELECT pg_advisory_xact_lock(79231)`);
+    if (!isSqlite) {
+      await client.execute(sql`SELECT pg_advisory_xact_lock(79231)`);
+    }
     const tip = await chainTip(client);
     const sequence = tip ? tip.sequence + 1 : 1;
     const prevHash = tip ? tip.entryHash : GENESIS_HASH;
     const createdAt = new Date();
+    const createdAtStr = isSqlite ? createdAt.toISOString() : createdAt;
     const hash = await entryHashAsync(prevHash, sequence, action, actor, createdAt.getTime(), payload);
-    const [row] = await client
-      .insert(auditLog)
-      .values({ sequence, id, actor, action, payload, prevHash, entryHash: hash, createdAt })
-      .returning();
+    const insertPayload = isSqlite && typeof payload === "object" ? JSON.stringify(payload) : payload;
+    let row: AuditEntry | undefined;
+    if (isSqlite) {
+      await client
+        .insert(auditLog)
+        .values({ sequence, id, actor, action, payload: insertPayload, prevHash, entryHash: hash, createdAt: createdAtStr });
+      row = { sequence, id, actor, action, payload: insertPayload, prevHash, entryHash: hash, createdAt: createdAtStr as unknown as Date } as AuditEntry;
+    } else {
+      const [r] = await client
+        .insert(auditLog)
+        .values({ sequence, id, actor, action, payload: insertPayload, prevHash, entryHash: hash, createdAt })
+        .returning();
+      row = r;
+    }
     if (!row) throw new Error("Audit append returned no row — integrity failure.");
 
     // Store Merkle checkpoint every MERKLE_CHUNK_SIZE entries
@@ -126,7 +138,7 @@ export async function appendAudit(
     return row as AuditEntry;
   };
 
-  const entry = tx ? await doAppend(tx) : await db.transaction(doAppend);
+  const entry = tx ? await doAppend(tx) : isSqlite ? await doAppend(db) : await db.transaction(doAppend);
 
 
 

@@ -1,0 +1,10 @@
+`temperature`
+`seed`
+`stream`
+`model`
+`messages`
+`tools`
+`any`
+`issuer`
+`client_id`
+`client_secret`

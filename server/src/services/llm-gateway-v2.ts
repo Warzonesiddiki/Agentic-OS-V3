@@ -19,11 +19,12 @@
  * `used >= budget`, requests are denied. Budgets auto-expire.
  */
 import { randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
-import { llmProviderHealth, llmTokenBudgets } from "../db/schema.js";
+import { db } from "../db/client";
+import { llmProviderHealth, llmTokenBudgets } from "../db/client.js";
 import { eq, sql, and } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
+import { env } from "../lib/env.js";
 
 /* ─── Provider contract ──────────────────────────────────────────────────── */
 
@@ -116,12 +117,12 @@ export function pickProvider(model: string, policy: RoutingPolicy): { adapter: P
 
 function apiKeyFor(provider: string): string | undefined {
   switch (provider) {
-    case "openai":    return process.env.OPENAI_API_KEY;
-    case "anthropic": return process.env.ANTHROPIC_API_KEY;
-    case "google":    return process.env.GOOGLE_API_KEY;
+    case "openai":    return env.OPENAI_API_KEY || void 0;
+    case "anthropic": return env.ANTHROPIC_API_KEY || void 0;
+    case "google":    return env.GOOGLE_API_KEY || void 0;
     case "ollama":    return undefined;
-    case "vllm":      return process.env.VLLM_API_KEY;
-    case "m3":        return process.env.M3_API_KEY;
+    case "vllm":      return env.VLLM_API_KEY || void 0;
+    case "m3":        return env.M3_API_KEY || void 0;
     default:          return undefined;
   }
 }
@@ -306,7 +307,7 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
   try {
     const resp = await picked.adapter.invoke(call.request, {
       apiKey: picked.apiKey,
-      baseUrl: process.env[`${picked.adapter.name.toUpperCase()}_BASE_URL`],
+      baseUrl: String((env as Record<string, unknown>)[`${picked.adapter.name.toUpperCase()}_BASE_URL`] ?? "") || void 0,
     });
     await recordSuccess(picked.adapter.name, resp.durationMs);
     await chargeBudget(call.sessionId, resp.totalTokens);

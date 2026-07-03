@@ -11,8 +11,8 @@
  * back to vm-isolated in-process execution (for development convenience).
  */
 import { getEnv } from "../lib/env.js";
-import { db } from "../db/client.js";
-import { sandboxExecutions } from "../db/schema.js";
+import { db } from "../db/client";
+import { sandboxExecutions } from "../db/client.js";
 import { randomUUID } from "node:crypto";
 import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
 import { join } from "node:path";

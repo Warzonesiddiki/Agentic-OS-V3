@@ -16,7 +16,7 @@
  * agent orchestration system.
  */
 import { randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
+import { db } from "../db/client";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
 import { getEnv } from "../lib/env.js";
@@ -25,7 +25,7 @@ import { estimateTokens } from "../lib/tokens.js";
 import {
   agents,
   agentTasks,
-} from "../db/schema.js";
+} from "../db/client.js";
 
 // ── Priority Levels ──────────────────────────────────────────────
 

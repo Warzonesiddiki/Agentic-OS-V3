@@ -1,0 +1,18 @@
+[package]
+name = "agentic-os-safety"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+description = "Content safety pipeline: PII redaction, injection detection, jailbreak detection"
+
+[dependencies]
+tokio = { workspace = true }
+serde = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+regex = { workspace = true }
+unicode-segmentation = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }

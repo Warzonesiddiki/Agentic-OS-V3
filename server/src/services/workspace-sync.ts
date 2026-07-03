@@ -5,8 +5,8 @@
  * into local IDE configuration files (.cursorrules, CLAUDE.md, etc.)
  * so agents always have up-to-date project context.
  */
-import { db } from "../db/client.js";
-import { memories } from "../db/schema.js";
+import { db } from "../db/client";
+import { memories } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";

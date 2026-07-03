@@ -13,8 +13,8 @@
  * This permanently replaces expensive LLM reasoning with native code for
  * deterministic tasks, drastically reducing token spend and latency.
  */
-import { db } from "../db/client.js";
-import { trajectoryLogs, agentTasks, compiledScripts } from "../db/schema.js";
+import { db } from "../db/client";
+import { trajectoryLogs, agentTasks, compiledScripts } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { eq, desc, and, gte } from "drizzle-orm";
 import { randomUUID, createHash } from "node:crypto";

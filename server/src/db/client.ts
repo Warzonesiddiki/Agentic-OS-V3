@@ -1,65 +1,113 @@
 /**
- * client.ts — bounded connection pool with statement timeouts.
+ * client.ts — Unified SQLite (default) / PostgreSQL client with auto-detection.
  *
- * Lazy singleton: the postgres pool and Drizzle instance are created on FIRST
- * QUERY, not at import time. This means importing this module is safe even if
- * DATABASE_URL is not set — the error only fires when code actually uses the
- * database (bootstrap, query, etc.). Tools, CLI help, and tests that don't
- * touch the DB won't crash at import time.
+ * Connection is eagerly created at module load time (fail-fast).
+ * ESM-compatible: uses createRequire for better-sqlite3 (CJS native),
+ * but uses import() for drizzle-orm (ESM) so the relational query API works.
+ *
+ * Additionally re-exports the correct schema tables for the active backend
+ * so application code can `import { db, apiKeys } from "./db/client.js";`
+ * without worrying about which schema file is active.
  */
-import postgres from "postgres";
-import { drizzle } from "drizzle-orm/postgres-js";
+
+import { createRequire } from "module";
+const require = createRequire(import.meta.url);
+
+import * as sqliteSchema from "./schema-sqlite.js";
+import * as pgSchema from "./schema.js";
 import { getEnv } from "../lib/env.js";
-import * as schema from "./schema.js";
 
-export type Schema = typeof schema;
+const rawUrl = (getEnv().DATABASE_URL || "").trim();
+const isSqlite = !(rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgresql://"));
 
-let _queryClient: ReturnType<typeof postgres> | null = null;
-let _instance: ReturnType<typeof drizzle<Schema>> | null = null;
+let _sqlite: any = null;
+let _pgClient: any = null;
 
-function getInstance() {
-  if (_instance) return _instance;
-  const e = getEnv();
-  _queryClient = postgres(e.DATABASE_URL, {
-    max: e.NEXUS_DB_POOL_MAX,
-    idle_timeout: 20,
-    connect_timeout: 10,
-    // Statement-level timeout (ms) to protect the pool from runaway queries.
-    connection: { statement_timeout: e.NEXUS_QUERY_TIMEOUT_MS },
-    // Kept off to avoid prepared-statement issues with connection proxies
-    // like PgBouncer in transaction mode.
-    prepare: false,
-  });
-  _instance = drizzle(_queryClient, { schema, logger: e.NEXUS_LOG_LEVEL === "debug" });
-  return _instance;
+/* eslint-disable @typescript-eslint/no-require-imports */
+
+function createSqliteDb() {
+  const Database = require("better-sqlite3");
+  const conn = new Database("./agentic-os.db");
+  conn.pragma("journal_mode = WAL");
+  conn.pragma("foreign_keys = ON");
+  _sqlite = conn;
+
+  // Use require for drizzle-orm/better-sqlite3 — drizzle-orm v0.45 ships CJS
+  const { drizzle } = require("drizzle-orm/better-sqlite3") as {
+    drizzle: (client: any, opts?: { schema?: Record<string, any> }) => any;
+  };
+  return drizzle(conn, { schema: sqliteSchema });
 }
 
-export type Db = ReturnType<typeof drizzle<Schema>>;
+function createPgDb() {
+  const postgres = require("postgres");
+  const { drizzle } = require("drizzle-orm/postgres-js") as {
+    drizzle: (client: any, opts?: { schema?: Record<string, any> }) => any;
+  };
+  const client = postgres(rawUrl, {
+    max: 20,
+    idle_timeout: 30,
+    connect_timeout: 10,
+  });
+  _pgClient = client;
+  return drizzle(client, { schema: pgSchema });
+}
 
-/**
- * Lazy-initialized database handle. A Proxy transparently delegates every
- * property/method access to the real Drizzle instance, deferring pool
- * creation until the first actual query.
- */
-export const db = new Proxy({} as Db, {
-  get(_, prop: string | symbol, receiver: unknown) {
-    const instance = getInstance();
-    const value = Reflect.get(instance, prop, receiver);
-    if (typeof value === "function") return value.bind(instance);
-    return value;
-  },
-});
+const db: any = isSqlite ? createSqliteDb() : createPgDb();
 
-/** Graceful shutdown: close the pool if it was initialized. */
+/** Human-readable backend label. */
+export const getBackend = (): string => (isSqlite ? "sqlite" : "postgresql");
+
+/** Clean shutdown — safe to call multiple times. */
 export async function closeDb(): Promise<void> {
-  if (_queryClient) {
-    await _queryClient.end({ timeout: 5 });
-    _queryClient = null;
-    _instance = null;
+  if (_sqlite) _sqlite.close();
+  if (_pgClient) {
+    try {
+      await _pgClient.end();
+    } catch {
+      // Already closed.
+    }
   }
 }
 
-/** Returns whether the pool has been lazily initialized. Used by health checks. */
+/** True if the pool is currently connected. */
 export function isPoolInitialized(): boolean {
-  return _instance !== null;
+  return Boolean(_sqlite || _pgClient);
 }
+
+export { db };
+export { isSqlite };
+
+/* ── Re-export the correct schema tables for the active backend ── */
+export const {
+  apiKeys,
+  agents,
+  agentTasks,
+  auditLog,
+  merkleCheckpoints,
+  anchoredRoots,
+  memories,
+  skills,
+  notes,
+  projects,
+  feedback,
+  systemMeta,
+  tokenLedger,
+  trajectoryLogs,
+  toolReceipts,
+  cronJobs,
+  stateSnapshots,
+  spanLogs,
+  sandboxExecutions,
+  compiledScripts,
+  metricSnapshots,
+  improvementProposals,
+  plugins,
+  pluginInstallations,
+  pluginReceipts,
+  federatedMemoryProofs,
+  llmProviderHealth,
+  llmTokenBudgets,
+  pipelines,
+  pipelineRuns,
+} = isSqlite ? sqliteSchema : pgSchema;

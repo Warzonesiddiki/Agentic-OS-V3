@@ -3,8 +3,8 @@
  * Each route validates with Zod, enforces auth + scope, and returns an envelope.
  */
 import { Hono } from "hono";
-import { db } from "./db/client.js";
-import { memories, skills, projects, notes, auditLog, tokenLedger, systemMeta, agents as agentsTable } from "./db/schema.js";
+import { db } from "./db/client.ts";
+import { memories, skills, projects, notes, auditLog, tokenLedger, systemMeta, agents as agentsTable } from "./db/client.js";
 import { eq, gt, sql } from "drizzle-orm";
 import { ok, err } from "./lib/envelope.js";
 import type { NexusEnv } from "./lib/hono-env.js";

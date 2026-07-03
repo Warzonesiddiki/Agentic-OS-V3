@@ -15,8 +15,8 @@
  * degrades to BM25-only (lexical mode).
  */
 import { inArray, sql, isNotNull, desc } from "drizzle-orm";
-import { db } from "../db/client.js";
-import { memories, skills, tokenLedger, notes } from "../db/schema.js";
+import { db } from "../db/client";
+import { memories, skills, tokenLedger, notes } from "../db/client.js";
 import { bm25, estimateTokens, packByBudget } from "../lib/tokens.js";
 import { appendAudit } from "../lib/audit.js";
 import { embedQuery, embeddingsAvailable } from "./embeddings.js";

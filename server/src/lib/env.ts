@@ -18,8 +18,8 @@ config(); // Load .env into process.env
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(9900),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
-  NEXUS_API_KEY: z.string().default(""),
+  DATABASE_URL: z.string().default("file:./agentic-os.db"),
+  NEXUS_API_KEY: z.string().default("nk_local_dev_key"),
   NEXUS_ALLOWED_ORIGINS: z.string().default("http://localhost:9900"),
   NEXUS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(100000).default(120),
   NEXUS_MAX_BODY_BYTES: z.coerce.number().int().min(1024).max(50 * 1024 * 1024).default(5 * 1024 * 1024),
@@ -87,6 +87,12 @@ const schema = z.object({
   NEXUS_BLOCKCHAIN_PRIVATE_KEY: z.string().default(""),
   NEXUS_BLOCKCHAIN_CHAIN_ID: z.coerce.number().int().min(1).max(999999).default(1),
   NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL: z.coerce.number().int().min(1).max(100000).default(10),
+  // Provider API keys (standard env vars, validated through env proxy)
+  OPENAI_API_KEY: z.string().default(""),
+  ANTHROPIC_API_KEY: z.string().default(""),
+  GOOGLE_API_KEY: z.string().default(""),
+  VLLM_API_KEY: z.string().default(""),
+  M3_API_KEY: z.string().default(""),
 });
 
 export type Env = z.infer<typeof schema>;

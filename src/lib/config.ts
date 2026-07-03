@@ -65,8 +65,7 @@ function persist() {
   try {
     localStorage.setItem(KEY, JSON.stringify(_cfg));
   } catch (e) {
-    // eslint-disable-next-line no-console
-    console.warn("[NEXUS] Failed to persist config to localStorage:", e instanceof Error ? e.message : String(e));
+    import("./logger.js").then(({ logger }) => logger.warn("config", "Failed to persist config to localStorage:", e instanceof Error ? e.message : String(e)));
   }
 }
 

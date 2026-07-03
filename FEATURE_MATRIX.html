@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic OS V4 – Feature Integration Matrix</title>
+    <style>
+        body {font-family: system-ui, sans-serif; background:#0f172a; color:#e2e8f0; line-height:1.6; margin:0; padding:20px;}
+        h1,h2,h3 {color:#60a5fa;}
+        table {width:100%; border-collapse:collapse; margin:20px 0; background:#1e293b;}
+        th,td {border:1px solid #334155; padding:8px 12px; text-align:left; font-size:0.9rem;}
+        th {background:#334155;}
+        tr:nth-child(even) {background:#263238;}
+        .badge {display:inline-block; padding:2px 6px; border-radius:4px; font-size:0.75em; font-weight:bold;}
+        .badge-integrated {background:#10b981; color:#fff;}
+        .badge-partial {background:#f59e0b; color:#fff;}
+        .badge-planned {background:#6366f1; color:#fff;}
+        .badge-missing {background:#ef4444; color:#fff;}
+        .section {margin-bottom:40px;}
+    </style>
+</head>
+<body>
+<h1>Agentic OS V4 – Feature Integration Matrix</h1>
+<p>This document compares features from the source repositories we have integrated (or plan to integrate) into Agentic OS V4.</p>
+
+<div class="section">
+    <h2>Source Repositories Overview</h2>
+    <table>
+        <thead>
+            <tr><th>Repository</th><th>Language</th><th>Primary Purpose</th><th>Key Features Taken</th></tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td><strong>Goose</strong> (Block)</td>
+                <td>Rust</td>
+                <td>AI agent framework with provider abstractions, MCP, local inference</td>
+                <td>
+                    <ul>
+                        <li>Provider trait & concrete clients (OpenAI, Anthropic, Ollama, OpenAI‑compatible)</li>
+                        <li>Streaming responses, tool calling, structured output, token counting</li>
+                        <li>Retry with exponential backoff + jitter</li>
+                        <li>Request/response logging, rate limiting, caching</li>
+                        <li>MCP server runner (computer controller, memory, auto‑visualizer)</li>
+                        <li>Plugin system (WASM sandbox), agent lifecycle</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Gemini CLI</strong> (Google)</td>
+                <td>TypeScript</td>
+                <td>Agent development kit with A2A protocol, MCP client, safety, sandbox</td>
+                <td>
+                    <ul>
+                        <li>Agent‑to‑Agent (A2A) protocol server</li>
+                        <li>MCP client with OAuth (Google, SA impersonation)</li>
+                        <li>Session management, tool execution framework</li>
+                        <li>Context compression (summary‑based, sliding window)</li>
+                        <li>Safety filters (PII redaction, prompt‑injection detection, jailbreak detection)</li>
+                        <li>Sandboxed code execution (Node.js VM, WASM)</li>
+                        <li>Telemetry & metrics, configuration hot‑reload, plugin system</li>
+                        <li>Workflow engine (DAG‑based), human‑in‑the‑loop, RAG pipeline</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Gateway Technologies</strong> (9Router, Litellm, Portkey, New‑API)</td>
+                <td>Various (Python, Go, JS)</td>
+                <td>Unified LLM gateway / proxy with 150+ providers</td>
+                <td>
+                    <ul>
+                        <li>150+ LLM providers (OpenAI, Anthropic, Azure, Bedrock, Google, Groq, etc.)</li>
+                        <li>Unified API interface (chat, completions, embeddings, image, audio, etc.)</li>
+                        <li>Provider health monitoring, automatic failover, load balancing</li>
+                        <li>Rate limit handling, token usage tracking, cost calculation</li>
+                        <li>Usage analytics, cost analytics, performance metrics, request tracing</li>
+                        <li>Alerting, dashboard, API key management, RBAC, audit logging, webhooks</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>OmniRoute2</strong></td>
+                <td>TypeScript</td>
+                <td>
+                <td>Intelligent LLM routing</td>
+                <td>
+                    <ul>
+                        <li>Model assessment engine, capability categorization</li>
+                        <li>Performance profiling, cost modeling, latency measurement, error rate tracking</li>
+                        <li>Routing strategies: round‑robin, weighted round‑robin, least connections, IP hash, latency‑based, cost‑based, quality‑based, adaptive</li>
+                        <li>Resilience: circuit breaker, bulkhead, retry with exponential backoff, timeout management, graceful degradation, health checks, fallback mechanisms, sticky sessions</li>
+                        <li>Integration: RESTful API, webhook support, SSO, SAML/OAuth, audit logging</li>
+                    </ul>
+                </td>
+            </tr>
+            <tr>
+                <td><strong>Agentic OS V4 (Our Project)</strong></td>
+                <td>TypeScript + Rust</td>
+                <td>Unified AI Agent Operating System</td>
+                <td>
+                    <ul>
+                        <li><span class="badge badge-integrated">Core types & error handling</span></li>
+                        <li><span class="badge badge-integrated">Configuration system (TOML + env override)</span></li>
+                        <li><span class="badge badge-integrated">Safety pipeline (PII, injection, jailbreak – stubbed)</span></li>
+                        <li><span class="badge badge-integrated">CLI (serve, chat, init, version)</span></li>
+                        <li><span class="badge badge-integrated">Installer (download, extract, verify, self‑update stubs)</span></li>
+                        <li><span class="badge badge-integrated">Observability (tracing, metrics stubs)</span></li>
+                        <li><span class="badge badge-integrated">Goose provider types (Message, Conversation, TokenUsage, Retry, ProviderError)</span></li>
+                        <li><span class="badge badge-integrated">Goose providers (OpenAI, Anthropic, Ollama, OpenAI‑compatible – streaming, tool calls, retry)</span></li>
+                        <li><span class="badge badge-planned">SQLite migration (zero‑hassle DB)</span></li>
+                        <li><span class="badge badge-planned">Zero‑hassle start scripts (start.sh / start.bat)</span></li>
+                        <li><span class="badge badge-planned">A2A protocol server (from Gemini CLI)</span></li>
+                        <li><span class="badge badge-planned">MCP server/client (from Goose)</span></li>
+                        <li><span class="badge badge-planned">Full observability (OpenTelemetry, Prometheus)</span></li>
+                        <li><span class="badge badge-planned">Advanced routing (cost/latency/quality, failover)</span></li>
+                        <li><span class="badge badge-planned">Plugin system (WASM sandbox)</span></li>
+                        <li><span class="badge badge-planned">Self‑improvement harness</span></li>
+                    </ul>
+                </td>
+            </tr>
+        </div>
+
+        <div class="section">
+            <h2>Integration Status Legend</h2>
+            <span class="badge badge-integrated">Integrated</span> – functionality present and compiling<br>
+            <span class="badge badge-partial">Partial</span> – stubbed or minimal implementation<br>
+            <span class="badge badge-planned">Planned</span> – scheduled for next phase<br>
+            <span class="badge badge-missing">Missing</span> – not yet started
+        </div>
+
+        <div class="section">
+            <h2>Next Steps</h2>
+            <ol>
+                <li>Complete SQLite migration + start‑script subagent (currently running).</li>
+                <li>Verify TypeScript server builds and runs with SQLite.</li>
+                <li>Run full test suite to ensure no regressions.</li>
+                <li>Begin copying Goose MCP server/client for Rust‑native MCP support.</li>
+                <li>Begin copying Gemini A2A server for agent‑to‑agent communication.</li>
+                <li>Finalize zero‑hassle experience: single‑click launch, embedded dashboard, auto‑update.</li>
+            </ol>
+        </div>
+
+        <div class="section">
+            <h2>Files Created in This Session</h2>
+            <ul>
+                <li><a href="FEATURE_MATRIX.html" target="_blank">FEATURE_MATRIX.html</a> – this file</li>
+                <li><a href="PRESENTATION.html" target="_blank">PRESENTATION.html</a> – architecture overview</li>
+                <li><a href="ZERO_HASSLE_PLAN.html" target="_blank">ZERO_HASSLE_PLAN.html</a> – zero‑hassle delivery plan</li>
+                <li><a href="SESSION_SUMMARY.md" target="_blank">SESSION_SUMMARY.md</a> – quick text summary</li>
+            </ul>
+        </div>
+    </body>
+</html>

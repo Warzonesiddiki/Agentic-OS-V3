@@ -22,8 +22,8 @@ import { recall } from "./recall.js";
 import { createMemory, createSkill } from "../services.js";
 
 import { getAgent, incrementTokenUsage, listAgents } from "./kernel.js";
-import { db } from "../db/client.js";
-import { memories, skills } from "../db/schema.js";
+import { db } from "../db/client";
+import { memories, skills } from "../db/client.js";
 import { eq } from "drizzle-orm";
 
 // ── Inline domain types (mirrors src/lib/os/types.ts) ──────────

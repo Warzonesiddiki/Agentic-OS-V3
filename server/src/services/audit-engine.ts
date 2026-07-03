@@ -8,8 +8,8 @@
  * 4. Secret Redaction — masks PII/keys before hashing (SOC2/GDPR)
  */
 import { createHash } from "node:crypto";
-import { db } from "../db/client.js";
-import { trajectoryLogs, toolReceipts, systemMeta } from "../db/schema.js";
+import { db } from "../db/client";
+import { trajectoryLogs, toolReceipts, systemMeta } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { verifyAuditChain } from "../lib/audit.js";
 import { randomUUID } from "node:crypto";

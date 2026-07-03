@@ -5,54 +5,68 @@
  */
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { eq, sql, desc } from "drizzle-orm";
-import { apiKeys } from "../db/schema.js";
-import { env } from "../lib/env.js";
+import { apiKeys, agents, db, isSqlite } from "../db/client.js";
+import { getEnv } from "../lib/env.js";
+import { log } from "../lib/logging.js";
 
 const SCRYPT_KEYLEN = 32;
 
 /** Hash a raw key into a self-contained "<saltHex>:<hashHex>" record. */
 export function hashApiKey(raw: string): string {
-  const salt = randomBytes(16);
-  const hash = scryptSync(raw, salt, SCRYPT_KEYLEN, { N: 1 << 14, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
-  return `${salt.toString("hex")}:${hash.toString("hex")}`;
+  const salt = randomBytes(16).toString("hex");
+  const hash = scryptSync(raw, salt, SCRYPT_KEYLEN).toString("hex");
+  return `${salt}:${hash}`;
 }
 
-/** Constant-time verification of a raw key against a stored "<salt>:<hash>". */
-export function verifyApiKey(raw: string, stored: string): boolean {
-  const sep = stored.indexOf(":");
-  if (sep <= 0) return false;
-  try {
-    const salt = Buffer.from(stored.slice(0, sep), "hex");
-    const expected = Buffer.from(stored.slice(sep + 1), "hex");
-    const derived = scryptSync(raw, salt, expected.length, { N: 1 << 14, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
-    if (derived.length !== expected.length) return false;
-    return timingSafeEqual(derived, expected);
-  } catch {
-    return false;
-  }
+/**
+ * Verify a raw key against a "<saltHex>:<hashHex>" record.
+ * Comparison is constant-time (scrypt-derived output), not the hex strings.
+ */
+export function verifyApiKey(raw: string, record: string): boolean {
+  const colon = record.indexOf(":");
+  if (colon === -1) return false;
+  const salt = record.slice(0, colon);
+  const expectedHash = record.slice(colon + 1);
+  const actualHash = scryptSync(raw, salt, SCRYPT_KEYLEN);
+  return timingSafeEqual(Buffer.from(expectedHash, "hex"), actualHash);
 }
 
-export function timingSafeStrEq(a: string, b: string): boolean {
-  const ab = Buffer.from(a);
-  const bb = Buffer.from(b);
-  if (ab.length !== bb.length) return false;
-  return timingSafeEqual(ab, bb);
-}
-
-/** Generate a new raw operator key with a recognizable prefix. */
+/** Generate a human-usable key (not a hash — this is the one we show once). */
 export function generateApiKey(): string {
-  return `nx_live_${randomBytes(18).toString("base64url")}`;
+  return `nk_nexus_${randomBytes(24).toString("hex")}`;
 }
 
-export const ALL_SCOPES = [
-  "memory:read", "memory:write", "skill:read", "skill:write",
-  "brain:admin", "vault:read", "vault:write", "safety:write", "audit:read",
-  "llm:chat", "llm:admin",
-  "plugin:admin", "plugin:invoke",
-  "federated:read", "federated:write",
-  "pipeline:admin", "pipeline:execute",
-] as const;
-export type Scope = (typeof ALL_SCOPES)[number];
+export type Scope =
+  | "chat.*"
+  | "chat.read"
+  | "chat.write"
+  | "admin.*"
+  | "admin.read"
+  | "admin.write"
+  | "admin.key.*"
+  | "admin.key.read"
+  | "admin.key.write"
+  | "dashboard.*"
+  | "dashboard.read";
+
+/** Scopes defined in this application — ideally this would live in a config table. */
+const ALL_SCOPES: Scope[] = [
+  "chat.*",
+  "chat.read",
+  "chat.write",
+  "admin.*",
+  "admin.read",
+  "admin.write",
+  "admin.key.*",
+  "admin.key.read",
+  "admin.key.write",
+  "dashboard.*",
+  "dashboard.read",
+];
+
+export function isValidScope(s: string): s is Scope {
+  return ALL_SCOPES.includes(s as Scope);
+}
 
 export interface Principal {
   id: string;
@@ -62,19 +76,10 @@ export interface Principal {
   status: "active" | "disabled";
 }
 
-export function parseBearer(header: string | undefined): string | null {
-  if (!header) return null;
-  const m = header.match(/^Bearer\s+(.+)$/i);
-  return m ? (m[1] ?? "").trim() : null;
-}
-
 /**
- * Auth cache. The active-principal list is cached briefly so a request doesn't
- * always hit the DB; a SUCCESSFUL verification is memoized by raw key for a
- * short TTL (repeat callers hit memory, scrypt only runs on a miss).
- *
- * Security-critical decisions:
- *  - NEGATIVE results are NOT cached. Caching `principal: null` by attacker-
+ * Bounded caches:
+ *  - principalCache: caches the full active-principal list (with keyHash) for
+ *    PRINCIPAL_TTL_MS. Does NOT cache negative lookups (unknown key) because a
  *    chosen token would let an attacker flood unique keys and grow the cache
  *    unbounded → OOM. Only known-good keys are memoized.
  *  - The positive cache is bounded and evicts oldest entries past the cap, so
@@ -82,9 +87,9 @@ export function parseBearer(header: string | undefined): string | null {
  *  - The `lastUsedAt` of the matched principal is updated (best-effort) so the
  *    column is no longer dead.
  */
-const PRINCIPAL_TTL_MS = env.NEXUS_AUTH_PRINCIPAL_TTL_MS;
-const RESULT_TTL_MS = env.NEXUS_AUTH_RESULT_TTL_MS;
-const RESULT_CACHE_CAP = env.NEXUS_AUTH_RESULT_CACHE_CAP;
+const PRINCIPAL_TTL_MS = getEnv().NEXUS_AUTH_PRINCIPAL_TTL_MS;
+const RESULT_TTL_MS = getEnv().NEXUS_AUTH_RESULT_TTL_MS;
+const RESULT_CACHE_CAP = getEnv().NEXUS_AUTH_RESULT_CACHE_CAP;
 let principalCache: { rows: PrincipalRow[]; at: number } | null = null;
 let activePrincipalIds: Set<string> | null = null;
 const resultCache = new Map<string, { principal: Principal; at: number }>();
@@ -97,7 +102,7 @@ interface PrincipalRow {
   status: string;
 }
 
-async function loadPrincipals(db: import("../db/client.js").Db): Promise<PrincipalRow[]> {
+async function loadPrincipals(db: any): Promise<PrincipalRow[]> {
   const now = Date.now();
   if (principalCache && now - principalCache.at < PRINCIPAL_TTL_MS) return principalCache.rows;
   const rows = await db.query.apiKeys.findMany({ where: eq(apiKeys.status, "active") });
@@ -133,7 +138,7 @@ export function invalidateAuthCache(): void {
 
 /** Resolve a principal by raw key, with bounded caching of POSITIVE results only. */
 export async function authenticate(
-  db: import("../db/client.js").Db,
+  db: any,
   key: string | null
 ): Promise<Principal | null> {
   if (!key) return null;
@@ -170,10 +175,10 @@ export async function authenticate(
     // Best-effort lastUsedAt — auth must never fail because of a metadata write.
     // Errors are logged (never silently swallowed), but do not propagate.
     if (matchedId) {
-      db.update(apiKeys).set({ lastUsedAt: sql`now()` }).where(eq(apiKeys.id, matchedId)).catch((e: unknown) => {
+      const nowFn = isSqlite ? sql`CURRENT_TIMESTAMP` : sql`now()`;
+      db.update(apiKeys).set({ lastUsedAt: nowFn }).where(eq(apiKeys.id, matchedId)).catch((e: unknown) => {
         // Non-critical: metadata write failure should not block auth.
-        // eslint-disable-next-line no-console
-        console.warn("[NEXUS] lastUsedAt update failed:", e instanceof Error ? e.message : String(e));
+        log.warn("auth.lastUsedAt_failed", { error: e instanceof Error ? e.message : String(e) });
       });
     }
   }
@@ -200,7 +205,7 @@ export interface PrincipalSummary {
 }
 
 export async function createPrincipal(
-  db: import("../db/client.js").Db,
+  db: any,
   name: string,
   scopes: Scope[]
 ): Promise<{ id: string; rawKey: string }> {
@@ -212,7 +217,7 @@ export async function createPrincipal(
 }
 
 export async function listPrincipals(
-  db: import("../db/client.js").Db,
+  db: any,
   opts?: { limit?: number; offset?: number }
 ): Promise<{ items: PrincipalSummary[]; total: number }> {
   const limit = Math.min(Math.max(opts?.limit ?? 50, 1), 200);
@@ -234,7 +239,7 @@ export async function listPrincipals(
   return { items, total };
 }
 
-export async function revokePrincipal(db: import("../db/client.js").Db, id: string): Promise<boolean> {
+export async function revokePrincipal(db: any, id: string): Promise<boolean> {
   const [updated] = await db.update(apiKeys).set({ status: "disabled" }).where(eq(apiKeys.id, id)).returning({ id: apiKeys.id });
   if (updated) invalidateAuthCache();
   return Boolean(updated);

@@ -7,8 +7,8 @@
 import { readdir, readFile, stat, mkdir, writeFile } from "node:fs/promises";
 import { join, relative, resolve, dirname, extname } from "node:path";
 import { env } from "../lib/env.js";
-import { db } from "../db/client.js";
-import { notes, memories } from "../db/schema.js";
+import { db } from "../db/client";
+import { notes, memories } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { safeVaultPath } from "../lib/guards.js";
 import { eq } from "drizzle-orm";

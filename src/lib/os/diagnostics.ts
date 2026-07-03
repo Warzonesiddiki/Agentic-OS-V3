@@ -81,8 +81,7 @@ export function runEvals(): EvalResult {
       // Restore failure must NEVER be silent — it could leave the operator's
       // brain polluted by the eval run. Surface it loudly.
       restoreFailed = true;
-      // eslint-disable-next-line no-console
-      console.error("[NEXUS] eval restore FAILED — live state may be polluted:", e);
+      import("../logger.js").then(({ logger }) => logger.error("diagnostics", "eval restore FAILED — live state may be polluted:", e));
     }
   };
 

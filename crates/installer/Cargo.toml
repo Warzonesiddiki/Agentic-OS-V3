@@ -1,0 +1,23 @@
+[package]
+name = "agentic-os-installer"
+version = "0.1.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+description = "Single-binary installer, auto-updater, and shell completions generator for Agentic OS"
+
+[dependencies]
+tokio = { workspace = true, features = ["full"] }
+reqwest = { workspace = true, features = ["json", "stream"] }
+serde = { workspace = true }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true }
+flate2 = { workspace = true }
+sha2 = { workspace = true }
+dirs = { workspace = true }
+indicatif = { workspace = true }
+console = { workspace = true }
+
+[dev-dependencies]
+tokio-test = "0.4"

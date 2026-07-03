@@ -11,7 +11,7 @@ import type { Context, MiddlewareHandler } from "hono";
 import { randomBytes } from "node:crypto";
 import { env } from "./lib/env.js";
 import { authenticate } from "./lib/security.js";
-import { db } from "./db/client.js";
+import { db } from "./db/client.ts";
 import { log } from "./lib/logging.js";
 import type { Envelope } from "./lib/envelope.js";
 import type { NexusEnv } from "./lib/hono-env.js";

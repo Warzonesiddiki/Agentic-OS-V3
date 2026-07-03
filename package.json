@@ -1,40 +1,26 @@
 {
-  "name": "nexus-agentic-os",
+  "name": "agentic-os-v3",
   "private": true,
-  "version": "2.0.0",
+  "version": "0.1.0",
   "type": "module",
+  "description": "Agentic OS V4 - Universal AI Agent Operating System",
+  "license": "Apache-2.0",
+  "author": "Warzonesiddiki",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@tanstack/react-virtual": "^3.14.4",
-    "@xyflow/react": "^12.11.1",
-    "clsx": "2.1.1",
-    "hash-wasm": "^4.12.0",
-    "motion": "^12.42.0",
-    "react": "19.2.6",
-    "react-dom": "19.2.6",
-    "tailwind-merge": "3.4.0",
-    "zod": "^4.4.3"
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "lint": "pnpm -r lint",
+    "typecheck": "pnpm -r typecheck",
+    "format": "prettier --write 'packages/**/*.ts'"
   },
   "devDependencies": {
-    "@eslint/js": "^9.17.0",
-    "@tailwindcss/vite": "4.1.17",
-    "@types/node": "22.19.17",
-    "@types/react": "19.2.7",
-    "@types/react-dom": "19.2.3",
-    "@typescript-eslint/eslint-plugin": "^8.18.2",
-    "@typescript-eslint/parser": "^8.18.2",
-    "@vitejs/plugin-react": "5.1.1",
-    "eslint": "^9.17.0",
-    "eslint-plugin-react": "^7.37.0",
-    "eslint-plugin-react-hooks": "^5.0.0",
-    "globals": "^15.14.0",
-    "tailwindcss": "4.1.17",
-    "typescript": "5.9.3",
-    "vite": "7.3.6",
-    "vite-plugin-singlefile": "2.3.0"
+    "typescript": "^5.8",
+    "prettier": "^3.3",
+    "vitest": "^3.1",
+    "tsx": "^4.19"
   }
 }

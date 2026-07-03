@@ -1,19 +1,40 @@
 /**
  * setup.ts — schema presence verification (NOT a second schema definition).
  *
- * Previously this file hand-wrote CREATE TABLE DDL that drifted from the Drizzle
- * schema (bigserial vs bigint, different unique-index semantics, missing FKs) —
- * two sources of truth that disagreed. That is removed. The Drizzle schema in
- * db/schema.ts is now the SINGLE source of truth, created via `npm run db:push`
- * (or `db:migrate`). This module only verifies the schema is present at boot and
- * fails loud with instructions if it isn't, so the operator is never silently
- * running against a missing or partial schema.
+ * AUTO-DETECTS database backend:
+ *   - If DATABASE_URL begins with postgres:// or postgresql:// → uses PostgreSQL
+ *   - Otherwise → uses SQLite (default, no external DB needed)
+ *
+ * Single source of truth: Drizzle schema in db/schema.ts / db/schema-sqlite.ts.
+ * This module only verifies the schema is present at boot.
  */
-import { db } from "./db/client.js";
+
+import { getEnv } from "./lib/env.js";
 import { sql } from "drizzle-orm";
 import { log, fatal } from "./lib/logging.js";
+import { execSync } from "node:child_process";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
-// Tables the server depends on at boot. Must match db/schema.ts.
+// Determine which backend to use.
+const rawUrl = (getEnv().DATABASE_URL || "").trim();
+export const isSqlite = !(rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgresql://"));
+
+let db: any;
+
+if (isSqlite) {
+  const sqliteModule = await import("./db/client.js");
+  db = sqliteModule.db;
+  log.info("db_backend", { backend: "sqlite", path: "./agentic-os.db" });
+} else {
+  const pgModule = await import("./db/client.js");
+  db = pgModule.db;
+  log.info("db_backend", { backend: "postgresql" });
+}
+
+export { db };
+
+// Tables the server depends on at boot. Must match the active schema.
 const REQUIRED_TABLES = [
   "memories", "skills", "projects", "notes", "audit_log",
   "token_ledger", "feedback", "system_meta", "api_keys",
@@ -37,14 +58,28 @@ export interface SetupResult {
 /** Verify all required tables exist. Does NOT create or alter anything. */
 export async function ensureSchema(): Promise<SetupResult> {
   try {
-    const rows = await db.execute<{ table_name: string }>(sql`
-      SELECT table_name FROM information_schema.tables
-      WHERE table_schema = 'public'
-    `);
-    const present = new Set((Array.isArray(rows) ? rows : []).map((r: unknown) => {
-      const row = r as Record<string, unknown>;
-      return String(row.table_name ?? row["table_name"] ?? "");
-    }));
+    let presentTables: string[];
+
+    if (isSqlite) {
+      // SQLite: query sqlite_master
+      const stmt = db.values(sql`SELECT name FROM sqlite_master WHERE type='table'`);
+      presentTables = (Array.isArray(stmt) ? stmt : (await stmt) || [])
+        .flat()
+        .filter(Boolean)
+        .map(String);
+    } else {
+      // PostgreSQL: query information_schema
+      const rows: any = await db.execute(sql`
+        SELECT table_name FROM information_schema.tables
+        WHERE table_schema = 'public'
+      `);
+      presentTables = (Array.isArray(rows) ? rows : []).map((r: unknown) => {
+        const row = r as Record<string, unknown>;
+        return String(row.table_name ?? row["table_name"] ?? "");
+      }).filter(Boolean);
+    }
+
+    const present = new Set(presentTables);
     const missing = REQUIRED_TABLES.filter((t) => !present.has(t));
     if (missing.length) {
       log.error("schema_missing", { missing });
@@ -59,34 +94,83 @@ export async function ensureSchema(): Promise<SetupResult> {
   }
 }
 
+/**
+ * Auto-create SQLite tables using Drizzle's push mechanism.
+ * This is only called when in SQLite mode and tables are missing.
+ */
+async function autoCreateTables(): Promise<void> {
+  log.info("auto_create_tables", { note: "Pushing SQLite schema via drizzle-kit..." });
+  try {
+    const cwd = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+    execSync("npx drizzle-kit push --config=drizzle.config.sqlite.ts --force", {
+      cwd,
+      stdio: "inherit",
+      timeout: 60_000,
+    });
+    log.info("tables_created", { note: "SQLite tables created via drizzle-kit push" });
+  } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
+    log.error("auto_create_failed", { error });
+    throw e;
+  }
+}
+
 /** Fail the process if the schema isn't ready, with actionable guidance. */
 export async function ensureSchemaOrDie(): Promise<void> {
   const result = await ensureSchema();
   if (!result.ok) {
-    fatal(
-      `Database schema is not ready. Run \`npm run db:push\` (or \`db:migrate\`) ` +
-        `against DATABASE_URL first. Missing tables: ${result.missing.join(", ")}.`,
-      result.error ? new Error(result.error) : undefined
-    );
+    if (isSqlite) {
+      // Auto-create tables for zero-hassle SQLite mode
+      log.info("auto_creating_tables", { note: "SQLite mode — auto-creating missing tables" });
+      try {
+        await autoCreateTables();
+        // Re-check
+        const recheck = await ensureSchema();
+        if (!recheck.ok) {
+          fatal(
+            `SQLite tables could not be created. ` +
+            `Missing tables: ${recheck.missing.join(", ")}.`,
+            new Error(recheck.error || "Unknown error")
+          );
+        }
+        log.info("schema_ready_after_auto_create", { tables: recheck.present });
+      } catch (e) {
+        fatal(
+          `Failed to auto-create SQLite tables: ${e instanceof Error ? e.message : String(e)}. ` +
+          `Try deleting agentic-os.db and restarting.`,
+          e instanceof Error ? e : undefined
+        );
+      }
+    } else {
+      fatal(
+        `Database schema is not ready. Run \`npm run db:push\` (or \`db:migrate\`) ` +
+          `against DATABASE_URL first. Missing tables: ${result.missing.join(", ")}.`,
+        result.error ? new Error(result.error) : undefined
+      );
+    }
   }
 
-  // Verify pgvector extension is installed (required for semantic recall).
-  // If missing, warn but don't abort — the system degrades to BM25 lexical.
-  const pgvectorOk = await isPgvectorInstalled();
-  if (!pgvectorOk) {
-    log.warn("pgvector_missing", {
-      note: "pgvector extension not found. Semantic recall (RRF) is disabled; using BM25 lexical fallback.",
-      fix: "Run: CREATE EXTENSION IF NOT EXISTS vector; in Postgres, then re-run db:push.",
-    });
+  if (!isSqlite) {
+    // Verify pgvector extension is installed (required for semantic recall).
+    const pgvectorOk = await isPgvectorInstalled();
+    if (!pgvectorOk) {
+      log.warn("pgvector_missing", {
+        note: "pgvector extension not found. Semantic recall (RRF) is disabled; using BM25 lexical fallback.",
+        fix: "Run: CREATE EXTENSION IF NOT EXISTS vector; in Postgres, then re-run db:push.",
+      });
+    } else {
+      log.info("pgvector_ready", { note: "Semantic recall (RRF) enabled." });
+    }
   } else {
-    log.info("pgvector_ready", { note: "Semantic recall (RRF) enabled." });
+    log.info("sqlite_recall", { note: "SQLite mode — using BM25 lexical recall (no pgvector)." });
   }
 }
 
-/** Check whether the pgvector extension is installed. */
+/** Check whether the pgvector extension is installed (PostgreSQL only). */
 export async function isPgvectorInstalled(): Promise<boolean> {
+  if (isSqlite) return false;
   try {
-    const rows = await db.execute<{ extname: string }>(sql`
+    const rows: any = await db.execute(sql`
       SELECT extname FROM pg_extension WHERE extname = 'vector'
     `);
     return (Array.isArray(rows) ? rows : []).some((r: unknown) => {
@@ -101,7 +185,11 @@ export async function isPgvectorInstalled(): Promise<boolean> {
 /** Lightweight DB reachability check for the health endpoint. */
 export async function dbReachable(): Promise<boolean> {
   try {
-    await db.execute(sql`SELECT 1`);
+    if (isSqlite) {
+      db.values(sql`SELECT 1`);
+    } else {
+      await db.execute(sql`SELECT 1`);
+    }
     return true;
   } catch {
     return false;

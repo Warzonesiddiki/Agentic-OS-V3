@@ -5,8 +5,8 @@
  */
 import { z } from "zod";
 import { and, eq, lt, sql } from "drizzle-orm";
-import { db } from "../db/client.js";
-import { memories, skills } from "../db/schema.js";
+import { db } from "../db/client";
+import { memories, skills } from "../db/client.js";
 import { appendAudit, type Tx } from "../lib/audit.js";
 import { estimateTokens } from "../lib/tokens.js";
 import { createHash } from "node:crypto";

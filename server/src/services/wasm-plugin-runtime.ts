@@ -26,12 +26,12 @@
  * that capability. Period.
  */
 import { createHash, createHmac, randomUUID, timingSafeEqual, verify } from "node:crypto";
-import { db } from "../db/client.js";
+import { db } from "../db/client";
 import {
   plugins,
   pluginInstallations,
   pluginReceipts,
-} from "../db/schema.js";
+} from "../db/client.js";
 import { desc, eq } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";

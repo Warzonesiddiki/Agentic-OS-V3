@@ -1,0 +1,12 @@
+[package]
+name = "agentic-os-config"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+description = "Agentic OS V4 configuration system — load, validate, and override config from files and environment"
+
+[dependencies]
+serde = { workspace = true, features = ["derive"] }
+toml = "0.8"
+thiserror = { workspace = true }

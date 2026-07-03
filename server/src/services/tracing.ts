@@ -19,7 +19,7 @@
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import { db } from "../db/client.js";
+import { db } from "../db/client";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
 import { getRegistry } from "./metrics.js";

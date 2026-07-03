@@ -14,8 +14,8 @@
  */
 import { CronExpressionParser, type CronExpression } from "cron-parser";
 import { randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
-import { cronJobs } from "../db/schema.js";
+import { db } from "../db/client";
+import { cronJobs } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { env } from "../lib/env.js";
 import { log } from "../lib/logging.js";

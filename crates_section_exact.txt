@@ -1,0 +1,12 @@
+â”œâ”€â”€ crates/                        # Rust crates (Cargo workspace)
+â”‚   â”œâ”€â”€ core/                      # Agentic OS core types & traits
+â”‚   â”œâ”€â”€ config/                    # Configuration parser
+â”‚   â”œâ”€â”€ acp/                       # ACP server implementation
+â”‚   â”œâ”€â”€ gateway/                   # Gateway core
+â”‚   â”œâ”€â”€ orchestrator/              # Agent orchestration
+â”‚   â”œâ”€â”€ mcp/                       # MCP client/server
+â”‚   â”œâ”€â”€ local-inference/           # Local inference (llama.cpp)
+â”‚   â”œâ”€â”€ dictation/                 # Whisper dictation
+â”‚   â”œâ”€â”€ security/                  # Guardrails & security
+â”‚   â”œâ”€â”€ telemetry/                 # Observability
+â”‚   â””â”€â”€ sandbox/                   # WASM sandbox

@@ -1,0 +1,19 @@
+{
+  "name": "@agentic-os/devtools",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "lint": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@agentic-os/sdk": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.8"
+  }
+}
