@@ -1,12 +1,22 @@
-import { defineConfig } from "drizzle-kit";
+/**
+ * drizzle.config.ts — Drizzle Kit configuration for both SQLite and PostgreSQL.
+ *
+ * SQLite:  `npx drizzle-kit generate --config drizzle.config.ts`
+ *          `npx drizzle-kit push --config drizzle.config.ts`
+ * Postgres: `DATABASE_URL=postgres://... npx drizzle-kit push --config drizzle.config.ts`
+ *
+ * We keep both schemas in one config; the CLI uses the `dialect` setting.
+ */
 
-export default defineConfig({
-  schema: "./src/db/schema.ts",
-  out: "./drizzle",
-  dialect: "postgresql",
+import type { Config } from 'drizzle-kit';
+
+export default {
+  schema: ['./src/db/schema-sqlite.ts', './src/db/schema.ts'],
+  out: './drizzle',
+  dialect: 'sqlite', // default; override via --dialect for postgres
   dbCredentials: {
-    url: process.env.DATABASE_URL || "postgres://postgres:postgres@localhost:5432/nexus",
+    url: './agentic-os.db',
   },
-  strict: true,
   verbose: true,
-});
+  strict: true,
+} satisfies Config;
