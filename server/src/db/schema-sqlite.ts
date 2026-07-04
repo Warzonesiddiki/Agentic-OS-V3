@@ -134,6 +134,7 @@ export const notes = sqliteTable(
   },
   (t) => ({
     pathUnique: uniqueIndex('note_path_unique').on(t.path),
+    indexedAtIdx: index('note_indexed_at_idx').on(t.indexedAt),
   })
 );
 
