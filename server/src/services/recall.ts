@@ -445,7 +445,13 @@ export async function recall(
       : page[page.length - 1]?.score;
 
   // ---- Token budget packing ----
+  const packStart = performance.now();
   const { packed, tokensUsed, truncated } = packByBudget(page, budget);
+  const packDurationMs = performance.now() - packStart;
+  if (packDurationMs > 5.0) {
+    const { log } = await import('../lib/logging.js');
+    log.warn('token_packing_slow', { durationMs: packDurationMs, budget, itemsCount: page.length });
+  }
 
   // ---- Side effects: bump recallCount + ledger ----
   const memIds = packed.filter((p) => p.type === 'memory').map((p) => p.id);
