@@ -832,7 +832,7 @@ export async function saveAgentProcessState(state: AgentExecutionState): Promise
       context: state as unknown as Record<string, unknown>,
       createdAt: new Date(),
     });
-  } catch (e) {
+  } catch {
     // Fallback if snapshot table insert fails
   }
 }

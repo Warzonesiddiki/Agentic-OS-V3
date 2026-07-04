@@ -174,7 +174,7 @@ export function encodeRawEvmTransaction(params: RawTxParams): EncodedTxResult {
     const unsignedRlp = encodeRLP(unsignedItems);
     const txHashBuf = Buffer.from(keccak256(unsignedRlp), 'hex');
 
-    let v = 27 + chainId * 2 + 8;
+    const v = 27 + chainId * 2 + 8;
     let rBuf = Buffer.alloc(32);
     let sBuf = Buffer.alloc(32);
 

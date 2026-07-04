@@ -15,13 +15,7 @@
 // The actual implementations live in server/src/services/omniroute/ (excluded from
 // compilation). Once we integrate OmniRoute properly, these stubs will be replaced.
 
-import {
-  MODEL_TIER_CATALOG,
-  getProviderHealth,
-  isProviderHealthy,
-  resolveOmniRoute,
-  classifyComplexity,
-} from './omniroute-bridge.js';
+import { MODEL_TIER_CATALOG, getProviderHealth, isProviderHealthy } from './omniroute-bridge.js';
 
 export * from './omniroute-bridge.js';
 

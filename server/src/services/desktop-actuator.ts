@@ -372,7 +372,10 @@ export class MacOSActuator extends BaseDesktopActuator {
       if (fs.existsSync(tmpFile)) {
         try {
           fs.unlinkSync(tmpFile);
-        } catch {}
+        } catch (err) {
+          // Ignore cleanup errors but avoid silent empty block lints
+          log.debug('desktop_unlink_failed_mac', { path: tmpFile, error: String(err) });
+        }
       }
     }
   }
@@ -517,7 +520,10 @@ export class LinuxActuator extends BaseDesktopActuator {
       if (fs.existsSync(tmpFile)) {
         try {
           fs.unlinkSync(tmpFile);
-        } catch {}
+        } catch (err) {
+          // Ignore cleanup errors but avoid silent empty block lints
+          log.debug('desktop_unlink_failed_linux', { path: tmpFile, error: String(err) });
+        }
       }
     }
   }

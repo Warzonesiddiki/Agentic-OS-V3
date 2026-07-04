@@ -9,7 +9,6 @@ import { env } from '../lib/env.js';
 import {
   dispatchPortkeyRequest,
   createPortkeySSEResponseStream,
-  streamPortkeyTokenChunks,
   getAllSupportedPortkeyModels,
   PORTKEY_SUPPORTED_MODELS,
   resolveProviderForModel,
