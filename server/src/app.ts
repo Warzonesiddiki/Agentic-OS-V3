@@ -97,6 +97,20 @@ export function createApp(): Hono<NexusEnv> {
     )
   );
 
+  // Global Error Boundary Handler
+  app.onError((error, c) => {
+    log.error('unhandled_app_error', {
+      error: error.message,
+      stack: error.stack,
+      requestId: c.get('requestId'),
+      path: c.req.path,
+    });
+    return c.json(
+      err('INTERNAL_ERROR', 'An unexpected error occurred.', c.get('requestId') ?? ''),
+      500
+    );
+  });
+
   // Optional single-file dashboard at the same origin.
   let dashboardHtml: string | null = null;
   try {

@@ -292,6 +292,7 @@ export class DatabaseSpanExporter implements SpanExporter {
     if (this._shutdown || spans.length === 0) return;
     try {
       // Persist spans to the DB — one batch insert
+      const { isSqlite } = await import('../db/client.js');
       const values = spans.map((s) => ({
         id: s.id,
         traceId: s.traceId,
@@ -302,8 +303,8 @@ export class DatabaseSpanExporter implements SpanExporter {
         startTimeMs: Math.round(s.startTime),
         endTimeMs: s.endTime !== null ? Math.round(s.endTime) : null,
         durationMs: Math.round(s.durationMs),
-        attributes: s.attributes,
-        events: s.events,
+        attributes: isSqlite ? JSON.stringify(s.attributes) : s.attributes,
+        events: isSqlite ? JSON.stringify(s.events) : s.events,
       }));
 
       // Dynamic import to avoid circular deps at module load
