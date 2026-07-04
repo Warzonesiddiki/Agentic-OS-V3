@@ -27,8 +27,13 @@ let server: ReturnType<typeof createServer> | null = null;
 async function bootstrap(): Promise<void> {
   // Lazy imports — defer until bootstrap so CLI tools / tests that import
   // individual modules don't trigger the DB connection or env validation.
-  const { getEnv } = await import('./lib/env.js');
-  const env = getEnv();
+  let env;
+  try {
+    const { getEnv } = await import('./lib/env.js');
+    env = getEnv();
+  } catch (err) {
+    fatal('Environment validation failed on startup', err);
+  }
   const { ensureSchemaOrDie, dbReachable } = await import('./setup.js');
   const { createApp } = await import('./app.js');
   const { db } = await import('./db/client.js');
@@ -148,41 +153,64 @@ let shuttingDown = false;
 async function gracefulShutdown(signal: string): Promise<void> {
   if (shuttingDown) return;
   shuttingDown = true;
-  log.info('shutdown', { signal });
+  log.info('shutdown_initiated', { signal });
 
-  // Stop background worker first (no new work while we drain).
+  // 1. Flush audit event before shutting down services
+  try {
+    const { appendAudit } = await import('./lib/audit.js');
+    await appendAudit('system.shutdown', { signal }, 'system');
+  } catch {
+    /* best-effort */
+  }
+
+  // 2. Stop background worker first (no new work while we drain).
   try {
     const { stopWorker } = await import('./services/task-worker.js');
     stopWorker();
+    log.info('worker_stopped');
   } catch {
     /* best-effort */
   }
 
   log.info('bus_stopped');
 
-  // Close the HTTP server with a 5s drain timeout.
+  // 3. Close the HTTP server with a 10s connection drain timeout.
   if (server) {
     await new Promise<void>((resolve) => {
       const drainTimer = setTimeout(() => {
-        log.warn('shutdown_drain_timeout');
+        log.warn('shutdown_drain_timeout_forcing_close');
+        if (typeof (server as any).closeAllConnections === 'function') {
+          (server as any).closeAllConnections();
+        }
         resolve();
-      }, 5000);
-      server!.close(() => {
+      }, 10000);
+
+      if (typeof (server as any).closeIdleConnections === 'function') {
+        (server as any).closeIdleConnections();
+      }
+
+      server!.close((err) => {
         clearTimeout(drainTimer);
+        if (err) {
+          log.error('server_close_error', { error: err.message });
+        } else {
+          log.info('http_server_closed');
+        }
         resolve();
       });
     });
   }
 
-  // Close the database pool.
+  // 4. Close the database pool.
   try {
     const { closeDb } = await import('./db/client.js');
     await closeDb();
+    log.info('db_pool_closed');
   } catch {
     /* best-effort */
   }
 
-  // Clean up the PID-qualified port file.
+  // 5. Clean up the PID-qualified port file.
   try {
     const portFile = path.join(os.tmpdir(), `nexus-port-${process.pid}.txt`);
     unlinkSync(portFile);
@@ -190,7 +218,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
     /* best-effort — file may not exist */
   }
 
-  // Flush OpenTelemetry if it was initialized.
+  // 6. Flush OpenTelemetry if it was initialized.
   try {
     const { shutdownOtel } = await import('./lib/otel.js');
     if (typeof shutdownOtel === 'function') await shutdownOtel();

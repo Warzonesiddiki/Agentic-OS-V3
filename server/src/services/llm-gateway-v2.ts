@@ -25,6 +25,13 @@ import { eq, sql } from 'drizzle-orm';
 import { appendAudit } from '../lib/audit.js';
 import { log } from '../lib/logging.js';
 import { env } from '../lib/env.js';
+import {
+  resolveOmniRoute,
+  recordProviderSuccess,
+  recordProviderFailure,
+  is5xxOrTransientError,
+  isProviderHealthy,
+} from './omniroute-bridge.js';
 
 /* ─── Provider contract ──────────────────────────────────────────────────── */
 
@@ -76,6 +83,16 @@ import { googleProvider } from './providers/google.js';
 import { ollamaProvider } from './providers/ollama.js';
 import { vllmProvider } from './providers/vllm.js';
 import { m3Provider } from './providers/m3.js';
+import {
+  portkeyBridge,
+  portkeyOpenAIProvider,
+  portkeyAnthropicProvider,
+  portkeyGeminiProvider,
+  portkeyGroqProvider,
+  portkeyMistralProvider,
+  portkeyAzureProvider,
+  streamPortkeyBridge,
+} from './portkey-bridge.js';
 
 const REGISTRY: Record<string, ProviderAdapter> = {
   openai: openaiProvider,
@@ -84,6 +101,16 @@ const REGISTRY: Record<string, ProviderAdapter> = {
   ollama: ollamaProvider,
   vllm: vllmProvider,
   m3: m3Provider,
+  portkey: portkeyBridge,
+  'portkey-openai': portkeyOpenAIProvider,
+  'portkey-anthropic': portkeyAnthropicProvider,
+  'portkey-gemini': portkeyGeminiProvider,
+  groq: portkeyGroqProvider,
+  'portkey-groq': portkeyGroqProvider,
+  mistral: portkeyMistralProvider,
+  'portkey-mistral': portkeyMistralProvider,
+  azure: portkeyAzureProvider,
+  'portkey-azure': portkeyAzureProvider,
 };
 
 export function listProviders(): ProviderAdapter[] {
@@ -128,13 +155,30 @@ function apiKeyFor(provider: string): string | undefined {
     case 'anthropic':
       return env.ANTHROPIC_API_KEY || void 0;
     case 'google':
-      return env.GOOGLE_API_KEY || void 0;
+    case 'gemini':
+    case 'portkey-gemini':
+      return env.GOOGLE_API_KEY || env.PORTKEY_API_KEY || void 0;
     case 'ollama':
       return undefined;
     case 'vllm':
       return env.VLLM_API_KEY || void 0;
     case 'm3':
       return env.M3_API_KEY || void 0;
+    case 'portkey':
+      return env.PORTKEY_API_KEY || void 0;
+    case 'portkey-openai':
+      return env.OPENAI_API_KEY || env.PORTKEY_API_KEY || void 0;
+    case 'portkey-anthropic':
+      return env.ANTHROPIC_API_KEY || env.PORTKEY_API_KEY || void 0;
+    case 'groq':
+    case 'portkey-groq':
+      return env.GROQ_API_KEY || env.PORTKEY_API_KEY || void 0;
+    case 'mistral':
+    case 'portkey-mistral':
+      return env.MISTRAL_API_KEY || env.PORTKEY_API_KEY || void 0;
+    case 'azure':
+    case 'portkey-azure':
+      return env.AZURE_OPENAI_API_KEY || env.PORTKEY_API_KEY || void 0;
     default:
       return undefined;
   }
@@ -319,22 +363,21 @@ export interface GatewayCall {
 }
 
 export async function callLLMGateway(call: GatewayCall): Promise<ProviderResponse> {
-  const picked = pickProvider(call.request.model, call.policy);
-  if (!picked) {
-    await appendAudit(
-      'llm.no_provider',
-      { model: call.request.model, policy: call.policy },
-      'llm-gateway'
-    );
-    throw new Error(`no_provider_for_model:${call.request.model}`);
+  // 1. OmniRoute Decision Engine (< 5ms evaluation overhead guarantee)
+  const decision = resolveOmniRoute(call.request, call.policy);
+
+  if (decision.evaluationTimeMs > 5) {
+    log.warn('omniroute.eval_overhead_exceeded', { evaluationTimeMs: decision.evaluationTimeMs });
+  } else {
+    log.info('omniroute.decision', {
+      complexity: decision.complexity,
+      chosenProvider: decision.chosenProvider,
+      chosenModel: decision.chosenModel,
+      evaluationTimeMs: decision.evaluationTimeMs,
+    });
   }
 
-  if (!(await canCallProvider(picked.adapter.name))) {
-    await appendAudit('llm.circuit_open', { provider: picked.adapter.name }, 'llm-gateway');
-    throw new Error(`circuit_open:${picked.adapter.name}`);
-  }
-
-  // Budget check (estimate; will charge after response)
+  // 2. Budget check (estimate tokens and pre-charge session budget)
   const estTokens = estimateTokens(call.request);
   const charge = await chargeBudget(call.sessionId, estTokens);
   if (!charge.allowed) {
@@ -346,48 +389,136 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
     throw new Error(`budget_denied:${charge.reason}`);
   }
 
-  const _start = Date.now();
-  try {
-    const resp = await picked.adapter.invoke(call.request, {
-      apiKey: picked.apiKey,
-      baseUrl:
-        String(
-          (env as Record<string, unknown>)[`${picked.adapter.name.toUpperCase()}_BASE_URL`] ?? ''
-        ) || void 0,
-    });
-    await recordSuccess(picked.adapter.name, resp.durationMs);
-    await chargeBudget(call.sessionId, resp.totalTokens);
-    await appendAudit(
-      'llm.call',
-      {
-        provider: picked.adapter.name,
-        model: resp.model,
-        sessionId: call.sessionId,
-        promptTokens: resp.promptTokens,
-        completionTokens: resp.completionTokens,
-        durationMs: resp.durationMs,
-      },
-      'llm-gateway'
-    );
-    return resp;
-  } catch (e) {
-    await recordFailure(picked.adapter.name);
-    await appendAudit(
-      'llm.call_failed',
-      {
-        provider: picked.adapter.name,
-        model: call.request.model,
-        sessionId: call.sessionId,
-        error: e instanceof Error ? e.message : String(e),
-      },
-      'llm-gateway'
-    );
-    throw e;
+  // 3. Assemble candidate provider & model failover chain
+  let candidates: Array<{ provider: string; model: string }> = [];
+
+  if (call.policy.force && REGISTRY[call.policy.force]) {
+    candidates.push({ provider: call.policy.force, model: call.request.model });
+  } else {
+    // Primary chain from OmniRoute complexity & cost decision
+    candidates = decision.fallbackChain.map((c) => ({ provider: c.provider, model: c.model }));
+
+    // Prepend standard picked provider if explicitly configured
+    const standardPicked = pickProvider(call.request.model, call.policy);
+    if (standardPicked && !candidates.some((c) => c.provider === standardPicked.adapter.name)) {
+      candidates.unshift({ provider: standardPicked.adapter.name, model: call.request.model });
+    }
   }
+
+  if (candidates.length === 0) {
+    await appendAudit(
+      'llm.no_provider',
+      { model: call.request.model, policy: call.policy },
+      'llm-gateway'
+    );
+    throw new Error(`no_provider_for_model:${call.request.model}`);
+  }
+
+  let lastError: unknown = null;
+
+  // 4. Dynamic Fallback Execution Loop
+  for (let i = 0; i < candidates.length; i++) {
+    const candidate = candidates[i]!;
+    const adapter = REGISTRY[candidate.provider];
+    if (!adapter) continue;
+
+    const breakerAllowed = await canCallProvider(candidate.provider);
+    const healthAllowed = isProviderHealthy(candidate.provider);
+
+    if (!breakerAllowed || !healthAllowed) {
+      await appendAudit('llm.circuit_open', { provider: candidate.provider }, 'llm-gateway');
+      log.warn('omniroute.provider_bypassed', {
+        provider: candidate.provider,
+        breakerAllowed,
+        healthAllowed,
+      });
+      continue;
+    }
+
+    const apiKey = apiKeyFor(candidate.provider);
+    const candidateReq: ProviderRequest = {
+      ...call.request,
+      model: candidate.model,
+    };
+
+    try {
+      const resp = await adapter.invoke(candidateReq, {
+        apiKey,
+        baseUrl:
+          String(
+            (env as Record<string, unknown>)[`${candidate.provider.toUpperCase()}_BASE_URL`] ?? ''
+          ) || void 0,
+      });
+
+      // Record success in circuit breaker & OmniRoute health registry
+      await recordSuccess(candidate.provider, resp.durationMs);
+      recordProviderSuccess(candidate.provider, resp.durationMs);
+
+      await chargeBudget(call.sessionId, resp.totalTokens);
+      await appendAudit(
+        'llm.call',
+        {
+          provider: candidate.provider,
+          model: resp.model,
+          sessionId: call.sessionId,
+          complexity: decision.complexity,
+          evaluationTimeMs: decision.evaluationTimeMs,
+          promptTokens: resp.promptTokens,
+          completionTokens: resp.completionTokens,
+          durationMs: resp.durationMs,
+        },
+        'llm-gateway'
+      );
+
+      return resp;
+    } catch (err) {
+      lastError = err;
+      await recordFailure(candidate.provider);
+
+      const { is5xx, status, reason } = is5xxOrTransientError(err);
+      recordProviderFailure(candidate.provider, status, reason);
+
+      await appendAudit(
+        'llm.call_failed',
+        {
+          provider: candidate.provider,
+          model: candidate.model,
+          sessionId: call.sessionId,
+          is5xx,
+          error: err instanceof Error ? err.message : String(err),
+        },
+        'llm-gateway'
+      );
+
+      log.warn('omniroute.failover_attempt', {
+        failedProvider: candidate.provider,
+        failedModel: candidate.model,
+        attemptIndex: i,
+        hasNext: i + 1 < candidates.length,
+        error: err instanceof Error ? err.message : String(err),
+      });
+
+      // If HTTP 5xx or transient failure and another candidate is available, failover dynamically
+      if (i + 1 < candidates.length) {
+        continue;
+      }
+    }
+  }
+
+  throw lastError ?? new Error(`all_providers_failed_for_model:${call.request.model}`);
 }
 
 function estimateTokens(req: ProviderRequest): number {
   // Cheap estimate: 4 chars per token. Good enough for budget pre-charge.
   const total = req.messages.reduce((sum, m) => sum + m.content.length, 0);
   return Math.ceil(total / 4) + (req.maxTokens ?? 1024);
+}
+
+export function streamLLMGateway(call: GatewayCall): ReadableStream<Uint8Array> {
+  const picked = pickProvider(call.request.model, call.policy);
+  const provider = picked ? picked.adapter.name : 'portkey';
+  return streamPortkeyBridge(call.request, {
+    provider,
+    apiKey: picked?.apiKey,
+  });
 }

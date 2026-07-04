@@ -23,6 +23,8 @@ import { Mutex, MutexInterface } from 'async-mutex';
 import * as sqliteSchema from './schema-sqlite.js';
 import * as pgSchema from './schema.js';
 import { getEnv } from '../lib/env.js';
+import { dbQueryDuration } from '../services/metrics.js';
+import { startToolSpan, endTracedSpan, recordSpanError } from '../services/tracing.js';
 
 const rawUrl = (getEnv().DATABASE_URL || '').trim();
 const isSqlite = !(rawUrl.startsWith('postgres://') || rawUrl.startsWith('postgresql://'));
@@ -72,6 +74,19 @@ function createSqliteDb() {
   // Enable FTS5 if available
   try {
     conn.pragma('compile_options');
+    conn.exec(`
+      CREATE VIRTUAL TABLE IF NOT EXISTS memories_fts USING fts5(id UNINDEXED, title, content, tags);
+      CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
+        INSERT INTO memories_fts(id, title, content, tags) VALUES (new.id, new.title, new.content, new.tags);
+      END;
+      CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
+        INSERT INTO memories_fts(memories_fts, id, title, content, tags) VALUES('delete', old.id, old.title, old.content, old.tags);
+      END;
+      CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
+        INSERT INTO memories_fts(memories_fts, id, title, content, tags) VALUES('delete', old.id, old.title, old.content, old.tags);
+        INSERT INTO memories_fts(id, title, content, tags) VALUES (new.id, new.title, new.content, new.tags);
+      END;
+    `);
   } catch {
     // FTS5 may not be compiled in; ignore.
   }
@@ -167,10 +182,20 @@ export { isSqlite };
  * inside the transaction callback — hold the mutex for the minimum time possible.
  */
 export async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
-  if (isSqlite) {
-    return await withTransactionSqlite(fn);
-  } else {
-    return await withTransactionPg(fn);
+  const startTime = performance.now();
+  const span = startToolSpan('db.transaction', { agentId: 'system', toolName: 'db.transaction' });
+  try {
+    const res = isSqlite ? await withTransactionSqlite(fn) : await withTransactionPg(fn);
+    const durationSeconds = (performance.now() - startTime) / 1000;
+    dbQueryDuration.observe({ query: 'transaction' }, durationSeconds);
+    await endTracedSpan(span);
+    return res;
+  } catch (err) {
+    const durationSeconds = (performance.now() - startTime) / 1000;
+    dbQueryDuration.observe({ query: 'transaction' }, durationSeconds);
+    recordSpanError(span, err instanceof Error ? err.message : String(err));
+    await endTracedSpan(span);
+    throw err;
   }
 }
 

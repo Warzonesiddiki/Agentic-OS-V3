@@ -107,7 +107,7 @@ const MUTATION = new Set(['POST', 'PATCH', 'PUT', 'DELETE']);
  */
 export const authBackstop: MiddlewareHandler<NexusEnv> = async (c, next) => {
   const path = c.req.path;
-  if (path === '/api/v1/health' && c.req.method === 'GET') {
+  if ((path === '/api/v1/health' && c.req.method === 'GET') || path.startsWith('/api/v1/a2a')) {
     await next();
     return;
   }

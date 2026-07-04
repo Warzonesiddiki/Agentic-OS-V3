@@ -25,5 +25,16 @@ utoipa = { workspace = true }
 url = { workspace = true }
 
 [dev-dependencies]
+env-lock = "0.1"
 tempfile = { workspace = true }
+test-case = "3.3"
 tokio-stream = { workspace = true }
+wiremock = "0.6"
+
+
+
+[features]
+default = []
+rustls-tls = ["reqwest/rustls-tls"]
+native-tls = ["reqwest/native-tls"]
+

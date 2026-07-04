@@ -1,49 +1,84 @@
-# Deployment
+# Deployment & Docker Orchestration Guide
 
-> This build target produces a **static single-file app** (`dist/index.html`).
-> True multi-tenant production deployment requires porting `src/lib/*` onto a
-> server runtime (Next.js + Postgres) — the stores are already abstracted behind
-  `getState/commit/subscribe`, making the port mechanical.
+This document covers multi-stage Docker containerization, Docker Compose orchestration, single-container standalone deployment, and production hardening for NEXUS Agentic OS.
 
-## Static deployment (current build)
+---
+
+## 1. Multi-Container Orchestration (Production Stack)
+
+The production stack orchestrates 4 services via `docker-compose.yml`:
+
+1. **PostgreSQL (`postgres`)**: `pgvector/pgvector:pg16` vector-enabled database with persistent named volume `nexus_pgdata`.
+2. **Redis (`redis`)**: `redis:7-alpine` message bus and rate-limit cache with volume `nexus_redisdata`.
+3. **Backend Server (`server`)**: Multi-stage Node 20 Alpine runtime running as non-root `USER node` on port `9900`.
+4. **Frontend Nginx Proxy (`frontend`)**: Multi-stage Vite SPA build served via Nginx Alpine on port `80`, reverse proxying `/api/*` requests to the backend server.
+
+### Quick Start (Production Compose)
 
 ```bash
-npm run build
-# serve dist/index.html from any static host (no server, no env secrets needed)
+# Build and launch all services in detached mode
+docker compose up --build -d
+
+# View service status and health
+docker compose ps
+
+# Check logs
+docker compose logs -f server
+
+# Stop stack gracefully
+docker compose down
 ```
 
-Data persists to the browser's `localStorage` per origin.
+---
 
-## Production deployment (target architecture)
+## 2. Standalone Single-Container Deployment
 
-1. **Provision Postgres** and apply the Drizzle schema (see `src/lib/types.ts` for
-   the table/column model; add indexes on `memory.kind`, `memory.importance`,
-   `memory.createdAt`, `skill.name`, `skill.category`, `note.path`,
-   `project.name`, `audit.sequence`).
-2. **Set environment** (`.env`) — see `.env.example`. Validate with the Zod
-   `validateConfig()`; never allow localhost origins in production.
-3. **Reverse proxy** with TLS (nginx/Caddy); restrict `ALLOWED_ORIGINS`.
-4. **Keys**: generate hashed principals (DB-backed), distribute scoped keys.
-5. **Observability**: wire `os.metrics` to OpenTelemetry/Prometheus; alert on
-   `auditAppendFailures`, `sagaFailures`, `policyDenials`, dead-letter growth.
-6. **Backups**: schedule `GET /brain/export`; verify `GET /audit` chain integrity.
-7. **Maintenance**: schedule the dream/consolidation job with caps
-   (`NEXUS_DREAM_MAX_MEMORIES`, `NEXUS_DREAM_MAX_SESSIONS`, `NEXUS_DREAM_TIMEOUT_MS`).
+For lightweight deployments or edge devices running SQLite only (without external Postgres/Redis dependencies), use `Dockerfile.standalone`:
 
-## Health checks
+```bash
+# Build standalone image
+docker build -f Dockerfile.standalone -t nexus-standalone:latest .
 
-- `GET /api/v1/health` (public) — liveness.
-- `GET /api/v1/system` — counts + config.
-- In-app **Doctor** (Agent OS → Dream & Doctor) — store, audit chain, context
-  budget, auth, rate limit, payload, vault, approvals, dead-letter, quarantine.
+# Run standalone container
+docker run -d \
+  -p 9900:9900 \
+  -v nexus_sqlitedata:/app/data \
+  --name nexus-app \
+  nexus-standalone:latest
+```
 
-## Rate limit recommendation
+---
 
-Default `120/min` per principal. Raise for trusted automation, lower for
-public-facing endpoints. Mutation-heavy agents should use scoped write keys only.
+## 3. Development Container Setup
 
-## Backup / restore
+For local hot-reloading with live source mounting, use `docker-compose.dev.yml`:
 
-- Export: **Settings → Danger zone** or `GET /brain/export`.
-- Import: `POST /brain/import` (schema-validated, idempotent via dedup).
-- Restore the OS graph via the typed-card export (planned).
+```bash
+docker compose -f docker-compose.dev.yml up --build
+```
+
+---
+
+## 4. Container Health Checks & Verification
+
+Each service includes built-in container healthchecks:
+
+- **Backend Health Endpoint**: `http://localhost:9900/api/v1/health`
+- **Frontend Health Endpoint**: `http://localhost:80/`
+- **Postgres Health**: `pg_isready -U postgres -d nexus`
+- **Redis Health**: `redis-cli ping`
+
+To test health status manually:
+
+```bash
+curl -f http://localhost:9900/api/v1/health
+```
+
+---
+
+## 5. Security & Hardening Features
+
+- **Non-Root Execution**: Backend runtime container enforces non-root execution (`USER node`).
+- **Graceful SIGTERM Handling**: The Node.js server intercepts `SIGTERM` signals, closes active HTTP keep-alive connections, stops the task worker, flushes audit logs, and closes DB connection pools cleanly within a 10-second drain window.
+- **Resource Constraints**: Container services enforce CPU (`cpus`) and memory limits (`memory`) in Docker Compose to prevent resource starvation.
+- **Auto-Migrations**: Container startup entrypoint script (`entrypoint.sh`) runs schema migrations automatically before process boot.

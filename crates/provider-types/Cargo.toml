@@ -29,6 +29,9 @@ utoipa = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
+env-lock = "0.1"
 tempfile = { workspace = true }
+test-case = "3.3"
 tokio-stream = { workspace = true }
 tokio-test = { workspace = true }
+

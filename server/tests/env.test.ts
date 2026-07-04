@@ -20,13 +20,14 @@ describe('env validation', () => {
     expect(e.NEXUS_BUS_BACKEND).toBe('memory');
   });
 
-  it('throws if DATABASE_URL is missing', async () => {
+  it('defaults DATABASE_URL to empty string when missing', async () => {
     // Mock dotenv to prevent it from reloading DATABASE_URL from .env
     vi.doMock('dotenv', () => ({ config: vi.fn() }));
     delete process.env.DATABASE_URL;
     process.env.NODE_ENV = 'development';
     const envModule = await import('../src/lib/env.js');
-    expect(() => envModule.getEnv()).toThrow(/DATABASE_URL/);
+    const e = envModule.getEnv();
+    expect(e.DATABASE_URL).toBe('');
   });
 
   it('parses NEXUS_OTEL_ENDPOINT when set', async () => {

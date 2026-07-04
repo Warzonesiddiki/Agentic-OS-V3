@@ -15,7 +15,7 @@
  * degrades to BM25-only (lexical mode).
  */
 import { inArray, sql, isNotNull, desc } from 'drizzle-orm';
-import { db } from '../db/client.js';
+import { db, isSqlite } from '../db/client.js';
 import { memories, skills, tokenLedger, notes } from '../db/client.js';
 import { bm25, estimateTokens, packByBudget } from '../lib/tokens.js';
 import { appendAudit } from '../lib/audit.js';
@@ -88,6 +88,7 @@ export async function recall(
         importance: memories.importance,
         source: memories.source,
         updatedAt: memories.updatedAt,
+        embedding: memories.embedding,
       })
       .from(memories)
       .orderBy(desc(memories.importance), desc(memories.updatedAt))
@@ -100,6 +101,7 @@ export async function recall(
         content: skills.content,
         rating: skills.rating,
         updatedAt: skills.updatedAt,
+        embedding: skills.embedding,
       })
       .from(skills)
       .orderBy(desc(skills.rating))
@@ -113,6 +115,7 @@ export async function recall(
         wikilinks: notes.wikilinks,
         indexedAt: notes.indexedAt,
         path: notes.path,
+        embedding: notes.embedding,
       })
       .from(notes)
       .orderBy(desc(notes.indexedAt))
@@ -125,7 +128,7 @@ export async function recall(
   type NoteRow = (typeof allNotes)[number];
   const memDocs = allMemories.map((m: MemRow) => ({
     id: m.id,
-    text: `${m.title} ${m.content} ${m.tags.join(' ')}`,
+    text: `${m.title} ${m.content} ${Array.isArray(m.tags) ? m.tags.join(' ') : String(m.tags ?? '')}`,
   }));
   const skillDocs = allSkills.map((s: SkillRow) => ({
     id: s.id,
@@ -133,10 +136,10 @@ export async function recall(
   }));
   const noteDocs = allNotes.map((n: NoteRow) => ({
     id: n.id,
-    text: `${n.title} ${n.content} ${n.tags.join(' ')} ${n.wikilinks.join(' ')}`,
+    text: `${n.title} ${n.content} ${Array.isArray(n.tags) ? n.tags.join(' ') : String(n.tags ?? '')} ${Array.isArray(n.wikilinks) ? n.wikilinks.join(' ') : String(n.wikilinks ?? '')}`,
   }));
 
-  // ---- Ranker 1: BM25 (lexical) ----
+  // ---- Ranker 1: Lexical (SQLite FTS5 + BM25) ----
   // Returns ranked arrays sorted by score descending. Convert to rank maps.
   const bm25Mem = bm25(memDocs, query);
   const bm25Skill = bm25(skillDocs, query);
@@ -147,78 +150,162 @@ export async function recall(
   const bm25SkillRank = new Map(bm25Skill.map((s, i) => [s.id, i]));
   const bm25NoteRank = new Map(bm25Note.map((s, i) => [s.id, i]));
 
-  // Collect all BM25 candidate IDs (scored > 0)
+  // SQLite FTS5 Virtual Table query execution for memories
+  const ftsMemRank = new Map<string, number>();
+  if (isSqlite && query.trim().length > 0) {
+    try {
+      const sanitized = query
+        .replace(/[^a-zA-Z0-9\s]/g, ' ')
+        .trim()
+        .split(/\s+/)
+        .filter(Boolean);
+      if (sanitized.length > 0) {
+        const ftsMatchExpr = sanitized.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' OR ');
+        const ftsRows: any = await db.execute(sql`
+          SELECT id FROM memories_fts WHERE memories_fts MATCH ${ftsMatchExpr} ORDER BY rank LIMIT 100
+        `);
+        const rowArr = Array.isArray(ftsRows) ? ftsRows : (ftsRows?.rows ?? []);
+        rowArr.forEach((r: any, idx: number) => {
+          if (r && r.id) {
+            ftsMemRank.set(String(r.id), idx);
+          }
+        });
+      }
+    } catch {
+      // FTS5 query fallback: graceful fallback to BM25 if FTS table does not exist or query fails
+    }
+  }
+
+  // Collect all BM25 and FTS candidate IDs
   const bm25Candidates = new Set<string>([
     ...bm25Mem.map((s) => s.id),
     ...bm25Skill.map((s) => s.id),
     ...bm25Note.map((s) => s.id),
+    ...ftsMemRank.keys(),
   ]);
 
-  // ---- Ranker 2: Semantic (pgvector cosine similarity) ----
+  // ---- Ranker 2: Semantic (pgvector cosine similarity or SQLite vector fallback) ----
   const semanticRanks = new Map<string, number>(); // id -> rank
   const semanticCandidates = new Set<string>();
 
   if (useSemantic) {
     const queryEmbedding = await embedQuery(query);
     if (queryEmbedding) {
-      // Query memories, skills, and notes with embeddings via cosine distance (<=>)
-      const [semMem, semSkill, semNote] = await Promise.all([
-        db
-          .select({
-            id: memories.id,
-            distance:
-              sql<number>`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
-                'distance'
-              ),
-          })
-          .from(memories)
-          .where(isNotNull(memories.embedding))
-          .orderBy(sql`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
-          .limit(100),
-        db
-          .select({
-            id: skills.id,
-            distance:
-              sql<number>`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
-                'distance'
-              ),
-          })
-          .from(skills)
-          .where(isNotNull(skills.embedding))
-          .orderBy(sql`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
-          .limit(100),
-        db
-          .select({
-            id: notes.id,
-            distance:
-              sql<number>`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
-                'distance'
-              ),
-          })
-          .from(notes)
-          .where(isNotNull(notes.embedding))
-          .orderBy(sql`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
-          .limit(100),
-      ]);
-
-      // Combine and rank by distance (ascending)
-      const allSem = [
-        ...semMem.map((r: (typeof semMem)[number]) => ({ id: r.id, distance: r.distance })),
-        ...semSkill.map((r: (typeof semSkill)[number]) => ({ id: r.id, distance: r.distance })),
-        ...semNote.map((r: (typeof semNote)[number]) => ({ id: r.id, distance: r.distance })),
-      ].sort(
-        (a: { id: string; distance: number }, b: { id: string; distance: number }) =>
-          a.distance - b.distance
-      );
-
-      // Only keep results with reasonable similarity (cosine distance < 0.8)
-      const threshold = env.NEXUS_SEMANTIC_THRESHOLD;
-      allSem.forEach((r, i) => {
-        if (r.distance <= threshold) {
-          semanticRanks.set(r.id, i);
-          semanticCandidates.add(r.id);
+      if (isSqlite) {
+        // SQLite vector cosine distance fallback in JS
+        function parseVec(val: unknown): number[] | null {
+          if (!val) return null;
+          if (Array.isArray(val)) return val as number[];
+          if (typeof val === 'string') {
+            try {
+              const parsed = JSON.parse(val);
+              return Array.isArray(parsed) ? parsed : null;
+            } catch {
+              return null;
+            }
+          }
+          return null;
         }
-      });
+
+        function cosineDist(a: number[], b: number[]): number {
+          let dot = 0;
+          let normA = 0;
+          let normB = 0;
+          const len = Math.min(a.length, b.length);
+          for (let i = 0; i < len; i++) {
+            const valA = a[i]!;
+            const valB = b[i]!;
+            dot += valA * valB;
+            normA += valA * valA;
+            normB += valB * valB;
+          }
+          if (normA === 0 || normB === 0) return 1;
+          return 1 - dot / (Math.sqrt(normA) * Math.sqrt(normB));
+        }
+
+        const semItems: Array<{ id: string; distance: number }> = [];
+
+        for (const m of allMemories) {
+          const emb = parseVec(m.embedding);
+          if (emb) semItems.push({ id: m.id, distance: cosineDist(emb, queryEmbedding) });
+        }
+        for (const s of allSkills) {
+          const emb = parseVec(s.embedding);
+          if (emb) semItems.push({ id: s.id, distance: cosineDist(emb, queryEmbedding) });
+        }
+        for (const n of allNotes) {
+          const emb = parseVec(n.embedding);
+          if (emb) semItems.push({ id: n.id, distance: cosineDist(emb, queryEmbedding) });
+        }
+
+        semItems.sort((a, b) => a.distance - b.distance);
+        const threshold = env.NEXUS_SEMANTIC_THRESHOLD;
+        semItems.slice(0, 100).forEach((r, i) => {
+          if (r.distance <= threshold) {
+            semanticRanks.set(r.id, i);
+            semanticCandidates.add(r.id);
+          }
+        });
+      } else {
+        // Query memories, skills, and notes with embeddings via cosine distance (<=>)
+        const [semMem, semSkill, semNote] = await Promise.all([
+          db
+            .select({
+              id: memories.id,
+              distance:
+                sql<number>`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                  'distance'
+                ),
+            })
+            .from(memories)
+            .where(isNotNull(memories.embedding))
+            .orderBy(sql`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
+            .limit(100),
+          db
+            .select({
+              id: skills.id,
+              distance:
+                sql<number>`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                  'distance'
+                ),
+            })
+            .from(skills)
+            .where(isNotNull(skills.embedding))
+            .orderBy(sql`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
+            .limit(100),
+          db
+            .select({
+              id: notes.id,
+              distance:
+                sql<number>`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                  'distance'
+                ),
+            })
+            .from(notes)
+            .where(isNotNull(notes.embedding))
+            .orderBy(sql`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
+            .limit(100),
+        ]);
+
+        // Combine and rank by distance (ascending)
+        const allSem = [
+          ...semMem.map((r: (typeof semMem)[number]) => ({ id: r.id, distance: r.distance })),
+          ...semSkill.map((r: (typeof semSkill)[number]) => ({ id: r.id, distance: r.distance })),
+          ...semNote.map((r: (typeof semNote)[number]) => ({ id: r.id, distance: r.distance })),
+        ].sort(
+          (a: { id: string; distance: number }, b: { id: string; distance: number }) =>
+            a.distance - b.distance
+        );
+
+        // Only keep results with reasonable similarity (cosine distance < 0.8)
+        const threshold = env.NEXUS_SEMANTIC_THRESHOLD;
+        allSem.forEach((r, i) => {
+          if (r.distance <= threshold) {
+            semanticRanks.set(r.id, i);
+            semanticCandidates.add(r.id);
+          }
+        });
+      }
     }
   }
 
@@ -232,10 +319,11 @@ export async function recall(
     let rrf = 0;
     const matchedBy: ('bm25' | 'semantic')[] = [];
 
-    // BM25 contribution
-    const bm25Rank = bm25MemRank.get(id) ?? bm25SkillRank.get(id) ?? bm25NoteRank.get(id);
-    if (bm25Rank !== undefined) {
-      rrf += 1 / (RRF_K + bm25Rank + 1);
+    // Lexical contribution (FTS5 rank preferred if available, else BM25)
+    const lexRank =
+      ftsMemRank.get(id) ?? bm25MemRank.get(id) ?? bm25SkillRank.get(id) ?? bm25NoteRank.get(id);
+    if (lexRank !== undefined) {
+      rrf += 1 / (RRF_K + lexRank + 1);
       matchedBy.push('bm25');
     }
 

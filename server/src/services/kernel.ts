@@ -206,8 +206,8 @@ export async function listAgentTasks(agentId: string, limit = 50) {
   });
 }
 
-/** Increment token usage for an agent. Returns updated usage. */
-export async function incrementTokenUsage(id: string, tokens: number) {
+/** Increment token usage for an agent. Returns updated usage. Auto-pauses agent if budget is exceeded. */
+export async function incrementTokenUsage(id: string, tokens: number, actor: string = 'system') {
   const [updated] = await db
     .update(agents)
     .set({
@@ -216,7 +216,37 @@ export async function incrementTokenUsage(id: string, tokens: number) {
     })
     .where(eq(agents.id, id))
     .returning();
-  return updated?.tokensUsed ?? 0;
+
+  if (updated) {
+    if (
+      updated.tokensUsed >= updated.tokenBudget &&
+      !['paused', 'terminated', 'quarantined'].includes(updated.status)
+    ) {
+      await db
+        .update(agents)
+        .set({
+          status: 'paused',
+          currentTool: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(agents.id, id));
+
+      await appendAudit(
+        'agent.budget_exceeded',
+        {
+          agentId: id,
+          tokensUsed: updated.tokensUsed,
+          tokenBudget: updated.tokenBudget,
+        },
+        actor
+      );
+
+      await appendAudit('agent.paused', { agentId: id, reason: 'token_budget_exceeded' }, actor);
+    }
+    return updated.tokensUsed;
+  }
+
+  return 0;
 }
 
 // ── Task Scheduling ───────────────────────────────────────────
@@ -499,13 +529,22 @@ const RING_TOOL_ACCESS: Record<number, string[]> = {
 };
 
 /**
- * Check whether an agent (by ring) is permitted to use a tool.
- * Returns true if the agent's ring includes the tool in its ACL.
+ * Check whether an agent (by ring) is permitted to use a tool/action.
+ * Returns true if the agent's ring includes the tool in its ACL or satisfies minRing.
  */
-export function checkACL(agentRing: number, tool: string): boolean {
+export function checkACL(agentRing: number, tool: string, minRing?: number): boolean {
+  if (agentRing >= 4) return false; // Quarantined: no permissions
+  if (agentRing === 0) return true; // Kernel: full access
+
   const allowed = RING_TOOL_ACCESS[agentRing] ?? [];
   if (allowed.includes('*')) return true;
-  return allowed.includes(tool);
+  if (allowed.includes(tool)) return true;
+
+  if (minRing !== undefined) {
+    return agentRing <= minRing;
+  }
+
+  return agentRing <= 2;
 }
 
 /**
@@ -517,9 +556,10 @@ export async function authorizeToolCall(
   agentRing: number,
   tool: string,
   target: string | undefined,
-  actor: string
+  actor: string,
+  minRing?: number
 ): Promise<boolean> {
-  const authorized = checkACL(agentRing, tool);
+  const authorized = checkACL(agentRing, tool, minRing);
 
   // Always log the receipt (even denied attempts — audit trail)
   await logToolReceipt(
@@ -541,6 +581,7 @@ export async function authorizeToolCall(
         tool,
         target,
         ring: agentRing,
+        minRing,
       },
       actor
     );
@@ -552,4 +593,51 @@ export async function authorizeToolCall(
   }
 
   return authorized;
+}
+
+/**
+ * Persisted Agent Process Execution State Recovery.
+ * Recovers processes left in transient states ('thinking', 'executing_tool') across server restarts.
+ */
+export async function recoverAgentProcesses(actor: string = 'system') {
+  const pendingAgents = await db.query.agents.findMany({
+    where: sql`${agents.status} IN ('thinking', 'executing_tool')`,
+  });
+
+  const recovered: Array<{ id: string; status: string; iteration?: number }> = [];
+
+  for (const agent of pendingAgents) {
+    const meta = (agent.metadata ?? {}) as Record<string, unknown>;
+    const execState = meta.executionState as
+      { currentIteration?: number; status?: string } | undefined;
+
+    let newStatus = 'idle';
+    if (agent.tokensUsed >= agent.tokenBudget) {
+      newStatus = 'paused';
+    }
+
+    await db
+      .update(agents)
+      .set({
+        status: newStatus,
+        currentTool: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(agents.id, agent.id));
+
+    await appendAudit(
+      'agent.process_recovered',
+      {
+        agentId: agent.id,
+        previousStatus: agent.status,
+        recoveredStatus: newStatus,
+        lastIteration: execState?.currentIteration ?? 0,
+      },
+      actor
+    );
+
+    recovered.push({ id: agent.id, status: newStatus, iteration: execState?.currentIteration });
+  }
+
+  return recovered;
 }

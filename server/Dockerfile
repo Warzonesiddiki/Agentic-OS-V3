@@ -1,20 +1,40 @@
+# Stage 1: Build stage
 FROM node:20-alpine AS build
 WORKDIR /app
+
+RUN apk add --no-cache python3 make g++
+
 COPY package.json package-lock.json* ./
-RUN npm ci
+RUN npm ci || npm install
+
 COPY . .
-# Generate migrations from the schema (no live DB needed for `generate`),
-# so the drizzle/ folder exists for the runtime image and migrations.
-RUN npm run db:generate || echo "migration generation skipped"
+RUN npm run db:generate || true
 RUN npm run build
 
-FROM node:20-alpine
+# Stage 2: Production runtime stage
+FROM node:20-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/package.json ./package.json
-COPY --from=build /app/drizzle ./drizzle
+
+RUN apk add --no-cache curl
+
+RUN mkdir -p /app/data && chown -R node:node /app
+
+COPY --chown=node:node --from=build /app/node_modules ./node_modules
+COPY --chown=node:node --from=build /app/dist ./dist
+COPY --chown=node:node --from=build /app/package.json ./package.json
+COPY --chown=node:node --from=build /app/drizzle ./drizzle
+COPY --chown=node:node entrypoint.sh ./entrypoint.sh
+
+RUN chmod +x ./entrypoint.sh
+
+# Security hardening: run as non-root user node
+USER node
+
 EXPOSE 9900
-HEALTHCHECK --interval=30s --timeout=3s CMD wget -qO- http://localhost:9900/api/v1/health || exit 1
+
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+  CMD curl -f http://localhost:9900/api/v1/health || exit 1
+
+ENTRYPOINT ["./entrypoint.sh"]
 CMD ["node", "dist/index.js"]

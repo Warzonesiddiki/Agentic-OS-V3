@@ -21,6 +21,17 @@ NEXUS 2.0 provides a seamless connector that generates everything Hermes needs.
 Hermes connects to NEXUS's stateless HTTP MCP transport. Each tool call is a
 fresh HTTP POST with a Bearer token. No SSE, no stdio, no sessions to maintain.
 
+## Google A2A (Agent-to-Agent) Inter-Agent Protocol
+
+In addition to MCP, NEXUS 2.0 supports Google's standardized Agent-to-Agent (A2A) protocol:
+
+- **Discovery:** `GET /.well-known/agent.json`
+- **Task Creation:** `POST /api/v1/a2a/tasks`
+- **SSE Progress Streaming:** `GET /api/v1/a2a/tasks/:id/stream`
+- **Outbound Delegation:** `@agentic-os/a2a-server` `A2AClient`
+
+For complete A2A protocol architecture and specifications, see [docs/A2A_PROTOCOL.md](./A2A_PROTOCOL.md).
+
 ## One-Time Setup (3 Commands)
 
 ```bash
@@ -39,6 +50,7 @@ hermes personality load nexus-os-context.md
 ```
 
 That's it. Hermes will now:
+
 - Auto-connect to NEXUS on every session start
 - Call `nexus_recall` before complex tasks
 - Call `nexus_remember` after solving problems
@@ -48,6 +60,7 @@ That's it. Hermes will now:
 ## What Gets Generated
 
 ### `.mcp.json`
+
 Contains a **real API key** — either from `NEXUS_API_KEY` in `.env`, or a freshly
 created scoped principal in the `api_keys` table. The key is stored hashed in the
 database; the raw key appears only in this file.
@@ -67,7 +80,9 @@ database; the raw key appears only in this file.
 ```
 
 ### `nexus-os-context.md`
+
 A context file that teaches Hermes:
+
 - **When** to call each NEXUS tool (pre-task, post-task, session-end)
 - **How** to format arguments (correct kinds, budgets, tags, importance)
 - **How** to handle errors (423 kill switch, 429 rate limit, 400 validation)
@@ -75,25 +90,25 @@ A context file that teaches Hermes:
 
 ## Available MCP Tools
 
-| Tool | When Hermes Calls It | What It Does |
-|------|---------------------|--------------|
-| `nexus_recall(query, budget)` | Before complex tasks | Retrieves relevant memories/skills/notes |
-| `nexus_remember(kind, title, content, tags, importance)` | After solving problems | Stores a durable typed memory |
-| `nexus_capture(transcript, projectName)` | At session end | Distills transcript into memories + skills |
-| `nexus_stats()` | Health check | Returns counts, token footprint, DB health |
-| `nexus_audit_verify()` | Integrity check | Verifies SHA-256 hash chain |
-| `nexus_feedback(query, itemId, itemType, helpful)` | After recall | Records relevance feedback |
+| Tool                                                     | When Hermes Calls It   | What It Does                               |
+| -------------------------------------------------------- | ---------------------- | ------------------------------------------ |
+| `nexus_recall(query, budget)`                            | Before complex tasks   | Retrieves relevant memories/skills/notes   |
+| `nexus_remember(kind, title, content, tags, importance)` | After solving problems | Stores a durable typed memory              |
+| `nexus_capture(transcript, projectName)`                 | At session end         | Distills transcript into memories + skills |
+| `nexus_stats()`                                          | Health check           | Returns counts, token footprint, DB health |
+| `nexus_audit_verify()`                                   | Integrity check        | Verifies SHA-256 hash chain                |
+| `nexus_feedback(query, itemId, itemType, helpful)`       | After recall           | Records relevance feedback                 |
 
 ## Error Handling (Automatic)
 
 The context file instructs Hermes to handle these autonomously:
 
-| Error | HTTP Code | Hermes Behavior |
-|-------|-----------|-----------------|
-| Kill switch engaged | 423 | Stop all writes, inform user NEXUS is locked |
-| Rate limited | 429 | Wait 2 seconds, then retry (no tight loop) |
-| Validation error | 400 | Read `error.message`, fix payload, retry |
-| Server down | — | Gracefully degrade, inform user |
+| Error               | HTTP Code | Hermes Behavior                              |
+| ------------------- | --------- | -------------------------------------------- |
+| Kill switch engaged | 423       | Stop all writes, inform user NEXUS is locked |
+| Rate limited        | 429       | Wait 2 seconds, then retry (no tight loop)   |
+| Validation error    | 400       | Read `error.message`, fix payload, retry     |
+| Server down         | —         | Gracefully degrade, inform user              |
 
 ## Verification
 
@@ -104,6 +119,7 @@ npm run cli -- connect hermes --verify
 ```
 
 This tests end-to-end:
+
 1. **Health:** `GET /api/v1/health` — server reachable
 2. **Auth:** `GET /api/v1/system` — API key accepted (401 if wrong)
 3. **Write:** `POST /api/v1/memories` — stores a real test memory (423 if kill switch on)
@@ -119,6 +135,7 @@ The NEXUS integration is model-agnostic — it works with any model Hermes uses,
 because NEXUS is accessed via MCP tools, not direct API calls.
 
 Switch models in Hermes without affecting NEXUS:
+
 ```bash
 hermes model openrouter:anthropic/claude-3.5-sonnet
 ```
@@ -126,6 +143,7 @@ hermes model openrouter:anthropic/claude-3.5-sonnet
 ## Platform Support
 
 The integration works across all Hermes execution environments:
+
 - **Local TUI** — `hermes` in the shell
 - **Messaging Gateway** — Telegram, Discord, Slack, etc.
 - **Docker** — isolated container

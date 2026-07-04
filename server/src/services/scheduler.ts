@@ -492,6 +492,12 @@ export class Scheduler {
     row: typeof cronJobs.$inferSelect,
     execution: JobExecution
   ): Promise<unknown> {
+    if (row.taskLabel === 'blockchain.anchor' || row.taskLabel === 'audit.anchor') {
+      const { anchorAuditLogsBatch } = await import('./blockchain.js');
+      const result = await anchorAuditLogsBatch();
+      return result ?? { message: 'No pending audit entries to anchor.' };
+    }
+
     const { broadcastSSE } = await import('./sse-bus.js');
     broadcastSSE({
       type: 'cron.fired',

@@ -17,7 +17,15 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "declaration": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "paths": {
+      "@agentic-os/sdk": ["../packages/sdk/src"],
+      "@agentic-os/sdk/*": ["../packages/sdk/src/*"],
+      "@agentic-os/devtools": ["../packages/devtools/src"],
+      "@agentic-os/devtools/*": ["../packages/devtools/src/*"],
+      "@agentic-os/a2a-server": ["../packages/a2a-server/src"],
+      "@agentic-os/a2a-server/*": ["../packages/a2a-server/src/*"]
+    }
   },
   "include": ["src", "tests"],
   "exclude": ["node_modules", "dist"]

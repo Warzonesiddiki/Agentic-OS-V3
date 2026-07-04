@@ -1,5 +1,5 @@
 {
-  "name": "nexus-2-server",
+  "name": "server",
   "version": "2.0.0",
   "private": true,
   "type": "module",
@@ -19,6 +19,7 @@
     "validate": "npm run lint && npm run typecheck && npm test && npm run test:integration && npm run build"
   },
   "dependencies": {
+    "@agentic-os/a2a-server": "workspace:*",
     "@hono/node-server": "^1.13.7",
     "@modelcontextprotocol/sdk": "^1.0.4",
     "@opentelemetry/api": "^1.9.1",
@@ -45,6 +46,7 @@
     "@eslint/js": "^9.17.0",
     "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^22.10.2",
+    "@vitest/coverage-v8": "^4.1.9",
     "drizzle-kit": "^0.31.10",
     "eslint": "^9.17.0",
     "playwright": "^1.61.1",

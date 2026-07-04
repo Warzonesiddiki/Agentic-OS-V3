@@ -1,53 +1,123 @@
+version: '3.8'
+
 services:
   postgres:
-    image: postgres:16-alpine
+    image: pgvector/pgvector:pg16
+    container_name: nexus-postgres
+    restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: nexus_password
       POSTGRES_DB: nexus
     ports:
-      - "5432:5432"
+      - '5432:5432'
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d nexus"]
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d nexus']
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
 
-  # Redis is optional — only used when NEXUS_BUS_BACKEND=redis.
-  # The server falls back to an in-memory bus if Redis is unavailable.
-  # To use Redis, set NEXUS_BUS_BACKEND=redis and NEXUS_REDIS_URL=redis://redis:6379
   redis:
     image: redis:7-alpine
+    container_name: nexus-redis
+    restart: always
     ports:
-      - "6379:6379"
+      - '6379:6379'
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ['CMD', 'redis-cli', 'ping']
       interval: 5s
       timeout: 3s
       retries: 10
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
   server:
     build:
-      context: ./server
+      context: .
       dockerfile: Dockerfile
+    container_name: nexus-server
+    restart: always
     ports:
-      - "9900:9900"
+      - '9900:9900'
     environment:
       NODE_ENV: production
-      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/nexus
+      PORT: 9900
+      DATABASE_URL: postgresql://postgres:nexus_password@postgres:5432/nexus
       NEXUS_REDIS_URL: redis://redis:6379
       NEXUS_BUS_BACKEND: redis
-      NEXUS_ALLOWED_ORIGINS: http://localhost:9900
+      NEXUS_ALLOWED_ORIGINS: http://frontend:80,http://127.0.0.1:80,http://127.0.0.1:9900
+    volumes:
+      - sqlitedata:/app/data
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:9900/api/v1/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: '1.5'
+          memory: 1024M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: nexus-frontend
+    restart: always
+    ports:
+      - '80:80'
+    depends_on:
+      server:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -f http://localhost:80/ || exit 1']
+      interval: 10s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.1'
+          memory: 64M
 
 volumes:
   pgdata:
+    name: nexus_pgdata
   redisdata:
+    name: nexus_redisdata
+  sqlitedata:
+    name: nexus_sqlitedata

@@ -15,6 +15,16 @@
 // The actual implementations live in server/src/services/omniroute/ (excluded from
 // compilation). Once we integrate OmniRoute properly, these stubs will be replaced.
 
+import {
+  MODEL_TIER_CATALOG,
+  getProviderHealth,
+  isProviderHealthy,
+  resolveOmniRoute,
+  classifyComplexity,
+} from './omniroute-bridge.js';
+
+export * from './omniroute-bridge.js';
+
 export interface ComboResolverConfig {
   enabled?: boolean;
 }
@@ -63,9 +73,19 @@ export abstract class BaseGuardrail {
   abstract check(ctx: GuardrailContext): Promise<GuardrailResult>;
 }
 export class GuardrailRegistry {
-  register(_name: string, _guard: BaseGuardrail): void {}
-  async checkAll(_ctx: GuardrailContext): Promise<GuardrailExecutionResult> {
-    return { results: [], allPassed: true };
+  private guards = new Map<string, BaseGuardrail>();
+  register(name: string, guard: BaseGuardrail): void {
+    this.guards.set(name, guard);
+  }
+  async checkAll(ctx: GuardrailContext): Promise<GuardrailExecutionResult> {
+    const results: GuardrailResult[] = [];
+    let allPassed = true;
+    for (const guard of this.guards.values()) {
+      const res = await guard.check(ctx);
+      results.push(res);
+      if (!res.passed) allPassed = false;
+    }
+    return { results, allPassed };
   }
 }
 export interface MemoryItem {
@@ -87,12 +107,15 @@ export interface OmniSkillExecutor {
   execute(input: unknown): Promise<unknown>;
 }
 export class SkillRegistry {
-  register(_manifest: OmniSkillManifest, _executor: OmniSkillExecutor): void {}
-  get(_id: string): OmniSkillExecutor | undefined {
-    return undefined;
+  private skills = new Map<string, { manifest: OmniSkillManifest; executor: OmniSkillExecutor }>();
+  register(manifest: OmniSkillManifest, executor: OmniSkillExecutor): void {
+    this.skills.set(manifest.id, { manifest, executor });
+  }
+  get(id: string): OmniSkillExecutor | undefined {
+    return this.skills.get(id)?.executor;
   }
   list(): OmniSkillManifest[] {
-    return [];
+    return Array.from(this.skills.values()).map((s) => s.manifest);
   }
 }
 export interface AssessmentResult {
@@ -102,40 +125,92 @@ export interface AssessmentResult {
 }
 export type AssessmentCategory = 'quality' | 'safety' | 'cost' | 'latency';
 
-export async function resolveComboModel(_models: string[]): Promise<string> {
-  return _models[0] ?? 'unknown';
-}
-export async function fallbackPolicy(_primary: string): Promise<string> {
-  return _primary;
-}
-export function registerFallback(_name: string, _fallback: string): void {}
-export async function resolveFallback(_name: string): Promise<string> {
-  return 'unknown';
-}
-export async function runPipeline(
-  _config: { stages: PipelineStage[] },
-  _input: unknown
-): Promise<unknown> {
-  for (const stage of _config.stages) {
-    _input = await stage.handler(_input);
+const fallbackRegistry = new Map<string, string>();
+
+export async function resolveComboModel(models: string[]): Promise<string> {
+  for (const m of models) {
+    const info = MODEL_TIER_CATALOG[m];
+    if (info && isProviderHealthy(info.provider)) {
+      return m;
+    }
   }
-  return _input;
+  return models[0] ?? 'gpt-4o-mini';
 }
+
+export async function fallbackPolicy(primary: string): Promise<string> {
+  const fallback = fallbackRegistry.get(primary);
+  if (fallback && isProviderHealthy(MODEL_TIER_CATALOG[fallback]?.provider ?? '')) {
+    return fallback;
+  }
+  const info = MODEL_TIER_CATALOG[primary];
+  if (info?.tier === 'flagship') {
+    return 'gpt-4o-mini';
+  }
+  return 'gemini-1.5-flash';
+}
+
+export function registerFallback(name: string, fallback: string): void {
+  fallbackRegistry.set(name, fallback);
+}
+
+export async function resolveFallback(name: string): Promise<string> {
+  return fallbackRegistry.get(name) ?? 'gpt-4o-mini';
+}
+
+export async function runPipeline(
+  config: { stages: PipelineStage[] },
+  input: unknown
+): Promise<unknown> {
+  let curr = input;
+  for (const stage of config.stages) {
+    curr = await stage.handler(curr);
+  }
+  return curr;
+}
+
 export async function evaluatePolicy(_policy: string, _input: PolicyInput): Promise<boolean> {
   return true;
 }
-export function computeCost(_input: CostInput): CostBreakdown {
-  return { total: 0, currency: 'usd' };
+
+export function computeCost(input: CostInput): CostBreakdown {
+  const catalog = MODEL_TIER_CATALOG[input.model];
+  const ratePer1K = catalog?.costPer1K ?? 0.001;
+  const total = (input.tokens / 1000) * ratePer1K;
+  return { total: Number(total.toFixed(6)), currency: 'usd' };
 }
-export async function checkDegradation(_input: CostInput): Promise<DegradationResult> {
+
+export async function checkDegradation(input: CostInput): Promise<DegradationResult> {
+  const health = getProviderHealth(input.provider);
+  if (health.status === 'down') {
+    return {
+      degraded: true,
+      reason: `Provider ${input.provider} is down (5xx errors: ${health.consecutive5xxCount})`,
+    };
+  }
+  if (health.status === 'degraded') {
+    return { degraded: true, reason: `Provider ${input.provider} health is degraded` };
+  }
   return { degraded: false };
 }
-export async function routeByTag(_tag: string): Promise<TagRoutingResult> {
-  return { tag: _tag, provider: 'unknown', model: 'unknown' };
+
+export async function routeByTag(tag: string): Promise<TagRoutingResult> {
+  if (tag.includes('fast') || tag.includes('cheap')) {
+    return { tag, provider: 'google', model: 'gemini-1.5-flash' };
+  }
+  if (tag.includes('code') || tag.includes('reasoning')) {
+    return { tag, provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' };
+  }
+  return { tag, provider: 'openai', model: 'gpt-4o-mini' };
 }
+
 export async function assess(
-  _content: string,
-  _category?: AssessmentCategory
+  content: string,
+  category?: AssessmentCategory
 ): Promise<AssessmentResult> {
-  return { score: 1, category: _category ?? 'quality' };
+  const cat = category ?? 'quality';
+  let score = 1.0;
+  if (cat === 'cost' && content.length > 5000) {
+    score = 0.5;
+  }
+  return { score, category: cat, details: { contentLength: content.length } };
 }

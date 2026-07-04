@@ -61,6 +61,7 @@ import { automation } from './routes/automation.js';
 import { sse } from './routes/sse.js';
 import { v3upgrade } from './routes/v3-upgrade.js';
 import { agentLifecycle } from './routes/agent-lifecycle.js';
+import { a2aRouter } from './routes/a2a.js';
 
 export const api = new Hono<NexusEnv>();
 
@@ -72,11 +73,15 @@ api.route('/', automation);
 api.route('/', sse);
 api.route('/', v3upgrade);
 api.route('/', agentLifecycle);
+api.route('/', a2aRouter);
+
+import { getDesktopActuatorSync } from './services/desktop-actuator.js';
 
 // ---- Public ----
 api.get('/api/v1/health', async (c) => {
   const dbOk = await dbReachable();
   const killSwitch = await isKillSwitchOn();
+  const actuator = getDesktopActuatorSync();
   const status = dbOk && !killSwitch ? 'ok' : killSwitch ? 'locked' : 'degraded';
   const code = dbOk ? 200 : 503;
   return c.json(
@@ -84,7 +89,11 @@ api.get('/api/v1/health', async (c) => {
       {
         status,
         timestamp: Date.now(),
-        components: { db: dbOk ? 'ok' : 'down', killSwitch },
+        components: {
+          db: dbOk ? 'ok' : 'down',
+          killSwitch,
+          desktopActuator: actuator.mode,
+        },
       },
       c.get('requestId') ?? ''
     ),
@@ -93,6 +102,11 @@ api.get('/api/v1/health', async (c) => {
 });
 
 api.get('/api/v1/metrics', async (c) => {
+  c.header('Content-Type', metricsContentType());
+  return c.body(await metricsOutput());
+});
+
+api.get('/metrics', async (c) => {
   c.header('Content-Type', metricsContentType());
   return c.body(await metricsOutput());
 });
@@ -517,6 +531,30 @@ api.get('/api/v1/audit/verify', async (c) => {
   await requireScope(c, 'audit:read');
   const result = await verifyAndAutoKill();
   return c.json(ok(result, c.get('requestId') ?? ''));
+});
+
+api.get('/api/v1/audit/verify/:anchorId', async (c) => {
+  await requireScope(c, 'audit:read');
+  const anchorId = c.req.param('anchorId');
+  const { verifyAnchor } = await import('./services/blockchain.js');
+  const result = await verifyAnchor(anchorId);
+  if (!result.found) {
+    return c.json(
+      err('NOT_FOUND', `Anchor '${anchorId}' not found.`, c.get('requestId') ?? ''),
+      404
+    );
+  }
+  return c.json(ok(result, c.get('requestId') ?? ''));
+});
+
+api.post('/api/v1/audit/anchor', async (c) => {
+  await requireScope(c, 'audit:read');
+  const { anchorAuditLogsBatch } = await import('./services/blockchain.js');
+  const result = await anchorAuditLogsBatch();
+  return c.json(
+    ok(result ?? { message: 'No pending audit entries to anchor.' }, c.get('requestId') ?? ''),
+    result ? 201 : 200
+  );
 });
 
 api.post('/api/v1/audit/trajectory', async (c) => {

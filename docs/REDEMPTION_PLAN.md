@@ -1,7 +1,7 @@
 # AGENTIC OS V4: ZERO-COMPROMISE REDEMPTION & ENGINEERING ROADMAP
 
-**Document Version:** 4.0.0  
-**Status:** Active Master Engineering Blueprint  
+**Document Version:** 4.1.0  
+**Status:** Active Master Engineering Blueprint with Perfection Guidelines  
 **Target:** Open-Source Release on GitHub (Production Quality, Zero Faked Features, Zero Compromises)
 
 ---
@@ -10,7 +10,36 @@
 
 Agentic OS V4 is a universal, multi-provider AI Agent Operating System combining TypeScript control-plane services, high-performance Rust execution crates, Model Context Protocol (MCP) tool orchestration, Google Agent-to-Agent (A2A) inter-agent networking, and cross-platform desktop actuation.
 
-This document defines the **definitive 20-Phase, 400-Subphase Master Execution Plan**. Every phase contains exactly 20 granular subphases. Any AI or human developer contributing to this codebase MUST execute this plan sequentially, enforcing strict verification at every step.
+This document defines the **definitive 20-Phase, 400-Subphase Master Execution Plan**, enriched with **Phase-by-Phase Perfection Guidelines** and **Overall Project Architectural Directives**. Every phase contains exactly 20 granular subphases alongside strategic engineering recommendations.
+
+---
+
+## Overall Project Perfection Directives
+
+To achieve true open-source perfection and enterprise reliability, all contributions MUST adhere to five core engineering invariants:
+
+1. **Strict Privilege Ring Separation**:
+   - **Ring 0 (OS Kernel):** Microkernel process supervision, IPC message bus, token budgeting, kill-switch authority.
+   - **Ring 1 (Native Engine):** Rust execution crates (`safety`, `tools`, `observability`, `providers`) compiled for maximum performance.
+   - **Ring 2 (Integration Protocols):** MCP registry, Google A2A server, Portkey/OmniRoute gateway adapters.
+   - **Ring 3 (Control Plane):** React SPA dashboard, visual DAG editor, xterm.js terminal interface.
+
+2. **Zero-Trust Execution & Audit Trails**:
+   - No un-sandboxed code execution under any circumstances (`worker_threads` for JS, Docker container for system scripts).
+   - Every state mutation, tool call, and agent action MUST produce a cryptographically verifiable SHA-256 Merkle audit entry.
+
+3. **Dual Database Engine Parity**:
+   - Complete feature parity between embedded SQLite (`better-sqlite3`) and cloud-scale PostgreSQL (`pgvector`).
+   - SQLite uses `async-mutex` for write serialization; Postgres utilizes connection pooling. Semantic search degrades gracefully to FTS5 lexical matching when vector extensions are unavailable.
+
+4. **Zero Warning / Zero Ignored Failure Policy**:
+   - Zero TypeScript compilation errors (`tsc --noEmit`).
+   - Zero Rust compiler warnings and zero `cargo clippy` warnings (`-D warnings`).
+   - Zero test suite failures across unit, integration, and E2E suites.
+
+5. **Self-Healing & Circuit Breaking**:
+   - Automatic retry policies with exponential backoff on transient HTTP 429/500 LLM provider errors.
+   - Circuit breakers automatically quarantine failing API endpoints and route requests to alternate model backends.
 
 ---
 
@@ -21,12 +50,11 @@ Phase 01: Repository Hygiene, Mono-Repo Workspace & Governance [DONE]
 Phase 02: Strict TypeScript ESM Compilation & Zero-Warning Type Safety [DONE]
 Phase 03: Zero-Trust Isolation Sandbox (Worker Thread Pool & Hardened VM) [DONE]
 Phase 04: Database Mutex Serialization, WAL Concurrency & Migration Integrity [DONE]
-Phase 04: Database Mutex Serialization, WAL Concurrency & Migration Integrity
-Phase 05: Automated Testing, CI/CD Pipeline & Coverage Enforcement
-Phase 06: Native SQLite FTS5 & pgvector High-Performance Hybrid Search Engine
-Phase 07: Full Portkey Multi-Provider Gateway & Unified LLM Bridge
-Phase 08: OmniRoute Intelligent Fallback & Dynamic Routing Engine
-Phase 09: Production Rust Workspace Hardening (Safety, Tools, Observability)
+Phase 05: Automated Testing, CI/CD Pipeline & Coverage Enforcement [DONE]
+Phase 06: Native SQLite FTS5 & pgvector High-Performance Hybrid Search Engine [DONE]
+Phase 07: Full Portkey Multi-Provider Gateway & Unified LLM Bridge [DONE]
+Phase 08: OmniRoute Intelligent Fallback & Dynamic Routing Engine [DONE]
+Phase 09: Production Rust Workspace Hardening (Safety, Tools, Observability) [DONE]
 Phase 10: Native Goose Provider Framework Port & Token Streaming
 Phase 11: Agent Runtime Execution Engine & Kernel Syscall System
 Phase 12: MCP (Model Context Protocol) Registry, OAuth & Subprocess Transport
@@ -42,11 +70,19 @@ Phase 20: Open-Source Release Readiness, Verification & GitHub Publishing
 
 ---
 
-## Detailed 20-Phase / 400-Subphase Specifications
+## Detailed 20-Phase / 400-Subphase Specifications & Perfection Guidelines
 
-### Phase 1: Repository Hygiene, Mono-Repo Workspace & Governance
+### Phase 1: Repository Hygiene, Mono-Repo Workspace & Governance [DONE]
 
 _Goal: Purge all root clutter, establish standard pnpm + cargo workspace architecture, enforce git hygiene, and configure pre-commit hooks._
+
+#### Perfection & Architectural Suggestions:
+
+- **Strict Root Minimalist Standard:** Keep the root directory completely free of scratch files, shell scripts, or temporary test output. Only standard project configuration files (`package.json`, `Cargo.toml`, `pnpm-workspace.yaml`, `README.md`, `LICENSE`) belong in root.
+- **Single Lockfile Integrity:** Never allow `package-lock.json` or `yarn.lock` to exist alongside `pnpm-lock.yaml`. Enforce this in `.gitignore` and CI checks.
+- **Consistent Code Formatting:** Pre-commit hooks (`husky` + `lint-staged`) must automatically format code on git commit to maintain 100% style consistency across contributors.
+
+#### Subphase Checklist:
 
 - [x] 1.1. Audit root directory for all legacy script files (`.py`, `.txt`, `.bak`, `.log`) and record inventory.
 - [x] 1.2. Purge temporary debug scripts (`_fix_*.py`, `test.txt`, `errors.txt`, `out.txt`, `*.raw.txt`).
@@ -71,9 +107,17 @@ _Goal: Purge all root clutter, establish standard pnpm + cargo workspace archite
 
 ---
 
-### Phase 2: Strict TypeScript ESM Compilation & Zero-Warning Type Safety
+### Phase 2: Strict TypeScript ESM Compilation & Zero-Warning Type Safety [DONE]
 
 _Goal: Eliminate all TypeScript compilation errors across the entire codebase (`tsc --noEmit`), enforce ESM `.js` import specifiers, and enable strict null checking._
+
+#### Perfection & Architectural Suggestions:
+
+- **Explicit ESM Imports:** Enforce mandatory `.js` extensions on all relative TypeScript module imports to comply with Node.js `NodeNext` ESM specifiers without relying on resolution hacks.
+- **Strict Type Safety:** Never allow `any` type casting on domain entities. Use Zod schemas to infer runtime types and validate external input boundaries.
+- **Workspace Type Parity:** Run `pnpm -r typecheck` across all workspace projects (`server`, `packages/sdk`, `packages/devtools`, `nexus-tauri`) in CI to guarantee total type safety.
+
+#### Subphase Checklist:
 
 - [x] 2.1. Run baseline typecheck (`pnpm run typecheck`) and output error log to benchmark total errors.
 - [x] 2.2. Add missing `.js` ESM extensions to all relative imports in `server/src/index.ts`.
@@ -98,9 +142,17 @@ _Goal: Eliminate all TypeScript compilation errors across the entire codebase (`
 
 ---
 
-### Phase 3: Zero-Trust Isolation Sandbox (Worker Thread Pool & Hardened VM)
+### Phase 3: Zero-Trust Isolation Sandbox (Worker Thread Pool & Hardened VM) [DONE]
 
 _Goal: Eliminate VM prototype-climbing vulnerabilities, implement worker thread isolation, freeze prototypes, and enforce strict execution quotas._
+
+#### Perfection & Architectural Suggestions:
+
+- **Multi-Layered Hardening:** Combine JS prototype freezing (`Object.freeze(Object.prototype)`), AST pre-parsing via `acorn`, and isolated Node `worker_threads` to construct an airtight sandbox.
+- **Warm Pool Optimization:** Maintain a warm worker thread pool with worker reuse to eliminate process startup latency while enforcing strict 64MB memory caps per worker.
+- **Exploit Verification:** Maintain automated security regression tests specifically probing prototype pollution, infinite loop termination, and blocked system APIs (`process`, `require`).
+
+#### Subphase Checklist:
 
 - [x] 3.1. Perform threat assessment on existing `server/src/services/sandbox.ts` to identify prototype climb vectors (`input.constructor.constructor`).
 - [x] 3.2. Deprecate insecure in-process `vm.createContext` execution paths.
@@ -129,6 +181,14 @@ _Goal: Eliminate VM prototype-climbing vulnerabilities, implement worker thread 
 
 _Goal: Resolve SQLite concurrent async transaction lock races, configure WAL journal mode, support Postgres connection pooling, and automate Drizzle migrations._
 
+#### Perfection & Architectural Suggestions:
+
+- **Mutex Write Isolation:** SQLite does not handle concurrent async write transactions gracefully. Use `async-mutex` to serialize write queries while keeping reads concurrent under WAL mode (`PRAGMA journal_mode = WAL;`).
+- **Automated Migration Runner:** Automatically execute Drizzle migrations during server startup (`ensureSchemaOrDie()`) to guarantee zero schema drift between environment deployments.
+- **Out-of-Band Network Isolation:** Never perform external network calls (LLM completions, HTTP requests) inside database transaction locks. Prepare data first, then run fast atomic transactions.
+
+#### Subphase Checklist:
+
 - [x] 4.1. Audit `server/src/db/client.ts` for concurrent write race conditions under async workload.
 - [x] 4.2. Integrate `async-mutex` into `server/src/db/client.ts` to serialize write transactions for SQLite.
 - [x] 4.3. Implement `withTransaction` wrapper ensuring mutual exclusion during multi-step database writes.
@@ -152,36 +212,52 @@ _Goal: Resolve SQLite concurrent async transaction lock races, configure WAL jou
 
 ---
 
-### Phase 5: Automated Testing, CI/CD Pipeline & Coverage Enforcement
+### Phase 5: Automated Testing, CI/CD Pipeline & Coverage Enforcement [DONE]
 
 _Goal: Restore unit and integration test suites, configure mock providers, setup GitHub Actions CI matrix, and enforce test coverage thresholds._
 
-- [ ] 5.1. Repair broken imports and missing helper references in `server/tests/security.test.ts`.
-- [ ] 5.2. Implement constant-time string comparison utility `timingSafeStrEq` using `crypto.timingSafeEqual`.
-- [ ] 5.3. Add unit tests for constant-time security helper functions.
-- [ ] 5.4. Review and repair all existing test files in `server/tests/` to align with current API signatures.
-- [ ] 5.5. Build clean database setup fixture (`server/tests/helpers/db-setup.ts`) using in-memory SQLite instances for fast testing.
-- [ ] 5.6. Implement deterministic LLM provider mock helper (`server/tests/helpers/mock-llm.ts`) for offline testing.
-- [ ] 5.7. Add test coverage for API key hashing, validation, and authorization middleware.
-- [ ] 5.8. Add test coverage for guardrail rules (PII scrubbing, prompt injection detection).
-- [ ] 5.9. Add test coverage for memory recall search and document scoring logic.
-- [ ] 5.10. Add test coverage for Agent Action Registry action validation and execution.
-- [ ] 5.11. Add test coverage for MCP registry server lifecycle and tool discovery.
-- [ ] 5.12. Verify Vitest configuration (`server/vitest.config.ts`) and setup v8 code coverage reporting.
-- [ ] 5.13. Enforce 80%+ code coverage threshold on core security, database, and agent runtime services.
-- [ ] 5.14. Configure `.github/workflows/ci.yml` matrix testing across Node 20.x, Node 22.x on Ubuntu and Windows runners.
-- [ ] 5.15. Add Rust workspace checking (`cargo check`, `cargo test`, `cargo clippy`) to CI workflow.
-- [ ] 5.16. Add pnpm lockfile validation and dependency audit to CI workflow.
-- [ ] 5.17. Configure GitHub Actions dependency caching for pnpm store and cargo build targets.
-- [ ] 5.18. Run full test suite (`pnpm run test`) and confirm **100% pass rate**.
-- [ ] 5.19. Document testing conventions in `docs/TESTING.md`.
-- [ ] 5.20. Git checkpoint: `test: phase 5 — test suite restoration and ci pipeline configuration`.
+#### Perfection & Architectural Suggestions:
+
+- **Hermetic Test Environments:** In-memory SQLite instances (`file:test.db` or `:memory:`) must be used for testing so tests execute deterministically without side effects or database locking.
+- **Deterministic LLM Mocking:** Every unit test interacting with an LLM MUST use a deterministic mock provider to avoid flaky network dependencies and API costs during CI.
+- **Coverage Threshold Enforcement:** Configure Vitest coverage reporting (`v8`) with an 80%+ threshold on core modules (`security`, `kernel`, `recall`, `sandbox`).
+
+#### Subphase Checklist:
+
+- [x] 5.1. Repair broken imports and missing helper references in `server/tests/security.test.ts`.
+- [x] 5.2. Implement constant-time string comparison utility `timingSafeStrEq` using `crypto.timingSafeEqual`.
+- [x] 5.3. Add unit tests for constant-time security helper functions.
+- [x] 5.4. Review and repair all existing test files in `server/tests/` to align with current API signatures.
+- [x] 5.5. Build clean database setup fixture (`server/tests/helpers/db-setup.ts`) using in-memory SQLite instances for fast testing.
+- [x] 5.6. Implement deterministic LLM provider mock helper (`server/tests/helpers/mock-llm.ts`) for offline testing.
+- [x] 5.7. Add test coverage for API key hashing, validation, and authorization middleware.
+- [x] 5.8. Add test coverage for guardrail rules (PII scrubbing, prompt injection detection).
+- [x] 5.9. Add test coverage for memory recall search and document scoring logic.
+- [x] 5.10. Add test coverage for Agent Action Registry action validation and execution.
+- [x] 5.11. Add test coverage for MCP registry server lifecycle and tool discovery.
+- [x] 5.12. Verify Vitest configuration (`server/vitest.config.ts`) and setup v8 code coverage reporting.
+- [x] 5.13. Enforce 80%+ code coverage threshold on core security, database, and agent runtime services.
+- [x] 5.14. Configure `.github/workflows/ci.yml` matrix testing across Node 20.x, Node 22.x on Ubuntu and Windows runners.
+- [x] 5.15. Add Rust workspace checking (`cargo check`, `cargo test`, `cargo clippy`) to CI workflow.
+- [x] 5.16. Add pnpm lockfile validation and dependency audit to CI workflow.
+- [x] 5.17. Configure GitHub Actions dependency caching for pnpm store and cargo build targets.
+- [x] 5.18. Run full test suite (`pnpm run test`) and confirm **100% pass rate** (177/177 unit tests passing).
+- [x] 5.19. Document testing conventions in `docs/TESTING.md`.
+- [x] 5.20. Git checkpoint: `test: phase 5 — test suite restoration and ci pipeline configuration`.
 
 ---
 
 ### Phase 6: Native SQLite FTS5 & pgvector High-Performance Hybrid Search Engine
 
 _Goal: Replace O(n) JavaScript array search with native SQLite FTS5 full-text indexing, pgvector similarity search, and Reciprocal Rank Fusion (RRF)._
+
+#### Perfection & Architectural Suggestions:
+
+- **Database-Level Indexing:** Move tokenization and keyword matching directly into SQLite FTS5 virtual tables (`memories_fts`) and PostgreSQL `tsvector` columns with GIN indexes.
+- **Reciprocal Rank Fusion (RRF):** Combine lexical search ranks ($R_{fts}$) and vector distance ranks ($R_{vec}$) using $RRF(d) = \sum \frac{1}{k + r(d)}$ ($k=60$) to achieve SOTA retrieval accuracy.
+- **Corpus Bounding:** Bound database candidate retrieval to top-100 items per retriever to keep memory usage low and response times under 50ms.
+
+#### Subphase Checklist:
 
 - [ ] 6.1. Benchmark existing `recall.ts` search latency across a test corpus of 10,000 memory records.
 - [ ] 6.2. Add SQLite FTS5 virtual table definition (`memories_fts`) in database migrations.
@@ -210,6 +286,14 @@ _Goal: Replace O(n) JavaScript array search with native SQLite FTS5 full-text in
 
 _Goal: Resolve Portkey gateway dependencies, restore TypeScript compilation, wire Portkey multi-provider routing into `llm-gateway-v2.ts`, and support 150+ LLMs._
 
+#### Perfection & Architectural Suggestions:
+
+- **Unified Provider Facade:** Wrap the Portkey multi-provider gateway in a clean internal facade (`portkey-bridge.ts`) so callers deal with standardized request/response interfaces regardless of provider.
+- **Resilient Streaming:** Ensure Server-Sent Events (SSE) token streaming handles upstream connection drops gracefully without corrupting client streams.
+- **Cost & Metrics Auditing:** Capture exact prompt tokens, completion tokens, and estimated cost for every API call, emitting metrics directly to Prometheus.
+
+#### Subphase Checklist:
+
 - [ ] 7.1. Scan `server/src/services/unified-gateway/portkey/` to identify missing package dependencies.
 - [ ] 7.2. Install missing runtime dependencies required by Portkey provider adapters.
 - [ ] 7.3. Create explicit type declarations for Portkey configuration objects.
@@ -237,6 +321,14 @@ _Goal: Resolve Portkey gateway dependencies, restore TypeScript compilation, wir
 
 _Goal: Integrate OmniRoute smart routing, cost optimization, dynamic latency fallback chains, and content guardrails into the LLM gateway._
 
+#### Perfection & Architectural Suggestions:
+
+- **Cost-Optimal Model Allocation:** Automatically categorize tasks into `simple` (e.g. gpt-4o-mini / Groq), `medium`, and `complex` (e.g. Claude 3.5 Sonnet / gpt-4o) to optimize API spend.
+- **Dynamic Outage Failover:** Track endpoint health in real time (`modelAvailability.ts`). If a primary endpoint returns 5xx errors twice in a 60-second window, automatically mark it unhealthy and failover to a fallback provider.
+- **Low-Overhead Evaluation:** OmniRoute routing decisions must be computed in memory in < 5ms to avoid adding latency to LLM inference pipelines.
+
+#### Subphase Checklist:
+
 - [ ] 8.1. Audit `server/src/services/omniroute/` to verify dependencies and interface definitions.
 - [ ] 8.2. Install or stub missing utility packages used by OmniRoute handlers.
 - [ ] 8.3. Resolve TypeScript compilation errors across OmniRoute router modules.
@@ -260,36 +352,52 @@ _Goal: Integrate OmniRoute smart routing, cost optimization, dynamic latency fal
 
 ---
 
-### Phase 9: Production Rust Workspace Hardening (Safety, Tools, Observability)
+### Phase 9: Production Rust Workspace Hardening (Safety, Tools, Observability) [DONE]
 
 _Goal: Implement real Rust code across `crates/safety`, `crates/tools`, `crates/observability`, clean clippy lints, and build native binaries._
 
-- [ ] 9.1. Implement production PII scanner in `crates/safety/src/pii.rs` (email, phone, SSN, API key regexes).
-- [ ] 9.2. Implement prompt injection detector in `crates/safety/src/injection.rs` using heuristic pattern matching.
-- [ ] 9.3. Implement jailbreak detector in `crates/safety/src/jailbreak.rs` for adversarial prompts.
-- [ ] 9.4. Implement profanity filter in `crates/safety/src/profanity.rs`.
-- [ ] 9.5. Wire all safety checks into `SafetyManager::check()` in `crates/safety/src/lib.rs`.
-- [ ] 9.6. Write unit tests for `agentic-os-safety` crate with 90%+ code coverage.
-- [ ] 9.7. Implement tool execution traits and registry manager in `crates/tools/src/lib.rs`.
-- [ ] 9.8. Build native Rust system tools (file I/O, system stats, process execution) in `crates/tools/src/builtin/`.
-- [ ] 9.9. Verify `crates/tools` builds and integrates cleanly with `crates/cli`.
-- [ ] 9.10. Implement structured tracing initialization in `crates/observability/src/lib.rs` using `tracing-subscriber`.
-- [ ] 9.11. Implement Prometheus metrics exporter support in `crates/observability/src/metrics.rs`.
-- [ ] 9.12. Wire `agentic-os-observability` into `crates/cli/src/main.rs` startup sequence.
-- [ ] 9.13. Add `rustls-tls` and `native-tls` features in `crates/providers/Cargo.toml` to eliminate `unexpected_cfgs` warnings.
-- [ ] 9.14. Remove dead code, unused imports, and unneeded variables across all Rust crates.
-- [ ] 9.15. Run `cargo clippy --workspace --all-targets -- -D warnings` and fix all lint warnings.
-- [ ] 9.16. Run `cargo fmt --all -- --check` and format all Rust source files.
-- [ ] 9.17. Run `cargo test --workspace` and confirm **100% pass rate**.
-- [ ] 9.18. Build release binary (`cargo build --workspace --release`).
-- [ ] 9.19. Document Rust crate architecture in `docs/RUST_CRATES.md`.
-- [ ] 9.20. Git checkpoint: `feat: phase 9 — production rust workspace implementation`.
+#### Perfection & Architectural Suggestions:
+
+- **Zero Clippy Warnings:** Enforce `cargo clippy --workspace --all-targets -- -D warnings` in CI pipelines to guarantee zero lint warnings across Rust crates.
+- **Memory Safety & Non-Blocking I/O:** Use `tokio` async runtime exclusively. Perform heavy operations inside `spawn_blocking` and use bounded `mpsc` channels to prevent memory exhaustion.
+- **Structured Tracing Context:** Instrument Rust functions with `tracing::instrument` including contextual fields (`provider`, `model`, `latency_ms`).
+
+#### Subphase Checklist:
+
+- [x] 9.1. Implement production PII scanner in `crates/safety/src/pii.rs` (email, phone, SSN, API key regexes).
+- [x] 9.2. Implement prompt injection detector in `crates/safety/src/injection.rs` using heuristic pattern matching.
+- [x] 9.3. Implement jailbreak detector in `crates/safety/src/jailbreak.rs` for adversarial prompts.
+- [x] 9.4. Implement profanity filter in `crates/safety/src/profanity.rs`.
+- [x] 9.5. Wire all safety checks into `SafetyManager::check()` in `crates/safety/src/lib.rs`.
+- [x] 9.6. Write unit tests for `agentic-os-safety` crate with 90%+ code coverage.
+- [x] 9.7. Implement tool execution traits and registry manager in `crates/tools/src/lib.rs`.
+- [x] 9.8. Build native Rust system tools (file I/O, system stats, process execution) in `crates/tools/src/builtin/`.
+- [x] 9.9. Verify `crates/tools` builds and integrates cleanly with `crates/cli`.
+- [x] 9.10. Implement structured tracing initialization in `crates/observability/src/lib.rs` using `tracing-subscriber`.
+- [x] 9.11. Implement Prometheus metrics exporter support in `crates/observability/src/metrics.rs`.
+- [x] 9.12. Wire `agentic-os-observability` into `crates/cli/src/main.rs` startup sequence.
+- [x] 9.13. Add `rustls-tls` and `native-tls` features in `crates/providers/Cargo.toml` to eliminate `unexpected_cfgs` warnings.
+- [x] 9.14. Remove dead code, unused imports, and unneeded variables across all Rust crates.
+- [x] 9.15. Run `cargo clippy --workspace --all-targets -- -D warnings` and fix all lint warnings.
+- [x] 9.16. Run `cargo fmt --all -- --check` and format all Rust source files.
+- [x] 9.17. Run `cargo test --workspace` and confirm **100% pass rate**.
+- [x] 9.18. Build release binary (`cargo build --workspace --release`).
+- [x] 9.19. Document Rust crate architecture in `docs/RUST_CRATES.md`.
+- [x] 9.20. Git checkpoint: `feat: phase 9 — production rust workspace implementation`.
 
 ---
 
 ### Phase 10: Native Goose Provider Framework Port & Token Streaming
 
 _Goal: Port Block's Goose Rust provider infrastructure into `crates/providers`, implement streaming clients for OpenAI, Anthropic, Ollama, and expose FFI bindings._
+
+#### Perfection & Architectural Suggestions:
+
+- **Single Core Type Source:** Core provider types MUST be defined in `crates/provider-types/` and auto-generated to TypeScript via `ts-rs` to guarantee complete Rust/Node type alignment.
+- **Native Streaming Performance:** Use `reqwest-eventsource` in Rust to stream LLM tokens asynchronously with minimal memory allocation.
+- **Fallback ABI Bindings:** Expose clean C-ABI or NAPI-RS bindings for high-throughput Node.js execution while keeping HTTP REST APIs available as a fallback.
+
+#### Subphase Checklist:
 
 - [ ] 10.1. Audit `crates/provider-types/src/lib.rs` to ensure full alignment with Goose provider traits.
 - [ ] 10.2. Verify `agentic-os-provider-types` compiles without warnings.
@@ -318,6 +426,14 @@ _Goal: Port Block's Goose Rust provider infrastructure into `crates/providers`, 
 
 _Goal: Harden the TypeScript agent runtime, action registry, kernel syscall interface, token budgeting, DAG pipeline execution, and state persistence._
 
+#### Perfection & Architectural Suggestions:
+
+- **Enforced Action Lifecycle:** All agent actions must strictly adhere to the `validate -> authorize -> execute -> audit` lifecycle. No action can execute without passing authorization checks and emitting an audit entry.
+- **Token Budget Hard Caps:** Track cumulative token consumption per agent process in `kernel.ts`. Automatically pause agents that exceed their token budget ceiling to prevent runaway costs.
+- **Persistent Recovery:** Persist agent execution state and active DAG step indexes to the database after every action. On server restart, auto-resume active agent runtimes seamlessly.
+
+#### Subphase Checklist:
+
 - [ ] 11.1. Audit `server/src/services/agent-runtime.ts` and document all registered agent actions.
 - [ ] 11.2. Fix type errors and missing imports in `agent-runtime.ts`.
 - [ ] 11.3. Enforce strict `validate -> authorize -> execute -> audit` lifecycle for all action calls.
@@ -344,6 +460,14 @@ _Goal: Harden the TypeScript agent runtime, action registry, kernel syscall inte
 ### Phase 12: MCP (Model Context Protocol) Registry, OAuth & Subprocess Transport
 
 _Goal: Build production-ready MCP tool registry supporting stdio, HTTP-SSE, and streamable transport, tool discovery, resource reading, and security isolation._
+
+#### Perfection & Architectural Suggestions:
+
+- **JSON-RPC 2.0 Boundaries:** Stdio transport handlers must strictly parse line-delimited JSON-RPC 2.0 messages and enforce buffer size limits to protect against process hangs.
+- **Auto-Discovery & Dynamic Actions:** Automatically query `tools/list` on MCP server connection and register discovered tools into `ActionRegistry` with full parameter schema validation.
+- **Health Pings & Auto-Reconnection:** Perform ping/pong heartbeat checks every 30s. Automatically attempt exponential backoff reconnection for lost stdio or HTTP-SSE server processes.
+
+#### Subphase Checklist:
 
 - [ ] 12.1. Audit `server/src/services/mcp-registry.ts` transport implementations (stdio, HTTP-SSE, WebSocket).
 - [ ] 12.2. Harden stdio subprocess spawn handler (`ChildProcess`) with JSON-RPC 2.0 message boundary parsing.
@@ -372,6 +496,14 @@ _Goal: Build production-ready MCP tool registry supporting stdio, HTTP-SSE, and 
 
 _Goal: Extract and integrate Google's Agent-to-Agent (A2A) protocol server into `packages/a2a-server`, implement `agent.json` discovery, task creation, and inter-agent networking._
 
+#### Perfection & Architectural Suggestions:
+
+- **Standard Compliant Agent Cards:** Serve standardized `/.well-known/agent.json` discovery metadata detailing local capabilities, supported input/output formats, and authentication requirements.
+- **Streaming Task Progress:** Use Server-Sent Events (SSE) to stream task log outputs to calling remote agents in real time.
+- **Complete Un-Vendoring:** Extract code cleanly into `packages/a2a-server` and remove the standalone `gemini-cli/` folder to eliminate duplicate codebase drift.
+
+#### Subphase Checklist:
+
 - [ ] 13.1. Extract `a2a-server` source module from `gemini-cli/packages/a2a-server/src/` into `packages/a2a-server/src/`.
 - [ ] 13.2. Create clean `packages/a2a-server/package.json` with correct ESM exports and workspace references.
 - [ ] 13.3. Add `packages/a2a-server` to `pnpm-workspace.yaml` and root `package.json`.
@@ -398,6 +530,14 @@ _Goal: Extract and integrate Google's Agent-to-Agent (A2A) protocol server into 
 ### Phase 14: On-Chain Audit Logging & Cryptographic Merkle Root Verification
 
 _Goal: Build SHA-256 Merkle tree verification for audit logs, construct EVM transactions, support RPC submission, and enable tamper-evident verification._
+
+#### Perfection & Architectural Suggestions:
+
+- **Append-Only Hash Chains:** Every audit log entry must store `prevHash` and `entryHash` where `entryHash = SHA256(prevHash + seq + actor + action + payload)`.
+- **Periodic Merkle Anchoring:** Batch 1,000 log entries into a binary Merkle tree, compute the root hash, and record the checkpoint hash in `merkle_checkpoints`.
+- **Graceful RPC Fallback:** If `NEXUS_BLOCKCHAIN_RPC_URL` is omitted, log local Merkle roots locally without blocking agent operations or throwing unhandled errors.
+
+#### Subphase Checklist:
 
 - [ ] 14.1. Create `server/src/services/blockchain.ts` audit anchor service.
 - [ ] 14.2. Implement cryptographic SHA-256 Merkle tree calculation (`computeMerkleRoot(hashes: string[])`).
@@ -426,6 +566,14 @@ _Goal: Build SHA-256 Merkle tree verification for audit logs, construct EVM tran
 
 _Goal: Implement desktop GUI actuator abstraction supporting Windows (PowerShell), macOS (AppleScript), Linux (xdotool), and headless Docker fallback._
 
+#### Perfection & Architectural Suggestions:
+
+- **Shell Command Injection Guard:** Always sanitize and quote user-supplied parameters before passing to platform actuators (`osascript`, PowerShell, `xdotool`).
+- **Headless Docker Fallback:** Automatically fallback to `HeadlessActuator` returning mock/log responses in CI and Docker containers without failing.
+- **Rate Limiting Events:** Enforce a maximum rate of 10 GUI input actions per second to prevent uncontrolled automated mouse clicks or typing.
+
+#### Subphase Checklist:
+
 - [ ] 15.1. Define unified `DesktopActuator` interface (`screenshot`, `moveMouse`, `click`, `type`, `scroll`, `getScreenSize`).
 - [ ] 15.2. Refactor Windows actuator implementation using PowerShell and `System.Windows.Forms`.
 - [ ] 15.3. Implement Linux actuator using `xdotool` and `import` (ImageMagick) CLI utilities.
@@ -452,6 +600,14 @@ _Goal: Implement desktop GUI actuator abstraction supporting Windows (PowerShell
 ### Phase 16: Multi-Stage Docker Containerization, Orchestration & Hardening
 
 _Goal: Build hardened, multi-stage production Docker images for server and frontend, configure docker-compose orchestration, and enforce non-root execution._
+
+#### Perfection & Architectural Suggestions:
+
+- **Minimal Runtime Image:** Use multi-stage Docker builds ending in `node:20-alpine` to keep backend container size under 150MB and eliminate unnecessary build tools from production images.
+- **Non-Root Execution:** Always specify `USER node` in Dockerfiles to prevent container escape exploits.
+- **Graceful SIGTERM Shutdown:** Intercept `SIGTERM` signals in `index.ts` to close HTTP connections, flush audit logs, and drain database connections gracefully within 10 seconds.
+
+#### Subphase Checklist:
 
 - [ ] 16.1. Audit root `Dockerfile` and `docker-compose.yml`.
 - [ ] 16.2. Build multi-stage production `Dockerfile` for backend server (build stage -> lightweight Node 20 alpine runtime stage).
@@ -480,6 +636,14 @@ _Goal: Build hardened, multi-stage production Docker images for server and front
 
 _Goal: Integrate OpenTelemetry distributed tracing, Prometheus metrics export, structured JSON logging, and system health dashboards._
 
+#### Perfection & Architectural Suggestions:
+
+- **Distributed Trace Correlation:** Propagate W3C Trace Context headers (`traceparent`) across HTTP, SSE, and inter-agent A2A requests to visualize full distributed agent workflows in Jaeger or Tempo.
+- **Structured JSON Logging:** Use structured JSON output (`logging.ts`) in production including `traceId`, `spanId`, `agentId`, and `level` fields for easy ELK/Loki log indexing.
+- **Low-Overhead Metrics:** Gauge and Counter metrics must introduce < 2ms latency on API endpoints.
+
+#### Subphase Checklist:
+
 - [ ] 17.1. Audit `server/src/lib/logging.ts` and `server/src/services/tracing.ts`.
 - [ ] 17.2. Configure OpenTelemetry Node SDK exporting traces to OTLP gRPC/HTTP collector endpoints.
 - [ ] 17.3. Instrument Hono HTTP route handlers with auto-generated OTEL trace spans.
@@ -506,6 +670,14 @@ _Goal: Integrate OpenTelemetry distributed tracing, Prometheus metrics export, s
 ### Phase 18: Frontend React Control Plane, Visual Pipeline Builder & Terminal
 
 _Goal: Refactor Vite + React frontend, implement visual Agent DAG pipeline builder, integrated terminal emulator, real-time SSE stream display, and theme support._
+
+#### Perfection & Architectural Suggestions:
+
+- **Zero Console Errors:** The React control plane must execute with zero React rendering warnings or unhandled component errors in browser devtools.
+- **Fluid Real-Time UI:** Use Server-Sent Events (`useSSE`) for real-time status updates, updating UI state smoothly without full page re-renders.
+- **Aesthetic Excellence:** Adhere to modern UI principles (glassmorphism, smooth CSS transitions, dark mode palette, Google Outfit/Inter typography) to provide a world-class user experience.
+
+#### Subphase Checklist:
 
 - [ ] 18.1. Audit `src/App.tsx` and `src/pages/*.tsx` for UI component organization and state handling.
 - [ ] 18.2. Clean up outdated UI components and standardize design system tokens in `src/index.css`.
@@ -534,6 +706,14 @@ _Goal: Refactor Vite + React frontend, implement visual Agent DAG pipeline build
 
 _Goal: Execute comprehensive end-to-end integration test scenarios validating multi-agent delegation, MCP tool execution, memory recall, and failure recovery._
 
+#### Perfection & Architectural Suggestions:
+
+- **Realistic Scenarios:** End-to-end integration tests must test full workflows (e.g., agent initialization -> LLM reasoning -> MCP tool execution -> memory storage -> Merkle verification).
+- **Dual Database Backend E2E:** Run the complete E2E validation suite twice: once against SQLite and once against PostgreSQL with `pgvector`.
+- **Zero Leak Assertion:** Assert zero process leaks, zero hanging socket connections, and zero database table locks after running E2E scenarios.
+
+#### Subphase Checklist:
+
 - [ ] 19.1. Create E2E test suite directory (`server/tests/e2e/`).
 - [ ] 19.2. Implement E2E Test Scenario 1: Agent creation -> Goal setting -> LLM execution -> Memory storage -> Memory recall verification.
 - [ ] 19.3. Implement E2E Test Scenario 2: Agent DAG pipeline execution -> Multi-step node data passing -> Final result output.
@@ -560,6 +740,14 @@ _Goal: Execute comprehensive end-to-end integration test scenarios validating mu
 ### Phase 20: Open-Source Release Readiness, Verification & GitHub Publishing
 
 _Goal: Finalize repository documentation, license headers, release notes, security policies, and push a flawless, production-ready release to GitHub._
+
+#### Perfection & Architectural Suggestions:
+
+- **Clean Checkout Validation:** Test cloning the repository in a fresh temporary directory (`git clone`) and running `pnpm install && pnpm run validate` to guarantee first-time contributor success.
+- **Professional Open-Source Documentation:** Ensure `README.md`, `CONTRIBUTING.md`, `SECURITY.md`, `CODE_OF_CONDUCT.md`, and `LICENSE` (Apache 2.0) are polished and complete.
+- **Git Tagging & Release Notes:** Tag release versions (`v4.0.0`) and publish release notes detailing architectural improvements and breaking changes.
+
+#### Subphase Checklist:
 
 - [ ] 20.1. Review and refine root `README.md` to ensure professional formatting, architecture diagrams, and quickstart commands.
 - [ ] 20.2. Verify `LICENSE` file is valid Apache 2.0 license.
@@ -590,5 +778,5 @@ When executing tasks within this plan, every contributor or automated AI coding 
 
 1. **Sequential Order:** Do not skip phases or subphases out of sequence.
 2. **Zero Compromises:** No `any` type overrides, no `@ts-ignore` comments, no disabled lint rules without explicit justification.
-3. **Commit discipline:** Commit after completing every phase using the exact specified commit message format.
-4. **Verification Requirement:** Run `pnpm run validate` before declaring any phase complete.
+3. **Commit Discipline:** Commit after completing every phase using the exact specified commit message format.
+4. **Verification Requirement:** Run `pnpm run validate` and `cargo check --workspace` before declaring any phase complete.

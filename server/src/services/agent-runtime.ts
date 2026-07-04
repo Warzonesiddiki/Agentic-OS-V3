@@ -21,9 +21,15 @@ import { callLLM } from './llm.js';
 import { recall } from './recall.js';
 import { createMemory, createSkill } from '../services.js';
 
-import { getAgent, incrementTokenUsage, listAgents } from './kernel.js';
+import {
+  getAgent,
+  incrementTokenUsage,
+  listAgents,
+  authorizeToolCall,
+  pauseAgent,
+} from './kernel.js';
 import { db } from '../db/client.js';
-import { memories, skills } from '../db/client.js';
+import { memories, skills, agents } from '../db/client.js';
 import { eq } from 'drizzle-orm';
 
 // ── Inline domain types (mirrors src/lib/os/types.ts) ──────────
@@ -61,6 +67,7 @@ export interface ActionContext {
   agentId: string;
   actor: string;
   traceId?: string;
+  agentRing?: Ring;
 }
 
 export interface ActionMetadata {
@@ -207,40 +214,115 @@ async function executeActionWithTimeout(
 ): Promise<ActionExecuteResult> {
   const start = performance.now();
 
-  try {
-    const parsed = action.schema.safeParse(input);
-    if (!parsed.success) {
+  // 1. VALIDATE
+  const parsed = action.schema.safeParse(input);
+  if (!parsed.success) {
+    const fieldErrs = JSON.stringify(parsed.error.flatten().fieldErrors);
+    return {
+      ok: false,
+      error: `Validation failed: ${fieldErrs}`,
+      durationMs: Math.round(performance.now() - start),
+    };
+  }
+
+  if (action.validate) {
+    const v = action.validate(parsed.data);
+    if (!v.valid) {
       return {
         ok: false,
-        error: `Validation failed: ${parsed.error.flatten().fieldErrors}`,
+        error: `Custom validation failed: ${v.errors?.join('; ') ?? 'unknown'}`,
         durationMs: Math.round(performance.now() - start),
       };
     }
+  }
 
-    if (action.validate) {
-      const v = action.validate(parsed.data);
-      if (!v.valid) {
-        return {
-          ok: false,
-          error: `Custom validation failed: ${v.errors?.join('; ') ?? 'unknown'}`,
-          durationMs: Math.round(performance.now() - start),
-        };
+  // 2. AUTHORIZE
+  try {
+    let ring: number = context.agentRing ?? 2;
+    if (context.agentId) {
+      const agent = await getAgent(context.agentId);
+      if (agent) {
+        ring = agent.ring;
+        if (['quarantined', 'paused', 'terminated'].includes(agent.status)) {
+          return {
+            ok: false,
+            error: `Authorization failed: Agent ${context.agentId} is in status "${agent.status}" and cannot execute actions`,
+            durationMs: Math.round(performance.now() - start),
+          };
+        }
       }
     }
 
+    const authorized = await authorizeToolCall(
+      context.agentId || 'unknown',
+      ring,
+      action.name,
+      undefined,
+      context.actor || 'system',
+      action.metadata?.minRing
+    );
+
+    if (!authorized) {
+      return {
+        ok: false,
+        error: `Authorization failed: ACL denied action "${action.name}" for ring ${ring}`,
+        durationMs: Math.round(performance.now() - start),
+      };
+    }
+  } catch (authErr) {
+    const msg = authErr instanceof Error ? authErr.message : String(authErr);
+    return {
+      ok: false,
+      error: `Authorization failed: ${msg}`,
+      durationMs: Math.round(performance.now() - start),
+    };
+  }
+
+  // 3. EXECUTE
+  try {
     const result = await withTimeout(action.handler(parsed.data, context), timeoutMs);
+    const durationMs = Math.round(performance.now() - start);
+
+    // 4. AUDIT
+    await appendAudit(
+      'action.executed',
+      {
+        agentId: context.agentId,
+        action: action.name,
+        durationMs,
+        ok: true,
+        traceId: context.traceId,
+      },
+      context.actor || 'system'
+    );
 
     return {
       ok: true,
       data: result,
-      durationMs: Math.round(performance.now() - start),
+      durationMs,
     };
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
+    const durationMs = Math.round(performance.now() - start);
+
+    // 4. AUDIT (failed execution)
+    await appendAudit(
+      'action.failed',
+      {
+        agentId: context.agentId,
+        action: action.name,
+        durationMs,
+        ok: false,
+        error: msg,
+        traceId: context.traceId,
+      },
+      context.actor || 'system'
+    );
+
     return {
       ok: false,
       error: msg,
-      durationMs: Math.round(performance.now() - start),
+      durationMs,
     };
   }
 }
@@ -705,7 +787,64 @@ Be concise and precise. If a tool fails, try an alternative approach.`;
   }
 }
 
-// ── Run Agent (refactored to use ActionRegistry) ───────────────
+// ── Agent Process State Persistence & Recovery ──────────────────
+
+export interface AgentExecutionState {
+  agentId: string;
+  goal: string;
+  context?: Record<string, unknown>;
+  currentIteration: number;
+  maxIterations: number;
+  steps: AgentStep[];
+  tokensUsed: number;
+  conversation: string;
+  status: 'running' | 'paused' | 'completed' | 'failed' | 'idle';
+  updatedAt: string;
+}
+
+export async function saveAgentProcessState(state: AgentExecutionState): Promise<void> {
+  const agent = await getAgent(state.agentId);
+  if (!agent) return;
+
+  const existingMeta = (agent.metadata ?? {}) as Record<string, unknown>;
+  const updatedMeta = {
+    ...existingMeta,
+    executionState: state,
+  };
+
+  await db
+    .update(agents)
+    .set({
+      metadata: updatedMeta,
+      updatedAt: new Date(),
+    })
+    .where(eq(agents.id, state.agentId));
+
+  try {
+    const { stateSnapshots } = await import('../db/client.js');
+    const { randomUUID } = await import('node:crypto');
+    await db.insert(stateSnapshots).values({
+      id: `snap_${randomUUID()}`,
+      sagaId: state.agentId,
+      agentId: state.agentId,
+      stepIndex: state.currentIteration,
+      stepName: `step_${state.currentIteration}`,
+      context: state as unknown as Record<string, unknown>,
+      createdAt: new Date(),
+    });
+  } catch (e) {
+    // Fallback if snapshot table insert fails
+  }
+}
+
+export async function loadAgentProcessState(agentId: string): Promise<AgentExecutionState | null> {
+  const agent = await getAgent(agentId);
+  if (!agent) return null;
+  const meta = (agent.metadata ?? {}) as Record<string, unknown>;
+  return (meta.executionState as AgentExecutionState) ?? null;
+}
+
+// ── Run Agent (refactored to use ActionRegistry & State Persistence) ──
 
 export async function runAgent(config: AgentConfig): Promise<AgentResult> {
   const { agentId, goal, actor, maxIterations = 15 } = config;
@@ -720,18 +859,61 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
 
   let conversation = `Goal: ${goal}\n\nContext: ${JSON.stringify(config.context ?? {})}\n\nBegin.`;
 
-  for (let i = 0; i < maxIterations; i++) {
+  // Restore previous execution state if present and agent is resuming
+  const savedState = await loadAgentProcessState(agentId);
+  let startIteration = 0;
+  if (savedState && savedState.goal === goal && savedState.status === 'paused') {
+    startIteration = savedState.currentIteration;
+    steps.push(...savedState.steps);
+    totalTokens = savedState.tokensUsed;
+    if (savedState.conversation) {
+      conversation = savedState.conversation;
+    }
+  }
+
+  for (let i = startIteration; i < maxIterations; i++) {
     const agent = await getAgent(agentId);
-    if (agent && agent.tokensUsed >= agent.tokenBudget) {
+    if (agent && (agent.tokensUsed >= agent.tokenBudget || agent.status === 'paused')) {
+      if (agent.status !== 'paused') {
+        await pauseAgent(agentId, actor);
+      }
+      const state: AgentExecutionState = {
+        agentId,
+        goal,
+        context: config.context,
+        currentIteration: i,
+        maxIterations,
+        steps,
+        tokensUsed: agent ? agent.tokensUsed : totalTokens,
+        conversation,
+        status: 'paused',
+        updatedAt: new Date().toISOString(),
+      };
+      await saveAgentProcessState(state);
+
       return {
         ok: false,
         answer: 'Token budget exhausted',
         steps,
         iterations: i,
-        tokensUsed: totalTokens,
-        error: `Token budget exhausted (${agent.tokensUsed}/${agent.tokenBudget})`,
+        tokensUsed: agent ? agent.tokensUsed : totalTokens,
+        error: `Token budget exhausted (${agent?.tokensUsed ?? totalTokens}/${agent?.tokenBudget ?? 0})`,
       };
     }
+
+    // Persist current execution state snapshot
+    await saveAgentProcessState({
+      agentId,
+      goal,
+      context: config.context,
+      currentIteration: i,
+      maxIterations,
+      steps,
+      tokensUsed: totalTokens,
+      conversation,
+      status: 'running',
+      updatedAt: new Date().toISOString(),
+    });
 
     try {
       const llmResult = await callLLM({
@@ -743,8 +925,7 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
         maxTokens: 1024,
       });
 
-      await incrementTokenUsage(agentId, llmResult.usage.total);
-      totalTokens += llmResult.usage.total;
+      totalTokens = await incrementTokenUsage(agentId, llmResult.usage.total, actor);
 
       const parsed = JSON.parse(llmResult.content);
       const thought = String(parsed.thought ?? '');
@@ -761,18 +942,32 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
           toolOutput: { done: true },
         });
 
+        const state: AgentExecutionState = {
+          agentId,
+          goal,
+          context: config.context,
+          currentIteration: i + 1,
+          maxIterations,
+          steps,
+          tokensUsed: totalTokens,
+          conversation,
+          status: 'completed',
+          updatedAt: new Date().toISOString(),
+        };
+        await saveAgentProcessState(state);
+
         await appendAudit(
           'agent_runtime.finished',
           {
             agentId,
-            iterations: i,
+            iterations: i + 1,
             tokensUsed: totalTokens,
             answerLength: answer.length,
           },
           actor
         );
 
-        return { ok: true, answer, steps, iterations: i, tokensUsed: totalTokens };
+        return { ok: true, answer, steps, iterations: i + 1, tokensUsed: totalTokens };
       }
 
       const result = await runtime.executeAction(toolName, toolInput);
@@ -796,11 +991,25 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
       });
 
       if (i === maxIterations - 1) {
+        const state: AgentExecutionState = {
+          agentId,
+          goal,
+          context: config.context,
+          currentIteration: i + 1,
+          maxIterations,
+          steps,
+          tokensUsed: totalTokens,
+          conversation,
+          status: 'failed',
+          updatedAt: new Date().toISOString(),
+        };
+        await saveAgentProcessState(state);
+
         await appendAudit(
           'agent_runtime.failed',
           {
             agentId,
-            iterations: i,
+            iterations: i + 1,
             error: errMsg,
           },
           actor
@@ -810,7 +1019,7 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
           ok: false,
           answer: `Failed after ${i + 1} iterations: ${errMsg}`,
           steps,
-          iterations: i,
+          iterations: i + 1,
           tokensUsed: totalTokens,
           error: errMsg,
         };
@@ -819,6 +1028,20 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
       conversation = `Step ${i + 1} error: ${errMsg}\n\nTry a different approach.`;
     }
   }
+
+  const finalState: AgentExecutionState = {
+    agentId,
+    goal,
+    context: config.context,
+    currentIteration: maxIterations,
+    maxIterations,
+    steps,
+    tokensUsed: totalTokens,
+    conversation,
+    status: 'failed',
+    updatedAt: new Date().toISOString(),
+  };
+  await saveAgentProcessState(finalState);
 
   return {
     ok: false,

@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 /// Routing-engine specific configuration.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct RoutingEngineConfig {
     /// Strategy for routing requests ("round-robin", "failover", "latency").
     #[serde(default = "default_strategy")]
@@ -23,6 +23,19 @@ pub struct RoutingEngineConfig {
     #[serde(default = "default_max_concurrent")]
     pub max_concurrent: u32,
 }
+
+impl Default for RoutingEngineConfig {
+    fn default() -> Self {
+        Self {
+            strategy: default_strategy(),
+            max_retries: default_max_retries(),
+            backoff_base_ms: default_backoff_ms(),
+            fan_out: false,
+            max_concurrent: default_max_concurrent(),
+        }
+    }
+}
+
 
 fn default_strategy() -> String {
     "round-robin".into()

@@ -19,11 +19,88 @@
 
 import { randomUUID } from 'node:crypto';
 import { performance } from 'node:perf_hooks';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { db } from '../db/client.js';
 import { appendAudit } from '../lib/audit.js';
 import { log } from '../lib/logging.js';
+import { getEnv } from '../lib/env.js';
 import { getRegistry } from './metrics.js';
 import promClient from 'prom-client';
+
+// ── W3C Trace Context ──────────────────────────────────────────
+
+export interface TraceContext {
+  traceId: string;
+  spanId: string;
+  parentSpanId?: string;
+  traceFlags: string;
+}
+
+const traceContextStorage = new AsyncLocalStorage<TraceContext>();
+
+export function getTraceContext(): TraceContext | undefined {
+  return traceContextStorage.getStore();
+}
+
+export function runWithTraceContext<T>(ctx: TraceContext, fn: () => T): T {
+  return traceContextStorage.run(ctx, fn);
+}
+
+export function generateTraceId(): string {
+  return randomUUID().replace(/-/g, '');
+}
+
+export function generateSpanId(): string {
+  return randomUUID().replace(/-/g, '').slice(0, 16);
+}
+
+export function parseTraceparent(header?: string | null): TraceContext | null {
+  if (!header) return null;
+  const match = /^([0-9a-f]{2})-([0-9a-f]{32})-([0-9a-f]{16})-([0-9a-f]{2})$/i.exec(header.trim());
+  if (!match) return null;
+  const traceId = match[2];
+  const spanId = match[3];
+  const traceFlags = match[4];
+  if (!traceId || !spanId || !traceFlags) return null;
+  return {
+    traceId: traceId.toLowerCase(),
+    spanId: spanId.toLowerCase(),
+    traceFlags: traceFlags.toLowerCase(),
+  };
+}
+
+export function formatTraceparent(ctx: TraceContext): string {
+  return `00-${ctx.traceId}-${ctx.spanId}-${ctx.traceFlags || '01'}`;
+}
+
+export function extractTraceparent(
+  headers: Record<string, string | string[] | undefined> | Headers
+): TraceContext | null {
+  let headerVal: string | null = null;
+  if (headers instanceof Headers) {
+    headerVal = headers.get('traceparent');
+  } else {
+    for (const key of Object.keys(headers)) {
+      if (key.toLowerCase() === 'traceparent') {
+        const val = headers[key];
+        headerVal = Array.isArray(val) ? (val[0] ?? null) : (val ?? null);
+        break;
+      }
+    }
+  }
+  return parseTraceparent(headerVal);
+}
+
+export function injectTraceparent(
+  headers: Record<string, string>,
+  ctx?: TraceContext
+): Record<string, string> {
+  const current = ctx ?? getTraceContext();
+  if (current) {
+    headers['traceparent'] = formatTraceparent(current);
+  }
+  return headers;
+}
 
 // ── Constants ──────────────────────────────────────────────────
 
@@ -230,7 +307,7 @@ export class DatabaseSpanExporter implements SpanExporter {
       }));
 
       // Dynamic import to avoid circular deps at module load
-      const { spanLogs } = await import('../db/schema.js');
+      const { spanLogs } = await import('../db/client.js');
       await db
         .insert(spanLogs)
         .values(values as never[])
@@ -245,6 +322,94 @@ export class DatabaseSpanExporter implements SpanExporter {
 
   async shutdown(): Promise<void> {
     this._shutdown = true;
+  }
+}
+
+export class OtlpSpanExporter implements SpanExporter {
+  private readonly _endpoint: string;
+  private readonly _apiKey?: string;
+
+  constructor(options?: { endpoint?: string; apiKey?: string }) {
+    const env = getEnv();
+    this._endpoint =
+      options?.endpoint ?? env.NEXUS_OTEL_ENDPOINT ?? 'http://localhost:4318/v1/traces';
+    this._apiKey = options?.apiKey ?? env.NEXUS_OTEL_API_KEY;
+  }
+
+  async export(spans: ExportedSpan[]): Promise<void> {
+    if (!this._endpoint || spans.length === 0) return;
+    try {
+      const otlpSpans = spans.map((s) => ({
+        traceId: s.traceId
+          .replace(/[^0-9a-f]/gi, '')
+          .padStart(32, '0')
+          .slice(0, 32),
+        spanId: s.id
+          .replace(/[^0-9a-f]/gi, '')
+          .padStart(16, '0')
+          .slice(0, 16),
+        parentSpanId: s.parentId
+          ? s.parentId
+              .replace(/[^0-9a-f]/gi, '')
+              .padStart(16, '0')
+              .slice(0, 16)
+          : undefined,
+        name: s.name,
+        kind: 1, // INTERNAL
+        startTimeUnixNano: String(Math.round(s.startTime * 1_000_000)),
+        endTimeUnixNano: String(Math.round((s.endTime ?? performance.now()) * 1_000_000)),
+        attributes: Object.entries(s.attributes).map(([key, value]) => ({
+          key,
+          value: { stringValue: typeof value === 'object' ? JSON.stringify(value) : String(value) },
+        })),
+        status: { code: s.status === 'ok' ? 1 : 2 },
+      }));
+
+      const payload = {
+        resourceSpans: [
+          {
+            resource: {
+              attributes: [
+                { key: 'service.name', value: { stringValue: 'nexus-server' } },
+                { key: 'service.version', value: { stringValue: '2.0.0' } },
+              ],
+            },
+            scopeSpans: [{ spans: otlpSpans }],
+          },
+        ],
+      };
+
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+      if (this._apiKey) headers['Authorization'] = `Bearer ${this._apiKey}`;
+
+      await fetch(this._endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(payload),
+      }).catch((e) => {
+        log.debug('otlp_fetch_failed', { error: e instanceof Error ? e.message : String(e) });
+      });
+    } catch (e) {
+      log.warn('otlp_export_failed', { error: e instanceof Error ? e.message : String(e) });
+    }
+  }
+
+  async shutdown(): Promise<void> {}
+}
+
+export class MultiSpanExporter implements SpanExporter {
+  private readonly _exporters: SpanExporter[];
+
+  constructor(exporters: SpanExporter[]) {
+    this._exporters = exporters;
+  }
+
+  async export(spans: ExportedSpan[]): Promise<void> {
+    await Promise.all(this._exporters.map((e) => e.export(spans)));
+  }
+
+  async shutdown(): Promise<void> {
+    await Promise.all(this._exporters.map((e) => e.shutdown()));
   }
 }
 
@@ -454,9 +619,14 @@ class TracerImpl implements Tracer {
     type: SpanType,
     options?: { parentId?: string; attributes?: SpanAttributes }
   ): Span {
-    // Resolve traceId — use existing parent trace or create new
+    // Resolve traceId — use existing parent trace, active context, or create new
     let traceId: string;
-    const parentId: string | null = options?.parentId ?? null;
+    let parentId: string | null = options?.parentId ?? null;
+    const activeCtx = getTraceContext();
+
+    if (!parentId && activeCtx) {
+      parentId = activeCtx.spanId;
+    }
 
     if (parentId) {
       // Find the parent span's trace
@@ -469,12 +639,13 @@ class TracerImpl implements Tracer {
       }
     }
 
-    // If no trace found, create new
+    // If no trace found, use active context traceId or active trace or create new
     const activeTrace = this.getActiveTrace();
     if (!parentId && activeTrace) {
       traceId = activeTrace.id;
     } else {
-      traceId = (options?.attributes?.traceId as string) ?? `trace_${randomUUID()}`;
+      traceId =
+        (options?.attributes?.traceId as string) ?? activeCtx?.traceId ?? `trace_${randomUUID()}`;
     }
 
     // Capture pre-mutation performance baseline
@@ -602,7 +773,11 @@ let _provider: TraceProviderImpl | null = null;
 let _tracer: Tracer | null = null;
 
 function defaultProcessor(): SpanProcessor {
-  const exporter = new DatabaseSpanExporter();
+  const dbExporter = new DatabaseSpanExporter();
+  const env = getEnv();
+  const exporter = env.NEXUS_OTEL_ENDPOINT
+    ? new MultiSpanExporter([dbExporter, new OtlpSpanExporter()])
+    : dbExporter;
   return new BatchSpanProcessor(exporter);
 }
 

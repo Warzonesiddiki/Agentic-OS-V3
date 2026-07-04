@@ -157,36 +157,20 @@ mod tests {
 
     #[test]
     fn env_override_changes_log_level() {
+        let _guard = env_lock::lock_env([("AGENTIC_OS_LOG_LEVEL", Some("trace"))]);
         let mut cfg = Config::from_toml("").unwrap();
         assert_eq!(cfg.log_level, "info");
-
-        // Safety: restore after test
-        let prior = std::env::var("AGENTIC_OS_LOG_LEVEL").ok();
-        std::env::set_var("AGENTIC_OS_LOG_LEVEL", "trace");
         cfg.apply_env_overrides();
         assert_eq!(cfg.log_level, "trace");
-
-        // Cleanup
-        match prior {
-            Some(v) => std::env::set_var("AGENTIC_OS_LOG_LEVEL", v),
-            None => std::env::remove_var("AGENTIC_OS_LOG_LEVEL"),
-        }
     }
 
     #[test]
     fn env_override_engine_strategy() {
+        let _guard = env_lock::lock_env([("AGENTIC_OS_ENGINE_STRATEGY", Some("failover"))]);
         let mut cfg = Config::from_toml("").unwrap();
         assert_eq!(cfg.engine.strategy, "round-robin");
-
-        let prior = std::env::var("AGENTIC_OS_ENGINE_STRATEGY").ok();
-        std::env::set_var("AGENTIC_OS_ENGINE_STRATEGY", "failover");
         cfg.apply_env_overrides();
         assert_eq!(cfg.engine.strategy, "failover");
-
-        match prior {
-            Some(v) => std::env::set_var("AGENTIC_OS_ENGINE_STRATEGY", v),
-            None => std::env::remove_var("AGENTIC_OS_ENGINE_STRATEGY"),
-        }
     }
 
     #[test]

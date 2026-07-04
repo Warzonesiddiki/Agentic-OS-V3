@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: nexus-postgres-dev
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: nexus_password
+      POSTGRES_DB: nexus
+    ports:
+      - '5432:5432'
+    volumes:
+      - pgdata_dev:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d nexus']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis-dev
+    ports:
+      - '6379:6379'
+    volumes:
+      - redisdata_dev:/data
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  server-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-server-dev
+    ports:
+      - '9900:9900'
+    environment:
+      NODE_ENV: development
+      PORT: 9900
+      DATABASE_URL: postgresql://postgres:nexus_password@postgres:5432/nexus
+      NEXUS_REDIS_URL: redis://redis:6379
+      NEXUS_BUS_BACKEND: redis
+      NEXUS_ALLOWED_ORIGINS: http://localhost:1422,http://localhost:9900
+    volumes:
+      - .:/app
+      - /app/node_modules
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+volumes:
+  pgdata_dev:
+  redisdata_dev:
