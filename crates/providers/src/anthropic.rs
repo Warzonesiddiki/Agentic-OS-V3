@@ -273,10 +273,10 @@ impl Provider for AnthropicProvider {
             tools,
             self.format_options,
         )?;
-        payload
+        let obj = payload
             .as_object_mut()
-            .unwrap()
-            .insert("stream".to_string(), Value::Bool(true));
+            .ok_or_else(|| ProviderError::ExecutionError("Failed to parse payload as mutable object".to_string()))?;
+        obj.insert("stream".to_string(), Value::Bool(true));
 
         let mut log = start_log(model_config, &payload)?;
 
