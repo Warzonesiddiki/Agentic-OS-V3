@@ -253,7 +253,7 @@ pub fn parse_openai_sse_event(event: &SseEvent) -> Option<TokenDelta> {
     let finish_reason = choice.get("finish_reason").and_then(|v| v.as_str()).map(String::from);
 
     let (tool_call_id, tool_name, tool_arguments) = if let Some(tool_calls) = delta.get("tool_calls").and_then(|v| v.as_array()) {
-        if let Some(tc) = tool_calls.get(0) {
+        if let Some(tc) = tool_calls.first() {
             let id = tc.get("id").and_then(|v| v.as_str()).map(String::from);
             let function = tc.get("function");
             let name = function.and_then(|f| f.get("name")).and_then(|v| v.as_str()).map(String::from);

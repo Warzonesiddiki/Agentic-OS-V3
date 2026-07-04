@@ -205,7 +205,7 @@ mod tests {
     fn test_estimate_tokens_plain_text() {
         assert_eq!(TokenEstimator::estimate_tokens(""), 0);
         let tokens = TokenEstimator::estimate_tokens("Hello, world! This is a test.");
-        assert!(tokens >= 5 && tokens <= 10);
+        assert!((5..=10).contains(&tokens));
     }
 
     #[test]
