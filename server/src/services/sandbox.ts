@@ -10,15 +10,15 @@
  * When Docker is unavailable (or NEXUS_SANDBOX_ENABLED=false), falls
  * back to worker-based in-process execution (for development convenience).
  */
-import { getEnv } from "../lib/env.js";
-import { db } from "../db/client.js";
-import { sandboxExecutions } from "../db/client.js";
-import { randomUUID } from "node:crypto";
-import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
-import { join } from "node:path";
-import { tmpdir } from "node:os";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
+import { getEnv } from '../lib/env.js';
+import { db } from '../db/client.js';
+import { sandboxExecutions } from '../db/client.js';
+import { randomUUID } from 'node:crypto';
+import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 
 const execAsync = promisify(execFile);
 
@@ -47,7 +47,7 @@ let _dockerAvailable: boolean | null = null;
 export async function isDockerAvailable(): Promise<boolean> {
   if (_dockerAvailable !== null) return _dockerAvailable;
   try {
-    await execAsync("docker", ["info", "--format", "{{.ServerVersion}}"]);
+    await execAsync('docker', ['info', '--format', '{{.ServerVersion}}']);
     _dockerAvailable = true;
   } catch {
     _dockerAvailable = false;
@@ -63,29 +63,39 @@ async function executeInDocker(input: SandboxInput): Promise<SandboxResult> {
   const timeoutMs = input.timeoutMs ?? env.NEXUS_SANDBOX_TIMEOUT_MS;
   const start = Date.now();
 
-  const tmpDir = mkdtempSync(join(tmpdir(), "nexus-sandbox-"));
-  const scriptFile = join(tmpDir, input.language === "python" ? "script.py" : "script.js");
+  const tmpDir = mkdtempSync(join(tmpdir(), 'nexus-sandbox-'));
+  const scriptFile = join(tmpDir, input.language === 'python' ? 'script.py' : 'script.js');
 
-  const wrapper = input.language === "python"
-    ? input.code
-    : `const input = ${JSON.stringify(input.input ?? {})};\\n${input.code}\\nconsole.log(JSON.stringify(module.exports.compiledTask(input)));`;
+  const wrapper =
+    input.language === 'python'
+      ? input.code
+      : `const input = ${JSON.stringify(input.input ?? {})};\\n${input.code}\\nconsole.log(JSON.stringify(module.exports.compiledTask(input)));`;
 
-  writeFileSync(scriptFile, wrapper, "utf-8");
+  writeFileSync(scriptFile, wrapper, 'utf-8');
 
-  const interpreter = input.language === "python" ? "python3" : "node";
+  const interpreter = input.language === 'python' ? 'python3' : 'node';
 
   try {
     const { stdout, stderr } = await execAsync(
-      "docker",
+      'docker',
       [
-        "run", "--rm", "--network", "none",
-        "--memory", "256m", "--cpus", "0.5",
-        "--stop-timeout", String(Math.ceil(timeoutMs / 1000)),
-        "-v", `${tmpDir}:/sandbox:ro`,
+        'run',
+        '--rm',
+        '--network',
+        'none',
+        '--memory',
+        '256m',
+        '--cpus',
+        '0.5',
+        '--stop-timeout',
+        String(Math.ceil(timeoutMs / 1000)),
+        '-v',
+        `${tmpDir}:/sandbox:ro`,
         image,
-        interpreter, `/sandbox/${input.language === "python" ? "script.py" : "script.js"}`,
+        interpreter,
+        `/sandbox/${input.language === 'python' ? 'script.py' : 'script.js'}`,
       ],
-      { timeout: timeoutMs + 5000, maxBuffer: 1024 * 1024 },
+      { timeout: timeoutMs + 5000, maxBuffer: 1024 * 1024 }
     );
 
     const output = parseOutput(stdout);
@@ -101,13 +111,17 @@ async function executeInDocker(input: SandboxInput): Promise<SandboxResult> {
     return {
       ok: false,
       output: null,
-      stdout: "",
+      stdout: '',
       stderr: e instanceof Error ? e.message.slice(0, 10000) : String(e).slice(0, 10000),
       durationMs: Date.now() - start,
       exitCode: (e as { code?: number }).code ?? 1,
     };
   } finally {
-    try { rmSync(tmpDir, { recursive: true, force: true }); } catch { /* best-effort */ }
+    try {
+      rmSync(tmpDir, { recursive: true, force: true });
+    } catch {
+      /* best-effort */
+    }
   }
 }
 
@@ -115,29 +129,32 @@ async function executeInDocker(input: SandboxInput): Promise<SandboxResult> {
 
 export async function executeSandboxed(input: SandboxInput): Promise<SandboxResult> {
   const env = getEnv();
-  const useDocker = env.NEXUS_SANDBOX_ENABLED && await isDockerAvailable();
+  const useDocker = env.NEXUS_SANDBOX_ENABLED && (await isDockerAvailable());
 
   // Dynamic import to avoid loading worker_threads module at import time
   // (worker_threads may fail in some test environments)
-  const { executeInWorker } = await import("./sandbox-worker.js");
+  const { executeInWorker } = await import('./sandbox-worker.js');
 
-  const result = useDocker
-    ? await executeInDocker(input)
-    : await executeInWorker(input);
+  const result = useDocker ? await executeInDocker(input) : await executeInWorker(input);
 
   const recordId = `sbx_${randomUUID()}`;
-  await db.insert(sandboxExecutions).values({
-    id: recordId,
-    agentId: "sandbox",
-    type: useDocker ? "docker" : "worker",
-    code: input.code.slice(0, 5000),
-    language: input.language,
-    exitCode: result.exitCode,
-    stdout: result.stdout.slice(0, 5000),
-    stderr: result.stderr.slice(0, 5000),
-    durationMs: result.durationMs,
-    status: result.ok ? "completed" : "failed",
-  }).catch(() => { /* non-critical — log is best-effort */ });
+  await db
+    .insert(sandboxExecutions)
+    .values({
+      id: recordId,
+      agentId: 'sandbox',
+      type: useDocker ? 'docker' : 'worker',
+      code: input.code.slice(0, 5000),
+      language: input.language,
+      exitCode: result.exitCode,
+      stdout: result.stdout.slice(0, 5000),
+      stderr: result.stderr.slice(0, 5000),
+      durationMs: result.durationMs,
+      status: result.ok ? 'completed' : 'failed',
+    })
+    .catch(() => {
+      /* non-critical — log is best-effort */
+    });
 
   return result;
 }
@@ -145,9 +162,13 @@ export async function executeSandboxed(input: SandboxInput): Promise<SandboxResu
 // ── Helpers ───────────────────────────────────────────────────
 
 function parseOutput(stdout: string): unknown {
-  const lines = stdout.trim().split("\n").filter(Boolean);
+  const lines = stdout.trim().split('\n').filter(Boolean);
   for (const line of lines) {
-    try { return JSON.parse(line); } catch { /* try next */ }
+    try {
+      return JSON.parse(line);
+    } catch {
+      /* try next */
+    }
   }
   return lines[0] ?? null;
 }

@@ -16,8 +16,8 @@
  *   - If the Worker hangs, it gets terminated with no memory leaks.
  */
 
-import { Worker, isMainThread, parentPort, workerData } from "node:worker_threads";
-import { randomUUID } from "node:crypto";
+import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
+import { randomUUID } from 'node:crypto';
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -61,7 +61,7 @@ function getPool(): PoolEntry[] {
 function createSandboxWorker(): Worker {
   // Create an inline Worker using the worker_threads bootstrap
   const worker = new Worker(new URL(import.meta.url), {
-    workerData: { role: "sandbox-worker" },
+    workerData: { role: 'sandbox-worker' },
     resourceLimits: {
       maxOldGenerationSizeMb: 64,
       maxYoungGenerationSizeMb: 16,
@@ -74,7 +74,7 @@ function createSandboxWorker(): Worker {
 
 // ── Bootstrap: Worker entry point ─────────────────────────────
 
-if (!isMainThread && workerData?.role === "sandbox-worker" && parentPort) {
+if (!isMainThread && workerData?.role === 'sandbox-worker' && parentPort) {
   // We're inside a sandbox worker — set up the execution environment
   setupWorkerEnvironment();
 }
@@ -92,36 +92,38 @@ function setupWorkerEnvironment(): void {
   Object.freeze(Function.prototype);
 
   // Block dangerous globals by replacing them
-  const noop = () => { throw new Error("Access denied: blocked in sandbox"); };
+  const noop = () => {
+    throw new Error('Access denied: blocked in sandbox');
+  };
 
   // Override import.meta (partially)
   // Override require if it exists (CommonJS)
-  if (typeof require !== "undefined") {
+  if (typeof require !== 'undefined') {
     (globalThis as Record<string, unknown>).require = noop;
   }
 
   // Listen for messages from the parent
-  parentPort!.on("message", (message: { id: string; code: string; input: unknown }) => {
+  parentPort!.on('message', (message: { id: string; code: string; input: unknown }) => {
     try {
       const { id, code, input } = message;
 
       // Validate code structure
-      if (typeof code !== "string" || code.length === 0) {
-        throw new Error("Empty or invalid code");
+      if (typeof code !== 'string' || code.length === 0) {
+        throw new Error('Empty or invalid code');
       }
 
       // Extract the function body safely
       let fnBody = code;
       // Strip module.exports prefix if present
-      if (fnBody.includes("module.exports")) {
-        fnBody = fnBody.split("module.exports")[0] ?? fnBody;
+      if (fnBody.includes('module.exports')) {
+        fnBody = fnBody.split('module.exports')[0] ?? fnBody;
       }
       // Strip comments
-      fnBody = fnBody.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+      fnBody = fnBody.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
       // Remove "function compiledTask(input) {" wrapper if present
-      fnBody = fnBody.replace(/function\s+\w+\s*\(\s*\w*\s*\)\s*\{/, "");
+      fnBody = fnBody.replace(/function\s+\w+\s*\(\s*\w*\s*\)\s*\{/, '');
       // Remove trailing closing braces
-      fnBody = fnBody.replace(/}\s*$/, "").trim();
+      fnBody = fnBody.replace(/}\s*$/, '').trim();
 
       // Try to parse as JSON first (simple value)
       let parsed: unknown;
@@ -129,7 +131,7 @@ function setupWorkerEnvironment(): void {
         parsed = JSON.parse(fnBody);
       } catch {
         // Not JSON — execute as function body
-        const fn = new Function("input", `"use strict";\n${fnBody}`);
+        const fn = new Function('input', `"use strict";\n${fnBody}`);
         const result = fn(input);
         parsed = result;
       }
@@ -162,8 +164,8 @@ export async function executeInWorker(input: SandboxInput): Promise<SandboxResul
     return {
       ok: false,
       output: null,
-      stdout: "",
-      stderr: "All sandbox workers are busy and pool is exhausted",
+      stdout: '',
+      stderr: 'All sandbox workers are busy and pool is exhausted',
       durationMs: Date.now() - start,
       exitCode: -1,
     };
@@ -176,8 +178,8 @@ export async function executeInWorker(input: SandboxInput): Promise<SandboxResul
     return {
       ok: !result.error,
       output: result.error ? null : result.result,
-      stdout: result.error ? "" : JSON.stringify(result.result),
-      stderr: result.error ?? "",
+      stdout: result.error ? '' : JSON.stringify(result.result),
+      stderr: result.error ?? '',
       durationMs: Date.now() - start,
       exitCode: result.error ? 1 : 0,
     };
@@ -185,7 +187,7 @@ export async function executeInWorker(input: SandboxInput): Promise<SandboxResul
     return {
       ok: false,
       output: null,
-      stdout: "",
+      stdout: '',
       stderr: err instanceof Error ? err.message : String(err),
       durationMs: Date.now() - start,
       exitCode: 1,
@@ -232,7 +234,7 @@ function runInWorker(
   taskId: string,
   code: string,
   input: unknown,
-  timeoutMs: number,
+  timeoutMs: number
 ): Promise<WorkerResult> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -253,8 +255,8 @@ function runInWorker(
 
     const messageHandler = (msg: WorkerResult) => {
       clearTimeout(timer);
-      worker.removeListener("message", messageHandler);
-      worker.removeListener("error", errorHandler);
+      worker.removeListener('message', messageHandler);
+      worker.removeListener('error', errorHandler);
       if (msg.id === taskId) {
         resolve(msg);
       }
@@ -262,13 +264,13 @@ function runInWorker(
 
     const errorHandler = (err: Error) => {
       clearTimeout(timer);
-      worker.removeListener("message", messageHandler);
-      worker.removeListener("error", errorHandler);
+      worker.removeListener('message', messageHandler);
+      worker.removeListener('error', errorHandler);
       reject(err);
     };
 
-    worker.on("message", messageHandler);
-    worker.on("error", errorHandler);
+    worker.on('message', messageHandler);
+    worker.on('error', errorHandler);
 
     worker.postMessage({ id: taskId, code, input });
   });

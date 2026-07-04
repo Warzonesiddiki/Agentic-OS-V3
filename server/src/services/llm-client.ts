@@ -1,11 +1,11 @@
-import { db } from "../db/client.js";
-import { trajectoryLogs } from "../db/client.js";
-import { callLLM, callLLMStructured } from "./llm.js";
-import { withCircuitBreaker, validateWithRetry } from "./operations-ext.js";
-import { log } from "../lib/logging.js";
-import { randomUUID } from "node:crypto";
-import type { z } from "zod";
-import type { LLMRequest, LLMResponse } from "./llm.js";
+import { db } from '../db/client.js';
+import { trajectoryLogs } from '../db/client.js';
+import { callLLM, callLLMStructured } from './llm.js';
+import { withCircuitBreaker, validateWithRetry } from './operations-ext.js';
+import { log } from '../lib/logging.js';
+import { randomUUID } from 'node:crypto';
+import type { z } from 'zod';
+import type { LLMRequest, LLMResponse } from './llm.js';
 
 export interface TrajectoryEntry {
   id: string;
@@ -24,7 +24,7 @@ export interface ClientOptions {
   traceId?: string;
 }
 
-async function logTrajectory(entry: Omit<TrajectoryEntry, "id">): Promise<void> {
+async function logTrajectory(entry: Omit<TrajectoryEntry, 'id'>): Promise<void> {
   try {
     await db.insert(trajectoryLogs).values({
       id: `traj_${randomUUID()}`,
@@ -37,19 +37,21 @@ async function logTrajectory(entry: Omit<TrajectoryEntry, "id">): Promise<void> 
       latencyMs: entry.latencyMs,
     });
   } catch (e) {
-    log.warn("trajectory_log_failed", { error: e instanceof Error ? e.message : String(e) });
+    log.warn('trajectory_log_failed', { error: e instanceof Error ? e.message : String(e) });
   }
 }
 
 export async function callLLMWithTrajectory(
   req: LLMRequest,
-  opts: ClientOptions,
+  opts: ClientOptions
 ): Promise<LLMResponse> {
   const key = opts.circuitBreakerKey ?? `llm:${opts.agentId}`;
 
   return withCircuitBreaker(key, async () => {
     const start = Date.now();
-    const promptForLog = req.messages.map((m) => `[${m.role}]\n${m.content.slice(0, 2000)}`).join("\n\n");
+    const promptForLog = req.messages
+      .map((m) => `[${m.role}]\n${m.content.slice(0, 2000)}`)
+      .join('\n\n');
 
     try {
       const result = await callLLM(req);
@@ -69,7 +71,7 @@ export async function callLLMWithTrajectory(
       const latencyMs = Date.now() - start;
       await logTrajectory({
         agentId: opts.agentId,
-        model: "unknown",
+        model: 'unknown',
         promptSent: promptForLog,
         responseReceived: `ERROR: ${e instanceof Error ? e.message : String(e)}`,
         tokenUsage: { prompt: 0, completion: 0, total: 0 },
@@ -84,45 +86,52 @@ export async function callLLMStructuredWithTrajectory<T>(
   systemPrompt: string,
   userMessage: string,
   schema: z.ZodType<T>,
-  opts: ClientOptions,
+  opts: ClientOptions
 ): Promise<T> {
   const key = opts.circuitBreakerKey ?? `llm-structured:${opts.agentId}`;
 
   return withCircuitBreaker(key, async () => {
-    const result = await validateWithRetry(schema, null, opts.maxRetries ?? 3, async (error, attempt) => {
-      const start = Date.now();
-      const promptForLog = `[system]\n${systemPrompt.slice(0, 2000)}\n\n[user]\n${userMessage.slice(0, 2000)}\n\n[correction][${attempt}]\n${error}`;
+    const result = await validateWithRetry(
+      schema,
+      null,
+      opts.maxRetries ?? 3,
+      async (error, attempt) => {
+        const start = Date.now();
+        const promptForLog = `[system]\n${systemPrompt.slice(0, 2000)}\n\n[user]\n${userMessage.slice(0, 2000)}\n\n[correction][${attempt}]\n${error}`;
 
-      try {
-        const raw = await callLLMStructured<unknown>(systemPrompt, userMessage);
-        const latencyMs = Date.now() - start;
+        try {
+          const raw = await callLLMStructured<unknown>(systemPrompt, userMessage);
+          const latencyMs = Date.now() - start;
 
-        await logTrajectory({
-          agentId: opts.agentId,
-          model: "unknown",
-          promptSent: promptForLog,
-          responseReceived: JSON.stringify(raw).slice(0, 10000),
-          tokenUsage: { prompt: 0, completion: 0, total: 0 },
-          latencyMs,
-        });
+          await logTrajectory({
+            agentId: opts.agentId,
+            model: 'unknown',
+            promptSent: promptForLog,
+            responseReceived: JSON.stringify(raw).slice(0, 10000),
+            tokenUsage: { prompt: 0, completion: 0, total: 0 },
+            latencyMs,
+          });
 
-        return raw;
-      } catch (e) {
-        const latencyMs = Date.now() - start;
-        await logTrajectory({
-          agentId: opts.agentId,
-          model: "unknown",
-          promptSent: promptForLog,
-          responseReceived: `ERROR: ${e instanceof Error ? e.message : String(e)}`,
-          tokenUsage: { prompt: 0, completion: 0, total: 0 },
-          latencyMs,
-        });
-        throw e;
+          return raw;
+        } catch (e) {
+          const latencyMs = Date.now() - start;
+          await logTrajectory({
+            agentId: opts.agentId,
+            model: 'unknown',
+            promptSent: promptForLog,
+            responseReceived: `ERROR: ${e instanceof Error ? e.message : String(e)}`,
+            tokenUsage: { prompt: 0, completion: 0, total: 0 },
+            latencyMs,
+          });
+          throw e;
+        }
       }
-    });
+    );
 
     if (!result.success || !result.data) {
-      throw new Error(`Structured LLM call failed after ${result.attempts} attempts: ${result.error}`);
+      throw new Error(
+        `Structured LLM call failed after ${result.attempts} attempts: ${result.error}`
+      );
     }
 
     return result.data;

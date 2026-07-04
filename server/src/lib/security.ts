@@ -3,18 +3,18 @@
  * Keys are hashed with scrypt (Node's audited KDF) and never stored raw.
  * Comparison uses crypto.timingSafeEqual (constant-time).
  */
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
-import { eq, sql, desc } from "drizzle-orm";
-import { apiKeys, isSqlite } from "../db/client.js";
-import { getEnv } from "../lib/env.js";
-import { log } from "../lib/logging.js";
+import { randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
+import { eq, sql, desc } from 'drizzle-orm';
+import { apiKeys, isSqlite } from '../db/client.js';
+import { getEnv } from '../lib/env.js';
+import { log } from '../lib/logging.js';
 
 const SCRYPT_KEYLEN = 32;
 
 /** Hash a raw key into a self-contained "<saltHex>:<hashHex>" record. */
 export function hashApiKey(raw: string): string {
-  const salt = randomBytes(16).toString("hex");
-  const hash = scryptSync(raw, salt, SCRYPT_KEYLEN).toString("hex");
+  const salt = randomBytes(16).toString('hex');
+  const hash = scryptSync(raw, salt, SCRYPT_KEYLEN).toString('hex');
   return `${salt}:${hash}`;
 }
 
@@ -23,67 +23,67 @@ export function hashApiKey(raw: string): string {
  * Comparison is constant-time (scrypt-derived output), not the hex strings.
  */
 export function verifyApiKey(raw: string, record: string): boolean {
-  const colon = record.indexOf(":");
+  const colon = record.indexOf(':');
   if (colon === -1) return false;
   const salt = record.slice(0, colon);
   const expectedHash = record.slice(colon + 1);
   const actualHash = scryptSync(raw, salt, SCRYPT_KEYLEN);
-  return timingSafeEqual(Buffer.from(expectedHash, "hex"), actualHash);
+  return timingSafeEqual(Buffer.from(expectedHash, 'hex'), actualHash);
 }
 
 /** Generate a human-usable key (not a hash — this is the one we show once). */
 export function generateApiKey(): string {
-  return `nk_nexus_${randomBytes(24).toString("hex")}`;
+  return `nk_nexus_${randomBytes(24).toString('hex')}`;
 }
 
 export type Scope =
-  | "chat.*"
-  | "chat.read"
-  | "chat.write"
-  | "admin.*"
-  | "admin.read"
-  | "admin.write"
-  | "admin.key.*"
-  | "admin.key.read"
-  | "admin.key.write"
-  | "dashboard.*"
-  | "dashboard.read"
-  | "memory:read"
-  | "memory:write"
-  | "skill:read"
-  | "skill:write"
-  | "audit:read"
-  | "brain:admin"
-  | "vault:read"
-  | "vault:write"
-  | "safety:write"
-  | "llm:chat"
-  | "llm:admin"
-  | "plugin:admin"
-  | "plugin:invoke"
-  | "federated:write"
-  | "federated:read"
-  | "pipeline:admin"
-  | "pipeline:execute";
+  | 'chat.*'
+  | 'chat.read'
+  | 'chat.write'
+  | 'admin.*'
+  | 'admin.read'
+  | 'admin.write'
+  | 'admin.key.*'
+  | 'admin.key.read'
+  | 'admin.key.write'
+  | 'dashboard.*'
+  | 'dashboard.read'
+  | 'memory:read'
+  | 'memory:write'
+  | 'skill:read'
+  | 'skill:write'
+  | 'audit:read'
+  | 'brain:admin'
+  | 'vault:read'
+  | 'vault:write'
+  | 'safety:write'
+  | 'llm:chat'
+  | 'llm:admin'
+  | 'plugin:admin'
+  | 'plugin:invoke'
+  | 'federated:write'
+  | 'federated:read'
+  | 'pipeline:admin'
+  | 'pipeline:execute';
 
 /** Scopes defined in this application — ideally this would live in a config table. */
 const ALL_SCOPES: Scope[] = [
-  "chat.*",
-  "chat.read",
-  "chat.write",
-  "admin.*",
-  "admin.read",
-  "admin.write",
-  "admin.key.*",
-  "admin.key.read",
-  "admin.key.write",
-  "dashboard.*",
-  "dashboard.read",
-  "memory:read",
-  "memory:write",
-  "skill:read",
-  "skill:write",
-  "audit:read",
+  'chat.*',
+  'chat.read',
+  'chat.write',
+  'admin.*',
+  'admin.read',
+  'admin.write',
+  'admin.key.*',
+  'admin.key.read',
+  'admin.key.write',
+  'dashboard.*',
+  'dashboard.read',
+  'memory:read',
+  'memory:write',
+  'skill:read',
+  'skill:write',
+  'audit:read',
 ];
 
 export function isValidScope(s: string): s is Scope {
@@ -95,7 +95,7 @@ export interface Principal {
   name: string;
   keyHash: string;
   scopes: Scope[];
-  status: "active" | "disabled";
+  status: 'active' | 'disabled';
 }
 
 /**
@@ -127,16 +127,16 @@ interface PrincipalRow {
 async function loadPrincipals(db: any): Promise<PrincipalRow[]> {
   const now = Date.now();
   if (principalCache && now - principalCache.at < PRINCIPAL_TTL_MS) return principalCache.rows;
-  const rows = await db.query.apiKeys.findMany({ where: eq(apiKeys.status, "active") });
+  const rows = await db.query.apiKeys.findMany({ where: eq(apiKeys.status, 'active') });
   // Map the Drizzle row to our internal PrincipalRow shape (validates the columns exist).
-  const mapped: PrincipalRow[] = rows.map((r: typeof rows[number]) => ({
+  const mapped: PrincipalRow[] = rows.map((r: (typeof rows)[number]) => ({
     id: r.id,
     name: r.name,
     keyHash: r.keyHash,
     scopes: r.scopes as Scope[],
     status: r.status,
   }));
-  activePrincipalIds = new Set(mapped.filter((r) => r.status === "active").map((r) => r.id));
+  activePrincipalIds = new Set(mapped.filter((r) => r.status === 'active').map((r) => r.id));
   principalCache = { rows: mapped, at: now };
   return principalCache.rows;
 }
@@ -159,10 +159,7 @@ export function invalidateAuthCache(): void {
 }
 
 /** Resolve a principal by raw key, with bounded caching of POSITIVE results only. */
-export async function authenticate(
-  db: any,
-  key: string | null
-): Promise<Principal | null> {
+export async function authenticate(db: any, key: string | null): Promise<Principal | null> {
   if (!key) return null;
   const now = Date.now();
   const cached = resultCache.get(key);
@@ -184,9 +181,9 @@ export async function authenticate(
   // because we only verify against principals whose status is 'active'.
   const rows = await loadPrincipals(db);
   for (const row of rows) {
-    if (row.status !== "active") continue;
+    if (row.status !== 'active') continue;
     if (verifyApiKey(key, row.keyHash)) {
-      const status: "active" | "disabled" = "active";
+      const status: 'active' | 'disabled' = 'active';
       principal = { id: row.id, name: row.name, keyHash: row.keyHash, scopes: row.scopes, status };
       matchedId = row.id;
       break;
@@ -198,10 +195,13 @@ export async function authenticate(
     // Errors are logged (never silently swallowed), but do not propagate.
     if (matchedId) {
       const nowFn = isSqlite ? sql`CURRENT_TIMESTAMP` : sql`now()`;
-      db.update(apiKeys).set({ lastUsedAt: nowFn }).where(eq(apiKeys.id, matchedId)).catch((e: unknown) => {
-        // Non-critical: metadata write failure should not block auth.
-        log.warn("auth.lastUsedAt_failed", { error: e instanceof Error ? e.message : String(e) });
-      });
+      db.update(apiKeys)
+        .set({ lastUsedAt: nowFn })
+        .where(eq(apiKeys.id, matchedId))
+        .catch((e: unknown) => {
+          // Non-critical: metadata write failure should not block auth.
+          log.warn('auth.lastUsedAt_failed', { error: e instanceof Error ? e.message : String(e) });
+        });
     }
   }
   return principal;
@@ -240,8 +240,10 @@ export async function createPrincipal(
   scopes: Scope[]
 ): Promise<{ id: string; rawKey: string }> {
   const rawKey = generateApiKey();
-  const id = `prn_${randomBytes(8).toString("hex")}`;
-  await db.insert(apiKeys).values({ id, name, keyHash: hashApiKey(rawKey), scopes, status: "active" });
+  const id = `prn_${randomBytes(8).toString('hex')}`;
+  await db
+    .insert(apiKeys)
+    .values({ id, name, keyHash: hashApiKey(rawKey), scopes, status: 'active' });
   invalidateAuthCache();
   return { id, rawKey };
 }
@@ -270,7 +272,11 @@ export async function listPrincipals(
 }
 
 export async function revokePrincipal(db: any, id: string): Promise<boolean> {
-  const [updated] = await db.update(apiKeys).set({ status: "disabled" }).where(eq(apiKeys.id, id)).returning({ id: apiKeys.id });
+  const [updated] = await db
+    .update(apiKeys)
+    .set({ status: 'disabled' })
+    .where(eq(apiKeys.id, id))
+    .returning({ id: apiKeys.id });
   if (updated) invalidateAuthCache();
   return Boolean(updated);
 }

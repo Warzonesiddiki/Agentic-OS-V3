@@ -8,16 +8,16 @@
  * All provider calls go through safeFetch (SSRF + timeout guarded).
  * Batched to respect API rate limits (batches of 64).
  */
-import { getEnv, env, llmConfigured } from "../lib/env.js";
-import { safeFetch } from "../lib/http.js";
-import { db } from "../db/client.js";
-import { memories, skills, notes } from "../db/client.js";
-import { sql, isNull } from "drizzle-orm";
+import { getEnv, env, llmConfigured } from '../lib/env.js';
+import { safeFetch } from '../lib/http.js';
+import { db } from '../db/client.js';
+import { memories, skills, notes } from '../db/client.js';
+import { sql, isNull } from 'drizzle-orm';
 
 const BATCH_SIZE = env.NEXUS_EMBEDDING_BATCH_SIZE;
 
 export interface EmbeddingsReport {
-  mode: "semantic" | "lexical";
+  mode: 'semantic' | 'lexical';
   reason: string;
   documents: number;
   embedded: number;
@@ -37,10 +37,10 @@ interface EmbedResponse {
 async function embedBatch(texts: string[]): Promise<number[][]> {
   const e = getEnv();
   const result = await safeFetch(`${e.NEXUS_LLM_BASE_URL}/embeddings`, {
-    method: "POST",
+    method: 'POST',
     timeoutMs: 30_000,
     headers: {
-      "content-type": "application/json",
+      'content-type': 'application/json',
       authorization: `Bearer ${e.NEXUS_LLM_API_KEY}`,
     },
     body: JSON.stringify({
@@ -51,22 +51,20 @@ async function embedBatch(texts: string[]): Promise<number[][]> {
 
   if (!result.ok) {
     const errBody = result.body as EmbedResponse | string | null;
-    const msg =
-      (typeof errBody === "object" && errBody?.error?.message) ||
-      `HTTP ${result.status}`;
+    const msg = (typeof errBody === 'object' && errBody?.error?.message) || `HTTP ${result.status}`;
     throw new Error(`Embedding API error: ${msg}`);
   }
 
   const body = result.body as EmbedResponse;
   if (!body.data || !Array.isArray(body.data)) {
-    throw new Error("Embedding API returned no data array");
+    throw new Error('Embedding API returned no data array');
   }
 
   return body.data.map((d) => {
     const emb = d.embedding ?? [];
-      const dim = env.NEXUS_EMBEDDING_DIM;
-      if (emb.length !== dim) {
-        throw new Error(`Embedding dimension mismatch: expected ${dim}, got ${emb.length}`);
+    const dim = env.NEXUS_EMBEDDING_DIM;
+    if (emb.length !== dim) {
+      throw new Error(`Embedding dimension mismatch: expected ${dim}, got ${emb.length}`);
     }
     return emb;
   });
@@ -114,8 +112,9 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
   const e = getEnv();
   if (!llmConfigured() || !e.NEXUS_EMBEDDING_MODEL) {
     return {
-      mode: "lexical",
-      reason: "No embedding provider configured (NEXUS_LLM_BASE_URL + API_KEY + EMBEDDING_MODEL). Recall uses BM25 lexical ranking.",
+      mode: 'lexical',
+      reason:
+        'No embedding provider configured (NEXUS_LLM_BASE_URL + API_KEY + EMBEDDING_MODEL). Recall uses BM25 lexical ranking.',
       documents: totalDocs,
       embedded: 0,
       skipped: 0,
@@ -128,7 +127,10 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
   try {
     // Process memories missing embeddings
     const memsToEmbed = await db
-      .select({ id: memories.id, text: sql<string>`${memories.title} || ' ' || ${memories.content}`.as("text") })
+      .select({
+        id: memories.id,
+        text: sql<string>`${memories.title} || ' ' || ${memories.content}`.as('text'),
+      })
       .from(memories)
       .where(isNull(memories.embedding));
 
@@ -144,7 +146,12 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
 
     // Process skills missing embeddings
     const skillsToEmbed = await db
-      .select({ id: skills.id, text: sql<string>`${skills.title} || ' ' || ${skills.description} || ' ' || ${skills.content}`.as("text") })
+      .select({
+        id: skills.id,
+        text: sql<string>`${skills.title} || ' ' || ${skills.description} || ' ' || ${skills.content}`.as(
+          'text'
+        ),
+      })
       .from(skills)
       .where(isNull(skills.embedding));
 
@@ -160,7 +167,12 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
 
     // Process notes missing embeddings
     const notesToEmbed = await db
-      .select({ id: notes.id, text: sql<string>`${notes.title} || ' ' || ${notes.content} || ' ' || COALESCE(array_to_string(${notes.tags}, ' '), '')`.as("text") })
+      .select({
+        id: notes.id,
+        text: sql<string>`${notes.title} || ' ' || ${notes.content} || ' ' || COALESCE(array_to_string(${notes.tags}, ' '), '')`.as(
+          'text'
+        ),
+      })
       .from(notes)
       .where(isNull(notes.embedding));
 
@@ -177,7 +189,7 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
     skipped = totalDocs - embedded;
 
     return {
-      mode: "semantic",
+      mode: 'semantic',
       reason: `Embeddings generated for ${embedded} documents via ${e.NEXUS_EMBEDDING_MODEL}. Recall now uses RRF (Reciprocal Rank Fusion) blending BM25 + cosine similarity.`,
       documents: totalDocs,
       embedded,
@@ -185,7 +197,7 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
     };
   } catch (err) {
     return {
-      mode: "lexical",
+      mode: 'lexical',
       reason: `Embedding rebuild failed — falling back to BM25 lexical only. Error: ${err instanceof Error ? err.message : String(err)}`,
       documents: totalDocs,
       embedded,
@@ -208,8 +220,8 @@ export async function embedQuery(query: string): Promise<number[] | null> {
     return embeddings[0] ?? null;
   } catch (e) {
     // Log the failure so it's visible — embedding provider issues shouldn't be silent.
-    const { log } = await import("../lib/logging.js");
-    log.warn("embed_query_failed", { error: e instanceof Error ? e.message : String(e) });
+    const { log } = await import('../lib/logging.js');
+    log.warn('embed_query_failed', { error: e instanceof Error ? e.message : String(e) });
     return null;
   }
 }

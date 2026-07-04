@@ -32,23 +32,23 @@
  *   - `src/lib/os/store.ts`     → OS state persistence
  *   - `src/lib/os/kernel.ts`    → doGraphRecall, compactContext
  */
-import { createHash, verify, randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
-import { federatedMemoryProofs } from "../db/client.js";
-import { memories, skills, notes } from "../db/client.js";
-import { desc, eq, and, sql, isNotNull } from "drizzle-orm";
-import { appendAudit } from "../lib/audit.js";
-import { log } from "../lib/logging.js";
-import { embedQuery, embeddingsAvailable } from "./embeddings.js";
-import { estimateTokens, packByBudget, bm25 as bm25Score } from "../lib/tokens.js";
-import { truncate } from "../lib/strings.js";
-import { env } from "../lib/env.js";
+import { createHash, verify, randomUUID } from 'node:crypto';
+import { db } from '../db/client.js';
+import { federatedMemoryProofs } from '../db/client.js';
+import { memories, skills, notes } from '../db/client.js';
+import { desc, eq, and, sql, isNotNull } from 'drizzle-orm';
+import { appendAudit } from '../lib/audit.js';
+import { log } from '../lib/logging.js';
+import { embedQuery, embeddingsAvailable } from './embeddings.js';
+import { estimateTokens, packByBudget, bm25 as bm25Score } from '../lib/tokens.js';
+import { truncate } from '../lib/strings.js';
+import { env } from '../lib/env.js';
 
 /* ════════════════════════════════════════════════════════════════════════════
  * LAYER 1 — Federated Memory Protocol (original)
  * ════════════════════════════════════════════════════════════════════════════ */
 
-export type PrivacyClass = "public" | "team" | "private";
+export type PrivacyClass = 'public' | 'team' | 'private';
 
 export interface MemoryProof {
   origin_peer_id: string;
@@ -68,11 +68,16 @@ export interface MaterializationDecision {
 }
 
 const CANONICAL_KEY_ORDER = [
-  "origin_peer_id", "origin_pubkey", "content_sha256",
-  "embedding", "topic_tags", "importance", "privacy_class",
+  'origin_peer_id',
+  'origin_pubkey',
+  'content_sha256',
+  'embedding',
+  'topic_tags',
+  'importance',
+  'privacy_class',
 ] as const;
 
-export function canonicalizeProof(proof: Omit<MemoryProof, "signature">): string {
+export function canonicalizeProof(proof: Omit<MemoryProof, 'signature'>): string {
   const ordered: Record<string, unknown> = {};
   for (const k of CANONICAL_KEY_ORDER) ordered[k] = (proof as Record<string, unknown>)[k];
   return JSON.stringify(ordered);
@@ -88,7 +93,7 @@ export async function publishMemoryProof(input: {
   privacyClass: PrivacyClass;
   ttlSeconds?: number;
 }): Promise<MemoryProof> {
-  const envelope: Omit<MemoryProof, "signature"> = {
+  const envelope: Omit<MemoryProof, 'signature'> = {
     origin_peer_id: input.peerId,
     origin_pubkey: await derivePubkey(input.publisherPrivKeyB64),
     content_sha256: input.contentSha256,
@@ -99,17 +104,25 @@ export async function publishMemoryProof(input: {
     ttl_seconds: input.ttlSeconds,
   };
   const canonical = canonicalizeProof(envelope);
-  const { sign, createPrivateKey } = await import("node:crypto");
-  const privKeyObj = createPrivateKey({ key: Buffer.from(input.publisherPrivKeyB64, "base64"), format: "der", type: "pkcs8" });
-  const signature = sign(null, Buffer.from(canonical, "utf-8"), privKeyObj).toString("base64");
+  const { sign, createPrivateKey } = await import('node:crypto');
+  const privKeyObj = createPrivateKey({
+    key: Buffer.from(input.publisherPrivKeyB64, 'base64'),
+    format: 'der',
+    type: 'pkcs8',
+  });
+  const signature = sign(null, Buffer.from(canonical, 'utf-8'), privKeyObj).toString('base64');
   return { ...envelope, signature };
 }
 
 async function derivePubkey(privKeyB64: string): Promise<string> {
-  const { createPrivateKey, createPublicKey } = await import("node:crypto");
-  const privKeyObj = createPrivateKey({ key: Buffer.from(privKeyB64, "base64"), format: "der", type: "pkcs8" });
+  const { createPrivateKey, createPublicKey } = await import('node:crypto');
+  const privKeyObj = createPrivateKey({
+    key: Buffer.from(privKeyB64, 'base64'),
+    format: 'der',
+    type: 'pkcs8',
+  });
   const pubKeyObj = createPublicKey(privKeyObj);
-  return pubKeyObj.export({ format: "der", type: "spki" }).toString("base64");
+  return pubKeyObj.export({ format: 'der', type: 'spki' }).toString('base64');
 }
 
 export function verifyMemoryProofSignature(proof: MemoryProof): boolean {
@@ -126,13 +139,15 @@ export function verifyMemoryProofSignature(proof: MemoryProof): boolean {
     });
     const ok = verify(
       null,
-      Buffer.from(canonical, "utf8"),
-      { key: Buffer.from(proof.origin_pubkey, "base64"), format: "der", type: "spki" },
-      Buffer.from(proof.signature, "base64"),
+      Buffer.from(canonical, 'utf8'),
+      { key: Buffer.from(proof.origin_pubkey, 'base64'), format: 'der', type: 'spki' },
+      Buffer.from(proof.signature, 'base64')
     );
     return ok;
   } catch (e) {
-    log.warn("federated.signature_verify_failed", { error: e instanceof Error ? e.message : String(e) });
+    log.warn('federated.signature_verify_failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
     return false;
   }
 }
@@ -146,7 +161,7 @@ function budgetKey(topic: string): string {
 }
 
 export function privacyBudgetForTopic(topic: string): number {
-  const envVal = process.env[`NEXUS_FED_BUDGET_${topic.toUpperCase().replace(/\W+/g, "_")}`];
+  const envVal = process.env[`NEXUS_FED_BUDGET_${topic.toUpperCase().replace(/\W+/g, '_')}`];
   const parsed = envVal ? Number(envVal) : NaN;
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_BUDGET_PER_TOPIC_PER_DAY;
 }
@@ -172,47 +187,55 @@ export function refundBudget(topic: string): void {
 }
 
 export async function decideMaterialization(proof: MemoryProof): Promise<MaterializationDecision> {
-  if (proof.privacy_class === "private") {
-    return { materialize: false, reason: "private_class_default_deny" };
+  if (proof.privacy_class === 'private') {
+    return { materialize: false, reason: 'private_class_default_deny' };
   }
   if (proof.importance < 0.1) {
-    return { materialize: false, reason: "below_importance_threshold" };
+    return { materialize: false, reason: 'below_importance_threshold' };
   }
   if (proof.topic_tags.length === 0) {
-    return { materialize: false, reason: "no_topic_tags" };
+    return { materialize: false, reason: 'no_topic_tags' };
   }
   for (const tag of proof.topic_tags) {
     if (!consumeBudget(tag)) {
       return { materialize: false, reason: `budget_exhausted:${tag}` };
     }
   }
-  return { materialize: true, reason: "ok" };
+  return { materialize: true, reason: 'ok' };
 }
 
-export async function ingestMemoryProof(proof: MemoryProof): Promise<{ id: string; materialized: boolean; reason: string }> {
+export async function ingestMemoryProof(
+  proof: MemoryProof
+): Promise<{ id: string; materialized: boolean; reason: string }> {
   if (!verifyMemoryProofSignature(proof)) {
-    await appendAudit("federated.signature_invalid", {
-      originPeerId: proof.origin_peer_id,
-      contentSha256: proof.content_sha256,
-    }, "federated-recall");
-    throw new Error("federated_signature_invalid");
+    await appendAudit(
+      'federated.signature_invalid',
+      {
+        originPeerId: proof.origin_peer_id,
+        contentSha256: proof.content_sha256,
+      },
+      'federated-recall'
+    );
+    throw new Error('federated_signature_invalid');
   }
 
   const existing = await db.query.federatedMemoryProofs.findFirst({
     where: and(
       eq(federatedMemoryProofs.originPeerId, proof.origin_peer_id),
-      eq(federatedMemoryProofs.contentSha256, proof.content_sha256),
+      eq(federatedMemoryProofs.contentSha256, proof.content_sha256)
     ),
   });
   if (existing) {
-    return { id: existing.id, materialized: existing.materialized, reason: existing.rejectReason ?? "duplicate" };
+    return {
+      id: existing.id,
+      materialized: existing.materialized,
+      reason: existing.rejectReason ?? 'duplicate',
+    };
   }
 
   const decision = await decideMaterialization(proof);
   const id = `fmp_${randomUUID()}`;
-  const expiresAt = proof.ttl_seconds
-    ? new Date(Date.now() + proof.ttl_seconds * 1000)
-    : null;
+  const expiresAt = proof.ttl_seconds ? new Date(Date.now() + proof.ttl_seconds * 1000) : null;
 
   await db.insert(federatedMemoryProofs).values({
     id,
@@ -230,21 +253,25 @@ export async function ingestMemoryProof(proof: MemoryProof): Promise<{ id: strin
     expiresAt,
   });
 
-  await appendAudit("federated.proof_ingested", {
-    proofId: id,
-    originPeerId: proof.origin_peer_id,
-    contentSha256: proof.content_sha256,
-    materialized: decision.materialize,
-    reason: decision.reason,
-    topicTags: proof.topic_tags,
-    privacyClass: proof.privacy_class,
-  }, "federated-recall");
+  await appendAudit(
+    'federated.proof_ingested',
+    {
+      proofId: id,
+      originPeerId: proof.origin_peer_id,
+      contentSha256: proof.content_sha256,
+      materialized: decision.materialize,
+      reason: decision.reason,
+      topicTags: proof.topic_tags,
+      privacyClass: proof.privacy_class,
+    },
+    'federated-recall'
+  );
 
   if (!decision.materialize) {
     for (const tag of proof.topic_tags) refundBudget(tag);
   }
 
-  log.info("federated.proof_ingested", {
+  log.info('federated.proof_ingested', {
     id,
     origin: proof.origin_peer_id,
     materialized: decision.materialize,
@@ -253,9 +280,15 @@ export async function ingestMemoryProof(proof: MemoryProof): Promise<{ id: strin
   return { id, materialized: decision.materialize, reason: decision.reason };
 }
 
-export async function listRecentProofs(opts?: { materialized?: boolean; topic?: string; limit?: number }) {
+export async function listRecentProofs(opts?: {
+  materialized?: boolean;
+  topic?: string;
+  limit?: number;
+}) {
   const where = and(
-    opts?.materialized !== undefined ? eq(federatedMemoryProofs.materialized, opts.materialized) : undefined,
+    opts?.materialized !== undefined
+      ? eq(federatedMemoryProofs.materialized, opts.materialized)
+      : undefined
   );
   const rows = await db.query.federatedMemoryProofs.findMany({
     where,
@@ -284,7 +317,13 @@ export async function federatedStats(): Promise<{
     else if (r.rejectReason) byReason[r.rejectReason] = (byReason[r.rejectReason] ?? 0) + 1;
     for (const t of r.topicTags ?? []) byTopic[t] = (byTopic[t] ?? 0) + 1;
   }
-  return { total: rows.length, materialized, rejected: rows.length - materialized, byReason, byTopic };
+  return {
+    total: rows.length,
+    materialized,
+    rejected: rows.length - materialized,
+    byReason,
+    byTopic,
+  };
 }
 
 /* ════════════════════════════════════════════════════════════════════════════
@@ -306,7 +345,7 @@ const SEMANTIC_THRESHOLD = env.NEXUS_SEMANTIC_THRESHOLD;
 
 export interface RecallItem {
   id: string;
-  type: "memory" | "skill" | "note" | "federated";
+  type: 'memory' | 'skill' | 'note' | 'federated';
   title: string;
   content: string;
   score: number;
@@ -314,7 +353,7 @@ export interface RecallItem {
   source: string;
   importance: number;
   recency: number;
-  matchedBy: ("bm25" | "semantic")[];
+  matchedBy: ('bm25' | 'semantic')[];
 }
 
 export interface RecallResult {
@@ -323,13 +362,13 @@ export interface RecallResult {
   tokensUsed: number;
   tokenBudget: number;
   truncated: number;
-  mode: "lexical" | "semantic";
+  mode: 'lexical' | 'semantic';
   federatedContribution: number;
   nextCursor?: number;
 }
 
 export interface RecallFilters {
-  types?: ("memory" | "skill" | "note" | "federated")[];
+  types?: ('memory' | 'skill' | 'note' | 'federated')[];
   importanceMin?: number;
   importanceMax?: number;
   topicTags?: string[];
@@ -366,7 +405,7 @@ export interface LRUStats {
 
 interface RawItem {
   id: string;
-  type: "memory" | "skill" | "note" | "federated";
+  type: 'memory' | 'skill' | 'note' | 'federated';
   title: string;
   content: string;
   importance: number;
@@ -460,7 +499,10 @@ export class LRUCache<K, V> {
 
 /* ─── Phase 4b: Scoring Functions ─────────────────────────────────────── */
 
-export function computeRecency(updatedAt: Date | number, halfLifeDays = RECENCY_HALFLIFE_DAYS): number {
+export function computeRecency(
+  updatedAt: Date | number,
+  halfLifeDays = RECENCY_HALFLIFE_DAYS
+): number {
   const age = Date.now() - (updatedAt instanceof Date ? updatedAt.getTime() : updatedAt);
   return Math.exp(-(age / (halfLifeDays * DAY_MS)));
 }
@@ -471,7 +513,9 @@ export function computeImportance(raw: number): number {
 
 export function cosineSimilarity(a: number[], b: number[]): number {
   const dim = Math.min(a.length, b.length);
-  let dot = 0, na = 0, nb = 0;
+  let dot = 0,
+    na = 0,
+    nb = 0;
   for (let i = 0; i < dim; i++) {
     dot += (a[i] ?? 0) * (b[i] ?? 0);
     na += (a[i] ?? 0) * (a[i] ?? 0);
@@ -481,10 +525,7 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   return mag === 0 ? 0 : dot / mag;
 }
 
-export function reciprocalRankFusion(
-  ranks: Map<string, number>[],
-  k = RRF_K,
-): Map<string, number> {
+export function reciprocalRankFusion(ranks: Map<string, number>[], k = RRF_K): Map<string, number> {
   const fused = new Map<string, number>();
   for (const rankMap of ranks) {
     for (const [id, rank] of rankMap) {
@@ -492,7 +533,7 @@ export function reciprocalRankFusion(
     }
   }
   if (fused.size === 0) return fused;
-  const maxPossible = 1 / (k + 1) * ranks.length;
+  const maxPossible = (1 / (k + 1)) * ranks.length;
   for (const [id, score] of fused) {
     fused.set(id, score / maxPossible);
   }
@@ -587,8 +628,12 @@ export class FederatedRecall {
         : Promise.resolve([] as RecallItem[]),
     ]);
 
-    const all = this.mergeResults(localResults, federatedResults, query.options?.dedupeContent ?? true);
-    const mode: "lexical" | "semantic" = useSemantic ? "semantic" : "lexical";
+    const all = this.mergeResults(
+      localResults,
+      federatedResults,
+      query.options?.dedupeContent ?? true
+    );
+    const mode: 'lexical' | 'semantic' = useSemantic ? 'semantic' : 'lexical';
 
     let page = all;
     if (query.options?.cursor !== undefined) {
@@ -600,13 +645,17 @@ export class FederatedRecall {
     }
     const { packed, tokensUsed, truncated } = packByBudget(page, budget);
 
-    await appendAudit("fed_recall.search", {
-      query: truncate(query.text, 80),
-      items: packed.length,
-      tokensUsed,
-      mode,
-      federatedItems: federatedResults.length,
-    }, actor);
+    await appendAudit(
+      'fed_recall.search',
+      {
+        query: truncate(query.text, 80),
+        items: packed.length,
+        tokensUsed,
+        mode,
+        federatedItems: federatedResults.length,
+      },
+      actor
+    );
 
     return {
       query: query.text,
@@ -624,7 +673,12 @@ export class FederatedRecall {
    * Convenience recall: like search but returns flattened items + expanded tokens.
    * Compatible with server/src/services/recall.ts recall() signature.
    */
-  async recall(text: string, budget: number, actor: string, opts?: RecallOptions): Promise<RecallResult> {
+  async recall(
+    text: string,
+    budget: number,
+    actor: string,
+    opts?: RecallOptions
+  ): Promise<RecallResult> {
     return this.search({ text, budget, actor, options: opts });
   }
 
@@ -659,17 +713,21 @@ export class FederatedRecall {
       embedding: embedding ?? [],
     });
 
-    await appendAudit("fed_recall.store", {
-      memoryId: memId,
-      kind: input.kind,
-      importance: input.importance,
-      tags: input.tags,
-    }, input.actor);
+    await appendAudit(
+      'fed_recall.store',
+      {
+        memoryId: memId,
+        kind: input.kind,
+        importance: input.importance,
+        tags: input.tags,
+      },
+      input.actor
+    );
 
     let proofId: string | undefined;
 
     if (input.publish && input.peerId && input.privKeyB64) {
-      const contentSha256 = createHash("sha256").update(input.content).digest("hex");
+      const contentSha256 = createHash('sha256').update(input.content).digest('hex');
       const proof = await publishMemoryProof({
         peerId: input.peerId,
         publisherPrivKeyB64: input.privKeyB64,
@@ -677,7 +735,7 @@ export class FederatedRecall {
         embedding: embedding ?? [],
         topicTags: input.tags,
         importance: input.importance,
-        privacyClass: "public",
+        privacyClass: 'public',
       });
       const result = await ingestMemoryProof(proof);
       proofId = result.id;
@@ -712,41 +770,76 @@ export class FederatedRecall {
     query: string,
     budget: number,
     useSemantic: boolean,
-    filters?: RecallFilters,
+    filters?: RecallFilters
   ): Promise<RecallItem[]> {
     const [allMemories, allSkills, allNotes] = await Promise.all([
-      db.select({
-        id: memories.id, kind: memories.kind, title: memories.title, content: memories.content,
-        tags: memories.tags, importance: memories.importance, source: memories.source,
-        updatedAt: memories.updatedAt,
-      }).from(memories).orderBy(desc(memories.importance), desc(memories.updatedAt)).limit(MAX_CORPUS),
-      db.select({
-        id: skills.id, title: skills.title, description: skills.description,
-        content: skills.content, rating: skills.rating, updatedAt: skills.updatedAt,
-      }).from(skills).orderBy(desc(skills.rating)).limit(Math.min(MAX_CORPUS, 2000)),
-      db.select({
-        id: notes.id, title: notes.title, content: notes.content, tags: notes.tags,
-        wikilinks: notes.wikilinks, indexedAt: notes.indexedAt, path: notes.path,
-      }).from(notes).orderBy(desc(notes.indexedAt)).limit(Math.min(MAX_CORPUS, 2000)),
+      db
+        .select({
+          id: memories.id,
+          kind: memories.kind,
+          title: memories.title,
+          content: memories.content,
+          tags: memories.tags,
+          importance: memories.importance,
+          source: memories.source,
+          updatedAt: memories.updatedAt,
+        })
+        .from(memories)
+        .orderBy(desc(memories.importance), desc(memories.updatedAt))
+        .limit(MAX_CORPUS),
+      db
+        .select({
+          id: skills.id,
+          title: skills.title,
+          description: skills.description,
+          content: skills.content,
+          rating: skills.rating,
+          updatedAt: skills.updatedAt,
+        })
+        .from(skills)
+        .orderBy(desc(skills.rating))
+        .limit(Math.min(MAX_CORPUS, 2000)),
+      db
+        .select({
+          id: notes.id,
+          title: notes.title,
+          content: notes.content,
+          tags: notes.tags,
+          wikilinks: notes.wikilinks,
+          indexedAt: notes.indexedAt,
+          path: notes.path,
+        })
+        .from(notes)
+        .orderBy(desc(notes.indexedAt))
+        .limit(Math.min(MAX_CORPUS, 2000)),
     ]);
 
-    if (filters?.types && !filters.types.includes("memory")) {
+    if (filters?.types && !filters.types.includes('memory')) {
       allMemories.length = 0;
     }
-    if (filters?.types && !filters.types.includes("skill")) {
+    if (filters?.types && !filters.types.includes('skill')) {
       allSkills.length = 0;
     }
-    if (filters?.types && !filters.types.includes("note")) {
+    if (filters?.types && !filters.types.includes('note')) {
       allNotes.length = 0;
     }
 
-    type MemRow = typeof allMemories[number];
-    type SkillRow = typeof allSkills[number];
-    type NoteRow = typeof allNotes[number];
+    type MemRow = (typeof allMemories)[number];
+    type SkillRow = (typeof allSkills)[number];
+    type NoteRow = (typeof allNotes)[number];
 
-    const memDocs = allMemories.map((m: MemRow) => ({ id: m.id, text: `${m.title} ${m.content} ${(m.tags ?? []).join(" ")}` }));
-    const skillDocs = allSkills.map((s: SkillRow) => ({ id: s.id, text: `${s.title} ${s.description} ${s.content}` }));
-    const noteDocs = allNotes.map((n: NoteRow) => ({ id: n.id, text: `${n.title} ${n.content} ${(n.tags ?? []).join(" ")} ${(n.wikilinks ?? []).join(" ")}` }));
+    const memDocs = allMemories.map((m: MemRow) => ({
+      id: m.id,
+      text: `${m.title} ${m.content} ${(m.tags ?? []).join(' ')}`,
+    }));
+    const skillDocs = allSkills.map((s: SkillRow) => ({
+      id: s.id,
+      text: `${s.title} ${s.description} ${s.content}`,
+    }));
+    const noteDocs = allNotes.map((n: NoteRow) => ({
+      id: n.id,
+      text: `${n.title} ${n.content} ${(n.tags ?? []).join(' ')} ${(n.wikilinks ?? []).join(' ')}`,
+    }));
 
     const bm25Mem = bm25Score(memDocs, query);
     const bm25Skill = bm25Score(skillDocs, query);
@@ -763,21 +856,42 @@ export class FederatedRecall {
       const queryEmbedding = await embedQuery(query);
       if (queryEmbedding) {
         const [semMemResult, semSkillResult, semNoteResult] = await Promise.all([
-          db.select({
-            id: memories.id,
-            distance: sql<number>`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
-          }).from(memories).where(isNotNull(memories.embedding))
-            .orderBy(sql`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`).limit(100),
-          db.select({
-            id: skills.id,
-            distance: sql<number>`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
-          }).from(skills).where(isNotNull(skills.embedding))
-            .orderBy(sql`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`).limit(100),
-          db.select({
-            id: notes.id,
-            distance: sql<number>`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
-          }).from(notes).where(isNotNull(notes.embedding))
-            .orderBy(sql`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`).limit(100),
+          db
+            .select({
+              id: memories.id,
+              distance:
+                sql<number>`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                  'distance'
+                ),
+            })
+            .from(memories)
+            .where(isNotNull(memories.embedding))
+            .orderBy(sql`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
+            .limit(100),
+          db
+            .select({
+              id: skills.id,
+              distance:
+                sql<number>`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                  'distance'
+                ),
+            })
+            .from(skills)
+            .where(isNotNull(skills.embedding))
+            .orderBy(sql`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
+            .limit(100),
+          db
+            .select({
+              id: notes.id,
+              distance:
+                sql<number>`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                  'distance'
+                ),
+            })
+            .from(notes)
+            .where(isNotNull(notes.embedding))
+            .orderBy(sql`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`)
+            .limit(100),
         ]);
 
         const allSem = [
@@ -803,21 +917,21 @@ export class FederatedRecall {
 
     const allCandidates = new Set([...bm25Candidates, ...semanticCandidates]);
 
-    const rrfScores = new Map<string, { score: number; matchedBy: ("bm25" | "semantic")[] }>();
+    const rrfScores = new Map<string, { score: number; matchedBy: ('bm25' | 'semantic')[] }>();
     for (const id of allCandidates) {
       let rrf = 0;
-      const matchedBy: ("bm25" | "semantic")[] = [];
+      const matchedBy: ('bm25' | 'semantic')[] = [];
 
       const bm25Rank = bm25MemRank.get(id) ?? bm25SkillRank.get(id) ?? bm25NoteRank.get(id);
       if (bm25Rank !== undefined) {
         rrf += 1 / (RRF_K + bm25Rank + 1);
-        matchedBy.push("bm25");
+        matchedBy.push('bm25');
       }
 
       const semRank = semanticRanks.get(id);
       if (semRank !== undefined) {
         rrf += 1 / (RRF_K + semRank + 1);
-        matchedBy.push("semantic");
+        matchedBy.push('semantic');
       }
 
       const maxRrf = 2 / (RRF_K + 1);
@@ -826,8 +940,8 @@ export class FederatedRecall {
     }
 
     const memMap = new Map<string, MemRow>(allMemories.map((m: MemRow) => [m.id, m]));
-        const skillMap = new Map<string, SkillRow>(allSkills.map((s: SkillRow) => [s.id, s]));
-        const noteMap = new Map<string, NoteRow>(allNotes.map((n: NoteRow) => [n.id, n]));
+    const skillMap = new Map<string, SkillRow>(allSkills.map((s: SkillRow) => [s.id, s]));
+    const noteMap = new Map<string, NoteRow>(allNotes.map((n: NoteRow) => [n.id, n]));
 
     const items: RecallItem[] = [];
     for (const [id, { score: rrf, matchedBy }] of rrfScores) {
@@ -865,13 +979,17 @@ export class FederatedRecall {
     query: string,
     budget: number,
     useSemantic: boolean,
-    filters?: RecallFilters,
+    filters?: RecallFilters
   ): Promise<RecallItem[]> {
     let fedRows = await db.query.federatedMemoryProofs.findMany({
       where: and(
         eq(federatedMemoryProofs.materialized, true),
-        filters?.privacyClass ? eq(federatedMemoryProofs.privacyClass, filters.privacyClass) : undefined,
-        filters?.peerIds?.length ? sql`${federatedMemoryProofs.originPeerId} = ANY(${filters.peerIds})` : undefined,
+        filters?.privacyClass
+          ? eq(federatedMemoryProofs.privacyClass, filters.privacyClass)
+          : undefined,
+        filters?.peerIds?.length
+          ? sql`${federatedMemoryProofs.originPeerId} = ANY(${filters.peerIds})`
+          : undefined
       ),
       orderBy: [desc(federatedMemoryProofs.importance), desc(federatedMemoryProofs.receivedAt)],
       limit: Math.min(MAX_CORPUS / 2, 5000),
@@ -879,7 +997,7 @@ export class FederatedRecall {
 
     if (filters?.topicTags?.length) {
       fedRows = fedRows.filter((r: any) =>
-        filters.topicTags!.some((t: any) => (r.topicTags ?? []).includes(t)),
+        filters.topicTags!.some((t: any) => (r.topicTags ?? []).includes(t))
       );
     }
     if (filters?.since) {
@@ -891,19 +1009,21 @@ export class FederatedRecall {
 
     if (!fedRows.length) return [];
 
-    const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t: any) => t.length > 1);
+    const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(
+      (t: any) => t.length > 1
+    );
     const queryEmbedding = useSemantic ? await embedQuery(query) : null;
 
     const items: RecallItem[] = [];
 
     for (const row of fedRows) {
-      const tagText = (row.topicTags ?? []).join(" ");
+      const tagText = (row.topicTags ?? []).join(' ');
       const docText = `${tagText} ${row.originPeerId} ${row.privacyClass}`;
       const docLower = docText.toLowerCase();
 
       let bm25ScoreVal = 0;
       for (const term of queryTerms) {
-        const count = (docLower.match(new RegExp(term, "g")) || []).length;
+        const count = (docLower.match(new RegExp(term, 'g')) || []).length;
         if (count > 0) bm25ScoreVal += Math.log(1 + count);
       }
 
@@ -916,18 +1036,24 @@ export class FederatedRecall {
       const importance = computeImportance(row.importance);
 
       const normalizedBm25 = Math.min(1, bm25ScoreVal / Math.max(1, queryTerms.length));
-      const rrfScore = (normalizedBm25 * (useSemantic ? 0.5 : 1)) + (semanticScore * (useSemantic ? 0.5 : 0));
+      const rrfScore =
+        normalizedBm25 * (useSemantic ? 0.5 : 1) + semanticScore * (useSemantic ? 0.5 : 0);
       const blended = rrfScore * W_RRF + importance * W_IMPORTANCE + recency * W_RECENCY;
 
-      const matchedBy: ("bm25" | "semantic")[] = [];
-      if (bm25ScoreVal > 0) matchedBy.push("bm25");
-      if (semanticScore > 0) matchedBy.push("semantic");
+      const matchedBy: ('bm25' | 'semantic')[] = [];
+      if (bm25ScoreVal > 0) matchedBy.push('bm25');
+      if (semanticScore > 0) matchedBy.push('semantic');
 
       items.push({
         id: row.id,
-        type: "federated",
+        type: 'federated',
         title: `[FED] ${tagText.slice(0, 60)} from ${row.originPeerId.slice(0, 8)}`,
-        content: JSON.stringify({ originPeerId: row.originPeerId, contentSha256: row.contentSha256, topicTags: row.topicTags, importance: row.importance }),
+        content: JSON.stringify({
+          originPeerId: row.originPeerId,
+          contentSha256: row.contentSha256,
+          topicTags: row.topicTags,
+          importance: row.importance,
+        }),
         score: Math.round(blended * 1000) / 1000,
         tokenCost: estimateTokens(row.contentSha256 + tagText + row.originPeerId),
         source: `federated:${row.originPeerId}`,
@@ -943,7 +1069,11 @@ export class FederatedRecall {
 
   /* ── Private: merge + dedupe ────────────────────────────────────────── */
 
-  private mergeResults(local: RecallItem[], federated: RecallItem[], dedupeContent: boolean): RecallItem[] {
+  private mergeResults(
+    local: RecallItem[],
+    federated: RecallItem[],
+    dedupeContent: boolean
+  ): RecallItem[] {
     const all = [...local, ...federated];
     if (!dedupeContent) {
       return all.sort((a, b) => b.score - a.score);
@@ -963,21 +1093,69 @@ export class FederatedRecall {
 
   private getMeta(
     id: string,
-    memMap: Map<string, { id: string; kind: string; title: string; content: string; importance: number; updatedAt: Date; source: string }>,
-    skillMap: Map<string, { id: string; title: string; description: string; content: string; rating: number; updatedAt: Date }>,
-    noteMap: Map<string, { id: string; title: string; content: string; path: string; indexedAt: Date }>,
+    memMap: Map<
+      string,
+      {
+        id: string;
+        kind: string;
+        title: string;
+        content: string;
+        importance: number;
+        updatedAt: Date;
+        source: string;
+      }
+    >,
+    skillMap: Map<
+      string,
+      {
+        id: string;
+        title: string;
+        description: string;
+        content: string;
+        rating: number;
+        updatedAt: Date;
+      }
+    >,
+    noteMap: Map<
+      string,
+      { id: string; title: string; content: string; path: string; indexedAt: Date }
+    >
   ): RawItem | null {
     const m = memMap.get(id);
     if (m) {
-      return { id: m.id, type: "memory", title: m.title, content: m.content, importance: m.importance, updatedAt: m.updatedAt, source: m.source };
+      return {
+        id: m.id,
+        type: 'memory',
+        title: m.title,
+        content: m.content,
+        importance: m.importance,
+        updatedAt: m.updatedAt,
+        source: m.source,
+      };
     }
     const s = skillMap.get(id);
     if (s) {
-      return { id: s.id, type: "skill", title: s.title, content: `# ${s.title}\n${s.description}\n\n${s.content}`, importance: Math.max(0.2, Math.min(1, s.rating)), updatedAt: s.updatedAt, source: "skill" };
+      return {
+        id: s.id,
+        type: 'skill',
+        title: s.title,
+        content: `# ${s.title}\n${s.description}\n\n${s.content}`,
+        importance: Math.max(0.2, Math.min(1, s.rating)),
+        updatedAt: s.updatedAt,
+        source: 'skill',
+      };
     }
     const n = noteMap.get(id);
     if (n) {
-      return { id: n.id, type: "note", title: n.title || n.path, content: n.content, importance: 0.45, updatedAt: n.indexedAt, source: "vault" };
+      return {
+        id: n.id,
+        type: 'note',
+        title: n.title || n.path,
+        content: n.content,
+        importance: 0.45,
+        updatedAt: n.indexedAt,
+        source: 'vault',
+      };
     }
     return null;
   }
@@ -1009,12 +1187,12 @@ export function memoryCardToRecallItem(card: {
   const content = `${card.title}: ${card.summary}\n${card.body}`;
   return {
     id: card.id,
-    type: "memory",
+    type: 'memory',
     title: card.title,
     content,
     score: 0,
     tokenCost: estimateTokens(content),
-    source: "os-graph",
+    source: 'os-graph',
     importance: card.importance,
     recency: computeRecency(card.updatedAt),
     matchedBy: [],
@@ -1026,11 +1204,21 @@ export function memoryCardToRecallItem(card: {
  * Compatible with `src/lib/os/kernel.ts` compactContext / doGraphRecall.
  */
 export function composeAgentState(
-  cards: { id: string; title: string; summary: string; body: string; importance: number; updatedAt: number; accessCount: number }[],
+  cards: {
+    id: string;
+    title: string;
+    summary: string;
+    body: string;
+    importance: number;
+    updatedAt: number;
+    accessCount: number;
+  }[],
   query: string,
-  budget: number,
+  budget: number
 ): { items: RecallItem[]; expanded: string[]; tokens: number } {
-  const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t: any) => t.length > 1);
+  const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(
+    (t: any) => t.length > 1
+  );
   const scored = cards.map((c: any) => {
     const text = `${c.title} ${c.summary} ${c.body}`.toLowerCase();
     let bm25 = 0;

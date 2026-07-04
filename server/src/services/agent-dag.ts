@@ -12,10 +12,10 @@
  *
  * Inspired by: LangGraph subgraph composition, OpenAI SDK AgentTool.
  */
-import { randomUUID } from "node:crypto";
-import { log } from "../lib/logging.js";
-import { appendAudit } from "../lib/audit.js";
-import { runAgent, type AgentConfig } from "./agent-runtime.js";
+import { randomUUID } from 'node:crypto';
+import { log } from '../lib/logging.js';
+import { appendAudit } from '../lib/audit.js';
+import { runAgent, type AgentConfig } from './agent-runtime.js';
 
 /* ─── Core Types ─────────────────────────────────────────────────────────── */
 
@@ -42,7 +42,7 @@ export interface DAGNode {
   /** Cached output after execution. */
   output: unknown;
   /** Execution status. */
-  status: "pending" | "running" | "ok" | "failed" | "skipped";
+  status: 'pending' | 'running' | 'ok' | 'failed' | 'skipped';
   error?: string;
   startedAt?: number;
   finishedAt?: number;
@@ -88,7 +88,7 @@ export interface DAGConfig {
 export interface ExecutionTimelineEntry {
   wave: number;
   nodeId: string;
-  status: DAGNode["status"];
+  status: DAGNode['status'];
   durationMs: number;
   error?: string;
 }
@@ -96,7 +96,10 @@ export interface ExecutionTimelineEntry {
 export interface ExecutionResult {
   dagId: string;
   ok: boolean;
-  nodeResults: Record<string, { status: DAGNode["status"]; output: unknown; error?: string; durationMs: number }>;
+  nodeResults: Record<
+    string,
+    { status: DAGNode['status']; output: unknown; error?: string; durationMs: number }
+  >;
   finalState: Record<string, unknown>;
   timeline: ExecutionTimelineEntry[];
   errors: string[];
@@ -114,7 +117,10 @@ export interface AgentTool {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  execute: (input: Record<string, unknown>, context: { parentAgentId: string; actor: string }) => Promise<{ ok: boolean; output: unknown; error?: string }>;
+  execute: (
+    input: Record<string, unknown>,
+    context: { parentAgentId: string; actor: string }
+  ) => Promise<{ ok: boolean; output: unknown; error?: string }>;
 }
 
 /* ─── Registry ───────────────────────────────────────────────────────────── */
@@ -135,7 +141,7 @@ export function createDAG(name: string, config?: DAGConfig): string {
     compiled: false,
     topoOrder: [],
   });
-  log.info("dag.created", { id, name });
+  log.info('dag.created', { id, name });
   return id;
 }
 
@@ -148,10 +154,10 @@ export function addNode(dagId: string, agentConfig: DAGNodeConfig): string {
     config: agentConfig,
     state: {},
     output: null,
-    status: "pending",
+    status: 'pending',
   });
   dag.compiled = false;
-  log.info("dag.node_added", { dagId, nodeId, agentId: agentConfig.agentId });
+  log.info('dag.node_added', { dagId, nodeId, agentId: agentConfig.agentId });
   return nodeId;
 }
 
@@ -160,7 +166,7 @@ export function addEdge(
   from: string,
   to: string,
   dataMapping?: DataMapping,
-  condition?: EdgeCondition,
+  condition?: EdgeCondition
 ): void {
   const dag = dagRegistry.get(dagId);
   if (!dag) throw new Error(`dag_not_found:${dagId}`);
@@ -168,7 +174,7 @@ export function addEdge(
   if (!dag.nodes.has(to)) throw new Error(`node_not_found:${to}`);
   dag.edges.push({ from, to, dataMapping, condition });
   dag.compiled = false;
-  log.info("dag.edge_added", { dagId, from, to });
+  log.info('dag.edge_added', { dagId, from, to });
 }
 
 export function compile(dagId: string): string[][] {
@@ -189,9 +195,7 @@ export function compile(dagId: string): string[][] {
 
   const waves: string[][] = [];
   const indegCopy = new Map(indeg);
-  let frontier = [...indegCopy.entries()].
-    filter(([, d]) => d === 0).
-    map(([id]) => id);
+  let frontier = [...indegCopy.entries()].filter(([, d]) => d === 0).map(([id]) => id);
 
   while (frontier.length > 0) {
     waves.push(frontier);
@@ -213,17 +217,17 @@ export function compile(dagId: string): string[][] {
 
   dag.topoOrder = waves;
   dag.compiled = true;
-  log.info("dag.compiled", { dagId, waves: waves.length });
+  log.info('dag.compiled', { dagId, waves: waves.length });
   return waves;
 }
 
 /* ─── State Helpers ──────────────────────────────────────────────────────── */
 
 function resolvePath(obj: unknown, path: string): unknown {
-  const parts = path.split(".");
+  const parts = path.split('.');
   let current: unknown = obj;
   for (const part of parts) {
-    if (current == null || typeof current !== "object") return undefined;
+    if (current == null || typeof current !== 'object') return undefined;
     current = (current as Record<string, unknown>)[part];
   }
   return current;
@@ -232,7 +236,7 @@ function resolvePath(obj: unknown, path: string): unknown {
 function applyDataMapping(
   upstreamOutput: unknown,
   mapping: DataMapping | undefined,
-  existingState: Record<string, unknown>,
+  existingState: Record<string, unknown>
 ): Record<string, unknown> {
   if (!mapping) return existingState;
   const merged = { ...existingState };
@@ -243,10 +247,7 @@ function applyDataMapping(
   return merged;
 }
 
-function evaluateCondition(
-  upstreamOutput: unknown,
-  condition: EdgeCondition | undefined,
-): boolean {
+function evaluateCondition(upstreamOutput: unknown, condition: EdgeCondition | undefined): boolean {
   if (!condition) return true;
   const value = resolvePath(upstreamOutput, condition.test);
   return value === condition.expected;
@@ -257,7 +258,7 @@ function evaluateCondition(
 export async function invoke(
   dagId: string,
   input: Record<string, unknown>,
-  actorOverride?: string,
+  actorOverride?: string
 ): Promise<ExecutionResult> {
   const dag = dagRegistry.get(dagId);
   if (!dag) throw new Error(`dag_not_found:${dagId}`);
@@ -265,14 +266,14 @@ export async function invoke(
   if (!dag.compiled) compile(dagId);
 
   const start = Date.now();
-  const nodeResults: ExecutionResult["nodeResults"] = {};
+  const nodeResults: ExecutionResult['nodeResults'] = {};
   const timeline: ExecutionTimelineEntry[] = [];
   const errors: string[] = [];
   const finalState: Record<string, unknown> = { ...input };
 
   // Reset all nodes
   for (const node of dag.nodes.values()) {
-    node.status = "pending";
+    node.status = 'pending';
     node.state = {};
     node.output = null;
     node.error = undefined;
@@ -280,7 +281,11 @@ export async function invoke(
     node.finishedAt = undefined;
   }
 
-  await appendAudit("dag.invocation.started", { dagId, name: dag.name, waves: dag.topoOrder.length }, actorOverride ?? "system");
+  await appendAudit(
+    'dag.invocation.started',
+    { dagId, name: dag.name, waves: dag.topoOrder.length },
+    actorOverride ?? 'system'
+  );
 
   try {
     for (let waveIdx = 0; waveIdx < dag.topoOrder.length; waveIdx++) {
@@ -299,7 +304,7 @@ export async function invoke(
           const upstreamNode = dag.nodes.get(edge.from);
           if (!upstreamNode) continue;
 
-          if (upstreamNode.status === "failed") {
+          if (upstreamNode.status === 'failed') {
             // If upstream failed, skip downstream unless condition allows
             const condPass = evaluateCondition(upstreamNode.output, edge.condition);
             if (!condPass) {
@@ -324,9 +329,9 @@ export async function invoke(
         }
 
         if (!shouldRun) {
-          node.status = "skipped";
-          nodeResults[nodeId] = { status: "skipped", output: null, durationMs: 0 };
-          timeline.push({ wave: waveIdx, nodeId, status: "skipped", durationMs: 0 });
+          node.status = 'skipped';
+          nodeResults[nodeId] = { status: 'skipped', output: null, durationMs: 0 };
+          timeline.push({ wave: waveIdx, nodeId, status: 'skipped', durationMs: 0 });
           continue;
         }
 
@@ -350,9 +355,9 @@ export async function invoke(
             error: result.error,
           });
 
-          if (result.status === "ok") {
+          if (result.status === 'ok') {
             finalState[nodeId] = result.output;
-          } else if (result.status === "failed") {
+          } else if (result.status === 'failed') {
             errors.push(result.error ?? `node_failed:${nodeId}`);
           }
         });
@@ -369,7 +374,7 @@ export async function invoke(
 
     // Handle compensation for failed subgraphs
     for (const nodeId of Object.keys(nodeResults)) {
-      if (nodeResults[nodeId]?.status === "failed") {
+      if (nodeResults[nodeId]?.status === 'failed') {
         const node = dag.nodes.get(nodeId);
         if (node?.config.compensation) {
           await runCompensation(dagId, node, actorOverride);
@@ -379,15 +384,23 @@ export async function invoke(
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : String(e);
     errors.push(errMsg);
-    await appendAudit("dag.invocation.error", { dagId, error: errMsg }, actorOverride ?? "system");
+    await appendAudit('dag.invocation.error', { dagId, error: errMsg }, actorOverride ?? 'system');
   }
 
   const durationMs = Date.now() - start;
   const ok = errors.length === 0;
 
-  await appendAudit("dag.invocation.completed", {
-    dagId, name: dag.name, ok, errors: errors.length, durationMs,
-  }, actorOverride ?? "system");
+  await appendAudit(
+    'dag.invocation.completed',
+    {
+      dagId,
+      name: dag.name,
+      ok,
+      errors: errors.length,
+      durationMs,
+    },
+    actorOverride ?? 'system'
+  );
 
   return {
     dagId,
@@ -404,10 +417,10 @@ async function executeNode(
   dagId: string,
   node: DAGNode,
   _waveIdx: number,
-  actorOverride?: string,
-): Promise<{ status: DAGNode["status"]; output: unknown; error?: string; durationMs: number }> {
+  actorOverride?: string
+): Promise<{ status: DAGNode['status']; output: unknown; error?: string; durationMs: number }> {
   const start = Date.now();
-  node.status = "running";
+  node.status = 'running';
   node.startedAt = start;
 
   try {
@@ -424,11 +437,11 @@ async function executeNode(
     const result = await withTimeout(runAgent(agentCfg), timeoutMs);
 
     node.output = result;
-    node.status = result.ok ? "ok" : "failed";
+    node.status = result.ok ? 'ok' : 'failed';
     node.finishedAt = Date.now();
 
     if (!result.ok) {
-      node.error = result.error ?? "agent returned not ok";
+      node.error = result.error ?? 'agent returned not ok';
     }
 
     return {
@@ -439,12 +452,12 @@ async function executeNode(
     };
   } catch (e) {
     const errMsg = e instanceof Error ? e.message : String(e);
-    node.status = "failed";
+    node.status = 'failed';
     node.error = errMsg;
     node.finishedAt = Date.now();
 
     return {
-      status: "failed",
+      status: 'failed',
       output: null,
       error: errMsg,
       durationMs: Date.now() - start,
@@ -455,13 +468,15 @@ async function executeNode(
 async function runCompensation(
   dagId: string,
   failedNode: DAGNode,
-  actorOverride?: string,
+  actorOverride?: string
 ): Promise<void> {
   const comp = failedNode.config.compensation;
   if (!comp) return;
 
-  log.info("dag.compensation.started", {
-    dagId, nodeId: failedNode.id, goal: comp.goal,
+  log.info('dag.compensation.started', {
+    dagId,
+    nodeId: failedNode.id,
+    goal: comp.goal,
   });
 
   try {
@@ -474,12 +489,21 @@ async function runCompensation(
       actor,
     });
 
-    await appendAudit("dag.compensation.completed", {
-      dagId, nodeId: failedNode.id, ok: result.ok, answer: result.answer,
-    }, actor);
+    await appendAudit(
+      'dag.compensation.completed',
+      {
+        dagId,
+        nodeId: failedNode.id,
+        ok: result.ok,
+        answer: result.answer,
+      },
+      actor
+    );
   } catch (e) {
-    log.warn("dag.compensation.failed", {
-      dagId, nodeId: failedNode.id, error: e instanceof Error ? e.message : String(e),
+    log.warn('dag.compensation.failed', {
+      dagId,
+      nodeId: failedNode.id,
+      error: e instanceof Error ? e.message : String(e),
     });
   }
 }
@@ -487,9 +511,7 @@ async function runCompensation(
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
-    new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`timeout_after_${ms}ms`)), ms),
-    ),
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error(`timeout_after_${ms}ms`)), ms)),
   ]);
 }
 
@@ -509,7 +531,7 @@ export function getSubgraph(dagId: string, nodeIds: string[], isolate = true): S
 export async function executeSubgraph(
   subgraph: SubgraphDef,
   input: Record<string, unknown>,
-  actorOverride?: string,
+  actorOverride?: string
 ): Promise<ExecutionResult> {
   const dag = dagRegistry.get(subgraph.parentDagId);
   if (!dag) throw new Error(`dag_not_found:${subgraph.parentDagId}`);
@@ -534,9 +556,7 @@ export async function executeSubgraph(
 
   const waves: string[][] = [];
   const indegCopy = new Map(indeg);
-  let frontier = [...indegCopy.entries()].
-    filter(([, d]) => d === 0).
-    map(([id]) => id);
+  let frontier = [...indegCopy.entries()].filter(([, d]) => d === 0).map(([id]) => id);
 
   while (frontier.length > 0) {
     waves.push(frontier);
@@ -552,12 +572,12 @@ export async function executeSubgraph(
   }
 
   const start = Date.now();
-  const nodeResults: ExecutionResult["nodeResults"] = {};
+  const nodeResults: ExecutionResult['nodeResults'] = {};
   const timeline: ExecutionTimelineEntry[] = [];
   const errors: string[] = [];
   const finalState: Record<string, unknown> = { ...input };
 
-    for (let waveIdx = 0; waveIdx < waves.length; waveIdx++) {
+  for (let waveIdx = 0; waveIdx < waves.length; waveIdx++) {
     const wave: string[] = waves[waveIdx] ?? [];
     const tasks = wave.map(async (nodeId) => {
       const node = dag.nodes.get(nodeId)!;
@@ -589,7 +609,7 @@ export async function executeSubgraph(
         error: result.error,
       });
 
-      if (result.status === "ok") {
+      if (result.status === 'ok') {
         finalState[nodeId] = result.output;
       } else {
         errors.push(result.error ?? `node_failed:${nodeId}`);
@@ -613,11 +633,7 @@ export async function executeSubgraph(
 
 /* ─── Agent as Tool ──────────────────────────────────────────────────────── */
 
-export function agentToTool(
-  agentId: string,
-  name?: string,
-  description?: string,
-): AgentTool {
+export function agentToTool(agentId: string, name?: string, description?: string): AgentTool {
   if (toolRegistry.has(agentId)) return toolRegistry.get(agentId)!;
 
   const tool: AgentTool = {
@@ -625,15 +641,15 @@ export function agentToTool(
     name: name ?? `agent_${agentId}`,
     description: description ?? `Invoke agent ${agentId} as a sub-task`,
     inputSchema: {
-      type: "object",
+      type: 'object',
       properties: {
-        goal: { type: "string", description: "The goal to delegate to the agent" },
-        context: { type: "object", description: "Additional context for the agent" },
+        goal: { type: 'string', description: 'The goal to delegate to the agent' },
+        context: { type: 'object', description: 'Additional context for the agent' },
       },
-      required: ["goal"],
+      required: ['goal'],
     },
     execute: async (input, ctx) => {
-      const goal = String(input.goal ?? "");
+      const goal = String(input.goal ?? '');
       const context = (input.context ?? {}) as Record<string, unknown>;
       const actor = ctx.actor;
 
@@ -649,7 +665,12 @@ export function agentToTool(
         return {
           ok: result.ok,
           output: result.ok
-            ? { answer: result.answer, steps: result.steps, iterations: result.iterations, tokensUsed: result.tokensUsed }
+            ? {
+                answer: result.answer,
+                steps: result.steps,
+                iterations: result.iterations,
+                tokensUsed: result.tokensUsed,
+              }
             : { error: result.error, partialAnswer: result.answer },
           error: result.ok ? undefined : result.error,
         };
@@ -677,7 +698,13 @@ export function getDAG(id: string): DAGDefinition | undefined {
   return dagRegistry.get(id);
 }
 
-export function listDAGs(): Array<{ id: string; name: string; nodeCount: number; edgeCount: number; compiled: boolean }> {
+export function listDAGs(): Array<{
+  id: string;
+  name: string;
+  nodeCount: number;
+  edgeCount: number;
+  compiled: boolean;
+}> {
   return [...dagRegistry.values()].map((d) => ({
     id: d.id,
     name: d.name,

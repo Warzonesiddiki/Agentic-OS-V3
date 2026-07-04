@@ -88,25 +88,29 @@ export interface OmniSkillExecutor {
 }
 export class SkillRegistry {
   register(_manifest: OmniSkillManifest, _executor: OmniSkillExecutor): void {}
-  get(_id: string): OmniSkillExecutor | undefined { return undefined; }
-  list(): OmniSkillManifest[] { return []; }
+  get(_id: string): OmniSkillExecutor | undefined {
+    return undefined;
+  }
+  list(): OmniSkillManifest[] {
+    return [];
+  }
 }
 export interface AssessmentResult {
   score: number;
   category: string;
   details?: Record<string, unknown>;
 }
-export type AssessmentCategory = "quality" | "safety" | "cost" | "latency";
+export type AssessmentCategory = 'quality' | 'safety' | 'cost' | 'latency';
 
 export async function resolveComboModel(_models: string[]): Promise<string> {
-  return _models[0] ?? "unknown";
+  return _models[0] ?? 'unknown';
 }
 export async function fallbackPolicy(_primary: string): Promise<string> {
   return _primary;
 }
 export function registerFallback(_name: string, _fallback: string): void {}
 export async function resolveFallback(_name: string): Promise<string> {
-  return "unknown";
+  return 'unknown';
 }
 export async function runPipeline(
   _config: { stages: PipelineStage[] },
@@ -121,14 +125,17 @@ export async function evaluatePolicy(_policy: string, _input: PolicyInput): Prom
   return true;
 }
 export function computeCost(_input: CostInput): CostBreakdown {
-  return { total: 0, currency: "usd" };
+  return { total: 0, currency: 'usd' };
 }
 export async function checkDegradation(_input: CostInput): Promise<DegradationResult> {
   return { degraded: false };
 }
 export async function routeByTag(_tag: string): Promise<TagRoutingResult> {
-  return { tag: _tag, provider: "unknown", model: "unknown" };
+  return { tag: _tag, provider: 'unknown', model: 'unknown' };
 }
-export async function assess(_content: string, _category?: AssessmentCategory): Promise<AssessmentResult> {
-  return { score: 1, category: _category ?? "quality" };
+export async function assess(
+  _content: string,
+  _category?: AssessmentCategory
+): Promise<AssessmentResult> {
+  return { score: 1, category: _category ?? 'quality' };
 }

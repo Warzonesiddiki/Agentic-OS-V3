@@ -9,18 +9,17 @@
  * Merkle checkpoints are automatically anchored to the configured blockchain
  * when the checkpoint count crosses the configured interval.
  */
-import { createHash, randomUUID } from "node:crypto";
-import { db, isSqlite, auditLog, merkleCheckpoints } from "../db/client.js";
-import { desc, asc, sql, and, gte, lte, gt } from "drizzle-orm";
+import { createHash, randomUUID } from 'node:crypto';
+import { db, isSqlite, auditLog, merkleCheckpoints } from '../db/client.js';
+import { desc, asc, sql, and, gte, lte, gt } from 'drizzle-orm';
 // // import { log } from "./logging.js"; // removed unused import
 
 /** A Drizzle transaction (or the db itself) — both expose query + execute + insert. */
 export type Tx = any;
 
-export const GENESIS_HASH = "0".repeat(64);
-const HASH_SEP = "|";
+export const GENESIS_HASH = '0'.repeat(64);
+const HASH_SEP = '|';
 const MERKLE_CHUNK_SIZE = 1000; // store a Merkle root checkpoint every N entries
-
 
 /**
  * Compute a binary Merkle root from an ordered list of leaf hashes.
@@ -34,7 +33,9 @@ function merkleRoot(hashes: string[]): string {
     for (let i = 0; i < level.length; i += 2) {
       const left = level[i]!;
       const right = i + 1 < level.length ? level[i + 1]! : left;
-      const hash = createHash("sha256").update(left + right, "hex").digest("hex");
+      const hash = createHash('sha256')
+        .update(left + right, 'hex')
+        .digest('hex');
       next.push(hash);
     }
     level = next;
@@ -42,10 +43,17 @@ function merkleRoot(hashes: string[]): string {
   return level[0]!;
 }
 export function stableStringify(value: unknown): string {
-  if (value === null || typeof value !== "object") return JSON.stringify(value);
-  if (Array.isArray(value)) return "[" + value.map(stableStringify).join(",") + "]";
+  if (value === null || typeof value !== 'object') return JSON.stringify(value);
+  if (Array.isArray(value)) return '[' + value.map(stableStringify).join(',') + ']';
   const obj = value as Record<string, unknown>;
-  return "{" + Object.keys(obj).sort().map((k: any) => JSON.stringify(k) + ":" + stableStringify(obj[k])).join(",") + "}";
+  return (
+    '{' +
+    Object.keys(obj)
+      .sort()
+      .map((k: any) => JSON.stringify(k) + ':' + stableStringify(obj[k]))
+      .join(',') +
+    '}'
+  );
 }
 
 let _useWorkerThread = true;
@@ -55,21 +63,37 @@ export function setUseWorkerThread(v: boolean): void {
   _useWorkerThread = v;
 }
 
-async function entryHashAsync(prevHash: string, sequence: number, action: string, actor: string, createdAtMs: number, payload: unknown): Promise<string> {
+async function entryHashAsync(
+  prevHash: string,
+  sequence: number,
+  action: string,
+  actor: string,
+  createdAtMs: number,
+  payload: unknown
+): Promise<string> {
   if (!_useWorkerThread) {
     return entryHashSync(prevHash, sequence, action, actor, createdAtMs, payload);
   }
   try {
-    const { computeHashAsync } = await import("../services/audit-worker.js");
+    const { computeHashAsync } = await import('../services/audit-worker.js');
     return await computeHashAsync(prevHash, sequence, action, actor, createdAtMs, payload);
   } catch {
     return entryHashSync(prevHash, sequence, action, actor, createdAtMs, payload);
   }
 }
 
-function entryHashSync(prevHash: string, sequence: number, action: string, actor: string, createdAtMs: number, payload: unknown): string {
-  const canonical = [prevHash, sequence, action, actor, createdAtMs, stableStringify(payload)].join(HASH_SEP);
-  return createHash("sha256").update(canonical, "utf8").digest("hex");
+function entryHashSync(
+  prevHash: string,
+  sequence: number,
+  action: string,
+  actor: string,
+  createdAtMs: number,
+  payload: unknown
+): string {
+  const canonical = [prevHash, sequence, action, actor, createdAtMs, stableStringify(payload)].join(
+    HASH_SEP
+  );
+  return createHash('sha256').update(canonical, 'utf8').digest('hex');
 }
 
 export interface AuditEntry {
@@ -85,7 +109,11 @@ export interface AuditEntry {
 
 /** Find the current chain tip (highest sequence). Secondary order by id for determinism. */
 async function chainTip(_client: Tx): Promise<{ sequence: number; entryHash: string } | null> {
-  const last = await db.select().from(auditLog).orderBy(desc(auditLog.sequence), desc(auditLog.id)).limit(1);
+  const last = await db
+    .select()
+    .from(auditLog)
+    .orderBy(desc(auditLog.sequence), desc(auditLog.id))
+    .limit(1);
   if (!last.length) return null;
   return { sequence: last[0].sequence as number, entryHash: last[0].entryHash };
 }
@@ -112,33 +140,72 @@ export async function appendAudit(
     const prevHash = tip ? tip.entryHash : GENESIS_HASH;
     const createdAt = new Date();
     const createdAtStr = isSqlite ? createdAt.toISOString() : createdAt;
-    const hash = await entryHashAsync(prevHash, sequence, action, actor, createdAt.getTime(), payload);
-    const insertPayload = isSqlite && typeof payload === "object" ? JSON.stringify(payload) : payload;
+    const hash = await entryHashAsync(
+      prevHash,
+      sequence,
+      action,
+      actor,
+      createdAt.getTime(),
+      payload
+    );
+    const insertPayload =
+      isSqlite && typeof payload === 'object' ? JSON.stringify(payload) : payload;
     let row: AuditEntry | undefined;
     if (isSqlite) {
-      await client
-        .insert(auditLog)
-        .values({ sequence, id, actor, action, payload: insertPayload, prevHash, entryHash: hash, createdAt: createdAtStr });
-      row = { sequence, id, actor, action, payload: insertPayload, prevHash, entryHash: hash, createdAt: createdAtStr as unknown as Date } as AuditEntry;
+      await client.insert(auditLog).values({
+        sequence,
+        id,
+        actor,
+        action,
+        payload: insertPayload,
+        prevHash,
+        entryHash: hash,
+        createdAt: createdAtStr,
+      });
+      row = {
+        sequence,
+        id,
+        actor,
+        action,
+        payload: insertPayload,
+        prevHash,
+        entryHash: hash,
+        createdAt: createdAtStr as unknown as Date,
+      } as AuditEntry;
     } else {
       const [r] = await client
         .insert(auditLog)
-        .values({ sequence, id, actor, action, payload: insertPayload, prevHash, entryHash: hash, createdAt })
+        .values({
+          sequence,
+          id,
+          actor,
+          action,
+          payload: insertPayload,
+          prevHash,
+          entryHash: hash,
+          createdAt,
+        })
         .returning();
       row = r;
     }
-    if (!row) throw new Error("Audit append returned no row — integrity failure.");
+    if (!row) throw new Error('Audit append returned no row — integrity failure.');
 
     // Store Merkle checkpoint every MERKLE_CHUNK_SIZE entries
     if (sequence % MERKLE_CHUNK_SIZE === 0) {
       _createdCpSequence = sequence;
       const chunkStart = Math.max(1, sequence - MERKLE_CHUNK_SIZE + 1);
-      const chunkRows = await db.select().from(auditLog).where(
-        and(gte(auditLog.sequence, chunkStart), lte(auditLog.sequence, sequence))
-      ).orderBy(asc(auditLog.sequence));
+      const chunkRows = await db
+        .select()
+        .from(auditLog)
+        .where(and(gte(auditLog.sequence, chunkStart), lte(auditLog.sequence, sequence)))
+        .orderBy(asc(auditLog.sequence));
       const chunkHashes = chunkRows.map((r: AuditEntry) => r.entryHash);
       const root = merkleRoot(chunkHashes);
-      const prevCkRes = await db.select().from(merkleCheckpoints).orderBy(desc(merkleCheckpoints.chunkEndSeq)).limit(1);
+      const prevCkRes = await db
+        .select()
+        .from(merkleCheckpoints)
+        .orderBy(desc(merkleCheckpoints.chunkEndSeq))
+        .limit(1);
       const prevCkHash = prevCkRes.length ? prevCkRes[0].merkleRoot : GENESIS_HASH;
       await client.insert(merkleCheckpoints).values({
         id: `mcp_${randomUUID()}`,
@@ -153,12 +220,23 @@ export async function appendAudit(
     return row as AuditEntry;
   };
 
-  const entry = tx ? await doAppend(tx) : isSqlite ? await doAppend(db) : await db.transaction(doAppend);
+  const entry = tx
+    ? await doAppend(tx)
+    : isSqlite
+      ? await doAppend(db)
+      : await db.transaction(doAppend);
   return entry;
 }
 
 /** Pure, exported entry-hash — directly unit-testable without a database. */
-export function computeEntryHash(prevHash: string, sequence: number, action: string, actor: string, createdAtMs: number, payload: unknown): string {
+export function computeEntryHash(
+  prevHash: string,
+  sequence: number,
+  action: string,
+  actor: string,
+  createdAtMs: number,
+  payload: unknown
+): string {
   return entryHashSync(prevHash, sequence, action, actor, createdAtMs, payload);
 }
 
@@ -182,16 +260,26 @@ export async function verifyAuditChain(): Promise<AuditVerifyResult> {
   let total = 0;
   let after = 0;
   for (;;) {
-    const page = await db.select().from(auditLog).where(
-      gt(auditLog.sequence, after)
-    ).orderBy(asc(auditLog.sequence), asc(auditLog.id)).limit(PAGE);
+    const page = await db
+      .select()
+      .from(auditLog)
+      .where(gt(auditLog.sequence, after))
+      .orderBy(asc(auditLog.sequence), asc(auditLog.id))
+      .limit(PAGE);
     if (!page.length) break;
     for (const e of page) {
       const seq = e.sequence as number;
       if (e.prevHash !== prevHash) {
         return { valid: false, verifiedEntries: verified, brokenAt: seq, total };
       }
-      const expected = computeEntryHash(prevHash, seq, e.action, e.actor, e.createdAt.getTime(), e.payload);
+      const expected = computeEntryHash(
+        prevHash,
+        seq,
+        e.action,
+        e.actor,
+        e.createdAt.getTime(),
+        e.payload
+      );
       if (expected !== e.entryHash) {
         return { valid: false, verifiedEntries: verified, brokenAt: seq, total };
       }
@@ -204,15 +292,20 @@ export async function verifyAuditChain(): Promise<AuditVerifyResult> {
   }
 
   // Verify Merkle checkpoints chain
-  const checkpoints = await db.select().from(merkleCheckpoints).orderBy(asc(merkleCheckpoints.chunkEndSeq));
+  const checkpoints = await db
+    .select()
+    .from(merkleCheckpoints)
+    .orderBy(asc(merkleCheckpoints.chunkEndSeq));
   let prevCkHash = GENESIS_HASH;
   for (const cp of checkpoints) {
     if (cp.prevCheckpointHash !== prevCkHash) {
       return { valid: false, verifiedEntries: verified, brokenAt: cp.chunkStartSeq, total };
     }
-    const chunkRows = await db.select().from(auditLog).where(
-      and(gte(auditLog.sequence, cp.chunkStartSeq), lte(auditLog.sequence, cp.chunkEndSeq))
-    ).orderBy(asc(auditLog.sequence));
+    const chunkRows = await db
+      .select()
+      .from(auditLog)
+      .where(and(gte(auditLog.sequence, cp.chunkStartSeq), lte(auditLog.sequence, cp.chunkEndSeq)))
+      .orderBy(asc(auditLog.sequence));
     const expectedRoot = merkleRoot(chunkRows.map((r: AuditEntry) => r.entryHash));
     if (expectedRoot !== cp.merkleRoot) {
       return { valid: false, verifiedEntries: verified, brokenAt: cp.chunkStartSeq, total };
@@ -228,7 +321,11 @@ export async function verifyAuditChain(): Promise<AuditVerifyResult> {
  * instead of from genesis. Returns the same result shape.
  */
 export async function verifyAuditChainFast(): Promise<AuditVerifyResult> {
-  const lastCp = await db.select().from(merkleCheckpoints).orderBy(desc(merkleCheckpoints.chunkEndSeq)).limit(1);
+  const lastCp = await db
+    .select()
+    .from(merkleCheckpoints)
+    .orderBy(desc(merkleCheckpoints.chunkEndSeq))
+    .limit(1);
   if (!lastCp.length) return await verifyAuditChain();
 
   let prevHash = GENESIS_HASH;
@@ -240,16 +337,26 @@ export async function verifyAuditChainFast(): Promise<AuditVerifyResult> {
   const PAGE = 1000;
   const lastCpEnd = lastCp[0].chunkEndSeq;
   for (;;) {
-    const page = await db.select().from(auditLog).where(
-      and(lte(auditLog.sequence, lastCpEnd), gt(auditLog.sequence, after))
-    ).orderBy(asc(auditLog.sequence), asc(auditLog.id)).limit(PAGE);
+    const page = await db
+      .select()
+      .from(auditLog)
+      .where(and(lte(auditLog.sequence, lastCpEnd), gt(auditLog.sequence, after)))
+      .orderBy(asc(auditLog.sequence), asc(auditLog.id))
+      .limit(PAGE);
     if (!page.length) break;
     for (const e of page) {
       const seq = e.sequence as number;
       if (e.prevHash !== prevHash) {
         return { valid: false, verifiedEntries: verified, brokenAt: seq, total };
       }
-      const expected = computeEntryHash(prevHash, seq, e.action, e.actor, e.createdAt.getTime(), e.payload);
+      const expected = computeEntryHash(
+        prevHash,
+        seq,
+        e.action,
+        e.actor,
+        e.createdAt.getTime(),
+        e.payload
+      );
       if (expected !== e.entryHash) {
         return { valid: false, verifiedEntries: verified, brokenAt: seq, total };
       }
@@ -262,15 +369,20 @@ export async function verifyAuditChainFast(): Promise<AuditVerifyResult> {
   }
 
   // Verify checkpoints chain
-  const checkpoints = await db.select().from(merkleCheckpoints).orderBy(asc(merkleCheckpoints.chunkEndSeq));
+  const checkpoints = await db
+    .select()
+    .from(merkleCheckpoints)
+    .orderBy(asc(merkleCheckpoints.chunkEndSeq));
   let prevCkHash = GENESIS_HASH;
   for (const cp of checkpoints) {
     if (cp.prevCheckpointHash !== prevCkHash) {
       return { valid: false, verifiedEntries: verified, brokenAt: cp.chunkStartSeq, total };
     }
-    const chunkRows = await db.select().from(auditLog).where(
-      and(gte(auditLog.sequence, cp.chunkStartSeq), lte(auditLog.sequence, cp.chunkEndSeq))
-    ).orderBy(asc(auditLog.sequence));
+    const chunkRows = await db
+      .select()
+      .from(auditLog)
+      .where(and(gte(auditLog.sequence, cp.chunkStartSeq), lte(auditLog.sequence, cp.chunkEndSeq)))
+      .orderBy(asc(auditLog.sequence));
     const expectedRoot = merkleRoot(chunkRows.map((r: AuditEntry) => r.entryHash));
     if (expectedRoot !== cp.merkleRoot) {
       return { valid: false, verifiedEntries: verified, brokenAt: cp.chunkStartSeq, total };
@@ -281,16 +393,26 @@ export async function verifyAuditChainFast(): Promise<AuditVerifyResult> {
   // Verify entries after the last checkpoint
   after = lastCp[0].chunkEndSeq;
   for (;;) {
-    const page = await db.select().from(auditLog).where(
-      gt(auditLog.sequence, after)
-    ).orderBy(asc(auditLog.sequence), asc(auditLog.id)).limit(PAGE);
+    const page = await db
+      .select()
+      .from(auditLog)
+      .where(gt(auditLog.sequence, after))
+      .orderBy(asc(auditLog.sequence), asc(auditLog.id))
+      .limit(PAGE);
     if (!page.length) break;
     for (const e of page) {
       const seq = e.sequence as number;
       if (e.prevHash !== prevHash) {
         return { valid: false, verifiedEntries: verified, brokenAt: seq, total };
       }
-      const expected = computeEntryHash(prevHash, seq, e.action, e.actor, e.createdAt.getTime(), e.payload);
+      const expected = computeEntryHash(
+        prevHash,
+        seq,
+        e.action,
+        e.actor,
+        e.createdAt.getTime(),
+        e.payload
+      );
       if (expected !== e.entryHash) {
         return { valid: false, verifiedEntries: verified, brokenAt: seq, total };
       }

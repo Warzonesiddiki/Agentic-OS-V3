@@ -15,22 +15,22 @@
  *   - src/lib/os/types.ts   → domain models (Ring, ToolSpec, RiskLevel)
  */
 
-import { z } from "zod";
-import { appendAudit } from "../lib/audit.js";
-import { callLLM } from "./llm.js";
-import { recall } from "./recall.js";
-import { createMemory, createSkill } from "../services.js";
+import { z } from 'zod';
+import { appendAudit } from '../lib/audit.js';
+import { callLLM } from './llm.js';
+import { recall } from './recall.js';
+import { createMemory, createSkill } from '../services.js';
 
-import { getAgent, incrementTokenUsage, listAgents } from "./kernel.js";
-import { db } from "../db/client.js";
-import { memories, skills } from "../db/client.js";
-import { eq } from "drizzle-orm";
+import { getAgent, incrementTokenUsage, listAgents } from './kernel.js';
+import { db } from '../db/client.js';
+import { memories, skills } from '../db/client.js';
+import { eq } from 'drizzle-orm';
 
 // ── Inline domain types (mirrors src/lib/os/types.ts) ──────────
 
 type Ring = 0 | 1 | 2 | 3 | 4;
-type RiskLevel = "safe" | "read" | "write" | "destructive" | "network" | "privileged";
-type ToolProvider = "mcp" | "cli" | "http" | "builtin";
+type RiskLevel = 'safe' | 'read' | 'write' | 'destructive' | 'network' | 'privileged';
+type ToolProvider = 'mcp' | 'cli' | 'http' | 'builtin';
 
 interface ToolSpec {
   name: string;
@@ -54,7 +54,7 @@ export interface ActionExample {
 
 export type ActionHandler = (
   input: Record<string, unknown>,
-  context: ActionContext,
+  context: ActionContext
 ) => Promise<unknown>;
 
 export interface ActionContext {
@@ -66,7 +66,7 @@ export interface ActionContext {
 export interface ActionMetadata {
   version: string;
   category?: string;
-  provider?: "builtin" | "mcp" | "cli" | "http";
+  provider?: 'builtin' | 'mcp' | 'cli' | 'http';
   riskLevel?: RiskLevel;
   minRing?: Ring;
   timeoutMs?: number;
@@ -117,7 +117,7 @@ export class ActionRegistry {
       (a) =>
         a.name.toLowerCase().includes(q) ||
         a.description.toLowerCase().includes(q) ||
-        a.similes.some((s) => s.toLowerCase().includes(q)),
+        a.similes.some((s) => s.toLowerCase().includes(q))
     );
   }
 
@@ -164,7 +164,7 @@ export class ActionRegistry {
     name: string,
     input: Record<string, unknown>,
     context: ActionContext,
-    timeoutMs?: number,
+    timeoutMs?: number
   ): Promise<ActionExecuteResult> {
     const action = this.actions.get(name);
     if (!action) {
@@ -178,13 +178,14 @@ export class ActionRegistry {
     return this.list().map((a) => ({
       name: a.name,
       description: a.description,
-      provider: (a.metadata.provider ?? "builtin") as ToolSpec["provider"],
+      provider: (a.metadata.provider ?? 'builtin') as ToolSpec['provider'],
       scopesRequired: [],
-      riskLevel: (a.metadata.riskLevel ?? "read") as RiskLevel,
+      riskLevel: (a.metadata.riskLevel ?? 'read') as RiskLevel,
       minRing: (a.metadata.minRing ?? 2) as Ring,
       timeoutMs: a.metadata.timeoutMs ?? 15000,
       retryable: true,
-      approvalRequired: a.metadata.riskLevel === "destructive" || a.metadata.riskLevel === "privileged",
+      approvalRequired:
+        a.metadata.riskLevel === 'destructive' || a.metadata.riskLevel === 'privileged',
     }));
   }
 }
@@ -202,7 +203,7 @@ async function executeActionWithTimeout(
   action: Action,
   input: Record<string, unknown>,
   context: ActionContext,
-  timeoutMs: number = 15000,
+  timeoutMs: number = 15000
 ): Promise<ActionExecuteResult> {
   const start = performance.now();
 
@@ -221,16 +222,13 @@ async function executeActionWithTimeout(
       if (!v.valid) {
         return {
           ok: false,
-          error: `Custom validation failed: ${v.errors?.join("; ") ?? "unknown"}`,
+          error: `Custom validation failed: ${v.errors?.join('; ') ?? 'unknown'}`,
           durationMs: Math.round(performance.now() - start),
         };
       }
     }
 
-    const result = await withTimeout(
-      action.handler(parsed.data, context),
-      timeoutMs,
-    );
+    const result = await withTimeout(action.handler(parsed.data, context), timeoutMs);
 
     return {
       ok: true,
@@ -251,7 +249,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return Promise.race([
     promise,
     new Promise<T>((_, reject) =>
-      setTimeout(() => reject(new Error(`Action timed out after ${ms}ms`)), ms),
+      setTimeout(() => reject(new Error(`Action timed out after ${ms}ms`)), ms)
     ),
   ]);
 }
@@ -268,37 +266,50 @@ function zNum(desc?: string) {
 export function createDefaultActions(): Action[] {
   return [
     {
-      name: "recall",
-      description: "Search across all memories, skills, and notes by semantic meaning.",
+      name: 'recall',
+      description: 'Search across all memories, skills, and notes by semantic meaning.',
       schema: z.object({
-        query: zStr("The search query"),
-        budget: zNum("Token budget (max 8192)").default(4000),
+        query: zStr('The search query'),
+        budget: zNum('Token budget (max 8192)').default(4000),
       }),
       handler: async (input, ctx) => {
-        return recall(String(input.query ?? ""), Number(input.budget ?? 4000), ctx.actor);
+        return recall(String(input.query ?? ''), Number(input.budget ?? 4000), ctx.actor);
       },
-      similes: ["search", "find", "query", "remember", "lookup"],
+      similes: ['search', 'find', 'query', 'remember', 'lookup'],
       examples: [
         {
-          input: { query: "database connection details", budget: 2000 },
-          output: { items: [{ title: "DB_URL", content: "postgresql://..." }], tokens: 120 },
-          description: "Recall memories matching a semantic query",
+          input: { query: 'database connection details', budget: 2000 },
+          output: { items: [{ title: 'DB_URL', content: 'postgresql://...' }], tokens: 120 },
+          description: 'Recall memories matching a semantic query',
         },
       ],
-      metadata: { version: "1.0.0", category: "memory", provider: "builtin", riskLevel: "read", minRing: 1, timeoutMs: 5000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'memory',
+        provider: 'builtin',
+        riskLevel: 'read',
+        minRing: 1,
+        timeoutMs: 5000,
+      },
     },
     {
-      name: "createMemory",
-      description: "Store a new durable memory.",
+      name: 'createMemory',
+      description: 'Store a new durable memory.',
       schema: z.object({
-        kind: z.enum(["episodic", "semantic", "preference", "reflexion", "fact"]),
+        kind: z.enum(['episodic', 'semantic', 'preference', 'reflexion', 'fact']),
         title: zStr(),
         content: zStr(),
         tags: z.array(zStr()).optional().default([]),
         importance: zNum().min(0).max(1).optional().default(0.5),
       }),
       handler: async (raw, ctx) => {
-        const input = raw as { kind: string; title: string; content: string; tags?: string[]; importance?: number };
+        const input = raw as {
+          kind: string;
+          title: string;
+          content: string;
+          tags?: string[];
+          importance?: number;
+        };
         return createMemory(
           {
             kind: input.kind,
@@ -306,177 +317,250 @@ export function createDefaultActions(): Action[] {
             content: input.content,
             tags: input.tags ?? [],
             importance: input.importance ?? 0.5,
-            source: "agent-runtime",
+            source: 'agent-runtime',
             projectId: null,
           },
-          ctx.actor,
+          ctx.actor
         );
       },
-      similes: ["store", "save", "remember", "write memory", "record"],
+      similes: ['store', 'save', 'remember', 'write memory', 'record'],
       examples: [
         {
-          input: { kind: "semantic", title: "API Key Location", content: "The API key is stored in .env", importance: 0.8 },
-          output: { id: "mem_abc123", kind: "semantic", title: "API Key Location" },
-          description: "Create a new semantic memory",
+          input: {
+            kind: 'semantic',
+            title: 'API Key Location',
+            content: 'The API key is stored in .env',
+            importance: 0.8,
+          },
+          output: { id: 'mem_abc123', kind: 'semantic', title: 'API Key Location' },
+          description: 'Create a new semantic memory',
         },
       ],
-      metadata: { version: "1.0.0", category: "memory", provider: "builtin", riskLevel: "write", minRing: 1, timeoutMs: 5000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'memory',
+        provider: 'builtin',
+        riskLevel: 'write',
+        minRing: 1,
+        timeoutMs: 5000,
+      },
     },
     {
-      name: "createSkill",
-      description: "Create a new reusable skill from successful patterns.",
+      name: 'createSkill',
+      description: 'Create a new reusable skill from successful patterns.',
       schema: z.object({
         name: zStr(),
         title: zStr(),
         description: zStr(),
         content: zStr(),
-        category: zStr().optional().default("general"),
+        category: zStr().optional().default('general'),
         tags: z.array(zStr()).optional().default([]),
       }),
       handler: async (raw, ctx) => {
-        const input = raw as { name: string; title: string; description: string; content: string; category?: string; tags?: string[] };
+        const input = raw as {
+          name: string;
+          title: string;
+          description: string;
+          content: string;
+          category?: string;
+          tags?: string[];
+        };
         return createSkill(
           {
             name: input.name,
             title: input.title,
             description: input.description,
             content: input.content,
-            category: input.category ?? "general",
+            category: input.category ?? 'general',
             tags: input.tags ?? [],
-            source: "agent-runtime",
+            source: 'agent-runtime',
             trigger: null,
             projectId: null,
           },
-          ctx.actor,
+          ctx.actor
         );
       },
-      similes: ["learn", "teach", "save skill", "record pattern"],
+      similes: ['learn', 'teach', 'save skill', 'record pattern'],
       examples: [
         {
-          input: { name: "git-commit", title: "Git Commit Pattern", description: "Standard git commit flow", content: "git add . && git commit -m 'message'" },
-          output: { id: "skl_abc123", name: "git-commit" },
-          description: "Create a new skill from a successful pattern",
+          input: {
+            name: 'git-commit',
+            title: 'Git Commit Pattern',
+            description: 'Standard git commit flow',
+            content: "git add . && git commit -m 'message'",
+          },
+          output: { id: 'skl_abc123', name: 'git-commit' },
+          description: 'Create a new skill from a successful pattern',
         },
       ],
-      metadata: { version: "1.0.0", category: "skill", provider: "builtin", riskLevel: "write", minRing: 1, timeoutMs: 5000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'skill',
+        provider: 'builtin',
+        riskLevel: 'write',
+        minRing: 1,
+        timeoutMs: 5000,
+      },
     },
     {
-      name: "readMemory",
-      description: "Read the full content of a specific memory by ID.",
+      name: 'readMemory',
+      description: 'Read the full content of a specific memory by ID.',
       schema: z.object({
-        id: zStr("Memory ID"),
+        id: zStr('Memory ID'),
       }),
       handler: async (raw) => {
         const input = raw as { id: string };
         const mem = await db.query.memories.findFirst({ where: eq(memories.id, input.id) });
-        return mem ?? { error: "Memory not found" };
+        return mem ?? { error: 'Memory not found' };
       },
-      similes: ["get memory", "fetch memory", "load memory"],
+      similes: ['get memory', 'fetch memory', 'load memory'],
       examples: [
         {
-          input: { id: "mem_abc123" },
-          output: { id: "mem_abc123", kind: "semantic", title: "API Key Location", content: "..." },
-          description: "Read a memory by its ID",
+          input: { id: 'mem_abc123' },
+          output: { id: 'mem_abc123', kind: 'semantic', title: 'API Key Location', content: '...' },
+          description: 'Read a memory by its ID',
         },
       ],
-      metadata: { version: "1.0.0", category: "memory", provider: "builtin", riskLevel: "read", minRing: 2, timeoutMs: 3000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'memory',
+        provider: 'builtin',
+        riskLevel: 'read',
+        minRing: 2,
+        timeoutMs: 3000,
+      },
     },
     {
-      name: "readSkill",
-      description: "Read the full content of a specific skill by ID.",
+      name: 'readSkill',
+      description: 'Read the full content of a specific skill by ID.',
       schema: z.object({
-        id: zStr("Skill ID"),
+        id: zStr('Skill ID'),
       }),
       handler: async (raw) => {
         const input = raw as { id: string };
         const skl = await db.query.skills.findFirst({ where: eq(skills.id, input.id) });
-        return skl ?? { error: "Skill not found" };
+        return skl ?? { error: 'Skill not found' };
       },
-      similes: ["get skill", "fetch skill", "load skill"],
+      similes: ['get skill', 'fetch skill', 'load skill'],
       examples: [
         {
-          input: { id: "skl_abc123" },
-          output: { id: "skl_abc123", name: "git-commit", content: "..." },
-          description: "Read a skill by its ID",
+          input: { id: 'skl_abc123' },
+          output: { id: 'skl_abc123', name: 'git-commit', content: '...' },
+          description: 'Read a skill by its ID',
         },
       ],
-      metadata: { version: "1.0.0", category: "skill", provider: "builtin", riskLevel: "read", minRing: 2, timeoutMs: 3000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'skill',
+        provider: 'builtin',
+        riskLevel: 'read',
+        minRing: 2,
+        timeoutMs: 3000,
+      },
     },
     {
-      name: "browserNavigate",
-      description: "Navigate to a URL and extract page text.",
+      name: 'browserNavigate',
+      description: 'Navigate to a URL and extract page text.',
       schema: z.object({
-        url: zStr("The URL to visit"),
+        url: zStr('The URL to visit'),
       }),
       handler: async () => {
-        return { error: "Browser automation not available" };
+        return { error: 'Browser automation not available' };
       },
-      similes: ["visit", "open url", "browse", "fetch page", "open page"],
+      similes: ['visit', 'open url', 'browse', 'fetch page', 'open page'],
       examples: [
         {
-          input: { url: "https://example.com" },
-          output: { url: "https://example.com", text: "Page content...", title: "Example" },
-          description: "Navigate to a URL and extract page text",
+          input: { url: 'https://example.com' },
+          output: { url: 'https://example.com', text: 'Page content...', title: 'Example' },
+          description: 'Navigate to a URL and extract page text',
         },
       ],
-      metadata: { version: "1.0.0", category: "browser", provider: "builtin", riskLevel: "network", minRing: 2, timeoutMs: 30000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'browser',
+        provider: 'builtin',
+        riskLevel: 'network',
+        minRing: 2,
+        timeoutMs: 30000,
+      },
     },
     {
-      name: "browserExtract",
-      description: "Extract text from a specific URL with optional CSS selector.",
+      name: 'browserExtract',
+      description: 'Extract text from a specific URL with optional CSS selector.',
       schema: z.object({
         url: zStr(),
-        selector: zStr("CSS selector (optional)").optional().default("body"),
+        selector: zStr('CSS selector (optional)').optional().default('body'),
       }),
       handler: async () => {
-        return { error: "Browser automation not available" };
+        return { error: 'Browser automation not available' };
       },
-      similes: ["extract", "scrape", "get text", "parse page"],
+      similes: ['extract', 'scrape', 'get text', 'parse page'],
       examples: [
         {
-          input: { url: "https://example.com/article", selector: "main" },
-          output: { url: "https://example.com/article", text: "Article content..." },
-          description: "Extract text with CSS selector",
+          input: { url: 'https://example.com/article', selector: 'main' },
+          output: { url: 'https://example.com/article', text: 'Article content...' },
+          description: 'Extract text with CSS selector',
         },
       ],
-      metadata: { version: "1.0.0", category: "browser", provider: "builtin", riskLevel: "network", minRing: 2, timeoutMs: 30000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'browser',
+        provider: 'builtin',
+        riskLevel: 'network',
+        minRing: 2,
+        timeoutMs: 30000,
+      },
     },
     {
-      name: "listAgents",
-      description: "List all active sub-agents and their statuses.",
+      name: 'listAgents',
+      description: 'List all active sub-agents and their statuses.',
       schema: z.object({}),
       handler: async () => {
         return listAgents();
       },
-      similes: ["agents", "sub agents", "agent list", "list sub agents"],
+      similes: ['agents', 'sub agents', 'agent list', 'list sub agents'],
       examples: [
         {
           input: {},
-          output: [{ id: "agt_abc", name: "worker-1", status: "active" }],
-          description: "List all agents",
+          output: [{ id: 'agt_abc', name: 'worker-1', status: 'active' }],
+          description: 'List all agents',
         },
       ],
-      metadata: { version: "1.0.0", category: "system", provider: "builtin", riskLevel: "read", minRing: 2, timeoutMs: 3000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'system',
+        provider: 'builtin',
+        riskLevel: 'read',
+        minRing: 2,
+        timeoutMs: 3000,
+      },
     },
     {
-      name: "finish",
-      description: "Complete the task with a final answer. Call this when the goal is achieved.",
+      name: 'finish',
+      description: 'Complete the task with a final answer. Call this when the goal is achieved.',
       schema: z.object({
-        answer: zStr("The final answer or summary"),
+        answer: zStr('The final answer or summary'),
       }),
       handler: async (raw) => {
         const input = raw as { answer: string };
         return { done: true, answer: input.answer };
       },
-      similes: ["done", "complete", "stop", "end task", "finalize"],
+      similes: ['done', 'complete', 'stop', 'end task', 'finalize'],
       examples: [
         {
-          input: { answer: "Task completed successfully. The database was configured." },
+          input: { answer: 'Task completed successfully. The database was configured.' },
           output: { done: true },
-          description: "Finish the current task with a final answer",
+          description: 'Finish the current task with a final answer',
         },
       ],
-      metadata: { version: "1.0.0", category: "system", provider: "builtin", riskLevel: "read", minRing: 0, timeoutMs: 3000 },
+      metadata: {
+        version: '1.0.0',
+        category: 'system',
+        provider: 'builtin',
+        riskLevel: 'read',
+        minRing: 0,
+        timeoutMs: 3000,
+      },
     },
   ];
 }
@@ -536,12 +620,15 @@ export class AgentRuntime {
   executeAction(
     name: string,
     input: Record<string, unknown>,
-    timeoutMs?: number,
+    timeoutMs?: number
   ): Promise<ActionExecuteResult> {
     return this.registry.execute(name, input, this.actionContext, timeoutMs);
   }
 
-  validateAction(name: string, input: Record<string, unknown>): { valid: boolean; errors?: string[] } {
+  validateAction(
+    name: string,
+    input: Record<string, unknown>
+  ): { valid: boolean; errors?: string[] } {
     const action = this.registry.get(name);
     if (!action) return { valid: false, errors: [`Action "${name}" not found`] };
 
@@ -549,7 +636,7 @@ export class AgentRuntime {
     if (!parsed.success) {
       const flat = parsed.error.flatten();
       const errors = Object.entries(flat.fieldErrors).map(
-        ([k, v]) => `${k}: ${(v ?? []).join(", ")}`,
+        ([k, v]) => `${k}: ${(v ?? []).join(', ')}`
       );
       return { valid: false, errors };
     }
@@ -578,19 +665,22 @@ export class AgentRuntime {
   }
 
   buildSystemPrompt(): string {
-    const tools = this.registry.list().map((t) => {
-      const shape = t.schema.shape;
-      const props = Object.entries(shape)
-        .map(([k, v]) => {
-          const zodDef = (v as z.ZodTypeAny)._def;
-          const desc = (zodDef as { description?: string })?.description ?? "";
-          const isOptional = v instanceof z.ZodOptional || v instanceof z.ZodDefault;
-          const requiredStr = isOptional ? " (optional)" : " (required)";
-          return `    ${k}: ${desc}${requiredStr}`;
-        })
-        .join("\n");
-      return `  - ${t.name}: ${t.description}\n${props}`;
-    }).join("\n\n");
+    const tools = this.registry
+      .list()
+      .map((t) => {
+        const shape = t.schema.shape;
+        const props = Object.entries(shape)
+          .map(([k, v]) => {
+            const zodDef = (v as z.ZodTypeAny)._def;
+            const desc = (zodDef as { description?: string })?.description ?? '';
+            const isOptional = v instanceof z.ZodOptional || v instanceof z.ZodDefault;
+            const requiredStr = isOptional ? ' (optional)' : ' (required)';
+            return `    ${k}: ${desc}${requiredStr}`;
+          })
+          .join('\n');
+        return `  - ${t.name}: ${t.description}\n${props}`;
+      })
+      .join('\n\n');
 
     return `You are NEXUS Agent Runtime — a reasoning agent that achieves goals by calling tools.
 
@@ -624,7 +714,7 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
 
   const runtime = new AgentRuntime(agentId, actor);
 
-  await appendAudit("agent_runtime.started", { agentId, goal, maxIterations }, actor);
+  await appendAudit('agent_runtime.started', { agentId, goal, maxIterations }, actor);
 
   const systemPrompt = runtime.buildSystemPrompt();
 
@@ -635,7 +725,7 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
     if (agent && agent.tokensUsed >= agent.tokenBudget) {
       return {
         ok: false,
-        answer: "Token budget exhausted",
+        answer: 'Token budget exhausted',
         steps,
         iterations: i,
         tokensUsed: totalTokens,
@@ -646,8 +736,8 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
     try {
       const llmResult = await callLLM({
         messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: conversation },
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: conversation },
         ],
         temperature: 0.5,
         maxTokens: 1024,
@@ -657,17 +747,30 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
       totalTokens += llmResult.usage.total;
 
       const parsed = JSON.parse(llmResult.content);
-      const thought = String(parsed.thought ?? "");
-      const toolName = String(parsed.tool ?? "");
+      const thought = String(parsed.thought ?? '');
+      const toolName = String(parsed.tool ?? '');
       const toolInput = (parsed.input ?? {}) as Record<string, unknown>;
 
-      if (toolName === "finish") {
+      if (toolName === 'finish') {
         const answer = String(toolInput.answer ?? thought);
-        steps.push({ iteration: i, thought, tool: toolName, toolInput, toolOutput: { done: true } });
+        steps.push({
+          iteration: i,
+          thought,
+          tool: toolName,
+          toolInput,
+          toolOutput: { done: true },
+        });
 
-        await appendAudit("agent_runtime.finished", {
-          agentId, iterations: i, tokensUsed: totalTokens, answerLength: answer.length,
-        }, actor);
+        await appendAudit(
+          'agent_runtime.finished',
+          {
+            agentId,
+            iterations: i,
+            tokensUsed: totalTokens,
+            answerLength: answer.length,
+          },
+          actor
+        );
 
         return { ok: true, answer, steps, iterations: i, tokensUsed: totalTokens };
       }
@@ -676,25 +779,32 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
       const toolOutput = result.ok ? result.data : { error: result.error };
       steps.push({ iteration: i, thought, tool: toolName, toolInput, toolOutput });
 
-      const outputStr = typeof toolOutput === "object"
-        ? JSON.stringify(toolOutput).slice(0, 4000)
-        : String(toolOutput).slice(0, 4000);
+      const outputStr =
+        typeof toolOutput === 'object'
+          ? JSON.stringify(toolOutput).slice(0, 4000)
+          : String(toolOutput).slice(0, 4000);
 
       conversation = `Step ${i + 1} result:\nTool: ${toolName}\nOutput: ${outputStr}\n\nContinue working toward the goal. What is the next step?`;
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
       steps.push({
         iteration: i,
-        thought: "Error occurred",
-        tool: "_error",
+        thought: 'Error occurred',
+        tool: '_error',
         toolInput: {},
         toolOutput: { error: errMsg },
       });
 
       if (i === maxIterations - 1) {
-        await appendAudit("agent_runtime.failed", {
-          agentId, iterations: i, error: errMsg,
-        }, actor);
+        await appendAudit(
+          'agent_runtime.failed',
+          {
+            agentId,
+            iterations: i,
+            error: errMsg,
+          },
+          actor
+        );
 
         return {
           ok: false,
@@ -716,6 +826,6 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
     steps,
     iterations: maxIterations,
     tokensUsed: totalTokens,
-    error: "Max iterations exceeded",
+    error: 'Max iterations exceeded',
   };
 }

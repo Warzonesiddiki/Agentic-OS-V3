@@ -51,10 +51,10 @@ NEXUS 2.0 is the **memory and coordination layer** that sits between AI agents (
 
 This repository contains **two independent applications** that share domain logic but can be used separately:
 
-| Deliverable | Location | Description |
-|---|---|---|
-| **Browser Dashboard** | `src/` (React/Vite) | Single-page agent dashboard with self-hosted SQLite (PGlite) |
-| **Backend Server** | `server/` (Hono/Node) | REST API + MCP server + background worker with PostgreSQL |
+| Deliverable           | Location              | Description                                                  |
+| --------------------- | --------------------- | ------------------------------------------------------------ |
+| **Browser Dashboard** | `src/` (React/Vite)   | Single-page agent dashboard with self-hosted SQLite (PGlite) |
+| **Backend Server**    | `server/` (Hono/Node) | REST API + MCP server + background worker with PostgreSQL    |
 
 The browser dashboard runs entirely in-browser with an embedded PostgreSQL-like engine (PGlite). No server is required for basic use. The backend server adds persistent storage, multi-user auth, the Agentic OS kernel, and production-scale recall.
 
@@ -94,6 +94,7 @@ User Query ──► BM25 Lexical ──┐
 ```
 
 When semantic embeddings are available (LLM provider configured), NEXUS uses **Reciprocal Rank Fusion** to combine:
+
 1. **BM25 lexical** — keyword/term-overlap scoring
 2. **pgvector cosine similarity** — semantic meaning via `HNSW` indexes
 
@@ -104,59 +105,64 @@ Fused scores are then blended with importance, recency, and feedback weights for
 ## Features
 
 ### Core Memory System
-| Feature | Description |
-|---|---|
-| **Typed memories** | Episodic, semantic, preference, reflexion, fact |
-| **Token budget recall** | Greedy pack within caller-specified token limit |
-| **RRF fusion** | Blends BM25 + vector similarity (k=60) |
-| **Importance decay** | Configurable half-life and recency weighting |
-| **Feedback loop** | Record helpful/not-helpful per recall result |
-| **Checkpoints** | Labeled snapshots for cross-session context transfer |
+
+| Feature                 | Description                                          |
+| ----------------------- | ---------------------------------------------------- |
+| **Typed memories**      | Episodic, semantic, preference, reflexion, fact      |
+| **Token budget recall** | Greedy pack within caller-specified token limit      |
+| **RRF fusion**          | Blends BM25 + vector similarity (k=60)               |
+| **Importance decay**    | Configurable half-life and recency weighting         |
+| **Feedback loop**       | Record helpful/not-helpful per recall result         |
+| **Checkpoints**         | Labeled snapshots for cross-session context transfer |
 
 ### Agentic OS Kernel
-| Feature | Description |
-|---|---|
-| **Agent ring model** | Ring 0 (kernel) → Ring 3 (user) privilege separation |
-| **Saga orchestration** | Steps with compensation (rollback) support |
-| **IPC message bus** | In-memory or Redis pub/sub for agent communication |
-| **Virtual filesystem** | Namespace-isolated per-agent VFS |
-| **Approval gates** | Human-in-the-loop for privileged operations |
-| **Daemon supervisor** | Auto-restart, heartbeat monitoring, stale task detection |
-| **Timer/scheduler** | Cron-resolved recurring tasks |
+
+| Feature                | Description                                              |
+| ---------------------- | -------------------------------------------------------- |
+| **Agent ring model**   | Ring 0 (kernel) → Ring 3 (user) privilege separation     |
+| **Saga orchestration** | Steps with compensation (rollback) support               |
+| **IPC message bus**    | In-memory or Redis pub/sub for agent communication       |
+| **Virtual filesystem** | Namespace-isolated per-agent VFS                         |
+| **Approval gates**     | Human-in-the-loop for privileged operations              |
+| **Daemon supervisor**  | Auto-restart, heartbeat monitoring, stale task detection |
+| **Timer/scheduler**    | Cron-resolved recurring tasks                            |
 
 ### Skills System
-| Feature | Description |
-|---|---|
-| **Versioned skills** | Named procedures with description and triggers |
-| **Outcome tracking** | Success/failure rating with bayesian averaging |
-| **Auto-compilation** | Detects repeated patterns → generates reusable scripts |
-| **Neural skill compiler** | Evaluates trigger patterns against task labels |
-| **Category organization** | Tag-based navigation and search |
+
+| Feature                   | Description                                            |
+| ------------------------- | ------------------------------------------------------ |
+| **Versioned skills**      | Named procedures with description and triggers         |
+| **Outcome tracking**      | Success/failure rating with bayesian averaging         |
+| **Auto-compilation**      | Detects repeated patterns → generates reusable scripts |
+| **Neural skill compiler** | Evaluates trigger patterns against task labels         |
+| **Category organization** | Tag-based navigation and search                        |
 
 ### Security & Governance
-| Feature | Description |
-|---|---|
-| **Scoped API keys** | 9 scopes (memory:read/write, brain:admin, safety:write, etc.) |
-| **Hash-chained audit** | SHA-256, append-only, tamper-evident |
-| **Constant-time auth** | `crypto.timingSafeEqual` — no timing side-channels |
-| **Kill switch** | Emergency mutation blocker, persistable |
-| **Rate limiting** | Configurable per-minute global throttle |
-| **LLM trajectory logging** | Full reasoning traces per audit entry |
-| **Tool receipt tracking** | Immutable tool-call ledger with pre/post hashes |
+
+| Feature                    | Description                                                   |
+| -------------------------- | ------------------------------------------------------------- |
+| **Scoped API keys**        | 9 scopes (memory:read/write, brain:admin, safety:write, etc.) |
+| **Hash-chained audit**     | SHA-256, append-only, tamper-evident                          |
+| **Constant-time auth**     | `crypto.timingSafeEqual` — no timing side-channels            |
+| **Kill switch**            | Emergency mutation blocker, persistable                       |
+| **Rate limiting**          | Configurable per-minute global throttle                       |
+| **LLM trajectory logging** | Full reasoning traces per audit entry                         |
+| **Tool receipt tracking**  | Immutable tool-call ledger with pre/post hashes               |
 
 ### Infrastructure
-| Feature | Description |
-|---|---|
-| **pgvector semantic search** | `HNSW` indexes on memories, skills, notes |
-| **Obsidian vault bridge** | Index markdown vault, write back as notes |
-| **Brain export/import** | Schema-validated, idempotent, secrets-safe |
-| **Docker sandbox** | Ephemeral containers for untrusted code |
-| **In-process sandbox** | `vm.Script` isolation when Docker is unavailable |
-| **Browser automation** | Playwright integration for web browsing |
-| **Desktop actuation** | VLM-driven GUI automation (screenshot → action) |
-| **Blockchain anchoring** | Merkle root anchoring to Ethereum-compatible chains |
-| **OpenTelemetry** | OTEL-compatible tracing and metrics |
-| **IBC protocol support** | Cross-chain bridging (proposal phase) |
+
+| Feature                      | Description                                         |
+| ---------------------------- | --------------------------------------------------- |
+| **pgvector semantic search** | `HNSW` indexes on memories, skills, notes           |
+| **Obsidian vault bridge**    | Index markdown vault, write back as notes           |
+| **Brain export/import**      | Schema-validated, idempotent, secrets-safe          |
+| **Docker sandbox**           | Ephemeral containers for untrusted code             |
+| **In-process sandbox**       | `vm.Script` isolation when Docker is unavailable    |
+| **Browser automation**       | Playwright integration for web browsing             |
+| **Desktop actuation**        | VLM-driven GUI automation (screenshot → action)     |
+| **Blockchain anchoring**     | Merkle root anchoring to Ethereum-compatible chains |
+| **OpenTelemetry**            | OTEL-compatible tracing and metrics                 |
+| **IBC protocol support**     | Cross-chain bridging (proposal phase)               |
 
 ---
 
@@ -246,119 +252,119 @@ All endpoints return a JSON envelope: `{ "ok": true, "data": ..., "traceId": "re
 
 ### Public Endpoints
 
-| Method | Path | Description |
-|---|---|---|
-| `GET` | `/api/v1/health` | Server health, DB status, kill switch state |
-| `GET` | `/api/v1/metrics` | Prometheus-formatted metrics |
-| `GET` | `/api/v1/system` | System info: version, mode, entity counts |
-| `GET` | `/` | Serve the browser dashboard (static files) |
+| Method | Path              | Description                                 |
+| ------ | ----------------- | ------------------------------------------- |
+| `GET`  | `/api/v1/health`  | Server health, DB status, kill switch state |
+| `GET`  | `/api/v1/metrics` | Prometheus-formatted metrics                |
+| `GET`  | `/api/v1/system`  | System info: version, mode, entity counts   |
+| `GET`  | `/`               | Serve the browser dashboard (static files)  |
 
 ### Memories
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/memories` | `memory:read` | List memories (cursor pagination) |
-| `POST` | `/api/v1/memories` | `memory:write` | Create a memory |
-| `GET` | `/api/v1/memories/:id` | `memory:read` | Get a single memory |
-| `PATCH` | `/api/v1/memories/:id` | `memory:write` | Update a memory |
-| `DELETE` | `/api/v1/memories/:id` | `memory:write` | Delete a memory |
+| Method   | Path                   | Scope          | Description                       |
+| -------- | ---------------------- | -------------- | --------------------------------- |
+| `GET`    | `/api/v1/memories`     | `memory:read`  | List memories (cursor pagination) |
+| `POST`   | `/api/v1/memories`     | `memory:write` | Create a memory                   |
+| `GET`    | `/api/v1/memories/:id` | `memory:read`  | Get a single memory               |
+| `PATCH`  | `/api/v1/memories/:id` | `memory:write` | Update a memory                   |
+| `DELETE` | `/api/v1/memories/:id` | `memory:write` | Delete a memory                   |
 
 **Memory types**: `episodic`, `semantic`, `preference`, `reflexion`, `fact`
 
 ### Recall
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/recall` | `memory:read` | Token-budgeted recall (BM25 + vector RRF) |
-| `POST` | `/api/v1/recall/conversation` | `memory:read` | Conversation-aware recall |
+| Method | Path                          | Scope         | Description                               |
+| ------ | ----------------------------- | ------------- | ----------------------------------------- |
+| `GET`  | `/api/v1/recall`              | `memory:read` | Token-budgeted recall (BM25 + vector RRF) |
+| `POST` | `/api/v1/recall/conversation` | `memory:read` | Conversation-aware recall                 |
 
 ### Skills
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/skills` | `skill:read` | List skills |
-| `POST` | `/api/v1/skills` | `skill:write` | Create a skill |
-| `GET` | `/api/v1/skills/:id` | `skill:read` | Get a single skill |
-| `PATCH` | `/api/v1/skills/:id` | `skill:write` | Update a skill |
-| `DELETE` | `/api/v1/skills/:id` | `skill:write` | Delete a skill |
-| `POST` | `/api/v1/skills/:id/outcome` | `skill:write` | Record success/failure outcome |
+| Method   | Path                         | Scope         | Description                    |
+| -------- | ---------------------------- | ------------- | ------------------------------ |
+| `GET`    | `/api/v1/skills`             | `skill:read`  | List skills                    |
+| `POST`   | `/api/v1/skills`             | `skill:write` | Create a skill                 |
+| `GET`    | `/api/v1/skills/:id`         | `skill:read`  | Get a single skill             |
+| `PATCH`  | `/api/v1/skills/:id`         | `skill:write` | Update a skill                 |
+| `DELETE` | `/api/v1/skills/:id`         | `skill:write` | Delete a skill                 |
+| `POST`   | `/api/v1/skills/:id/outcome` | `skill:write` | Record success/failure outcome |
 
 ### Brain
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/brain/export` | `brain:admin` | Full brain export (JSON) |
-| `POST` | `/api/v1/brain/import` | `brain:admin` | Import from JSON backup |
-| `POST` | `/api/v1/brain/compress` | `brain:admin` | Knowledge compression pass |
-| `POST` | `/api/v1/brain/embeddings/rebuild` | `brain:admin` | Regenerate all embeddings |
+| Method | Path                               | Scope         | Description                |
+| ------ | ---------------------------------- | ------------- | -------------------------- |
+| `GET`  | `/api/v1/brain/export`             | `brain:admin` | Full brain export (JSON)   |
+| `POST` | `/api/v1/brain/import`             | `brain:admin` | Import from JSON backup    |
+| `POST` | `/api/v1/brain/compress`           | `brain:admin` | Knowledge compression pass |
+| `POST` | `/api/v1/brain/embeddings/rebuild` | `brain:admin` | Regenerate all embeddings  |
 
 ### Projects
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/projects` | `memory:read` | List projects |
+| Method | Path                        | Scope          | Description                       |
+| ------ | --------------------------- | -------------- | --------------------------------- |
+| `GET`  | `/api/v1/projects`          | `memory:read`  | List projects                     |
 | `POST` | `/api/v1/projects/transfer` | `memory:write` | Transfer knowledge to new project |
 
 ### Sessions
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
+| Method | Path                       | Scope          | Description                              |
+| ------ | -------------------------- | -------------- | ---------------------------------------- |
 | `POST` | `/api/v1/sessions/capture` | `memory:write` | Capture and distill a session transcript |
 
 ### Vault (Obsidian)
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/vault/notes` | `vault:read` | List indexed vault notes |
-| `POST` | `/api/v1/vault/sync` | `vault:write` | Sync vault markdown → NEXUS |
+| Method | Path                       | Scope         | Description                       |
+| ------ | -------------------------- | ------------- | --------------------------------- |
+| `GET`  | `/api/v1/vault/notes`      | `vault:read`  | List indexed vault notes          |
+| `POST` | `/api/v1/vault/sync`       | `vault:write` | Sync vault markdown → NEXUS       |
 | `POST` | `/api/v1/vault/write-back` | `vault:write` | Write memory as markdown to vault |
 
 ### Audit & Ledger
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/audit` | `audit:read` | Verify audit chain integrity |
-| `GET` | `/api/v1/ledger` | `audit:read` | Token ledger with savings summary |
-| `GET` | `/api/v1/audit/verify` | `audit:read` | Advanced audit verification + auto-kill |
-| `POST` | `/api/v1/audit/trajectory` | `audit:read` | Log LLM trajectory |
-| `POST` | `/api/v1/audit/receipt` | `audit:read` | Log tool receipt |
+| Method | Path                       | Scope        | Description                             |
+| ------ | -------------------------- | ------------ | --------------------------------------- |
+| `GET`  | `/api/v1/audit`            | `audit:read` | Verify audit chain integrity            |
+| `GET`  | `/api/v1/ledger`           | `audit:read` | Token ledger with savings summary       |
+| `GET`  | `/api/v1/audit/verify`     | `audit:read` | Advanced audit verification + auto-kill |
+| `POST` | `/api/v1/audit/trajectory` | `audit:read` | Log LLM trajectory                      |
+| `POST` | `/api/v1/audit/receipt`    | `audit:read` | Log tool receipt                        |
 
 ### Safety
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/safety` | (none) | Kill switch status, heartbeat, LLM mode |
-| `POST` | `/api/v1/safety/kill-switch` | `safety:write` | Enable/disable kill switch |
-| `POST` | `/api/v1/safety/heartbeat` | `safety:write` | Record agent heartbeat |
+| Method | Path                         | Scope          | Description                             |
+| ------ | ---------------------------- | -------------- | --------------------------------------- |
+| `GET`  | `/api/v1/safety`             | (none)         | Kill switch status, heartbeat, LLM mode |
+| `POST` | `/api/v1/safety/kill-switch` | `safety:write` | Enable/disable kill switch              |
+| `POST` | `/api/v1/safety/heartbeat`   | `safety:write` | Record agent heartbeat                  |
 
 ### Feedback
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
+| Method | Path               | Scope          | Description                      |
+| ------ | ------------------ | -------------- | -------------------------------- |
 | `POST` | `/api/v1/feedback` | `memory:write` | Record recall relevance feedback |
 
 ### Admin
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/admin/keys` | `brain:admin` | List API keys |
-| `POST` | `/api/v1/admin/keys` | `brain:admin` | Create a new API key |
-| `DELETE` | `/api/v1/admin/keys/:id` | `brain:admin` | Revoke an API key |
-| `GET` | `/api/v1/health/detailed` | `memory:read` | Extended health: pgvector, audit, SSE |
-| `GET` | `/api/v1/analytics` | `audit:read` | Analytics dashboard data |
-| `GET` | `/api/v1/compiled-scripts` | `memory:read` | List auto-compiled scripts |
-| `POST` | `/api/v1/compiled-scripts/compile` | `brain:admin` | Trigger compilation pipeline |
+| Method   | Path                               | Scope         | Description                           |
+| -------- | ---------------------------------- | ------------- | ------------------------------------- |
+| `GET`    | `/api/v1/admin/keys`               | `brain:admin` | List API keys                         |
+| `POST`   | `/api/v1/admin/keys`               | `brain:admin` | Create a new API key                  |
+| `DELETE` | `/api/v1/admin/keys/:id`           | `brain:admin` | Revoke an API key                     |
+| `GET`    | `/api/v1/health/detailed`          | `memory:read` | Extended health: pgvector, audit, SSE |
+| `GET`    | `/api/v1/analytics`                | `audit:read`  | Analytics dashboard data              |
+| `GET`    | `/api/v1/compiled-scripts`         | `memory:read` | List auto-compiled scripts            |
+| `POST`   | `/api/v1/compiled-scripts/compile` | `brain:admin` | Trigger compilation pipeline          |
 
 ### SSE Events
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
-| `GET` | `/api/v1/events` | `memory:read` | Server-Sent Events stream |
+| Method | Path             | Scope         | Description               |
+| ------ | ---------------- | ------------- | ------------------------- |
+| `GET`  | `/api/v1/events` | `memory:read` | Server-Sent Events stream |
 
 ### MCP
 
-| Method | Path | Scope | Description |
-|---|---|---|---|
+| Method         | Path       | Scope      | Description                     |
+| -------------- | ---------- | ---------- | ------------------------------- |
 | `GET` / `POST` | `/api/mcp` | (per tool) | Model Context Protocol endpoint |
 
 ---
@@ -369,30 +375,30 @@ NEXUS 2.0 is a full **Model Context Protocol** server, compatible with any MCP c
 
 ### MCP Tools
 
-| Tool | Description | Scopes |
-|---|---|---|
-| `nexus_recall` | Token-budgeted recall across memories, skills, notes | `memory:read` |
-| `nexus_remember` | Store a durable memory | `memory:write` |
-| `nexus_capture` | Capture and distill a session transcript | `memory:write` |
-| `nexus_feedback` | Record recall relevance feedback | `memory:write` |
-| `nexus_audit_verify` | Verify hash-chained audit integrity | `audit:read` |
-| `nexus_agents_list` | List active agents | `memory:read` |
-| `nexus_agents_spawn` | Spawn a new agent (kernel syscall) | `brain:admin` |
-| `nexus_browser_navigate` | Navigate to a URL | `memory:write` |
-| `nexus_browser_extract` | Extract text from page | `memory:write` |
-| `nexus_browser_screenshot` | Capture page screenshot | `memory:write` |
-| `nexus_cron_create` | Create a scheduled cron job | `brain:admin` |
-| `nexus_cron_list` | List cron jobs | `memory:read` |
-| `nexus_scheduler_status` | Check scheduler status | `memory:read` |
-| `nexus_kill_switch` | Emergency mutation blocking | `safety:write` |
+| Tool                       | Description                                          | Scopes         |
+| -------------------------- | ---------------------------------------------------- | -------------- |
+| `nexus_recall`             | Token-budgeted recall across memories, skills, notes | `memory:read`  |
+| `nexus_remember`           | Store a durable memory                               | `memory:write` |
+| `nexus_capture`            | Capture and distill a session transcript             | `memory:write` |
+| `nexus_feedback`           | Record recall relevance feedback                     | `memory:write` |
+| `nexus_audit_verify`       | Verify hash-chained audit integrity                  | `audit:read`   |
+| `nexus_agents_list`        | List active agents                                   | `memory:read`  |
+| `nexus_agents_spawn`       | Spawn a new agent (kernel syscall)                   | `brain:admin`  |
+| `nexus_browser_navigate`   | Navigate to a URL                                    | `memory:write` |
+| `nexus_browser_extract`    | Extract text from page                               | `memory:write` |
+| `nexus_browser_screenshot` | Capture page screenshot                              | `memory:write` |
+| `nexus_cron_create`        | Create a scheduled cron job                          | `brain:admin`  |
+| `nexus_cron_list`          | List cron jobs                                       | `memory:read`  |
+| `nexus_scheduler_status`   | Check scheduler status                               | `memory:read`  |
+| `nexus_kill_switch`        | Emergency mutation blocking                          | `safety:write` |
 
 ### MCP Resources
 
-| Resource URI | Description |
-|---|---|
-| `nexus://memories/{id}` | A specific memory by ID |
-| `nexus://memories?kind={kind}` | Memories filtered by kind |
-| `nexus://skills/{id}` | A specific skill by ID |
+| Resource URI                    | Description                 |
+| ------------------------------- | --------------------------- |
+| `nexus://memories/{id}`         | A specific memory by ID     |
+| `nexus://memories?kind={kind}`  | Memories filtered by kind   |
+| `nexus://skills/{id}`           | A specific skill by ID      |
 | `nexus://skills?category={cat}` | Skills filtered by category |
 
 ### Connecting from Claude Desktop
@@ -420,86 +426,86 @@ All configuration is via environment variables (`.env` file). Full reference:
 
 ### Server
 
-| Variable | Default | Description |
-|---|---|---|
-| `PORT` | `9900` | HTTP server port |
-| `NODE_ENV` | `development` | Environment mode |
-| `DATABASE_URL` | _(required)_ | PostgreSQL connection string |
-| `NEXUS_DB_POOL_MAX` | `20` | Max database connections |
-| `NEXUS_QUERY_TIMEOUT_MS` | `15000` | Query timeout in milliseconds |
-| `NEXUS_DASHBOARD_DIR` | `../dist` | Static dashboard files directory |
+| Variable                 | Default       | Description                      |
+| ------------------------ | ------------- | -------------------------------- |
+| `PORT`                   | `9900`        | HTTP server port                 |
+| `NODE_ENV`               | `development` | Environment mode                 |
+| `DATABASE_URL`           | _(required)_  | PostgreSQL connection string     |
+| `NEXUS_DB_POOL_MAX`      | `20`          | Max database connections         |
+| `NEXUS_QUERY_TIMEOUT_MS` | `15000`       | Query timeout in milliseconds    |
+| `NEXUS_DASHBOARD_DIR`    | `../dist`     | Static dashboard files directory |
 
 ### Security
 
-| Variable | Default | Description |
-|---|---|---|
-| `NEXUS_API_KEY` | _(auto-generated)_ | Operator API key (leave blank → auto-generate) |
-| `NEXUS_ALLOWED_ORIGINS` | `http://localhost:9900` | CORS allowed origins (rejects `localhost` in production) |
-| `NEXUS_RATE_LIMIT_PER_MINUTE` | `120` | Global request rate limit |
-| `NEXUS_MAX_BODY_BYTES` | `5MB` | Maximum request body size |
-| `NEXUS_LOG_LEVEL` | `info` | Log level: debug, info, warn, error |
-| `NEXUS_TRUST_PROXY` | `false` | Trust X-Forwarded-For headers |
+| Variable                      | Default                 | Description                                              |
+| ----------------------------- | ----------------------- | -------------------------------------------------------- |
+| `NEXUS_API_KEY`               | _(auto-generated)_      | Operator API key (leave blank → auto-generate)           |
+| `NEXUS_ALLOWED_ORIGINS`       | `http://localhost:9900` | CORS allowed origins (rejects `localhost` in production) |
+| `NEXUS_RATE_LIMIT_PER_MINUTE` | `120`                   | Global request rate limit                                |
+| `NEXUS_MAX_BODY_BYTES`        | `5MB`                   | Maximum request body size                                |
+| `NEXUS_LOG_LEVEL`             | `info`                  | Log level: debug, info, warn, error                      |
+| `NEXUS_TRUST_PROXY`           | `false`                 | Trust X-Forwarded-For headers                            |
 
 ### LLM & Embeddings
 
-| Variable | Default | Description |
-|---|---|---|
-| `NEXUS_LLM_BASE_URL` | _(optional)_ | OpenAI-compatible API base URL |
-| `NEXUS_LLM_API_KEY` | _(optional)_ | LLM provider API key |
-| `NEXUS_LLM_MODEL` | _(optional)_ | Default LLM model |
-| `NEXUS_LLM_SIMPLE_MODEL` | _(optional)_ | Simple task model (falls back to `NEXUS_LLM_MODEL`) |
-| `NEXUS_LLM_MEDIUM_MODEL` | _(optional)_ | Medium task model |
-| `NEXUS_LLM_COMPLEX_MODEL` | _(optional)_ | Complex task model |
-| `NEXUS_EMBEDDING_MODEL` | _(optional)_ | Embedding model (e.g. `text-embedding-3-small`) |
-| `NEXUS_EMBEDDING_DIM` | `1536` | Vector dimension for embedding columns |
-| `NEXUS_EMBEDDING_BATCH_SIZE` | `64` | Batch size for embedding generation |
+| Variable                     | Default      | Description                                         |
+| ---------------------------- | ------------ | --------------------------------------------------- |
+| `NEXUS_LLM_BASE_URL`         | _(optional)_ | OpenAI-compatible API base URL                      |
+| `NEXUS_LLM_API_KEY`          | _(optional)_ | LLM provider API key                                |
+| `NEXUS_LLM_MODEL`            | _(optional)_ | Default LLM model                                   |
+| `NEXUS_LLM_SIMPLE_MODEL`     | _(optional)_ | Simple task model (falls back to `NEXUS_LLM_MODEL`) |
+| `NEXUS_LLM_MEDIUM_MODEL`     | _(optional)_ | Medium task model                                   |
+| `NEXUS_LLM_COMPLEX_MODEL`    | _(optional)_ | Complex task model                                  |
+| `NEXUS_EMBEDDING_MODEL`      | _(optional)_ | Embedding model (e.g. `text-embedding-3-small`)     |
+| `NEXUS_EMBEDDING_DIM`        | `1536`       | Vector dimension for embedding columns              |
+| `NEXUS_EMBEDDING_BATCH_SIZE` | `64`         | Batch size for embedding generation                 |
 
 ### Recall Tuning
 
-| Variable | Default | Description |
-|---|---|---|
-| `NEXUS_RRF_K` | `60` | RRF constant (higher = more weight on lower ranks) |
-| `NEXUS_SEMANTIC_THRESHOLD` | `0.8` | Minimum vector similarity score |
-| `NEXUS_RECENCY_HALFLIFE_DAYS` | `30` | Recency decay half-life |
-| `NEXUS_RECALL_WEIGHT_RRF` | `0.5` | RRF score weight |
-| `NEXUS_RECALL_WEIGHT_IMPORTANCE` | `0.3` | Importance score weight |
-| `NEXUS_RECALL_WEIGHT_RECENCY` | `0.1` | Recency score weight |
-| `NEXUS_RECALL_WEIGHT_FEEDBACK` | `0.1` | Feedback score weight |
-| `NEXUS_MAX_RECALL_CORPUS` | `10000` | Max documents in recall corpus |
+| Variable                         | Default | Description                                        |
+| -------------------------------- | ------- | -------------------------------------------------- |
+| `NEXUS_RRF_K`                    | `60`    | RRF constant (higher = more weight on lower ranks) |
+| `NEXUS_SEMANTIC_THRESHOLD`       | `0.8`   | Minimum vector similarity score                    |
+| `NEXUS_RECENCY_HALFLIFE_DAYS`    | `30`    | Recency decay half-life                            |
+| `NEXUS_RECALL_WEIGHT_RRF`        | `0.5`   | RRF score weight                                   |
+| `NEXUS_RECALL_WEIGHT_IMPORTANCE` | `0.3`   | Importance score weight                            |
+| `NEXUS_RECALL_WEIGHT_RECENCY`    | `0.1`   | Recency score weight                               |
+| `NEXUS_RECALL_WEIGHT_FEEDBACK`   | `0.1`   | Feedback score weight                              |
+| `NEXUS_MAX_RECALL_CORPUS`        | `10000` | Max documents in recall corpus                     |
 
 ### Worker / Scheduler
 
-| Variable | Default | Description |
-|---|---|---|
-| `NEXUS_WORKER_POLL_MS` | `2000` | Task polling interval |
-| `NEXUS_WORKER_MAX_CONCURRENCY` | `3` | Max concurrent tasks |
-| `NEXUS_WORKER_TIMEOUT_MS` | `120000` | Task timeout |
-| `NEXUS_WORKER_MAINTENANCE_MS` | `60000` | Maintenance interval |
-| `NEXUS_WORKER_STALE_TASK_MS` | `300000` | Time before task is considered stale |
-| `NEXUS_WORKER_HEARTBEAT_MS` | `120000` | Agent heartbeat interval |
-| `NEXUS_WORKER_AUTO_KILL` | `false` | Auto-terminate stalled agents |
+| Variable                       | Default  | Description                          |
+| ------------------------------ | -------- | ------------------------------------ |
+| `NEXUS_WORKER_POLL_MS`         | `2000`   | Task polling interval                |
+| `NEXUS_WORKER_MAX_CONCURRENCY` | `3`      | Max concurrent tasks                 |
+| `NEXUS_WORKER_TIMEOUT_MS`      | `120000` | Task timeout                         |
+| `NEXUS_WORKER_MAINTENANCE_MS`  | `60000`  | Maintenance interval                 |
+| `NEXUS_WORKER_STALE_TASK_MS`   | `300000` | Time before task is considered stale |
+| `NEXUS_WORKER_HEARTBEAT_MS`    | `120000` | Agent heartbeat interval             |
+| `NEXUS_WORKER_AUTO_KILL`       | `false`  | Auto-terminate stalled agents        |
 
 ### Sandbox
 
-| Variable | Default | Description |
-|---|---|---|
-| `NEXUS_SANDBOX_ENABLED` | `false` | Enable Docker sandbox for code execution |
-| `NEXUS_SANDBOX_IMAGE` | `node:20-alpine` | Docker image for sandboxed execution |
-| `NEXUS_SANDBOX_TIMEOUT_MS` | `30000` | Sandbox execution timeout |
+| Variable                   | Default          | Description                              |
+| -------------------------- | ---------------- | ---------------------------------------- |
+| `NEXUS_SANDBOX_ENABLED`    | `false`          | Enable Docker sandbox for code execution |
+| `NEXUS_SANDBOX_IMAGE`      | `node:20-alpine` | Docker image for sandboxed execution     |
+| `NEXUS_SANDBOX_TIMEOUT_MS` | `30000`          | Sandbox execution timeout                |
 
 ### Optional Integrations
 
-| Variable | Default | Description |
-|---|---|---|
-| `NEXUS_OBSIDIAN_VAULT` | _(optional)_ | Path to Obsidian vault for markdown sync |
-| `NEXUS_REDIS_URL` | `redis://localhost:6379` | Redis URL (bus backend) |
-| `NEXUS_BUS_BACKEND` | `memory` | Bus backend: `memory` or `redis` |
-| `NEXUS_OTEL_ENDPOINT` | _(optional)_ | OpenTelemetry collector endpoint |
-| `NEXUS_OTEL_API_KEY` | _(optional)_ | OpenTelemetry API key |
-| `NEXUS_BLOCKCHAIN_ENABLED` | `false` | Enable blockchain anchoring |
-| `NEXUS_BLOCKCHAIN_RPC_URL` | _(optional)_ | Ethereum RPC URL |
-| `NEXUS_BLOCKCHAIN_CHAIN_ID` | `1` | Chain ID for anchoring |
-| `NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL` | `10` | Anchoring interval (checkpoints) |
+| Variable                           | Default                  | Description                              |
+| ---------------------------------- | ------------------------ | ---------------------------------------- |
+| `NEXUS_OBSIDIAN_VAULT`             | _(optional)_             | Path to Obsidian vault for markdown sync |
+| `NEXUS_REDIS_URL`                  | `redis://localhost:6379` | Redis URL (bus backend)                  |
+| `NEXUS_BUS_BACKEND`                | `memory`                 | Bus backend: `memory` or `redis`         |
+| `NEXUS_OTEL_ENDPOINT`              | _(optional)_             | OpenTelemetry collector endpoint         |
+| `NEXUS_OTEL_API_KEY`               | _(optional)_             | OpenTelemetry API key                    |
+| `NEXUS_BLOCKCHAIN_ENABLED`         | `false`                  | Enable blockchain anchoring              |
+| `NEXUS_BLOCKCHAIN_RPC_URL`         | _(optional)_             | Ethereum RPC URL                         |
+| `NEXUS_BLOCKCHAIN_CHAIN_ID`        | `1`                      | Chain ID for anchoring                   |
+| `NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL` | `10`                     | Anchoring interval (checkpoints)         |
 
 ---
 
@@ -519,6 +525,7 @@ docker compose logs -f nexus
 ```
 
 The included `docker-compose.yml` provides:
+
 - `nexus` — the server (port 9900)
 - `postgres` — PostgreSQL 16 + pgvector (port 5432)
 - `redis` — optional Redis for pub/sub bus (commented out)
@@ -537,6 +544,7 @@ If pgvector is unavailable, NEXUS gracefully falls back to BM25 lexical search.
 ### Environment Hardening (Production)
 
 Before deploying to production:
+
 1. Set `NODE_ENV=production` (rejects `localhost` in `NEXUS_ALLOWED_ORIGINS`)
 2. Set `NEXUS_API_KEY` explicitly (auto-generation logs to stdout — not suitable for production)
 3. Configure `NEXUS_ALLOWED_ORIGINS` with your real domain(s)
@@ -593,20 +601,20 @@ nexus-2.0/
 
 ### Key Services
 
-| Module | File | Purpose |
-|---|---|---|
-| **Kernel** | `services/kernel.ts` | Agent lifecycle, syscalls, scheduler, saga orchestration |
-| **Recall** | `services/recall.ts` | RRF fusion, BM25 + vector scoring, budget packing |
-| **Embeddings** | `services/embeddings.ts` | OpenAI-compatible embedding via safeFetch, batch processing |
-| **Sandbox** | `services/sandbox.ts` | Docker/vm isolated code execution, execution tracking |
-| **Audit Engine** | `services/audit-engine.ts` | LLM trajectories, tool receipts, auto-kill detection |
-| **Brain** | `services/brain.ts` | Export/import/compress, idempotent, no secrets leaked |
-| **LLM Router** | `services/llm-router.ts` | Tiered model routing (simple/medium/complex) |
-| **Skill Compiler** | `services/skill-compiler.ts` | Pattern detection → auto-generated scripts |
-| **Browser** | `services/browser.ts` | Playwright navigation, extraction, screenshots |
-| **Vault** | `services/vault.ts` | Obsidian vault indexing, path-traversal protection |
-| **Bus** | `services/bus.ts` | In-memory or Redis pub/sub event bus |
-| **Desktop Actuator** | `services/desktop-actuator.ts` | VLM-driven GUI automation |
+| Module               | File                           | Purpose                                                     |
+| -------------------- | ------------------------------ | ----------------------------------------------------------- |
+| **Kernel**           | `services/kernel.ts`           | Agent lifecycle, syscalls, scheduler, saga orchestration    |
+| **Recall**           | `services/recall.ts`           | RRF fusion, BM25 + vector scoring, budget packing           |
+| **Embeddings**       | `services/embeddings.ts`       | OpenAI-compatible embedding via safeFetch, batch processing |
+| **Sandbox**          | `services/sandbox.ts`          | Docker/vm isolated code execution, execution tracking       |
+| **Audit Engine**     | `services/audit-engine.ts`     | LLM trajectories, tool receipts, auto-kill detection        |
+| **Brain**            | `services/brain.ts`            | Export/import/compress, idempotent, no secrets leaked       |
+| **LLM Router**       | `services/llm-router.ts`       | Tiered model routing (simple/medium/complex)                |
+| **Skill Compiler**   | `services/skill-compiler.ts`   | Pattern detection → auto-generated scripts                  |
+| **Browser**          | `services/browser.ts`          | Playwright navigation, extraction, screenshots              |
+| **Vault**            | `services/vault.ts`            | Obsidian vault indexing, path-traversal protection          |
+| **Bus**              | `services/bus.ts`              | In-memory or Redis pub/sub event bus                        |
+| **Desktop Actuator** | `services/desktop-actuator.ts` | VLM-driven GUI automation                                   |
 
 ---
 
@@ -641,6 +649,7 @@ Test files live in `server/tests/` and use Vitest with a clean database per test
 ## Security Model
 
 ### API Key Authentication
+
 - Keys are **scoped** (memory:read, memory:write, skill:read, etc.)
 - Hashed using **scrypt** (N=2^14, r=8, p=1, 64MB maxmem)
 - Verification uses **constant-time comparison** (`crypto.timingSafeEqual`)
@@ -648,21 +657,28 @@ Test files live in `server/tests/` and use Vitest with a clean database per test
 - Raw key shown only once at creation time
 
 ### Hash-Chained Audit
+
 Every mutation is recorded in an append-only audit log:
+
 ```
 entry_hash = SHA256(prev_hash + sequence + actor + action + payload)
 ```
+
 - Tamper-evident: changing any entry invalidates all subsequent hashes
 - Verifiable: `GET /api/v1/audit` walks the chain and reports validity
 - Auto-kill: when 3+ consecutive entries fail verification, kill switch engages
 
 ### Code Sandboxing
+
 Two execution modes:
+
 - **Docker sandbox** — ephemeral containers with timeout, auto-removal
 - **In-process sandbox** — Node.js `vm.Script` with isolated context (blocks `require`, `process`, `Buffer`, `setTimeout`, `fetch`, etc.)
 
 ### Kill Switch
+
 Emergency mutation blocker:
+
 - HTTP 423 Locked on all write operations
 - Persisted in the database (survives restart)
 - Auto-engages on audit chain corruption
@@ -694,22 +710,21 @@ For the detailed 20-Phase / 400-Subphase Zero-Compromise Engineering Master Plan
 - [ ] Phase 19: Full End-to-End System Integration & Real-World Validation Suite
 - [ ] Phase 20: Open-Source Release Readiness, Verification & GitHub Publishing
 
-
 ---
 
 ## Documentation
 
 Additional docs are in the `docs/` directory:
 
-| Document | Description |
-|---|---|
+| Document               | Description                                     |
+| ---------------------- | ----------------------------------------------- |
 | `docs/ARCHITECTURE.md` | Deep dive: subsystem interactions and data flow |
-| `docs/DEPLOYMENT.md` | Production deployment guide |
-| `docs/SECURITY.md` | Threat model and security hardening |
-| `docs/MCP.md` | MCP protocol integration guide |
-| `docs/AGENTIC_OS.md` | Agentic OS kernel reference |
-| `docs/TESTING.md` | Testing strategy and coverage |
-| `docs/HERMES.md` | Hermes CLI integration notes |
+| `docs/DEPLOYMENT.md`   | Production deployment guide                     |
+| `docs/SECURITY.md`     | Threat model and security hardening             |
+| `docs/MCP.md`          | MCP protocol integration guide                  |
+| `docs/AGENTIC_OS.md`   | Agentic OS kernel reference                     |
+| `docs/TESTING.md`      | Testing strategy and coverage                   |
+| `docs/HERMES.md`       | Hermes CLI integration notes                    |
 
 ---
 

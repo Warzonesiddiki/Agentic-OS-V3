@@ -25,17 +25,13 @@
  * Default-deny: a plugin without a matching capability entry cannot invoke
  * that capability. Period.
  */
-import { createHash, randomUUID, verify } from "node:crypto";
-import { db } from "../db/client.js";
-import {
-  plugins,
-  pluginInstallations,
-  pluginReceipts,
-} from "../db/client.js";
-import { desc, eq } from "drizzle-orm";
-import { appendAudit } from "../lib/audit.js";
-import { log } from "../lib/logging.js";
-import { validateManifest, type PluginManifest, type CapabilitySpec } from "./plugin-manifest.js";
+import { createHash, randomUUID, verify } from 'node:crypto';
+import { db } from '../db/client.js';
+import { plugins, pluginInstallations, pluginReceipts } from '../db/client.js';
+import { desc, eq } from 'drizzle-orm';
+import { appendAudit } from '../lib/audit.js';
+import { log } from '../lib/logging.js';
+import { validateManifest, type PluginManifest, type CapabilitySpec } from './plugin-manifest.js';
 
 /* ─── Public types ───────────────────────────────────────────────────────── */
 
@@ -45,7 +41,7 @@ export interface LoadedPlugin {
   version: string;
   manifest: PluginManifest;
   contentSha256: string;
-  trustState: "untrusted" | "trusted" | "revoked";
+  trustState: 'untrusted' | 'trusted' | 'revoked';
   ringOverride: number | null;
   config: Record<string, unknown>;
 }
@@ -56,7 +52,9 @@ export interface PluginInvocation {
   capability: string;
   inputBytes: Uint8Array;
   /** The actual WASM invocation is performed by the consumer; we only validate + receipt. */
-  computeOutput: (validated: ValidatedInvocation) => Promise<{ outputBytes: Uint8Array; fuelUsed: number; exitCode: number }>;
+  computeOutput: (
+    validated: ValidatedInvocation
+  ) => Promise<{ outputBytes: Uint8Array; fuelUsed: number; exitCode: number }>;
 }
 
 export interface ValidatedInvocation {
@@ -89,7 +87,9 @@ let _manifestCacheStamp = 0;
 
 const TRUSTED_PUBLISHERS = new Set<string>([
   // populated from env: NEXUS_PLUGIN_PUBLISHER_PUBKEYS=pk1,pk2,pk3
-  ...(process.env.NEXUS_PLUGIN_PUBLISHER_PUBKEYS?.split(",").map((s: any) => s.trim()).filter(Boolean) ?? []),
+  ...(process.env.NEXUS_PLUGIN_PUBLISHER_PUBKEYS?.split(',')
+    .map((s: any) => s.trim())
+    .filter(Boolean) ?? []),
 ]);
 
 /* ─── Manifest verification ─────────────────────────────────────────────── */
@@ -107,15 +107,17 @@ export function canonicalizeManifest(m: PluginManifest): string {
 export function verifyManifestSignature(
   manifest: PluginManifest,
   signatureB64: string,
-  publisherPubkeyB64: string,
+  publisherPubkeyB64: string
 ): boolean {
   try {
-    const msg = Buffer.from(canonicalizeManifest(manifest), "utf8");
-    const sig = Buffer.from(signatureB64, "base64");
-    const pub = Buffer.from(publisherPubkeyB64, "base64");
-    return verify(null, msg, { key: pub, format: "der", type: "spki" }, sig);
+    const msg = Buffer.from(canonicalizeManifest(manifest), 'utf8');
+    const sig = Buffer.from(signatureB64, 'base64');
+    const pub = Buffer.from(publisherPubkeyB64, 'base64');
+    return verify(null, msg, { key: pub, format: 'der', type: 'spki' }, sig);
   } catch (e) {
-    log.warn("plugin.signature_verify_failed", { error: e instanceof Error ? e.message : String(e) });
+    log.warn('plugin.signature_verify_failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
     return false;
   }
 }
@@ -139,80 +141,118 @@ export async function registerPlugin(input: {
 
   // 2. verify signature
   if (!verifyManifestSignature(validated, input.signature, input.authorPubkey)) {
-    await appendAudit("plugin.signature_invalid", { name: input.name, version: input.version }, "plugin-runtime");
-    throw new Error("plugin_signature_invalid");
+    await appendAudit(
+      'plugin.signature_invalid',
+      { name: input.name, version: input.version },
+      'plugin-runtime'
+    );
+    throw new Error('plugin_signature_invalid');
   }
 
   // 3. compute content hash
-  const contentSha256 = createHash("sha256").update(input.wasmBytes).digest("hex");
+  const contentSha256 = createHash('sha256').update(input.wasmBytes).digest('hex');
 
   // 4. trust assignment
-  const trustState: "trusted" | "untrusted" = TRUSTED_PUBLISHERS.has(input.authorPubkey) ? "trusted" : "untrusted";
+  const trustState: 'trusted' | 'untrusted' = TRUSTED_PUBLISHERS.has(input.authorPubkey)
+    ? 'trusted'
+    : 'untrusted';
 
   // 5. upsert
   const id = `plg_${randomUUID()}`;
-  await db.insert(plugins).values({
-    id,
-    name: input.name,
-    version: input.version,
-    description: input.description ?? "",
-    authorPubkey: input.authorPubkey,
-    signature: input.signature,
-    contentSha256,
-    manifest: validated as unknown as Record<string, unknown>,
-    wasmBytes: Buffer.from(input.wasmBytes).toString("base64"),
-    source: input.source ?? "local",
-    homepage: input.homepage ?? null,
-    license: input.license ?? null,
-    ratingAvg: 0,
-    ratingCount: 0,
-    installCount: 0,
-    trustState,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).onConflictDoNothing();
+  await db
+    .insert(plugins)
+    .values({
+      id,
+      name: input.name,
+      version: input.version,
+      description: input.description ?? '',
+      authorPubkey: input.authorPubkey,
+      signature: input.signature,
+      contentSha256,
+      manifest: validated as unknown as Record<string, unknown>,
+      wasmBytes: Buffer.from(input.wasmBytes).toString('base64'),
+      source: input.source ?? 'local',
+      homepage: input.homepage ?? null,
+      license: input.license ?? null,
+      ratingAvg: 0,
+      ratingCount: 0,
+      installCount: 0,
+      trustState,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoNothing();
 
-  await appendAudit("plugin.registered", {
-    name: input.name,
-    version: input.version,
-    contentSha256,
-    trustState,
-    publisherTrusted: TRUSTED_PUBLISHERS.has(input.authorPubkey),
-  }, "plugin-runtime");
+  await appendAudit(
+    'plugin.registered',
+    {
+      name: input.name,
+      version: input.version,
+      contentSha256,
+      trustState,
+      publisherTrusted: TRUSTED_PUBLISHERS.has(input.authorPubkey),
+    },
+    'plugin-runtime'
+  );
 
-  log.info("plugin.registered", { id, name: input.name, version: input.version, trustState });
+  log.info('plugin.registered', { id, name: input.name, version: input.version, trustState });
   const loaded = await loadPlugin(id);
-  if (!loaded) throw new Error("plugin_load_failed");
+  if (!loaded) throw new Error('plugin_load_failed');
   return loaded;
 }
 
-export async function installPlugin(pluginId: string, opts?: { ringOverride?: number; config?: Record<string, unknown> }): Promise<void> {
+export async function installPlugin(
+  pluginId: string,
+  opts?: { ringOverride?: number; config?: Record<string, unknown> }
+): Promise<void> {
   const plugin = await loadPlugin(pluginId);
-  if (!plugin) throw new Error("plugin_not_found");
-  if (plugin.trustState === "revoked") throw new Error("plugin_revoked");
+  if (!plugin) throw new Error('plugin_not_found');
+  if (plugin.trustState === 'revoked') throw new Error('plugin_revoked');
 
   const installId = `pi_${randomUUID()}`;
-  await db.insert(pluginInstallations).values({
-    id: installId,
-    pluginId,
-    enabled: true,
-    ringOverride: opts?.ringOverride ?? null,
-    config: opts?.config ?? {},
-    installedAt: new Date(),
-    updatedAt: new Date(),
-  }).onConflictDoUpdate({
-    target: pluginInstallations.pluginId,
-    set: { enabled: true, ringOverride: opts?.ringOverride ?? null, config: opts?.config ?? {}, updatedAt: new Date() },
-  });
+  await db
+    .insert(pluginInstallations)
+    .values({
+      id: installId,
+      pluginId,
+      enabled: true,
+      ringOverride: opts?.ringOverride ?? null,
+      config: opts?.config ?? {},
+      installedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: pluginInstallations.pluginId,
+      set: {
+        enabled: true,
+        ringOverride: opts?.ringOverride ?? null,
+        config: opts?.config ?? {},
+        updatedAt: new Date(),
+      },
+    });
 
-  await db.update(plugins).set({ installCount: (await db.query.plugins.findFirst({ where: eq(plugins.id, pluginId) }))!.installCount + 1, updatedAt: new Date() }).where(eq(plugins.id, pluginId));
-  await appendAudit("plugin.installed", { pluginId, installId, ringOverride: opts?.ringOverride ?? null }, "plugin-runtime");
+  await db
+    .update(plugins)
+    .set({
+      installCount:
+        (await db.query.plugins.findFirst({ where: eq(plugins.id, pluginId) }))!.installCount + 1,
+      updatedAt: new Date(),
+    })
+    .where(eq(plugins.id, pluginId));
+  await appendAudit(
+    'plugin.installed',
+    { pluginId, installId, ringOverride: opts?.ringOverride ?? null },
+    'plugin-runtime'
+  );
   loaded.delete(pluginId); // force re-load with new config
 }
 
 export async function uninstallPlugin(pluginId: string): Promise<void> {
-  await db.update(pluginInstallations).set({ enabled: false, updatedAt: new Date() }).where(eq(pluginInstallations.pluginId, pluginId));
-  await appendAudit("plugin.uninstalled", { pluginId }, "plugin-runtime");
+  await db
+    .update(pluginInstallations)
+    .set({ enabled: false, updatedAt: new Date() })
+    .where(eq(pluginInstallations.pluginId, pluginId));
+  await appendAudit('plugin.uninstalled', { pluginId }, 'plugin-runtime');
   loaded.delete(pluginId);
 }
 
@@ -222,7 +262,9 @@ export async function loadPlugin(pluginId: string): Promise<LoadedPlugin | null>
 
   const row = await db.query.plugins.findFirst({ where: eq(plugins.id, pluginId) });
   if (!row) return null;
-  const installRow = await db.query.pluginInstallations.findFirst({ where: eq(pluginInstallations.pluginId, pluginId) });
+  const installRow = await db.query.pluginInstallations.findFirst({
+    where: eq(pluginInstallations.pluginId, pluginId),
+  });
 
   const plugin: LoadedPlugin = {
     id: row.id,
@@ -230,7 +272,7 @@ export async function loadPlugin(pluginId: string): Promise<LoadedPlugin | null>
     version: row.version,
     manifest: row.manifest as unknown as PluginManifest,
     contentSha256: row.contentSha256,
-    trustState: row.trustState as "untrusted" | "trusted" | "revoked",
+    trustState: row.trustState as 'untrusted' | 'trusted' | 'revoked',
     ringOverride: installRow?.ringOverride ?? null,
     config: (installRow?.config ?? {}) as Record<string, unknown>,
   };
@@ -266,10 +308,10 @@ function matchesCapability(spec: CapabilitySpec, requested: string): boolean {
 
 export async function invokePlugin(req: PluginInvocation): Promise<PluginReceipt> {
   const start = Date.now();
-  const inputSha256 = createHash("sha256").update(req.inputBytes).digest("hex");
+  const inputSha256 = createHash('sha256').update(req.inputBytes).digest('hex');
   const plugin = await loadPlugin(req.pluginId);
   if (!plugin) throw new Error(`plugin_not_found:${req.pluginId}`);
-  if (plugin.trustState === "revoked") throw new Error(`plugin_revoked:${req.pluginId}`);
+  if (plugin.trustState === 'revoked') throw new Error(`plugin_revoked:${req.pluginId}`);
 
   const cap = checkCapability(plugin, req.capability);
   if (!cap) {
@@ -281,27 +323,33 @@ export async function invokePlugin(req: PluginInvocation): Promise<PluginReceipt
       agentId: req.agentId,
       capability: req.capability,
       inputSha256,
-      outputSha256: createHash("sha256").update(Buffer.from("denied", "utf8")).digest("hex"),
+      outputSha256: createHash('sha256').update(Buffer.from('denied', 'utf8')).digest('hex'),
       exitCode: -13,
       fuelUsed: 0,
       durationMs: Date.now() - start,
       authorized: false,
       createdAt: new Date(),
     });
-    await appendAudit("plugin.capability_denied", {
-      pluginId: plugin.id,
-      agentId: req.agentId,
-      capability: req.capability,
-    }, "plugin-runtime");
+    await appendAudit(
+      'plugin.capability_denied',
+      {
+        pluginId: plugin.id,
+        agentId: req.agentId,
+        capability: req.capability,
+      },
+      'plugin-runtime'
+    );
     throw new Error(`capability_denied:${req.capability}`);
   }
 
   const validated: ValidatedInvocation = { plugin, capability: cap, inputSha256, startedAt: start };
   const result = await req.computeOutput(validated);
-  const outputSha256 = createHash("sha256").update(result.outputBytes).digest("hex");
+  const outputSha256 = createHash('sha256').update(result.outputBytes).digest('hex');
   const durationMs = Date.now() - start;
   const receiptId = `prc_${randomUUID()}`;
-  const installRow = await db.query.pluginInstallations.findFirst({ where: eq(pluginInstallations.pluginId, plugin.id) });
+  const installRow = await db.query.pluginInstallations.findFirst({
+    where: eq(pluginInstallations.pluginId, plugin.id),
+  });
 
   await db.insert(pluginReceipts).values({
     id: receiptId,
@@ -318,20 +366,29 @@ export async function invokePlugin(req: PluginInvocation): Promise<PluginReceipt
     createdAt: new Date(),
   });
 
-  await appendAudit("plugin.invoked", {
-    pluginId: plugin.id,
-    pluginName: plugin.name,
-    pluginVersion: plugin.version,
-    agentId: req.agentId,
-    capability: req.capability,
-    inputSha256,
-    outputSha256,
-    fuelUsed: result.fuelUsed,
-    durationMs,
-    exitCode: result.exitCode,
-  }, "plugin-runtime");
+  await appendAudit(
+    'plugin.invoked',
+    {
+      pluginId: plugin.id,
+      pluginName: plugin.name,
+      pluginVersion: plugin.version,
+      agentId: req.agentId,
+      capability: req.capability,
+      inputSha256,
+      outputSha256,
+      fuelUsed: result.fuelUsed,
+      durationMs,
+      exitCode: result.exitCode,
+    },
+    'plugin-runtime'
+  );
 
-  log.info("plugin.invoked", { plugin: plugin.name, capability: req.capability, agentId: req.agentId, durationMs });
+  log.info('plugin.invoked', {
+    plugin: plugin.name,
+    capability: req.capability,
+    agentId: req.agentId,
+    durationMs,
+  });
   return {
     id: receiptId,
     pluginId: plugin.id,
@@ -349,7 +406,10 @@ export async function invokePlugin(req: PluginInvocation): Promise<PluginReceipt
 
 /* ─── Receipts query (for the audit page) ───────────────────────────────── */
 
-export async function listReceipts(opts?: { pluginId?: string; limit?: number }): Promise<PluginReceipt[]> {
+export async function listReceipts(opts?: {
+  pluginId?: string;
+  limit?: number;
+}): Promise<PluginReceipt[]> {
   const rows = await db.query.pluginReceipts.findMany({
     where: opts?.pluginId ? eq(pluginReceipts.pluginId, opts.pluginId) : undefined,
     orderBy: [desc(pluginReceipts.createdAt)],
@@ -373,10 +433,16 @@ export async function listReceipts(opts?: { pluginId?: string; limit?: number })
 /* ─── Revocation ─────────────────────────────────────────────────────────── */
 
 export async function revokePlugin(pluginId: string, reason: string): Promise<void> {
-  await db.update(plugins).set({ trustState: "revoked", updatedAt: new Date() }).where(eq(plugins.id, pluginId));
-  await db.update(pluginInstallations).set({ enabled: false, updatedAt: new Date() }).where(eq(pluginInstallations.pluginId, pluginId));
+  await db
+    .update(plugins)
+    .set({ trustState: 'revoked', updatedAt: new Date() })
+    .where(eq(plugins.id, pluginId));
+  await db
+    .update(pluginInstallations)
+    .set({ enabled: false, updatedAt: new Date() })
+    .where(eq(pluginInstallations.pluginId, pluginId));
   loaded.delete(pluginId);
-  await appendAudit("plugin.revoked", { pluginId, reason }, "plugin-runtime");
+  await appendAudit('plugin.revoked', { pluginId, reason }, 'plugin-runtime');
 }
 
 /* ─── Cache invalidation (call when publishers change) ───────────────��───── */

@@ -45,7 +45,7 @@ export class AcpClient {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
     });
@@ -75,7 +75,7 @@ export class AcpClient {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${this.apiKey}`,
+        Authorization: `Bearer ${this.apiKey}`,
       },
       body: JSON.stringify(body),
     });
@@ -95,5 +95,3 @@ export class AcpClient {
     return this.call('system.health') as Promise<HealthStatus>;
   }
 }
-
-

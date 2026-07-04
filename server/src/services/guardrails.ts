@@ -16,14 +16,14 @@
  *   if (result.action === "block") return reject(result);
  */
 // import { randomUUID } from "node:crypto"; // removed unused
-import { log } from "../lib/logging.js";
-import { appendAudit } from "../lib/audit.js";
+import { log } from '../lib/logging.js';
+import { appendAudit } from '../lib/audit.js';
 
 /* ─── Types ───────────────────────────────────────────────────────────────── */
 
-export type GuardrailType = "input" | "output" | "tool";
-export type ViolationAction = "block" | "warn" | "modify" | "log";
-export type GuardrailStage = "pre_tool" | "post_tool";
+export type GuardrailType = 'input' | 'output' | 'tool';
+export type ViolationAction = 'block' | 'warn' | 'modify' | 'log';
+export type GuardrailStage = 'pre_tool' | 'post_tool';
 
 export interface ViolationResult {
   passed: boolean;
@@ -121,7 +121,7 @@ const registry = new Map<string, GuardrailDefinition>();
  */
 export function registerGuardrail(def: GuardrailDefinition): void {
   registry.set(def.name, def);
-  log.info("guardrail.registered", { name: def.name, type: def.type });
+  log.info('guardrail.registered', { name: def.name, type: def.type });
 }
 
 export function unregisterGuardrail(name: string): boolean {
@@ -147,16 +147,54 @@ export interface PatternRule {
 }
 
 const builtinPatterns: PatternRule[] = [
-  { name: "sql_injection", pattern: /\b(?:DROP|DELETE|TRUNCATE|EXEC)\s+(?:TABLE|DATABASE|PROCEDURE)\b/i, severity: 1.0, action: "block" },
-  { name: "path_traversal", pattern: /\.\.(?:\\|\/)[\w\-.]/i, severity: 1.0, action: "block" },
-  { name: "command_injection", pattern: /[;&|]\s*(?:rm|del|shutdown|format|mkfs|dd)\s/i, severity: 1.0, action: "block" },
-  { name: "jailbreak_attempt", pattern: /\b(?:ignore|disregard)\s+(?:previous|above|all)\s+(?:instructions|prompts|directions)\b/i, severity: 0.9, action: "block" },
-  { name: "doh_instruction", pattern: /\b(?:DAN|STAN|DUDE|prompt\s*injection)\b/i, severity: 0.9, action: "block" },
-  { name: "system_override", pattern: /\b(?:you\s+are\s+(?:now|free)|new\s+(?:role|persona)|override\s+(?:mode|protocol))\b/i, severity: 0.8, action: "warn" },
-  { name: "hate_speech", pattern: /\b(?:nazi|white\s+supremac)/i, severity: 1.0, action: "block" },
-  { name: "self_harm", pattern: /\b(?:suicide|kill\s+myself|self[- ]?harm|end\s+my\s+life)\b/i, severity: 1.0, action: "block" },
-  { name: "harassment", pattern: /\b(?:rape|molest|pedophile)\b/i, severity: 1.0, action: "block" },
-  { name: "personal_data_request", pattern: /\b(?:ssn|social\s+security|credit\s+card\s+number|passport\s+number|driver'?s?\s+license)\s*(?:number|#|id)?\s*(?::|is)\b/i, severity: 0.9, action: "warn" },
+  {
+    name: 'sql_injection',
+    pattern: /\b(?:DROP|DELETE|TRUNCATE|EXEC)\s+(?:TABLE|DATABASE|PROCEDURE)\b/i,
+    severity: 1.0,
+    action: 'block',
+  },
+  { name: 'path_traversal', pattern: /\.\.(?:\\|\/)[\w\-.]/i, severity: 1.0, action: 'block' },
+  {
+    name: 'command_injection',
+    pattern: /[;&|]\s*(?:rm|del|shutdown|format|mkfs|dd)\s/i,
+    severity: 1.0,
+    action: 'block',
+  },
+  {
+    name: 'jailbreak_attempt',
+    pattern:
+      /\b(?:ignore|disregard)\s+(?:previous|above|all)\s+(?:instructions|prompts|directions)\b/i,
+    severity: 0.9,
+    action: 'block',
+  },
+  {
+    name: 'doh_instruction',
+    pattern: /\b(?:DAN|STAN|DUDE|prompt\s*injection)\b/i,
+    severity: 0.9,
+    action: 'block',
+  },
+  {
+    name: 'system_override',
+    pattern:
+      /\b(?:you\s+are\s+(?:now|free)|new\s+(?:role|persona)|override\s+(?:mode|protocol))\b/i,
+    severity: 0.8,
+    action: 'warn',
+  },
+  { name: 'hate_speech', pattern: /\b(?:nazi|white\s+supremac)/i, severity: 1.0, action: 'block' },
+  {
+    name: 'self_harm',
+    pattern: /\b(?:suicide|kill\s+myself|self[- ]?harm|end\s+my\s+life)\b/i,
+    severity: 1.0,
+    action: 'block',
+  },
+  { name: 'harassment', pattern: /\b(?:rape|molest|pedophile)\b/i, severity: 1.0, action: 'block' },
+  {
+    name: 'personal_data_request',
+    pattern:
+      /\b(?:ssn|social\s+security|credit\s+card\s+number|passport\s+number|driver'?s?\s+license)\s*(?:number|#|id)?\s*(?::|is)\b/i,
+    severity: 0.9,
+    action: 'warn',
+  },
 ];
 
 let customPatterns: PatternRule[] = [];
@@ -175,7 +213,7 @@ export function getPatterns(): PatternRule[] {
 
 export function matchPatterns(text: string): ContentFilterResult {
   const allMatches: string[] = [];
-  let matchedName = "";
+  let matchedName = '';
   let redacted = text;
 
   for (const rule of getPatterns()) {
@@ -184,7 +222,7 @@ export function matchPatterns(text: string): ContentFilterResult {
     if (found) {
       allMatches.push(...found);
       matchedName = rule.name;
-      redacted = redacted.replace(rule.pattern, (m) => "*".repeat(m.length));
+      redacted = redacted.replace(rule.pattern, (m) => '*'.repeat(m.length));
     }
   }
 
@@ -199,17 +237,20 @@ export function matchPatterns(text: string): ContentFilterResult {
 /* ─── PII detection ───────────────────────────────────────────────────────── */
 
 const PII_PATTERNS: Array<{ type: string; pattern: RegExp }> = [
-  { type: "email", pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g },
-  { type: "phone", pattern: /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g },
-  { type: "ssn", pattern: /\b\d{3}[-]\d{2}[-]\d{4}\b/g },
-  { type: "credit_card", pattern: /\b(?:\d{4}[-.\s]?){3}\d{4}\b/g },
-  { type: "ip_address", pattern: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g },
-  { type: "crypto_wallet", pattern: /\b(?:0x[a-fA-F0-9]{40}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})\b/g },
-  { type: "api_key", pattern: /\b(?:sk-[A-Za-z0-9]{20,}|nx_live_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b/g },
+  { type: 'email', pattern: /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g },
+  { type: 'phone', pattern: /(?:\+?\d{1,3}[-.\s]?)?\(?\d{2,4}\)?[-.\s]?\d{3,4}[-.\s]?\d{3,4}/g },
+  { type: 'ssn', pattern: /\b\d{3}[-]\d{2}[-]\d{4}\b/g },
+  { type: 'credit_card', pattern: /\b(?:\d{4}[-.\s]?){3}\d{4}\b/g },
+  { type: 'ip_address', pattern: /\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b/g },
+  { type: 'crypto_wallet', pattern: /\b(?:0x[a-fA-F0-9]{40}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})\b/g },
+  {
+    type: 'api_key',
+    pattern: /\b(?:sk-[A-Za-z0-9]{20,}|nx_live_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16})\b/g,
+  },
 ];
 
 export function detectPII(text: string): PIIResult {
-  const entities: PIIResult["entities"] = [];
+  const entities: PIIResult['entities'] = [];
 
   for (const { type, pattern } of PII_PATTERNS) {
     pattern.lastIndex = 0;
@@ -310,14 +351,14 @@ export function removeFromBlockList(entry: string): void {
 function patternGuardrail(input: GuardrailInput): ViolationResult {
   const result = matchPatterns(input.text);
   if (!result.matched) {
-    return { passed: true, score: 0, details: [], action: "log" };
+    return { passed: true, score: 0, details: [], action: 'log' };
   }
   const rule = getPatterns().find((p) => p.name === result.pattern);
   return {
     passed: false,
     score: rule?.severity ?? 0.8,
-    details: [`Pattern '${result.pattern}' matched: ${result.matches.join(", ")}`],
-    action: rule?.action ?? "block",
+    details: [`Pattern '${result.pattern}' matched: ${result.matches.join(', ')}`],
+    action: rule?.action ?? 'block',
     modifiedText: _config.piiRedaction ? result.redacted : undefined,
   };
 }
@@ -325,14 +366,14 @@ function patternGuardrail(input: GuardrailInput): ViolationResult {
 function piiGuardrail(input: GuardrailInput): ViolationResult {
   const result = detectPII(input.text);
   if (!result.hasPII) {
-    return { passed: true, score: 0, details: [], action: "log" };
+    return { passed: true, score: 0, details: [], action: 'log' };
   }
   const types = [...new Set(result.entities.map((e) => e.type))];
   return {
     passed: false,
     score: result.entities.length > 3 ? 0.9 : 0.5,
-    details: [`PII detected: ${types.join(", ")} (${result.entities.length} entities)`],
-    action: _config.piiRedaction ? "modify" : "warn",
+    details: [`PII detected: ${types.join(', ')} (${result.entities.length} entities)`],
+    action: _config.piiRedaction ? 'modify' : 'warn',
     modifiedText: _config.piiRedaction ? result.redacted : undefined,
   };
 }
@@ -340,27 +381,29 @@ function piiGuardrail(input: GuardrailInput): ViolationResult {
 function toxicityGuardrail(input: GuardrailInput): ViolationResult {
   const { score, matches } = scoreToxicity(input.text);
   if (score < _config.toxicityThreshold) {
-    return { passed: true, score, details: [], action: "log" };
+    return { passed: true, score, details: [], action: 'log' };
   }
   return {
     passed: false,
     score,
-    details: [`Toxicity score ${score.toFixed(2)} exceeds threshold ${_config.toxicityThreshold}. Matches: ${matches.join(", ")}`],
-    action: score >= 0.9 ? "block" : "warn",
+    details: [
+      `Toxicity score ${score.toFixed(2)} exceeds threshold ${_config.toxicityThreshold}. Matches: ${matches.join(', ')}`,
+    ],
+    action: score >= 0.9 ? 'block' : 'warn',
   };
 }
 
 function lengthGuardrail(input: GuardrailInput): ViolationResult {
   const len = input.text.length;
-  const max = input.type === "input" ? _config.maxInputLength : _config.maxOutputLength;
+  const max = input.type === 'input' ? _config.maxInputLength : _config.maxOutputLength;
   if (len <= max) {
-    return { passed: true, score: 0, details: [], action: "log" };
+    return { passed: true, score: 0, details: [], action: 'log' };
   }
   return {
     passed: false,
     score: Math.min(len / max, 1.0),
     details: [`Length ${len} exceeds maximum ${max}`],
-    action: "block",
+    action: 'block',
     modifiedText: len > max ? input.text.slice(0, max) : undefined,
   };
 }
@@ -368,95 +411,95 @@ function lengthGuardrail(input: GuardrailInput): ViolationResult {
 function blockListGuardrail(input: GuardrailInput): ViolationResult {
   const { blocked, matched } = checkBlockList(input.text);
   if (!blocked) {
-    return { passed: true, score: 0, details: [], action: "log" };
+    return { passed: true, score: 0, details: [], action: 'log' };
   }
   return {
     passed: false,
     score: 1.0,
     details: [`Blocked term matched: "${matched}"`],
-    action: "block",
+    action: 'block',
   };
 }
 
 /* ─── Register built-in guardrails ────────────────────────────────────────── */
 
 registerGuardrail({
-  name: "pattern_check",
-  type: "input",
+  name: 'pattern_check',
+  type: 'input',
   enabled: true,
-  action: "block",
+  action: 'block',
   validate: patternGuardrail,
 });
 
 registerGuardrail({
-  name: "pii_detection",
-  type: "input",
+  name: 'pii_detection',
+  type: 'input',
   enabled: true,
-  action: "modify",
+  action: 'modify',
   validate: piiGuardrail,
 });
 
 registerGuardrail({
-  name: "toxicity_check",
-  type: "output",
+  name: 'toxicity_check',
+  type: 'output',
   enabled: true,
-  action: "warn",
+  action: 'warn',
   validate: toxicityGuardrail,
 });
 
 registerGuardrail({
-  name: "length_check",
-  type: "input",
+  name: 'length_check',
+  type: 'input',
   enabled: true,
-  action: "block",
+  action: 'block',
   validate: lengthGuardrail,
 });
 
 registerGuardrail({
-  name: "block_list",
-  type: "input",
+  name: 'block_list',
+  type: 'input',
   enabled: true,
-  action: "block",
+  action: 'block',
   validate: blockListGuardrail,
 });
 
 /* ─── PII on output (output guardrail) ─────────────────────────────────────── */
 
 registerGuardrail({
-  name: "pii_redaction_output",
-  type: "output",
+  name: 'pii_redaction_output',
+  type: 'output',
   enabled: true,
-  action: "modify",
+  action: 'modify',
   validate(input: GuardrailInput): ViolationResult {
     const result = detectPII(input.text);
     if (!result.hasPII) {
-      return { passed: true, score: 0, details: [], action: "log" };
+      return { passed: true, score: 0, details: [], action: 'log' };
     }
     return {
       passed: false,
       score: 0.6,
       details: [`Output PII redacted: ${result.entities.length} entities`],
-      action: "modify",
+      action: 'modify',
       modifiedText: result.redacted,
     };
   },
 });
 
 registerGuardrail({
-  name: "output_length_check",
-  type: "output",
+  name: 'output_length_check',
+  type: 'output',
   enabled: true,
-  action: "modify",
+  action: 'modify',
   validate(input: GuardrailInput): ViolationResult {
     const len = input.text.length;
     if (len <= _config.maxOutputLength) {
-      return { passed: true, score: 0, details: [], action: "log" };
+      return { passed: true, score: 0, details: [], action: 'log' };
     }
     return {
       passed: false,
       score: Math.min(len / _config.maxOutputLength, 1.0),
       details: [`Output length ${len} exceeds max ${_config.maxOutputLength}, truncating`],
-      action: "modify",
+      action: 'modify',
       modifiedText: input.text.slice(0, _config.maxOutputLength),
     };
   },
@@ -474,15 +517,15 @@ async function runGuardrails(
   type: GuardrailType,
   text: string,
   ctx: GuardrailContext,
-  extra?: Partial<GuardrailInput>,
+  extra?: Partial<GuardrailInput>
 ): Promise<ViolationResult> {
   const guardrails = listGuardrails(type).filter((g) => g.enabled);
   if (guardrails.length === 0) {
-    return { passed: true, score: 0, details: [], action: "log" };
+    return { passed: true, score: 0, details: [], action: 'log' };
   }
 
   let currentText = text;
-  let combinedAction: ViolationAction = "log";
+  let combinedAction: ViolationAction = 'log';
   let combinedScore = 0;
   const combinedDetails: string[] = [];
   let wasBlocked = false;
@@ -499,7 +542,7 @@ async function runGuardrails(
 
     const result = await Promise.resolve(g.validate(input));
 
-    if (result.action !== "log" || !result.passed) {
+    if (result.action !== 'log' || !result.passed) {
       combinedDetails.push(...result.details);
 
       if (result.score > combinedScore) {
@@ -507,7 +550,7 @@ async function runGuardrails(
       }
 
       if (_config.logViolations) {
-        log.warn("guardrail.violation", {
+        log.warn('guardrail.violation', {
           guardrail: g.name,
           type,
           action: result.action,
@@ -517,15 +560,19 @@ async function runGuardrails(
           agentId: ctx.agentId,
         });
 
-        await appendAudit("guardrail.violation", {
-          guardrail: g.name,
-          type,
-          action: result.action,
-          score: result.score,
-          details: result.details,
-          sessionId: ctx.sessionId,
-          agentId: ctx.agentId,
-        }, "guardrails");
+        await appendAudit(
+          'guardrail.violation',
+          {
+            guardrail: g.name,
+            type,
+            action: result.action,
+            score: result.score,
+            details: result.details,
+            sessionId: ctx.sessionId,
+            agentId: ctx.agentId,
+          },
+          'guardrails'
+        );
       }
 
       if (g.onViolation) {
@@ -533,21 +580,21 @@ async function runGuardrails(
       }
     }
 
-    if (result.action === "block") {
+    if (result.action === 'block') {
       wasBlocked = true;
-      combinedAction = "block";
+      combinedAction = 'block';
       break;
     }
 
-    if (result.action === "modify" && result.modifiedText != null) {
+    if (result.action === 'modify' && result.modifiedText != null) {
       currentText = result.modifiedText;
-      if (combinedAction === "log" || combinedAction === "warn") {
-        combinedAction = "modify";
+      if (combinedAction === 'log' || combinedAction === 'warn') {
+        combinedAction = 'modify';
       }
     }
 
-    if (result.action === "warn" && combinedAction === "log") {
-      combinedAction = "warn";
+    if (result.action === 'warn' && combinedAction === 'log') {
+      combinedAction = 'warn';
     }
   }
 
@@ -568,9 +615,9 @@ async function runGuardrails(
  */
 export async function applyInputGuardrails(
   text: string,
-  ctx: GuardrailContext,
+  ctx: GuardrailContext
 ): Promise<ViolationResult> {
-  return runGuardrails("input", text, ctx);
+  return runGuardrails('input', text, ctx);
 }
 
 /**
@@ -579,9 +626,9 @@ export async function applyInputGuardrails(
  */
 export async function applyOutputGuardrails(
   text: string,
-  ctx: GuardrailContext,
+  ctx: GuardrailContext
 ): Promise<ViolationResult> {
-  return runGuardrails("output", text, ctx);
+  return runGuardrails('output', text, ctx);
 }
 
 export async function applyToolGuardrails(
@@ -589,13 +636,11 @@ export async function applyToolGuardrails(
   toolName: string,
   toolArgs: Record<string, unknown>,
   toolOutput: unknown,
-  ctx: GuardrailContext,
+  ctx: GuardrailContext
 ): Promise<ViolationResult> {
-  const text = stage === "pre_tool"
-    ? JSON.stringify(toolArgs)
-    : JSON.stringify(toolOutput);
+  const text = stage === 'pre_tool' ? JSON.stringify(toolArgs) : JSON.stringify(toolOutput);
   const extra: Partial<GuardrailInput> = { toolName, toolArgs, toolOutput };
-  return runGuardrails("tool", text, ctx, extra);
+  return runGuardrails('tool', text, ctx, extra);
 }
 
 /* ─── Custom guardrail factory ─────────────────────────────────────────────── */
@@ -605,7 +650,7 @@ export function createCustomGuardrail(
   type: GuardrailType,
   action: ViolationAction,
   validator: (input: GuardrailInput) => ViolationResult | Promise<ViolationResult>,
-  opts?: { onViolation?: GuardrailDefinition["onViolation"]; enabled?: boolean },
+  opts?: { onViolation?: GuardrailDefinition['onViolation']; enabled?: boolean }
 ): GuardrailDefinition {
   const def: GuardrailDefinition = {
     name,
@@ -664,14 +709,14 @@ export function resetGuardrailReport(): void {
 
 export async function sanitizeText(
   text: string,
-  ctx: GuardrailContext,
+  ctx: GuardrailContext
 ): Promise<{ safe: boolean; text: string; violations: string[] }> {
   const inputResult = await applyInputGuardrails(text, ctx);
 
-  if (inputResult.action === "block") {
+  if (inputResult.action === 'block') {
     return {
       safe: false,
-      text: "",
+      text: '',
       violations: inputResult.details,
     };
   }
@@ -683,7 +728,7 @@ export async function sanitizeText(
   const violations = [...inputResult.details, ...outputResult.details];
 
   return {
-    safe: outputResult.action !== "block",
+    safe: outputResult.action !== 'block',
     text: finalText,
     violations,
   };

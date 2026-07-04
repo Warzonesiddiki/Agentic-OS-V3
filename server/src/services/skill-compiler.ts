@@ -13,12 +13,12 @@
  * This permanently replaces expensive LLM reasoning with native code for
  * deterministic tasks, drastically reducing token spend and latency.
  */
-import { db } from "../db/client.js";
-import { trajectoryLogs, agentTasks, compiledScripts } from "../db/client.js";
-import { appendAudit } from "../lib/audit.js";
-import { eq, desc, and, gte } from "drizzle-orm";
-import { randomUUID, createHash } from "node:crypto";
-import { env } from "../lib/env.js";
+import { db } from '../db/client.js';
+import { trajectoryLogs, agentTasks, compiledScripts } from '../db/client.js';
+import { appendAudit } from '../lib/audit.js';
+import { eq, desc, and, gte } from 'drizzle-orm';
+import { randomUUID, createHash } from 'node:crypto';
+import { env } from '../lib/env.js';
 
 const COMPILATION_THRESHOLD = env.NEXUS_COMPILATION_THRESHOLD;
 const EVAL_MATCH_THRESHOLD = env.NEXUS_EVAL_MATCH_THRESHOLD;
@@ -56,8 +56,8 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
     .from(agentTasks)
     .where(
       and(
-        eq(agentTasks.status, "succeeded"),
-        gte(agentTasks.createdAt, new Date(Date.now() - 7 * 86_400_000)),
+        eq(agentTasks.status, 'succeeded'),
+        gte(agentTasks.createdAt, new Date(Date.now() - 7 * 86_400_000))
       )
     )
     .orderBy(desc(agentTasks.createdAt))
@@ -93,12 +93,7 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
       .select({ tokenUsage: trajectoryLogs.tokenUsage, latencyMs: trajectoryLogs.latencyMs })
       .from(trajectoryLogs)
       .innerJoin(agentTasks, eq(trajectoryLogs.auditSequence, agentTasks.id))
-      .where(
-        and(
-          eq(agentTasks.label, tasks[0]!.label),
-          eq(agentTasks.status, "succeeded"),
-        )
-      )
+      .where(and(eq(agentTasks.label, tasks[0]!.label), eq(agentTasks.status, 'succeeded')))
       .limit(tasks.length);
 
     const totalTokens = tokenUsages.reduce((sum: number, t: any) => {
@@ -108,7 +103,7 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
     const totalLatency = tokenUsages.reduce((sum: number, t: any) => sum + t.latencyMs, 0);
 
     patterns.push({
-      signature: createHash("sha256").update(normalizedLabel).digest("hex").slice(0, 16),
+      signature: createHash('sha256').update(normalizedLabel).digest('hex').slice(0, 16),
       taskLabel: normalizedLabel,
       inputShape,
       outputShape,
@@ -126,18 +121,18 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
 /** Normalize a task label by stripping dynamic content (IDs, timestamps). */
 function normalizeLabel(label: string): string {
   return label
-    .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, "{uuid}") // UUIDs
-    .replace(/\d{10,}/g, "{timestamp}") // Unix timestamps
-    .replace(/\b\d+\b/g, "{n}") // Generic numbers
-    .replace(/\b[A-Z]{2,}_\w+/g, "{env_var}") // ENV_VAR patterns
+    .replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, '{uuid}') // UUIDs
+    .replace(/\d{10,}/g, '{timestamp}') // Unix timestamps
+    .replace(/\b\d+\b/g, '{n}') // Generic numbers
+    .replace(/\b[A-Z]{2,}_\w+/g, '{env_var}') // ENV_VAR patterns
     .trim()
     .toLowerCase();
 }
 
 /** Extract the structural shape of a value (keys + types, not values). */
 function extractShape(value: unknown): unknown {
-  if (value === null || value === undefined) return "null";
-  if (typeof value !== "object") return typeof value;
+  if (value === null || value === undefined) return 'null';
+  if (typeof value !== 'object') return typeof value;
   if (Array.isArray(value)) {
     return value.length > 0 ? [extractShape(value[0])] : [];
   }
@@ -193,8 +188,8 @@ export interface GeneratedScript {
  * The generated code is stored and validated before activation.
  */
 export function generateScript(pattern: DetectedPattern): GeneratedScript {
-  const inputKeys = Object.keys(pattern.inputShape as Record<string, unknown> ?? {});
-  const outputKeys = Object.keys(pattern.outputShape as Record<string, unknown> ?? {});
+  const inputKeys = Object.keys((pattern.inputShape as Record<string, unknown>) ?? {});
+  const outputKeys = Object.keys((pattern.outputShape as Record<string, unknown>) ?? {});
 
   // Generate a transformation function based on the observed mapping
   const code = `/**
@@ -212,14 +207,14 @@ export function generateScript(pattern: DetectedPattern): GeneratedScript {
  */
 function compiledTask(input) {
   // Extract input fields
-  ${inputKeys.map((k: any) => `const ${k.replace(/[^a-zA-Z0-9_]/g, "_")} = input["${k}"];`).join("\n  ")}
+  ${inputKeys.map((k: any) => `const ${k.replace(/[^a-zA-Z0-9_]/g, '_')} = input["${k}"];`).join('\n  ')}
 
   // Deterministic transformation (extracted from pattern analysis)
   // NOTE: This is a structural mapping. If the task involves complex
   // reasoning that varies per input, this compiled function should be
   // deprecated and the LLM call restored.
   const output = {
-    ${outputKeys.map((k: any) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(",\n    ")}
+    ${outputKeys.map((k: any) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(',\n    ')}
   };
 
   return output;
@@ -235,7 +230,7 @@ module.exports = { compiledTask, testResults };
     signature: pattern.signature,
     taskLabel: pattern.taskLabel,
     code,
-    language: "javascript",
+    language: 'javascript',
     estimatedTokensSaved: pattern.avgTokensPerCall * pattern.occurrences,
   };
 }
@@ -248,11 +243,11 @@ module.exports = { compiledTask, testResults };
 function inferOutputExpression(
   outputKey: string,
   inputKeys: string[],
-  pattern: DetectedPattern,
+  pattern: DetectedPattern
 ): string {
   // Check if output key matches an input key (direct mapping)
   if (inputKeys.includes(outputKey)) {
-    return outputKey.replace(/[^a-zA-Z0-9_]/g, "_");
+    return outputKey.replace(/[^a-zA-Z0-9_]/g, '_');
   }
 
   // Check if the output values are constant across all samples
@@ -261,14 +256,16 @@ function inferOutputExpression(
     .filter((v: any) => v !== undefined);
 
   if (outputValues.length >= 2) {
-    const allSame = outputValues.every((v: any) => JSON.stringify(v) === JSON.stringify(outputValues[0]));
+    const allSame = outputValues.every(
+      (v: any) => JSON.stringify(v) === JSON.stringify(outputValues[0])
+    );
     if (allSame) {
       return JSON.stringify(outputValues[0]);
     }
   }
 
   // Default: null (will fail eval and be marked as "needs LLM")
-  return "null /* requires-llm: output is not deterministic */";
+  return 'null /* requires-llm: output is not deterministic */';
 }
 
 // ── Evaluation ────────────────────────────────────────────────
@@ -290,7 +287,7 @@ export interface EvalScriptResult {
  */
 export async function evaluateScript(
   script: GeneratedScript,
-  pattern: DetectedPattern,
+  pattern: DetectedPattern
 ): Promise<EvalScriptResult> {
   const details: string[] = [];
   let correct = 0;
@@ -300,10 +297,10 @@ export async function evaluateScript(
     const expected = pattern.sampleOutputs[i];
     try {
       // Evaluate via sandbox (Docker if available, in-process fallback)
-      const { executeSandboxed } = await import("./sandbox.js");
+      const { executeSandboxed } = await import('./sandbox.js');
       const sandboxResult = await executeSandboxed({
         code: script.code,
-        language: "javascript",
+        language: 'javascript',
         input: pattern.sampleInputs[i],
       });
 
@@ -312,7 +309,9 @@ export async function evaluateScript(
         correct++;
         details.push(`✓ Sample ${i + 1}: MATCH`);
       } else {
-        details.push(`✕ Sample ${i + 1}: MISMATCH (expected ${JSON.stringify(expected).slice(0, 80)}, got ${JSON.stringify(sandboxResult.output).slice(0, 80)})`);
+        details.push(
+          `✕ Sample ${i + 1}: MISMATCH (expected ${JSON.stringify(expected).slice(0, 80)}, got ${JSON.stringify(sandboxResult.output).slice(0, 80)})`
+        );
       }
     } catch (e) {
       details.push(`✕ Sample ${i + 1}: ERROR (${e instanceof Error ? e.message : String(e)})`);
@@ -340,7 +339,7 @@ export interface CompilationResult {
     pattern: string;
     label: string;
     occurrences: number;
-    status: "compiled" | "skipped_inconsistent" | "skipped_existing" | "eval_failed" | "activated";
+    status: 'compiled' | 'skipped_inconsistent' | 'skipped_existing' | 'eval_failed' | 'activated';
     tokensSaved?: number;
   }>;
 }
@@ -356,7 +355,7 @@ export interface CompilationResult {
  */
 export async function runCompilationPipeline(actor: string): Promise<CompilationResult> {
   const patterns = await detectRepetitivePatterns();
-  const results: CompilationResult["results"] = [];
+  const results: CompilationResult['results'] = [];
   let compiled = 0;
   let activated = 0;
   let skipped = 0;
@@ -367,12 +366,12 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
       where: eq(compiledScripts.patternSignature, pattern.signature),
     });
 
-    if (existing && existing.status === "active") {
+    if (existing && existing.status === 'active') {
       results.push({
         pattern: pattern.signature,
         label: pattern.taskLabel,
         occurrences: pattern.occurrences,
-        status: "skipped_existing",
+        status: 'skipped_existing',
       });
       skipped++;
       continue;
@@ -387,28 +386,31 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
 
     // Store the script (regardless of eval result — for tracking)
     const scriptId = `cmp_${randomUUID()}`;
-    const status = evalResult.passed ? "active" : "eval_failed";
+    const status = evalResult.passed ? 'active' : 'eval_failed';
 
-    await db.insert(compiledScripts).values({
-      id: scriptId,
-      patternSignature: pattern.signature,
-      taskLabel: pattern.taskLabel,
-      triggerPattern: pattern.inputShape,
-      script: script.code,
-      language: script.language,
-      status,
-      evalResults: {
-        passed: evalResult.passed,
-        matchRate: evalResult.matchRate,
-        testedSamples: evalResult.testedSamples,
-        correctOutputs: evalResult.correctOutputs,
-        details: evalResult.details.slice(0, 10),
-      },
-      detectedCount: pattern.occurrences,
-      tokensSaved: evalResult.passed ? script.estimatedTokensSaved : 0,
-      avgLatencyMs: pattern.avgLatencyMs,
-      activatedAt: evalResult.passed ? new Date() : null,
-    }).onConflictDoNothing({ target: compiledScripts.patternSignature });
+    await db
+      .insert(compiledScripts)
+      .values({
+        id: scriptId,
+        patternSignature: pattern.signature,
+        taskLabel: pattern.taskLabel,
+        triggerPattern: pattern.inputShape,
+        script: script.code,
+        language: script.language,
+        status,
+        evalResults: {
+          passed: evalResult.passed,
+          matchRate: evalResult.matchRate,
+          testedSamples: evalResult.testedSamples,
+          correctOutputs: evalResult.correctOutputs,
+          details: evalResult.details.slice(0, 10),
+        },
+        detectedCount: pattern.occurrences,
+        tokensSaved: evalResult.passed ? script.estimatedTokensSaved : 0,
+        avgLatencyMs: pattern.avgLatencyMs,
+        activatedAt: evalResult.passed ? new Date() : null,
+      })
+      .onConflictDoNothing({ target: compiledScripts.patternSignature });
 
     if (evalResult.passed) {
       activated++;
@@ -416,24 +418,28 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
         pattern: pattern.signature,
         label: pattern.taskLabel,
         occurrences: pattern.occurrences,
-        status: "activated",
+        status: 'activated',
         tokensSaved: script.estimatedTokensSaved,
       });
 
-      await appendAudit("skill.compiled", {
-        scriptId,
-        pattern: pattern.signature,
-        label: pattern.taskLabel,
-        occurrences: pattern.occurrences,
-        tokensSaved: script.estimatedTokensSaved,
-        matchRate: evalResult.matchRate,
-      }, actor);
+      await appendAudit(
+        'skill.compiled',
+        {
+          scriptId,
+          pattern: pattern.signature,
+          label: pattern.taskLabel,
+          occurrences: pattern.occurrences,
+          tokensSaved: script.estimatedTokensSaved,
+          matchRate: evalResult.matchRate,
+        },
+        actor
+      );
     } else {
       results.push({
         pattern: pattern.signature,
         label: pattern.taskLabel,
         occurrences: pattern.occurrences,
-        status: "eval_failed",
+        status: 'eval_failed',
       });
     }
   }
@@ -460,15 +466,15 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
  */
 export async function checkCompiledScript(
   taskLabel: string,
-  input: unknown,
+  input: unknown
 ): Promise<{ output: unknown; scriptId: string } | null> {
   const normalized = normalizeLabel(taskLabel);
-  const signature = createHash("sha256").update(normalized).digest("hex").slice(0, 16);
+  const signature = createHash('sha256').update(normalized).digest('hex').slice(0, 16);
 
   const script = await db.query.compiledScripts.findFirst({
     where: and(
       eq(compiledScripts.patternSignature, signature),
-      eq(compiledScripts.status, "active"),
+      eq(compiledScripts.status, 'active')
     ),
   });
 
@@ -476,7 +482,7 @@ export async function checkCompiledScript(
 
   // Execute via sandbox (Docker if available, in-process fallback)
   try {
-    const { executeSandboxed } = await import("./sandbox.js");
+    const { executeSandboxed } = await import('./sandbox.js');
     const result = await executeSandboxed({
       code: script.script,
       language: script.language,
@@ -485,24 +491,33 @@ export async function checkCompiledScript(
     });
 
     if (!result.ok) {
-      await db.update(compiledScripts).set({
-        status: "deprecated",
-        updatedAt: new Date(),
-      }).where(eq(compiledScripts.id, script.id));
+      await db
+        .update(compiledScripts)
+        .set({
+          status: 'deprecated',
+          updatedAt: new Date(),
+        })
+        .where(eq(compiledScripts.id, script.id));
       return null;
     }
 
-    await db.update(compiledScripts).set({
-      timesExecuted: script.timesExecuted + 1,
-      updatedAt: new Date(),
-    }).where(eq(compiledScripts.id, script.id));
+    await db
+      .update(compiledScripts)
+      .set({
+        timesExecuted: script.timesExecuted + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(compiledScripts.id, script.id));
 
     return { output: result.output, scriptId: script.id };
   } catch {
-    await db.update(compiledScripts).set({
-      status: "deprecated",
-      updatedAt: new Date(),
-    }).where(eq(compiledScripts.id, script.id));
+    await db
+      .update(compiledScripts)
+      .set({
+        status: 'deprecated',
+        updatedAt: new Date(),
+      })
+      .where(eq(compiledScripts.id, script.id));
     return null;
   }
 }

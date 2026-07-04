@@ -12,20 +12,20 @@
  *
  * Source: AutoGPT continuous triggers, CrewAI Flow scheduling.
  */
-import { log } from "../lib/logging.js";
-import { CronExpressionParser, type CronExpression } from "cron-parser";
-import { randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
-import { cronJobs } from "../db/client.js";
-import { appendAudit } from "../lib/audit.js";
-import { env } from "../lib/env.js";
-import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
+import { log } from '../lib/logging.js';
+import { CronExpressionParser, type CronExpression } from 'cron-parser';
+import { randomUUID } from 'node:crypto';
+import { db } from '../db/client.js';
+import { cronJobs } from '../db/client.js';
+import { appendAudit } from '../lib/audit.js';
+import { env } from '../lib/env.js';
+import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 
 // ── Types ──────────────────────────────────────────────────────
 
-export type CronStatus = "active" | "paused" | "completed" | "failed";
-export type ExecutionStatus = "pending" | "running" | "success" | "failure" | "skipped";
-export type EventType = "webhook" | "agent_completion" | "signal";
+export type CronStatus = 'active' | 'paused' | 'completed' | 'failed';
+export type ExecutionStatus = 'pending' | 'running' | 'success' | 'failure' | 'skipped';
+export type EventType = 'webhook' | 'agent_completion' | 'signal';
 
 export interface SchedulerConfig {
   timezone: string;
@@ -101,7 +101,7 @@ export class CronParser {
   private expression: string;
   private timezone: string;
 
-  constructor(expression: string, timezone = "UTC") {
+  constructor(expression: string, timezone = 'UTC') {
     this.expression = expression;
     this.timezone = timezone;
     this.expr = CronExpressionParser.parse(expression, {
@@ -169,8 +169,8 @@ export class CronParser {
 // ── Default Config ─────────────────────────────────────────────
 
 const DEFAULT_CONFIG: SchedulerConfig = {
-  timezone: "UTC",
-  maxConcurrentJobs: parseInt(process.env.NEXUS_SCHEDULER_MAX_CONCURRENT ?? "10", 10),
+  timezone: 'UTC',
+  maxConcurrentJobs: parseInt(process.env.NEXUS_SCHEDULER_MAX_CONCURRENT ?? '10', 10),
   retryConfig: {
     maxRetries: 3,
     backoffMs: 1000,
@@ -203,8 +203,14 @@ export class Scheduler {
     this.started = true;
     const interval = env.NEXUS_SCHEDULER_TICK_MS;
     this.tickTimer = setInterval(() => this.tick(), interval);
-    this.tick().catch((e: any) => log.error("scheduler_initial_tick_failed", { error: (e as Error).message }));
-    log.info("scheduler_started", { interval, maxConcurrent: this.config.maxConcurrentJobs, timezone: this.config.timezone });
+    this.tick().catch((e: any) =>
+      log.error('scheduler_initial_tick_failed', { error: (e as Error).message })
+    );
+    log.info('scheduler_started', {
+      interval,
+      maxConcurrent: this.config.maxConcurrentJobs,
+      timezone: this.config.timezone,
+    });
   }
 
   /** Stop the scheduler tick loop. */
@@ -214,7 +220,7 @@ export class Scheduler {
       this.tickTimer = null;
     }
     this.started = false;
-    log.info("scheduler_stopped");
+    log.info('scheduler_stopped');
   }
 
   // ── Job Management ─────────────────────────────────────────
@@ -232,19 +238,22 @@ export class Scheduler {
     const nextRun = parser.getNextRun();
     const id = `crn_${randomUUID()}`;
 
-    const [row] = await db.insert(cronJobs).values({
-      id,
-      name: input.name,
-      cron: input.expression,
-      agentKind: "daemon",
-      taskLabel: input.action,
-      taskInput: input.payload ?? {},
-      enabled: true,
-      nextRunAt: nextRun,
-      runCount: 0,
-    }).returning();
+    const [row] = await db
+      .insert(cronJobs)
+      .values({
+        id,
+        name: input.name,
+        cron: input.expression,
+        agentKind: 'daemon',
+        taskLabel: input.action,
+        taskInput: input.payload ?? {},
+        enabled: true,
+        nextRunAt: nextRun,
+        runCount: 0,
+      })
+      .returning();
 
-    if (!row) throw new Error("Failed to schedule job — DB returned no row.");
+    if (!row) throw new Error('Failed to schedule job — DB returned no row.');
 
     const job: CronJob = {
       id: row.id,
@@ -252,9 +261,19 @@ export class Scheduler {
       expression: row.cron,
       action: row.taskLabel,
       payload: row.taskInput,
-      status: row.enabled ? "active" : "paused",
-      lastRun: row.lastRunAt instanceof Date ? row.lastRunAt : (row.lastRunAt ? new Date(row.lastRunAt) : null),
-      nextRun: row.nextRunAt instanceof Date ? row.nextRunAt : (row.nextRunAt ? new Date(row.nextRunAt) : null),
+      status: row.enabled ? 'active' : 'paused',
+      lastRun:
+        row.lastRunAt instanceof Date
+          ? row.lastRunAt
+          : row.lastRunAt
+            ? new Date(row.lastRunAt)
+            : null,
+      nextRun:
+        row.nextRunAt instanceof Date
+          ? row.nextRunAt
+          : row.nextRunAt
+            ? new Date(row.nextRunAt)
+            : null,
       runCount: row.runCount,
       maxRetries: input.maxRetries ?? this.config.retryConfig.maxRetries,
       timeoutMs: input.timeoutMs ?? 300000,
@@ -264,19 +283,33 @@ export class Scheduler {
       updatedAt: row.createdAt instanceof Date ? new Date(row.createdAt) : row.createdAt,
     };
 
-    await appendAudit("scheduler.job_created", { jobId: job.id, name: job.name, expression: job.expression, action: job.action, timezone: job.timezone }, actor);
+    await appendAudit(
+      'scheduler.job_created',
+      {
+        jobId: job.id,
+        name: job.name,
+        expression: job.expression,
+        action: job.action,
+        timezone: job.timezone,
+      },
+      actor
+    );
 
     return job;
   }
 
   /** Cancel a scheduled job (soft-delete by disabling). */
   async cancelJob(jobId: string, actor: string): Promise<void> {
-    const [updated] = await db.update(cronJobs).set({
-      enabled: false,
-    }).where(eq(cronJobs.id, jobId)).returning();
+    const [updated] = await db
+      .update(cronJobs)
+      .set({
+        enabled: false,
+      })
+      .where(eq(cronJobs.id, jobId))
+      .returning();
 
     if (!updated) throw new Error(`Job ${jobId} not found.`);
-    await appendAudit("scheduler.job_cancelled", { jobId }, actor);
+    await appendAudit('scheduler.job_cancelled', { jobId }, actor);
   }
 
   /** Update an existing job. */
@@ -293,17 +326,21 @@ export class Scheduler {
     const parser = new CronParser(expression, timezone);
     const nextRun = parser.getNextRun();
 
-    const [updated] = await db.update(cronJobs).set({
-      name: patch.name ?? existing.name,
-      cron: expression,
-      taskLabel: patch.action ?? existing.taskLabel,
-      taskInput: patch.payload ?? existing.taskInput,
-      nextRunAt: nextRun,
-    }).where(eq(cronJobs.id, jobId)).returning();
+    const [updated] = await db
+      .update(cronJobs)
+      .set({
+        name: patch.name ?? existing.name,
+        cron: expression,
+        taskLabel: patch.action ?? existing.taskLabel,
+        taskInput: patch.payload ?? existing.taskInput,
+        nextRunAt: nextRun,
+      })
+      .where(eq(cronJobs.id, jobId))
+      .returning();
 
     if (!updated) throw new Error(`Failed to update job ${jobId}.`);
 
-    await appendAudit("scheduler.job_updated", { jobId, fields: Object.keys(patch) }, actor);
+    await appendAudit('scheduler.job_updated', { jobId, fields: Object.keys(patch) }, actor);
 
     return this.rowToJob(updated);
   }
@@ -312,7 +349,7 @@ export class Scheduler {
   async listJobs(filter?: ListFilter): Promise<CronJob[]> {
     const conditions = [];
     if (filter?.status) {
-      conditions.push(eq(cronJobs.enabled, filter.status === "active"));
+      conditions.push(eq(cronJobs.enabled, filter.status === 'active'));
     }
     if (filter?.name) {
       conditions.push(eq(cronJobs.name, filter.name));
@@ -340,15 +377,13 @@ export class Scheduler {
    */
   async tick(): Promise<JobExecution[]> {
     if (this.running.size >= this.config.maxConcurrentJobs) {
-      log.warn("scheduler_max_concurrent_reached", { running: this.running.size });
+      log.warn('scheduler_max_concurrent_reached', { running: this.running.size });
       return [];
     }
 
     const now = new Date();
     const due = await db.query.cronJobs.findMany({
-      where: and(
-        eq(cronJobs.enabled, true),
-      ),
+      where: and(eq(cronJobs.enabled, true)),
     });
 
     const executions: JobExecution[] = [];
@@ -371,14 +406,14 @@ export class Scheduler {
     const execution: JobExecution = {
       id: executionId,
       jobId: row.id,
-      status: "running",
+      status: 'running',
       startedAt: new Date(startTime),
       completedAt: null,
       durationMs: null,
       result: null,
       error: null,
       attempt: 0,
-      trigger: { type: "signal" },
+      trigger: { type: 'signal' },
     };
 
     const runPromise = this.runWithRetry(row, execution, startTime);
@@ -396,16 +431,19 @@ export class Scheduler {
       try {
         const parser = new CronParser(row.cron, this.config.timezone);
         const nextRun = parser.getNextRun();
-        await db.update(cronJobs).set({
-          lastRunAt: new Date(startTime),
-          nextRunAt: nextRun,
-          runCount: row.runCount + 1,
-        }).where(eq(cronJobs.id, row.id));
+        await db
+          .update(cronJobs)
+          .set({
+            lastRunAt: new Date(startTime),
+            nextRunAt: nextRun,
+            runCount: row.runCount + 1,
+          })
+          .where(eq(cronJobs.id, row.id));
       } catch (e) {
-        log.error("scheduler_next_run_failed", { jobId: row.id, error: (e as Error).message });
+        log.error('scheduler_next_run_failed', { jobId: row.id, error: (e as Error).message });
       }
     } catch (e) {
-      execution.status = "failure";
+      execution.status = 'failure';
       execution.completedAt = new Date();
       execution.durationMs = Date.now() - startTime;
       execution.error = (e as Error).message;
@@ -421,7 +459,7 @@ export class Scheduler {
   private async runWithRetry(
     row: typeof cronJobs.$inferSelect,
     execution: JobExecution,
-    _startTime: number,
+    _startTime: number
   ): Promise<{ status: ExecutionStatus; output: unknown; error: string | null }> {
     const maxRetries = this.config.retryConfig.maxRetries;
     let lastError: string | null = null;
@@ -430,28 +468,33 @@ export class Scheduler {
       execution.attempt = attempt;
 
       if (attempt > 0) {
-        const backoff = this.config.retryConfig.backoffMs * Math.pow(this.config.retryConfig.backoffMultiplier, attempt - 1);
-        log.info("scheduler_retry_backoff", { jobId: row.id, attempt, backoffMs: backoff });
+        const backoff =
+          this.config.retryConfig.backoffMs *
+          Math.pow(this.config.retryConfig.backoffMultiplier, attempt - 1);
+        log.info('scheduler_retry_backoff', { jobId: row.id, attempt, backoffMs: backoff });
         await sleep(backoff);
       }
 
       try {
         const result = await this.dispatchAction(row, execution);
-        return { status: "success", output: result, error: null };
+        return { status: 'success', output: result, error: null };
       } catch (e) {
         lastError = (e as Error).message;
-        log.warn("scheduler_execution_failed", { jobId: row.id, attempt, error: lastError });
+        log.warn('scheduler_execution_failed', { jobId: row.id, attempt, error: lastError });
       }
     }
 
-    return { status: "failure", output: null, error: lastError };
+    return { status: 'failure', output: null, error: lastError };
   }
 
   /** Dispatch the job's action handler. For now emits an SSE event. */
-  private async dispatchAction(row: typeof cronJobs.$inferSelect, execution: JobExecution): Promise<unknown> {
-    const { broadcastSSE } = await import("./sse-bus.js");
+  private async dispatchAction(
+    row: typeof cronJobs.$inferSelect,
+    execution: JobExecution
+  ): Promise<unknown> {
+    const { broadcastSSE } = await import('./sse-bus.js');
     broadcastSSE({
-      type: "cron.fired",
+      type: 'cron.fired',
       data: {
         jobId: row.id,
         name: row.name,
@@ -468,8 +511,12 @@ export class Scheduler {
   // ── Event Triggers ─────────────────────────────────────────
 
   /** Trigger event-based execution. */
-  async triggerEvent(eventType: EventType, payload: Record<string, unknown>, actor: string): Promise<JobExecution[]> {
-    log.info("scheduler_event_triggered", { eventType, payload });
+  async triggerEvent(
+    eventType: EventType,
+    payload: Record<string, unknown>,
+    actor: string
+  ): Promise<JobExecution[]> {
+    log.info('scheduler_event_triggered', { eventType, payload });
 
     const jobs = await db.query.cronJobs.findMany({
       where: eq(cronJobs.enabled, true),
@@ -487,7 +534,11 @@ export class Scheduler {
     }
 
     if (triggered.length > 0) {
-      await appendAudit("scheduler.event_triggered", { eventType, jobsFired: triggered.length, payload }, actor);
+      await appendAudit(
+        'scheduler.event_triggered',
+        { eventType, jobsFired: triggered.length, payload },
+        actor
+      );
     }
 
     return triggered;
@@ -511,7 +562,7 @@ export class Scheduler {
         try {
           cb(execution);
         } catch (e) {
-          log.error("scheduler_listener_error", { jobId, error: (e as Error).message });
+          log.error('scheduler_listener_error', { jobId, error: (e as Error).message });
         }
       }
     }
@@ -521,10 +572,10 @@ export class Scheduler {
 
   /** Get job execution logs from the audit trail. */
   async getJobLogs(jobId: string, from?: Date, to?: Date): Promise<unknown[]> {
-    const { auditLog } = await import("../db/schema.js");
+    const { auditLog } = await import('../db/schema.js');
     const conditions = [];
 
-    conditions.push(eq(auditLog.action, "scheduler.job_executed"));
+    conditions.push(eq(auditLog.action, 'scheduler.job_executed'));
     conditions.push(sql`${auditLog.payload}->>'jobId' = ${jobId}`);
 
     if (from) conditions.push(gte(auditLog.createdAt, from));
@@ -570,9 +621,19 @@ export class Scheduler {
       expression: row.cron,
       action: row.taskLabel,
       payload: row.taskInput,
-      status: row.enabled ? "active" : "paused",
-      lastRun: row.lastRunAt instanceof Date ? row.lastRunAt : (row.lastRunAt ? new Date(row.lastRunAt) : null),
-      nextRun: row.nextRunAt instanceof Date ? row.nextRunAt : (row.nextRunAt ? new Date(row.nextRunAt) : null),
+      status: row.enabled ? 'active' : 'paused',
+      lastRun:
+        row.lastRunAt instanceof Date
+          ? row.lastRunAt
+          : row.lastRunAt
+            ? new Date(row.lastRunAt)
+            : null,
+      nextRun:
+        row.nextRunAt instanceof Date
+          ? row.nextRunAt
+          : row.nextRunAt
+            ? new Date(row.nextRunAt)
+            : null,
       runCount: row.runCount,
       maxRetries: this.config.retryConfig.maxRetries,
       timeoutMs: 300000,

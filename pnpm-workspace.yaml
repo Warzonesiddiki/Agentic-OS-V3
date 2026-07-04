@@ -1,7 +1,7 @@
 packages:
-  - "packages/*"
-  - "server"
-  - "nexus-tauri"
+  - 'packages/*'
+  - 'server'
+  - 'nexus-tauri'
 allowBuilds:
   better-sqlite3: true
   esbuild: true

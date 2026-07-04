@@ -14,15 +14,15 @@
  * When embeddings are not available (no provider configured), it gracefully
  * degrades to BM25-only (lexical mode).
  */
-import { inArray, sql, isNotNull, desc } from "drizzle-orm";
-import { db } from "../db/client.js";
-import { memories, skills, tokenLedger, notes } from "../db/client.js";
-import { bm25, estimateTokens, packByBudget } from "../lib/tokens.js";
-import { appendAudit } from "../lib/audit.js";
-import { embedQuery, embeddingsAvailable } from "./embeddings.js";
-import { randomUUID } from "node:crypto";
-import { truncate } from "../lib/strings.js";
-import { env } from "../lib/env.js";
+import { inArray, sql, isNotNull, desc } from 'drizzle-orm';
+import { db } from '../db/client.js';
+import { memories, skills, tokenLedger, notes } from '../db/client.js';
+import { bm25, estimateTokens, packByBudget } from '../lib/tokens.js';
+import { appendAudit } from '../lib/audit.js';
+import { embedQuery, embeddingsAvailable } from './embeddings.js';
+import { randomUUID } from 'node:crypto';
+import { truncate } from '../lib/strings.js';
+import { env } from '../lib/env.js';
 
 const DAY = 86_400_000;
 const RRF_K = env.NEXUS_RRF_K;
@@ -34,14 +34,14 @@ const W_FEEDBACK = env.NEXUS_RECALL_WEIGHT_FEEDBACK;
 
 export interface RecallItem {
   id: string;
-  type: "memory" | "skill" | "note";
+  type: 'memory' | 'skill' | 'note';
   title: string;
   content: string;
   score: number;
   tokenCost: number;
   source: string;
   /** Which rankers contributed to this result. */
-  matchedBy: ("bm25" | "semantic")[];
+  matchedBy: ('bm25' | 'semantic')[];
 }
 
 export interface RecallResult {
@@ -50,13 +50,13 @@ export interface RecallResult {
   tokensUsed: number;
   tokenBudget: number;
   truncated: number;
-  mode: "lexical" | "semantic";
+  mode: 'lexical' | 'semantic';
   nextCursor?: number;
 }
 
 interface RawItem {
   id: string;
-  type: "memory" | "skill" | "note";
+  type: 'memory' | 'skill' | 'note';
   title: string;
   content: string;
   importance: number;
@@ -78,28 +78,63 @@ export async function recall(
   // Select only columns needed for BM25 scoring and metadata lookup,
   // avoiding loading full content for the entire corpus into memory.
   const [allMemories, allSkills, allNotes] = await Promise.all([
-    db.select({
-      id: memories.id, kind: memories.kind, title: memories.title, content: memories.content,
-      tags: memories.tags, importance: memories.importance, source: memories.source,
-      updatedAt: memories.updatedAt,
-    }).from(memories).orderBy(desc(memories.importance), desc(memories.updatedAt)).limit(MAX_CORPUS),
-    db.select({
-      id: skills.id, title: skills.title, description: skills.description,
-      content: skills.content, rating: skills.rating, updatedAt: skills.updatedAt,
-    }).from(skills).orderBy(desc(skills.rating)).limit(Math.min(MAX_CORPUS, 2000)),
-    db.select({
-      id: notes.id, title: notes.title, content: notes.content, tags: notes.tags,
-      wikilinks: notes.wikilinks, indexedAt: notes.indexedAt, path: notes.path,
-    }).from(notes).orderBy(desc(notes.indexedAt)).limit(Math.min(MAX_CORPUS, 2000)),
+    db
+      .select({
+        id: memories.id,
+        kind: memories.kind,
+        title: memories.title,
+        content: memories.content,
+        tags: memories.tags,
+        importance: memories.importance,
+        source: memories.source,
+        updatedAt: memories.updatedAt,
+      })
+      .from(memories)
+      .orderBy(desc(memories.importance), desc(memories.updatedAt))
+      .limit(MAX_CORPUS),
+    db
+      .select({
+        id: skills.id,
+        title: skills.title,
+        description: skills.description,
+        content: skills.content,
+        rating: skills.rating,
+        updatedAt: skills.updatedAt,
+      })
+      .from(skills)
+      .orderBy(desc(skills.rating))
+      .limit(Math.min(MAX_CORPUS, 2000)),
+    db
+      .select({
+        id: notes.id,
+        title: notes.title,
+        content: notes.content,
+        tags: notes.tags,
+        wikilinks: notes.wikilinks,
+        indexedAt: notes.indexedAt,
+        path: notes.path,
+      })
+      .from(notes)
+      .orderBy(desc(notes.indexedAt))
+      .limit(Math.min(MAX_CORPUS, 2000)),
   ]);
 
   // ---- Build document sets for BM25 ----
-  type MemRow = typeof allMemories[number];
-  type SkillRow = typeof allSkills[number];
-  type NoteRow = typeof allNotes[number];
-  const memDocs = allMemories.map((m: MemRow) => ({ id: m.id, text: `${m.title} ${m.content} ${m.tags.join(" ")}` }));
-  const skillDocs = allSkills.map((s: SkillRow) => ({ id: s.id, text: `${s.title} ${s.description} ${s.content}` }));
-  const noteDocs = allNotes.map((n: NoteRow) => ({ id: n.id, text: `${n.title} ${n.content} ${n.tags.join(" ")} ${n.wikilinks.join(" ")}` }));
+  type MemRow = (typeof allMemories)[number];
+  type SkillRow = (typeof allSkills)[number];
+  type NoteRow = (typeof allNotes)[number];
+  const memDocs = allMemories.map((m: MemRow) => ({
+    id: m.id,
+    text: `${m.title} ${m.content} ${m.tags.join(' ')}`,
+  }));
+  const skillDocs = allSkills.map((s: SkillRow) => ({
+    id: s.id,
+    text: `${s.title} ${s.description} ${s.content}`,
+  }));
+  const noteDocs = allNotes.map((n: NoteRow) => ({
+    id: n.id,
+    text: `${n.title} ${n.content} ${n.tags.join(' ')} ${n.wikilinks.join(' ')}`,
+  }));
 
   // ---- Ranker 1: BM25 (lexical) ----
   // Returns ranked arrays sorted by score descending. Convert to rank maps.
@@ -131,7 +166,10 @@ export async function recall(
         db
           .select({
             id: memories.id,
-            distance: sql<number>`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
+            distance:
+              sql<number>`${memories.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                'distance'
+              ),
           })
           .from(memories)
           .where(isNotNull(memories.embedding))
@@ -140,7 +178,10 @@ export async function recall(
         db
           .select({
             id: skills.id,
-            distance: sql<number>`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
+            distance:
+              sql<number>`${skills.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                'distance'
+              ),
           })
           .from(skills)
           .where(isNotNull(skills.embedding))
@@ -149,7 +190,10 @@ export async function recall(
         db
           .select({
             id: notes.id,
-            distance: sql<number>`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as("distance"),
+            distance:
+              sql<number>`${notes.embedding} <=> ${JSON.stringify(queryEmbedding)}::vector`.as(
+                'distance'
+              ),
           })
           .from(notes)
           .where(isNotNull(notes.embedding))
@@ -159,10 +203,13 @@ export async function recall(
 
       // Combine and rank by distance (ascending)
       const allSem = [
-        ...semMem.map((r: typeof semMem[number]) => ({ id: r.id, distance: r.distance })),
-        ...semSkill.map((r: typeof semSkill[number]) => ({ id: r.id, distance: r.distance })),
-        ...semNote.map((r: typeof semNote[number]) => ({ id: r.id, distance: r.distance })),
-      ].sort((a: { id: string; distance: number }, b: { id: string; distance: number }) => a.distance - b.distance);
+        ...semMem.map((r: (typeof semMem)[number]) => ({ id: r.id, distance: r.distance })),
+        ...semSkill.map((r: (typeof semSkill)[number]) => ({ id: r.id, distance: r.distance })),
+        ...semNote.map((r: (typeof semNote)[number]) => ({ id: r.id, distance: r.distance })),
+      ].sort(
+        (a: { id: string; distance: number }, b: { id: string; distance: number }) =>
+          a.distance - b.distance
+      );
 
       // Only keep results with reasonable similarity (cosine distance < 0.8)
       const threshold = env.NEXUS_SEMANTIC_THRESHOLD;
@@ -180,26 +227,23 @@ export async function recall(
   // Missing ranks contribute 0 (document not found by that ranker)
   const allCandidates = new Set([...bm25Candidates, ...semanticCandidates]);
 
-  const rrfScores = new Map<string, { score: number; matchedBy: ("bm25" | "semantic")[] }>();
+  const rrfScores = new Map<string, { score: number; matchedBy: ('bm25' | 'semantic')[] }>();
   for (const id of allCandidates) {
     let rrf = 0;
-    const matchedBy: ("bm25" | "semantic")[] = [];
+    const matchedBy: ('bm25' | 'semantic')[] = [];
 
     // BM25 contribution
-    const bm25Rank =
-      bm25MemRank.get(id) ??
-      bm25SkillRank.get(id) ??
-      bm25NoteRank.get(id);
+    const bm25Rank = bm25MemRank.get(id) ?? bm25SkillRank.get(id) ?? bm25NoteRank.get(id);
     if (bm25Rank !== undefined) {
       rrf += 1 / (RRF_K + bm25Rank + 1);
-      matchedBy.push("bm25");
+      matchedBy.push('bm25');
     }
 
     // Semantic contribution
     const semRank = semanticRanks.get(id);
     if (semRank !== undefined) {
       rrf += 1 / (RRF_K + semRank + 1);
-      matchedBy.push("semantic");
+      matchedBy.push('semantic');
     }
 
     // Normalize RRF: max possible is 2 * 1/(k+1) = 2/61 ≈ 0.0328
@@ -225,9 +269,9 @@ export async function recall(
   };
 
   // ---- Build lookup maps for metadata ----
-    const memMap = new Map<string, MemRow>(allMemories.map((m: MemRow) => [m.id, m]));
-    const skillMap = new Map<string, SkillRow>(allSkills.map((s: SkillRow) => [s.id, s]));
-    const noteMap = new Map<string, NoteRow>(allNotes.map((n: NoteRow) => [n.id, n]));
+  const memMap = new Map<string, MemRow>(allMemories.map((m: MemRow) => [m.id, m]));
+  const skillMap = new Map<string, SkillRow>(allSkills.map((s: SkillRow) => [s.id, s]));
+  const noteMap = new Map<string, NoteRow>(allNotes.map((n: NoteRow) => [n.id, n]));
 
   const now = Date.now();
 
@@ -237,7 +281,7 @@ export async function recall(
     if (m) {
       return {
         id: m.id,
-        type: "memory" as const,
+        type: 'memory' as const,
         title: m.title,
         content: m.content,
         importance: m.importance,
@@ -249,24 +293,24 @@ export async function recall(
     if (s) {
       return {
         id: s.id,
-        type: "skill" as const,
+        type: 'skill' as const,
         title: s.title,
         content: `# ${s.title}\n${s.description}\n\n${s.content}`,
         importance: Math.max(0.2, Math.min(1, s.rating)),
         updatedAt: s.updatedAt,
-        source: "skill",
+        source: 'skill',
       };
     }
     const n = noteMap.get(id);
     if (n) {
       return {
         id: n.id,
-        type: "note" as const,
+        type: 'note' as const,
         title: n.title || n.path,
         content: n.content,
         importance: 0.45,
         updatedAt: n.indexedAt,
-        source: "vault",
+        source: 'vault',
       };
     }
     return null;
@@ -279,7 +323,8 @@ export async function recall(
     if (!meta) continue;
 
     const recency = Math.exp(-((now - meta.updatedAt.getTime()) / (RECENCY_HALFLIFE_DAYS * DAY)));
-    const blended = rrf * W_RRF + meta.importance * W_IMPORTANCE + recency * W_RECENCY + fbBonus(id) * W_FEEDBACK;
+    const blended =
+      rrf * W_RRF + meta.importance * W_IMPORTANCE + recency * W_RECENCY + fbBonus(id) * W_FEEDBACK;
     const score = Math.round(blended * 1000) / 1000;
 
     items.push({
@@ -306,15 +351,16 @@ export async function recall(
   if (opts?.limit !== undefined) {
     page = page.slice(0, opts.limit);
   }
-  const nextCursor = page.length < (opts?.limit ?? page.length) || page.length === 0
-    ? undefined
-    : page[page.length - 1]?.score;
+  const nextCursor =
+    page.length < (opts?.limit ?? page.length) || page.length === 0
+      ? undefined
+      : page[page.length - 1]?.score;
 
   // ---- Token budget packing ----
   const { packed, tokensUsed, truncated } = packByBudget(page, budget);
 
   // ---- Side effects: bump recallCount + ledger ----
-  const memIds = packed.filter((p) => p.type === "memory").map((p) => p.id);
+  const memIds = packed.filter((p) => p.type === 'memory').map((p) => p.id);
   await db.transaction(async (tx: any) => {
     if (memIds.length) {
       await tx
@@ -324,7 +370,7 @@ export async function recall(
     }
     await tx.insert(tokenLedger).values({
       id: `ldg_${randomUUID()}`,
-      eventType: "recall",
+      eventType: 'recall',
       query: truncate(query, 120),
       tokensInjected: tokensUsed,
       tokensReused: tokensUsed,
@@ -333,7 +379,16 @@ export async function recall(
       real: true,
     });
   });
-  await appendAudit("recall.performed", { query: truncate(query, 80), items: packed.length, tokensUsed, mode: useSemantic ? "semantic" : "lexical" }, actor);
+  await appendAudit(
+    'recall.performed',
+    {
+      query: truncate(query, 80),
+      items: packed.length,
+      tokensUsed,
+      mode: useSemantic ? 'semantic' : 'lexical',
+    },
+    actor
+  );
 
   return {
     query,
@@ -341,7 +396,7 @@ export async function recall(
     tokensUsed,
     tokenBudget: budget,
     truncated,
-    mode: useSemantic ? "semantic" : "lexical",
+    mode: useSemantic ? 'semantic' : 'lexical',
     nextCursor,
   };
 }

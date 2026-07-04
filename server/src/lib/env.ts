@@ -10,43 +10,48 @@
  * fires when code actually reads a config value. `getEnv()` also provides
  * eager access when you need to check validity before use.
  */
-import { config } from "dotenv";
-import { z } from "zod";
+import { config } from 'dotenv';
+import { z } from 'zod';
 
 config(); // Load .env into process.env
 
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(9900),
-  NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
+  NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: z.string(),
-  NEXUS_API_KEY: z.string().default("nk_local_dev_key"),
-  NEXUS_ALLOWED_ORIGINS: z.string().default("http://localhost:9900"),
+  NEXUS_API_KEY: z.string().default('nk_local_dev_key'),
+  NEXUS_ALLOWED_ORIGINS: z.string().default('http://localhost:9900'),
   NEXUS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(100000).default(120),
-  NEXUS_MAX_BODY_BYTES: z.coerce.number().int().min(1024).max(50 * 1024 * 1024).default(5 * 1024 * 1024),
-  NEXUS_LOG_LEVEL: z.enum(["debug", "info", "warn", "error"]).default("info"),
+  NEXUS_MAX_BODY_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .max(50 * 1024 * 1024)
+    .default(5 * 1024 * 1024),
+  NEXUS_LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error']).default('info'),
   NEXUS_LOG_ERRORS: z.coerce.number().int().min(0).max(1).default(1),
-  NEXUS_LLM_BASE_URL: z.string().default(""),
-  NEXUS_LLM_API_KEY: z.string().default(""),
-  NEXUS_LLM_MODEL: z.string().default(""),
-  NEXUS_LLM_SIMPLE_MODEL: z.string().default(""),
-  NEXUS_LLM_MEDIUM_MODEL: z.string().default(""),
-  NEXUS_LLM_COMPLEX_MODEL: z.string().default(""),
-  NEXUS_EMBEDDING_MODEL: z.string().default(""),
-  NEXUS_OBSIDIAN_VAULT: z.string().default(""),
+  NEXUS_LLM_BASE_URL: z.string().default(''),
+  NEXUS_LLM_API_KEY: z.string().default(''),
+  NEXUS_LLM_MODEL: z.string().default(''),
+  NEXUS_LLM_SIMPLE_MODEL: z.string().default(''),
+  NEXUS_LLM_MEDIUM_MODEL: z.string().default(''),
+  NEXUS_LLM_COMPLEX_MODEL: z.string().default(''),
+  NEXUS_EMBEDDING_MODEL: z.string().default(''),
+  NEXUS_OBSIDIAN_VAULT: z.string().default(''),
   NEXUS_DB_POOL_MAX: z.coerce.number().int().min(1).max(200).default(20),
   NEXUS_QUERY_TIMEOUT_MS: z.coerce.number().int().min(1000).max(120000).default(15000),
   NEXUS_TRUST_PROXY: z.coerce.boolean().default(false),
-  NEXUS_MCP_ORIGIN: z.string().default("http://localhost:9900"),
-  NEXUS_DASHBOARD_DIR: z.string().default("../dist"),
+  NEXUS_MCP_ORIGIN: z.string().default('http://localhost:9900'),
+  NEXUS_DASHBOARD_DIR: z.string().default('../dist'),
   NEXUS_DREAM_MAX_MEMORIES: z.coerce.number().int().min(10).max(100000).default(500),
   NEXUS_DREAM_MAX_SESSIONS: z.coerce.number().int().min(1).max(1000).default(20),
   NEXUS_DREAM_TIMEOUT_MS: z.coerce.number().int().min(1000).max(600000).default(60000),
   NEXUS_SANDBOX_ENABLED: z.coerce.boolean().default(false),
-  NEXUS_SANDBOX_IMAGE: z.string().default("node:20-alpine"),
+  NEXUS_SANDBOX_IMAGE: z.string().default('node:20-alpine'),
   NEXUS_SANDBOX_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(30000),
   NEXUS_SCHEDULER_TICK_MS: z.coerce.number().int().min(1000).max(3600000).default(60000),
-  NEXUS_BUS_BACKEND: z.enum(["memory", "redis"]).default("memory"),
-  NEXUS_REDIS_URL: z.string().default("redis://localhost:6379"),
+  NEXUS_BUS_BACKEND: z.enum(['memory', 'redis']).default('memory'),
+  NEXUS_REDIS_URL: z.string().default('redis://localhost:6379'),
   // Embedding config
   NEXUS_EMBEDDING_DIM: z.coerce.number().int().min(64).max(8192).default(1536),
   NEXUS_EMBEDDING_BATCH_SIZE: z.coerce.number().int().min(1).max(1024).default(64),
@@ -79,20 +84,20 @@ const schema = z.object({
   NEXUS_AUTH_RESULT_TTL_MS: z.coerce.number().int().min(1000).max(300000).default(60000),
   NEXUS_AUTH_RESULT_CACHE_CAP: z.coerce.number().int().min(100).max(10000).default(1024),
   // OpenTelemetry
-  NEXUS_OTEL_ENDPOINT: z.string().default(""),
-  NEXUS_OTEL_API_KEY: z.string().default(""),
+  NEXUS_OTEL_ENDPOINT: z.string().default(''),
+  NEXUS_OTEL_API_KEY: z.string().default(''),
   // Blockchain anchoring
   NEXUS_BLOCKCHAIN_ENABLED: z.coerce.boolean().default(false),
-  NEXUS_BLOCKCHAIN_RPC_URL: z.string().default(""),
-  NEXUS_BLOCKCHAIN_PRIVATE_KEY: z.string().default(""),
+  NEXUS_BLOCKCHAIN_RPC_URL: z.string().default(''),
+  NEXUS_BLOCKCHAIN_PRIVATE_KEY: z.string().default(''),
   NEXUS_BLOCKCHAIN_CHAIN_ID: z.coerce.number().int().min(1).max(999999).default(1),
   NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL: z.coerce.number().int().min(1).max(100000).default(10),
   // Provider API keys (standard env vars, validated through env proxy)
-  OPENAI_API_KEY: z.string().default(""),
-  ANTHROPIC_API_KEY: z.string().default(""),
-  GOOGLE_API_KEY: z.string().default(""),
-  VLLM_API_KEY: z.string().default(""),
-  M3_API_KEY: z.string().default(""),
+  OPENAI_API_KEY: z.string().default(''),
+  ANTHROPIC_API_KEY: z.string().default(''),
+  GOOGLE_API_KEY: z.string().default(''),
+  VLLM_API_KEY: z.string().default(''),
+  M3_API_KEY: z.string().default(''),
 });
 
 export type Env = z.infer<typeof schema>;
@@ -107,16 +112,18 @@ export function getEnv(): Env {
   if (_env) return _env;
   const parsed = schema.safeParse(process.env);
   if (!parsed.success) {
-    const msg = parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ");
+    const msg = parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ');
     throw new Error(`Invalid environment configuration:\n${msg}`);
   }
   _env = parsed.data;
-  if (_env.NODE_ENV === "production") {
-    if (_env.NEXUS_ALLOWED_ORIGINS.includes("localhost") || _env.NEXUS_ALLOWED_ORIGINS === "*") {
-      throw new Error("Production must not allow localhost or wildcard origins (NEXUS_ALLOWED_ORIGINS).");
+  if (_env.NODE_ENV === 'production') {
+    if (_env.NEXUS_ALLOWED_ORIGINS.includes('localhost') || _env.NEXUS_ALLOWED_ORIGINS === '*') {
+      throw new Error(
+        'Production must not allow localhost or wildcard origins (NEXUS_ALLOWED_ORIGINS).'
+      );
     }
     if (!_env.NEXUS_API_KEY) {
-      console.warn("[NEXUS] WARNING: no operator NEXUS_API_KEY set in production.");
+      console.warn('[NEXUS] WARNING: no operator NEXUS_API_KEY set in production.');
     }
   }
   return _env;
@@ -132,7 +139,7 @@ export const env: Env = new Proxy({} as Env, {
   },
 });
 
-export const isProduction = (): boolean => getEnv().NODE_ENV === "production";
+export const isProduction = (): boolean => getEnv().NODE_ENV === 'production';
 export const llmConfigured = (): boolean => {
   const e = getEnv();
   return Boolean(e.NEXUS_LLM_BASE_URL && e.NEXUS_LLM_API_KEY && e.NEXUS_LLM_MODEL);

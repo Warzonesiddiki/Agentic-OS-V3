@@ -17,13 +17,13 @@
  *   - Audit system: trace roots are linked to audit entries for compliance
  */
 
-import { randomUUID } from "node:crypto";
-import { performance } from "node:perf_hooks";
-import { db } from "../db/client.js";
-import { appendAudit } from "../lib/audit.js";
-import { log } from "../lib/logging.js";
-import { getRegistry } from "./metrics.js";
-import promClient from "prom-client";
+import { randomUUID } from 'node:crypto';
+import { performance } from 'node:perf_hooks';
+import { db } from '../db/client.js';
+import { appendAudit } from '../lib/audit.js';
+import { log } from '../lib/logging.js';
+import { getRegistry } from './metrics.js';
+import promClient from 'prom-client';
 
 // ── Constants ──────────────────────────────────────────────────
 
@@ -33,8 +33,8 @@ const DEFAULT_MAX_QUEUE_SIZE = 2048;
 
 // ── Types ──────────────────────────────────────────────────────
 
-export type SpanType = "agent_span" | "tool_span" | "llm_span" | "handoff_span";
-export type SpanStatus = "ok" | "error" | "cancelled";
+export type SpanType = 'agent_span' | 'tool_span' | 'llm_span' | 'handoff_span';
+export type SpanStatus = 'ok' | 'error' | 'cancelled';
 
 export interface SpanEvent {
   name: string;
@@ -113,14 +113,14 @@ class SpanImpl implements Span {
     parentId: string | null,
     name: string,
     type: SpanType,
-    attributes?: SpanAttributes,
+    attributes?: SpanAttributes
   ) {
     this.id = `spn_${randomUUID()}`;
     this.traceId = traceId;
     this.parentId = parentId;
     this.name = name;
     this.type = type;
-    this.status = "ok";
+    this.status = 'ok';
     this.startTime = performance.now();
     this.endTime = null;
     this.attributes = { ...attributes };
@@ -192,7 +192,7 @@ export interface SpanExporter {
 export class ConsoleSpanExporter implements SpanExporter {
   async export(spans: ExportedSpan[]): Promise<void> {
     for (const span of spans) {
-      log.debug("span_exported", {
+      log.debug('span_exported', {
         traceId: span.traceId,
         spanId: span.id,
         type: span.type,
@@ -230,10 +230,16 @@ export class DatabaseSpanExporter implements SpanExporter {
       }));
 
       // Dynamic import to avoid circular deps at module load
-      const { spanLogs } = await import("../db/schema.js");
-      await db.insert(spanLogs).values(values as never[]).onConflictDoNothing();
+      const { spanLogs } = await import('../db/schema.js');
+      await db
+        .insert(spanLogs)
+        .values(values as never[])
+        .onConflictDoNothing();
     } catch (e) {
-      log.error("span_db_export_failed", { count: spans.length, error: e instanceof Error ? e.message : String(e) });
+      log.error('span_db_export_failed', {
+        count: spans.length,
+        error: e instanceof Error ? e.message : String(e),
+      });
     }
   }
 
@@ -263,7 +269,7 @@ export class BatchSpanProcessor implements SpanProcessor {
 
   constructor(
     exporter: SpanExporter,
-    options?: { batchSize?: number; exportIntervalMs?: number; maxQueueSize?: number },
+    options?: { batchSize?: number; exportIntervalMs?: number; maxQueueSize?: number }
   ) {
     this._exporter = exporter;
     this._batchSize = options?.batchSize ?? DEFAULT_BATCH_SIZE;
@@ -283,7 +289,7 @@ export class BatchSpanProcessor implements SpanProcessor {
     // Drop oldest spans if queue exceeds max size (backpressure)
     while (this._buffer.length > this._maxQueueSize) {
       const dropped = this._buffer.shift();
-      log.warn("span_dropped_backpressure", { spanId: dropped?.id, traceId: dropped?.traceId });
+      log.warn('span_dropped_backpressure', { spanId: dropped?.id, traceId: dropped?.traceId });
     }
 
     // Export immediately if batch size is reached
@@ -293,7 +299,9 @@ export class BatchSpanProcessor implements SpanProcessor {
 
     // Lazy-start the periodic timer on first span
     if (!this._timer) {
-      this._timer = setInterval(() => { this._flush(); }, this._exportIntervalMs);
+      this._timer = setInterval(() => {
+        this._flush();
+      }, this._exportIntervalMs);
       this._timer.unref();
     }
   }
@@ -341,7 +349,9 @@ export class BatchSpanProcessor implements SpanProcessor {
           spanDurationHistogram.observe(sp.durationMs / 1000);
         }
       } catch (e) {
-        log.error("span_batch_export_failed", { error: e instanceof Error ? e.message : String(e) });
+        log.error('span_batch_export_failed', {
+          error: e instanceof Error ? e.message : String(e),
+        });
         // Re-queue dropped spans
         const _dropped = this._buffer.splice(0, this._buffer.length);
         // Only re-queue if we didn't reach max queue again
@@ -395,9 +405,10 @@ class TraceImpl implements Trace {
       spanCount: this.spans.length,
       spans: this.spans.map((s) => s.toJSON()),
       startTime: this.spans.length > 0 ? Math.min(...this.spans.map((s) => s.startTime)) : null,
-      endTime: this.spans.length > 0
-        ? Math.max(...this.spans.filter((s) => s.endTime !== null).map((s) => s.endTime!))
-        : null,
+      endTime:
+        this.spans.length > 0
+          ? Math.max(...this.spans.filter((s) => s.endTime !== null).map((s) => s.endTime!))
+          : null,
     };
   }
 }
@@ -414,7 +425,7 @@ export interface Tracer {
   startSpan(
     name: string,
     type: SpanType,
-    options?: { parentId?: string; attributes?: SpanAttributes },
+    options?: { parentId?: string; attributes?: SpanAttributes }
   ): Span;
   endSpan(span: Span, attributes?: SpanAttributes): void;
   getTrace(traceId: string): Trace | undefined;
@@ -441,7 +452,7 @@ class TracerImpl implements Tracer {
   startSpan(
     name: string,
     type: SpanType,
-    options?: { parentId?: string; attributes?: SpanAttributes },
+    options?: { parentId?: string; attributes?: SpanAttributes }
   ): Span {
     // Resolve traceId — use existing parent trace or create new
     let traceId: string;
@@ -463,7 +474,7 @@ class TracerImpl implements Tracer {
     if (!parentId && activeTrace) {
       traceId = activeTrace.id;
     } else {
-      traceId = options?.attributes?.traceId as string ?? `trace_${randomUUID()}`;
+      traceId = (options?.attributes?.traceId as string) ?? `trace_${randomUUID()}`;
     }
 
     // Capture pre-mutation performance baseline
@@ -565,23 +576,23 @@ class TraceProviderImpl implements TraceProvider {
 // ── Prometheus Metrics ─────────────────────────────────────────
 
 const spanExportedTotal = new promClient.Counter({
-  name: "nexus_trace_spans_exported_total",
-  help: "Total number of spans exported",
-  labelNames: ["type", "status"],
+  name: 'nexus_trace_spans_exported_total',
+  help: 'Total number of spans exported',
+  labelNames: ['type', 'status'],
   registers: [getRegistry()],
 });
 
 const spanDurationHistogram = new promClient.Histogram({
-  name: "nexus_trace_span_duration_seconds",
-  help: "Span duration in seconds",
-  labelNames: ["type"],
+  name: 'nexus_trace_span_duration_seconds',
+  help: 'Span duration in seconds',
+  labelNames: ['type'],
   buckets: [0.001, 0.005, 0.01, 0.05, 0.1, 0.5, 1, 5, 10, 30, 60],
   registers: [getRegistry()],
 });
 
 const activeSpansGauge = new promClient.Gauge({
-  name: "nexus_trace_active_spans",
-  help: "Number of currently active (un-ended) spans",
+  name: 'nexus_trace_active_spans',
+  help: 'Number of currently active (un-ended) spans',
   registers: [getRegistry()],
 });
 
@@ -603,7 +614,7 @@ export function initTracing(processor?: SpanProcessor): TraceProvider {
   if (_provider) return _provider;
   _provider = new TraceProviderImpl(processor ?? defaultProcessor());
   _tracer = _provider.getTracer();
-  log.info("tracing_initialized");
+  log.info('tracing_initialized');
   return _provider;
 }
 
@@ -636,7 +647,7 @@ export async function shutdownTracing(): Promise<void> {
     await _provider.shutdown();
     _provider = null;
     _tracer = null;
-    log.info("tracing_shutdown");
+    log.info('tracing_shutdown');
   }
 }
 
@@ -677,16 +688,13 @@ export interface TracedAgentRunOptions {
  * Start a traced agent span. Automatically captures CPU/memory baselines.
  * Returns the span so the caller can end it.
  */
-export function startAgentSpan(
-  name: string,
-  options: TracedAgentRunOptions,
-): Span {
+export function startAgentSpan(name: string, options: TracedAgentRunOptions): Span {
   const tracer = getTracer();
-  return tracer.startSpan(name, "agent_span", {
+  return tracer.startSpan(name, 'agent_span', {
     parentId: options.parentSpanId,
     attributes: {
       agentId: options.agentId,
-      agentKind: options.agentKind ?? "sub-agent",
+      agentKind: options.agentKind ?? 'sub-agent',
       agentRing: options.agentRing ?? 2,
       parentAgentId: options.parentAgentId,
     },
@@ -703,12 +711,9 @@ export interface TracedToolCallOptions {
 /**
  * Start a traced tool span. Links to the parent agent span.
  */
-export function startToolSpan(
-  name: string,
-  options: TracedToolCallOptions,
-): Span {
+export function startToolSpan(name: string, options: TracedToolCallOptions): Span {
   const tracer = getTracer();
-  return tracer.startSpan(name, "tool_span", {
+  return tracer.startSpan(name, 'tool_span', {
     parentId: options.parentSpanId,
     attributes: {
       agentId: options.agentId,
@@ -728,12 +733,9 @@ export interface TracedLLMCallOptions {
 /**
  * Start a traced LLM span. Links to the parent agent or tool span.
  */
-export function startLLMSpan(
-  name: string,
-  options: TracedLLMCallOptions,
-): Span {
+export function startLLMSpan(name: string, options: TracedLLMCallOptions): Span {
   const tracer = getTracer();
-  return tracer.startSpan(name, "llm_span", {
+  return tracer.startSpan(name, 'llm_span', {
     parentId: options.parentSpanId,
     attributes: {
       agentId: options.agentId,
@@ -753,12 +755,9 @@ export interface TracedHandoffOptions {
 /**
  * Start a traced handoff span. Captures agent-to-agent delegation.
  */
-export function startHandoffSpan(
-  name: string,
-  options: TracedHandoffOptions,
-): Span {
+export function startHandoffSpan(name: string, options: TracedHandoffOptions): Span {
   const tracer = getTracer();
-  return tracer.startSpan(name, "handoff_span", {
+  return tracer.startSpan(name, 'handoff_span', {
     parentId: options.parentSpanId,
     attributes: {
       fromAgentId: options.fromAgentId,
@@ -773,25 +772,21 @@ export function startHandoffSpan(
  */
 export function recordTokenUsage(
   span: Span,
-  usage: { prompt?: number; completion?: number; total?: number },
+  usage: { prompt?: number; completion?: number; total?: number }
 ): void {
-  span.setAttribute("promptTokens", usage.prompt ?? 0);
-  span.setAttribute("completionTokens", usage.completion ?? 0);
-  span.setAttribute("totalTokens", usage.total ?? (usage.prompt ?? 0) + (usage.completion ?? 0));
+  span.setAttribute('promptTokens', usage.prompt ?? 0);
+  span.setAttribute('completionTokens', usage.completion ?? 0);
+  span.setAttribute('totalTokens', usage.total ?? (usage.prompt ?? 0) + (usage.completion ?? 0));
 }
 
 /**
  * Record an error on any span type.
  */
-export function recordSpanError(
-  span: Span,
-  error: string,
-  errorCode?: string,
-): void {
-  span.setStatus("error");
-  span.setAttribute("error", error);
-  if (errorCode) span.setAttribute("errorCode", errorCode);
-  span.addEvent("error", { error, errorCode });
+export function recordSpanError(span: Span, error: string, errorCode?: string): void {
+  span.setStatus('error');
+  span.setAttribute('error', error);
+  if (errorCode) span.setAttribute('errorCode', errorCode);
+  span.addEvent('error', { error, errorCode });
 }
 
 /**
@@ -800,7 +795,7 @@ export function recordSpanError(
  */
 export async function endTracedSpan(
   span: Span,
-  attributes?: SpanAttributes & { auditAction?: string; auditActor?: string },
+  attributes?: SpanAttributes & { auditAction?: string; auditActor?: string }
 ): Promise<void> {
   const tracer = getTracer();
   tracer.endSpan(span, attributes);
@@ -818,9 +813,9 @@ export async function endTracedSpan(
         status: span.status,
         attributes: span.attributes,
       },
-      attributes.auditActor,
+      attributes.auditActor
     ).catch((e) => {
-      log.warn("span_audit_link_failed", { error: e instanceof Error ? e.message : String(e) });
+      log.warn('span_audit_link_failed', { error: e instanceof Error ? e.message : String(e) });
     });
   }
 }
@@ -836,7 +831,7 @@ export function traceKernelSyscall<TArgs extends unknown[], TResult>(
   agentId: string,
   syscallName: string,
   fn: (...args: TArgs) => Promise<TResult>,
-  options?: { parentSpanId?: string },
+  options?: { parentSpanId?: string }
 ): (...args: TArgs) => Promise<TResult> {
   return async (...args: TArgs): Promise<TResult> => {
     const span = startToolSpan(`syscall.${syscallName}`, {
@@ -847,12 +842,12 @@ export function traceKernelSyscall<TArgs extends unknown[], TResult>(
 
     try {
       const result = await fn(...args);
-      span.setAttribute("toolExitCode", 0);
-      span.setAttribute("toolAuthorized", true);
+      span.setAttribute('toolExitCode', 0);
+      span.setAttribute('toolAuthorized', true);
       return result;
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
-      recordSpanError(span, errMsg, "KERNEL_SYSCALL_ERROR");
+      recordSpanError(span, errMsg, 'KERNEL_SYSCALL_ERROR');
       throw e;
     } finally {
       getTracer().endSpan(span);
@@ -869,16 +864,16 @@ export function traceKernelSyscall<TArgs extends unknown[], TResult>(
 export function createAgentTrace(
   agentId: string,
   goal: string,
-  options?: { kind?: string; ring?: number; parentAgentId?: string; parentSpanId?: string },
+  options?: { kind?: string; ring?: number; parentAgentId?: string; parentSpanId?: string }
 ): { rootSpan: Span; traceId: string } {
-  const rootSpan = startAgentSpan(`agent.${options?.kind ?? "run"}`, {
+  const rootSpan = startAgentSpan(`agent.${options?.kind ?? 'run'}`, {
     agentId,
     agentKind: options?.kind,
     agentRing: options?.ring,
     parentAgentId: options?.parentAgentId,
     parentSpanId: options?.parentSpanId,
   });
-  rootSpan.setAttribute("goal", goal);
+  rootSpan.setAttribute('goal', goal);
 
   return { rootSpan, traceId: rootSpan.traceId };
 }
@@ -890,14 +885,14 @@ export function createAgentTrace(
 export async function completeAgentTrace(
   rootSpan: Span,
   result: { ok: boolean; iterations: number; tokensUsed: number; answer?: string; error?: string },
-  actor: string,
+  actor: string
 ): Promise<void> {
-  rootSpan.setAttribute("iterations", result.iterations);
-  rootSpan.setAttribute("tokensUsed", result.tokensUsed);
-  rootSpan.setAttribute("answerLength", result.answer?.length ?? 0);
+  rootSpan.setAttribute('iterations', result.iterations);
+  rootSpan.setAttribute('tokensUsed', result.tokensUsed);
+  rootSpan.setAttribute('answerLength', result.answer?.length ?? 0);
 
   await endTracedSpan(rootSpan, {
-    auditAction: result.ok ? "agent_runtime.finished" : "agent_runtime.failed",
+    auditAction: result.ok ? 'agent_runtime.finished' : 'agent_runtime.failed',
     auditActor: actor,
     ...(result.error ? { error: result.error } : {}),
   });

@@ -27,6 +27,7 @@ export default [
     },
     rules: {
       ...tseslint.configs.recommended.rules,
+      'no-undef': 'off', // TypeScript handles this via tsc — NodeJS etc. are type namespaces, not globals
       'no-unused-vars': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',

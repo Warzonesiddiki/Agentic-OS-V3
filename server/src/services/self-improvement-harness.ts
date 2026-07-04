@@ -25,20 +25,18 @@
  *   - All status transitions append to the audit chain.
  *   - Harness NEVER reads raw content from `memories` — only metrics + counters.
  */
-import { randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
-import {
-  improvementProposals,
-  metricSnapshots,
-} from "../db/client.js";
-import { desc, eq, and, gte } from "drizzle-orm";
-import { appendAudit } from "../lib/audit.js";
-import { log } from "../lib/logging.js";
+import { randomUUID } from 'node:crypto';
+import { db } from '../db/client.js';
+import { improvementProposals, metricSnapshots } from '../db/client.js';
+import { desc, eq, and, gte } from 'drizzle-orm';
+import { appendAudit } from '../lib/audit.js';
+import { log } from '../lib/logging.js';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
-export type RiskClass = "ADVISORY" | "BLOCKING" | "SAFETY";
-export type ProposalStatus = "draft" | "testing" | "canary" | "rolled_out" | "reverted" | "rejected";
+export type RiskClass = 'ADVISORY' | 'BLOCKING' | 'SAFETY';
+export type ProposalStatus =
+  'draft' | 'testing' | 'canary' | 'rolled_out' | 'reverted' | 'rejected';
 
 export interface MetricWindow {
   metric: string;
@@ -50,7 +48,7 @@ export interface MetricWindow {
 }
 
 export interface ProposalPatch {
-  kind: "env" | "cache_ttl" | "pool_size" | "feature_flag";
+  kind: 'env' | 'cache_ttl' | 'pool_size' | 'feature_flag';
   key: string;
   value: string | number | boolean;
 }
@@ -61,7 +59,7 @@ export interface ProposalInput {
   hypothesis: string;
   targetMetric: string;
   baselineValue: number;
-  expectedDelta: number;       // negative = improvement for latency-style metrics
+  expectedDelta: number; // negative = improvement for latency-style metrics
   riskClass: RiskClass;
   patch: ProposalPatch;
   rationale?: string;
@@ -105,7 +103,7 @@ export async function collectRecentMetrics(metric: string, limit = 100): Promise
   return summarize(metric, values);
 }
 
-function summarize(metric: string, values: MetricWindow["values"]): MetricWindow {
+function summarize(metric: string, values: MetricWindow['values']): MetricWindow {
   if (!values.length) return { metric, values, p50: 0, p95: 0, mean: 0, n: 0 };
   const sorted = values.map((v: any) => v.value).sort((a, b) => a - b);
   const p = (q: number) => {
@@ -121,7 +119,7 @@ export async function recordMetric(
   metric: string,
   value: number,
   windowMs = 60_000,
-  tags: Record<string, unknown> = {},
+  tags: Record<string, unknown> = {}
 ): Promise<void> {
   const now = new Date();
   const start = new Date(now.getTime() - windowMs);
@@ -146,7 +144,7 @@ export async function recordMetric(
 export function detectRegression(
   current: MetricWindow,
   baseline: MetricWindow,
-  thresholdPct = 0.10,
+  thresholdPct = 0.1
 ): boolean {
   if (!current.n || !baseline.n) return false;
   if (current.p95 === 0 || baseline.p95 === 0) return false;
@@ -160,43 +158,58 @@ export function detectRegression(
 export async function proposeImprovement(input: ProposalInput): Promise<ProposalRecord> {
   const id = `prop_${randomUUID()}`;
   const now = new Date();
-  const [row] = await db.insert(improvementProposals).values({
+  const [row] = await db
+    .insert(improvementProposals)
+    .values({
+      id,
+      title: input.title,
+      summary: input.summary,
+      hypothesis: input.hypothesis,
+      targetMetric: input.targetMetric,
+      baselineValue: input.baselineValue,
+      expectedDelta: input.expectedDelta,
+      riskClass: input.riskClass,
+      status: 'draft',
+      patch: input.patch as unknown as Record<string, unknown>,
+      rationale: input.rationale ?? '',
+      author: 'harness',
+      reviewer: null,
+      rolloutPct: 0,
+      measuredDelta: null,
+      createdAt: now,
+      updatedAt: now,
+      decidedAt: null,
+    })
+    .returning();
+
+  await appendAudit(
+    'improvement.proposed',
+    {
+      proposalId: id,
+      targetMetric: input.targetMetric,
+      riskClass: input.riskClass,
+      patch: input.patch,
+      author: 'harness',
+    },
+    'harness'
+  );
+
+  log.info('improvement.proposed', {
     id,
-    title: input.title,
-    summary: input.summary,
-    hypothesis: input.hypothesis,
-    targetMetric: input.targetMetric,
-    baselineValue: input.baselineValue,
-    expectedDelta: input.expectedDelta,
-    riskClass: input.riskClass,
-    status: "draft",
-    patch: input.patch as unknown as Record<string, unknown>,
-    rationale: input.rationale ?? "",
-    author: "harness",
-    reviewer: null,
-    rolloutPct: 0,
-    measuredDelta: null,
-    createdAt: now,
-    updatedAt: now,
-    decidedAt: null,
-  }).returning();
-
-  await appendAudit("improvement.proposed", {
-    proposalId: id,
     targetMetric: input.targetMetric,
     riskClass: input.riskClass,
-    patch: input.patch,
-    author: "harness",
-  }, "harness");
-
-  log.info("improvement.proposed", { id, targetMetric: input.targetMetric, riskClass: input.riskClass });
+  });
   return row as unknown as ProposalRecord;
 }
 
-export async function listProposals(filter?: { status?: ProposalStatus; riskClass?: RiskClass; limit?: number }): Promise<ProposalRecord[]> {
+export async function listProposals(filter?: {
+  status?: ProposalStatus;
+  riskClass?: RiskClass;
+  limit?: number;
+}): Promise<ProposalRecord[]> {
   const where = and(
     filter?.status ? eq(improvementProposals.status, filter.status) : undefined,
-    filter?.riskClass ? eq(improvementProposals.riskClass, filter.riskClass) : undefined,
+    filter?.riskClass ? eq(improvementProposals.riskClass, filter.riskClass) : undefined
   );
   const rows = await db.query.improvementProposals.findMany({
     where,
@@ -207,7 +220,9 @@ export async function listProposals(filter?: { status?: ProposalStatus; riskClas
 }
 
 export async function getProposal(id: string): Promise<ProposalRecord | null> {
-  const row = await db.query.improvementProposals.findFirst({ where: eq(improvementProposals.id, id) });
+  const row = await db.query.improvementProposals.findFirst({
+    where: eq(improvementProposals.id, id),
+  });
   return (row as unknown as ProposalRecord) ?? null;
 }
 
@@ -216,104 +231,131 @@ export async function getProposal(id: string): Promise<ProposalRecord | null> {
 export async function approveProposal(id: string, reviewer: string): Promise<ProposalRecord> {
   const current = await getProposal(id);
   if (!current) throw new Error(`proposal_not_found:${id}`);
-  if (current.status !== "draft") throw new Error(`proposal_invalid_state:${current.status}`);
+  if (current.status !== 'draft') throw new Error(`proposal_invalid_state:${current.status}`);
 
-  await db.update(improvementProposals)
-    .set({ status: "testing", reviewer, decidedAt: new Date(), updatedAt: new Date() })
+  await db
+    .update(improvementProposals)
+    .set({ status: 'testing', reviewer, decidedAt: new Date(), updatedAt: new Date() })
     .where(eq(improvementProposals.id, id));
 
-  await appendAudit("improvement.approved", { proposalId: id, reviewer }, reviewer);
-  log.info("improvement.approved", { id, reviewer });
+  await appendAudit('improvement.approved', { proposalId: id, reviewer }, reviewer);
+  log.info('improvement.approved', { id, reviewer });
   return (await getProposal(id))!;
 }
 
-export async function rejectProposal(id: string, reviewer: string, reason: string): Promise<ProposalRecord> {
-  await db.update(improvementProposals)
-    .set({ status: "rejected", reviewer, decidedAt: new Date(), updatedAt: new Date(), rationale: reason })
+export async function rejectProposal(
+  id: string,
+  reviewer: string,
+  reason: string
+): Promise<ProposalRecord> {
+  await db
+    .update(improvementProposals)
+    .set({
+      status: 'rejected',
+      reviewer,
+      decidedAt: new Date(),
+      updatedAt: new Date(),
+      rationale: reason,
+    })
     .where(eq(improvementProposals.id, id));
 
-  await appendAudit("improvement.rejected", { proposalId: id, reviewer, reason }, reviewer);
-  log.info("improvement.rejected", { id, reviewer, reason });
+  await appendAudit('improvement.rejected', { proposalId: id, reviewer, reason }, reviewer);
+  log.info('improvement.rejected', { id, reviewer, reason });
   return (await getProposal(id))!;
 }
 
 /* ─── Patch application ──────────────────────────────────────────────────── */
 
-const ALLOWED_PATCH_KINDS = new Set<ProposalPatch["kind"]>(["env", "cache_ttl", "feature_flag"]);
+const ALLOWED_PATCH_KINDS = new Set<ProposalPatch['kind']>(['env', 'cache_ttl', 'feature_flag']);
 
 /**
  * Apply a proposal's patch. Hard refusal: BLOCKING + SAFETY risk classes.
  * Soft refusal: any patch kind not in ALLOWED_PATCH_KINDS (e.g. fs.write).
  */
-export async function applyPatch(id: string): Promise<{ applied: boolean; reason?: string; newValue?: unknown }> {
+export async function applyPatch(
+  id: string
+): Promise<{ applied: boolean; reason?: string; newValue?: unknown }> {
   const p = await getProposal(id);
-  if (!p) return { applied: false, reason: "not_found" };
-  if (p.riskClass !== "ADVISORY") {
-    await appendAudit("improvement.patch_refused", { proposalId: id, riskClass: p.riskClass }, "harness");
+  if (!p) return { applied: false, reason: 'not_found' };
+  if (p.riskClass !== 'ADVISORY') {
+    await appendAudit(
+      'improvement.patch_refused',
+      { proposalId: id, riskClass: p.riskClass },
+      'harness'
+    );
     return { applied: false, reason: `risk_class_blocked:${p.riskClass}` };
   }
   if (!ALLOWED_PATCH_KINDS.has(p.patch.kind)) {
     return { applied: false, reason: `patch_kind_blocked:${p.patch.kind}` };
   }
-  if (p.status !== "testing" && p.status !== "canary") {
+  if (p.status !== 'testing' && p.status !== 'canary') {
     return { applied: false, reason: `invalid_status:${p.status}` };
   }
 
   // The actual mutation: only env-var override at runtime.
   // For cache_ttl and feature_flag, we record an advisory and rely on the
   // consumer to read process.env.NEXUS_* — no in-process state mutation here.
-  if (p.patch.kind === "env") {
+  if (p.patch.kind === 'env') {
     process.env[p.patch.key] = String(p.patch.value);
   }
 
-  await db.update(improvementProposals)
-    .set({ status: "canary", rolloutPct: 10, updatedAt: new Date() })
+  await db
+    .update(improvementProposals)
+    .set({ status: 'canary', rolloutPct: 10, updatedAt: new Date() })
     .where(eq(improvementProposals.id, id));
 
-  await appendAudit("improvement.applied_canary", { proposalId: id, patch: p.patch }, "harness");
-  log.info("improvement.applied_canary", { id, patch: p.patch });
+  await appendAudit('improvement.applied_canary', { proposalId: id, patch: p.patch }, 'harness');
+  log.info('improvement.applied_canary', { id, patch: p.patch });
   return { applied: true, newValue: p.patch.value };
 }
 
 /* ─── Measurement & rollout ──────────────────────────────────────────────── */
 
 /** After a grace window, re-read the target metric and finalize. */
-export async function measureAndFinalize(id: string, graceWindowMs = 5 * 60_000): Promise<ProposalRecord> {
+export async function measureAndFinalize(
+  id: string,
+  graceWindowMs = 5 * 60_000
+): Promise<ProposalRecord> {
   const p = await getProposal(id);
   if (!p) throw new Error(`proposal_not_found:${id}`);
-  if (p.status !== "canary") throw new Error(`proposal_invalid_state:${p.status}`);
+  if (p.status !== 'canary') throw new Error(`proposal_invalid_state:${p.status}`);
 
   const since = new Date(Date.now() - graceWindowMs);
   const recentRows = await db.query.metricSnapshots.findMany({
-    where: and(
-      eq(metricSnapshots.metric, p.targetMetric),
-      gte(metricSnapshots.capturedAt, since),
-    ),
+    where: and(eq(metricSnapshots.metric, p.targetMetric), gte(metricSnapshots.capturedAt, since)),
     orderBy: [desc(metricSnapshots.capturedAt)],
     limit: 200,
   });
 
   const newP95 = recentRows.length
-    ? summarize(p.targetMetric, recentRows.map((r: any) => ({ value: r.value, capturedAt: r.capturedAt, tags: {} }))).p95
+    ? summarize(
+        p.targetMetric,
+        recentRows.map((r: any) => ({ value: r.value, capturedAt: r.capturedAt, tags: {} }))
+      ).p95
     : p.baselineValue;
 
   const measuredDelta = newP95 - p.baselineValue; // lower = better for latency
   const improved = measuredDelta < 0;
-  const status: ProposalStatus = improved ? "rolled_out" : "reverted";
+  const status: ProposalStatus = improved ? 'rolled_out' : 'reverted';
 
-  await db.update(improvementProposals)
+  await db
+    .update(improvementProposals)
     .set({ status, measuredDelta, updatedAt: new Date() })
     .where(eq(improvementProposals.id, id));
 
-  await appendAudit("improvement.finalized", {
-    proposalId: id,
-    status,
-    measuredDelta,
-    baselineValue: p.baselineValue,
-    newP95,
-    targetMetric: p.targetMetric,
-  }, "harness");
-  log.info("improvement.finalized", { id, status, measuredDelta });
+  await appendAudit(
+    'improvement.finalized',
+    {
+      proposalId: id,
+      status,
+      measuredDelta,
+      baselineValue: p.baselineValue,
+      newP95,
+      targetMetric: p.targetMetric,
+    },
+    'harness'
+  );
+  log.info('improvement.finalized', { id, status, measuredDelta });
   return (await getProposal(id))!;
 }
 
@@ -334,17 +376,26 @@ export async function harnessTick(opts: {
     if (detectRegression(current, baseline, threshold)) {
       const proposal = await proposeImprovement({
         title: `Auto-detected regression on ${metric}`,
-        summary: `p95 of ${metric} degraded from ${baseline.p95.toFixed(2)} to ${current.p95.toFixed(2)} (Δ ${((current.p95 - baseline.p95) / baseline.p95 * 100).toFixed(1)}%).`,
+        summary: `p95 of ${metric} degraded from ${baseline.p95.toFixed(2)} to ${current.p95.toFixed(2)} (Δ ${(((current.p95 - baseline.p95) / baseline.p95) * 100).toFixed(1)}%).`,
         hypothesis: `Tuning cache TTL / pool size / feature flag will restore baseline.`,
         targetMetric: metric,
         baselineValue: baseline.p95,
         expectedDelta: -(baseline.p95 - current.p95), // negative delta = improvement
-        riskClass: "ADVISORY",
-        patch: { kind: "feature_flag", key: `NEXUS_HARNESS_REVIEW_${metric.replace(/\W+/g, "_").toUpperCase()}`, value: "true" },
-        rationale: "auto-detected regression",
+        riskClass: 'ADVISORY',
+        patch: {
+          kind: 'feature_flag',
+          key: `NEXUS_HARNESS_REVIEW_${metric.replace(/\W+/g, '_').toUpperCase()}`,
+          value: 'true',
+        },
+        rationale: 'auto-detected regression',
       });
       proposalsCreated++;
-      log.warn("harness.regression_detected", { metric, currentP95: current.p95, baselineP95: baseline.p95, proposalId: proposal.id });
+      log.warn('harness.regression_detected', {
+        metric,
+        currentP95: current.p95,
+        baselineP95: baseline.p95,
+        proposalId: proposal.id,
+      });
     }
   }
   return { proposalsCreated };

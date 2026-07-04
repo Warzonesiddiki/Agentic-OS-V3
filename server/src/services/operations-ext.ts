@@ -4,16 +4,16 @@
  * Contains: Cron daemon management, ambient voice ingestion,
  * HITL approval gates, Zod auto-correction loop, circuit breaker.
  */
-import { db } from "../db/client.js";
-import { cronJobs, agentTasks, stateSnapshots } from "../db/client.js";
-import { appendAudit } from "../lib/audit.js";
-import { enqueueTask, spawnAgent } from "./kernel.js";
-import { randomUUID } from "node:crypto";
-import { eq } from "drizzle-orm";
-import type { z } from "zod";
-import { env } from "../lib/env.js";
-import { CronExpressionParser } from "cron-parser";
-import { broadcastSSE } from "./sse-bus.js";
+import { db } from '../db/client.js';
+import { cronJobs, agentTasks, stateSnapshots } from '../db/client.js';
+import { appendAudit } from '../lib/audit.js';
+import { enqueueTask, spawnAgent } from './kernel.js';
+import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
+import type { z } from 'zod';
+import { env } from '../lib/env.js';
+import { CronExpressionParser } from 'cron-parser';
+import { broadcastSSE } from './sse-bus.js';
 
 // ── PHASE 4: Cron Daemons (24/7 Autonomous Waking) ────────────
 
@@ -31,20 +31,23 @@ export interface CronJobInput {
  */
 export async function createCronJob(input: CronJobInput, actor: string) {
   const nextRunAt = computeNextRun(input.cron);
-  const [job] = await db.insert(cronJobs).values({
-    id: `crn_${randomUUID()}`,
-    name: input.name,
-    cron: input.cron,
-    agentKind: input.agentKind ?? "daemon",
-    taskLabel: input.taskLabel,
-    taskInput: input.taskInput ?? {},
-    enabled: true,
-    nextRunAt,
-    runCount: 0,
-  }).returning();
+  const [job] = await db
+    .insert(cronJobs)
+    .values({
+      id: `crn_${randomUUID()}`,
+      name: input.name,
+      cron: input.cron,
+      agentKind: input.agentKind ?? 'daemon',
+      taskLabel: input.taskLabel,
+      taskInput: input.taskInput ?? {},
+      enabled: true,
+      nextRunAt,
+      runCount: 0,
+    })
+    .returning();
 
-  if (!job) throw new Error("Failed to create cron job — DB returned no row.");
-  await appendAudit("cron.created", { jobId: job.id, name: input.name, cron: input.cron }, actor);
+  if (!job) throw new Error('Failed to create cron job — DB returned no row.');
+  await appendAudit('cron.created', { jobId: job.id, name: input.name, cron: input.cron }, actor);
   return job;
 }
 
@@ -55,8 +58,12 @@ export async function listCronJobs() {
 
 /** Toggle a cron job on/off. */
 export async function toggleCronJob(id: string, enabled: boolean, actor: string) {
-  const [updated] = await db.update(cronJobs).set({ enabled }).where(eq(cronJobs.id, id)).returning();
-  await appendAudit("cron.toggled", { jobId: id, enabled }, actor);
+  const [updated] = await db
+    .update(cronJobs)
+    .set({ enabled })
+    .where(eq(cronJobs.id, id))
+    .returning();
+  await appendAudit('cron.toggled', { jobId: id, enabled }, actor);
   return updated;
 }
 
@@ -76,37 +83,46 @@ export async function tickCron(actor: string): Promise<number> {
     if (!job.nextRunAt || job.nextRunAt > now) continue;
 
     // Spawn a daemon agent
-    const agent = await spawnAgent({
-      name: `${job.name}-daemon`,
-      kind: "daemon",
-      ring: 1,
-      scopes: ["memory:read", "memory:write"],
-    }, actor);
+    const agent = await spawnAgent(
+      {
+        name: `${job.name}-daemon`,
+        kind: 'daemon',
+        ring: 1,
+        scopes: ['memory:read', 'memory:write'],
+      },
+      actor
+    );
 
     if (!agent) continue;
 
     // Enqueue the task
-    await enqueueTask({
-      agentId: agent.id,
-      label: job.taskLabel,
-      kind: "maintenance",
-      input: job.taskInput,
-      idempotencyKey: `cron_${job.id}_${job.nextRunAt.toISOString()}`,
-    }, actor);
+    await enqueueTask(
+      {
+        agentId: agent.id,
+        label: job.taskLabel,
+        kind: 'maintenance',
+        input: job.taskInput,
+        idempotencyKey: `cron_${job.id}_${job.nextRunAt.toISOString()}`,
+      },
+      actor
+    );
 
     // Advance next run
     const nextRun = computeNextRun(job.cron);
-    await db.update(cronJobs).set({
-      lastRunAt: now,
-      nextRunAt: nextRun,
-      runCount: job.runCount + 1,
-    }).where(eq(cronJobs.id, job.id));
+    await db
+      .update(cronJobs)
+      .set({
+        lastRunAt: now,
+        nextRunAt: nextRun,
+        runCount: job.runCount + 1,
+      })
+      .where(eq(cronJobs.id, job.id));
 
     fired++;
   }
 
   if (fired > 0) {
-    await appendAudit("cron.ticked", { fired, time: now.toISOString() }, actor);
+    await appendAudit('cron.ticked', { fired, time: now.toISOString() }, actor);
   }
 
   return fired;
@@ -137,29 +153,41 @@ export async function ingestAmbientTranscript(
   actor: string
 ): Promise<{ taskId: string; agentId: string }> {
   // Spawn a background daemon to distill
-  const agent = await spawnAgent({
-    name: `ambient-ingest-${Date.now()}`,
-    kind: "daemon",
-    ring: 2,
-    scopes: ["memory:write"],
-  }, actor);
+  const agent = await spawnAgent(
+    {
+      name: `ambient-ingest-${Date.now()}`,
+      kind: 'daemon',
+      ring: 2,
+      scopes: ['memory:write'],
+    },
+    actor
+  );
 
-  if (!agent) throw new Error("Failed to spawn ambient agent.");
+  if (!agent) throw new Error('Failed to spawn ambient agent.');
 
   // Enqueue the distillation task
-  const task = await enqueueTask({
-    agentId: agent.id,
-    label: `Ambient distillation from ${source}`,
-    kind: "background",
-    input: { transcript, source, metadata },
-    idempotencyKey: `ambient_${createHash(transcript.slice(0, 100))}`,
-  }, actor);
+  const task = await enqueueTask(
+    {
+      agentId: agent.id,
+      label: `Ambient distillation from ${source}`,
+      kind: 'background',
+      input: { transcript, source, metadata },
+      idempotencyKey: `ambient_${createHash(transcript.slice(0, 100))}`,
+    },
+    actor
+  );
 
-  if (!task) throw new Error("Failed to enqueue ambient task.");
+  if (!task) throw new Error('Failed to enqueue ambient task.');
 
-  await appendAudit("ambient.ingested", {
-    source, length: transcript.length, taskId: task.id,
-  }, actor);
+  await appendAudit(
+    'ambient.ingested',
+    {
+      source,
+      length: transcript.length,
+      taskId: task.id,
+    },
+    actor
+  );
 
   return { taskId: task.id, agentId: agent.id };
 }
@@ -188,22 +216,47 @@ export interface ApprovalRequest {
  * The agent's execution is suspended until the human responds.
  * Emits an approval.requested event for SSE streaming.
  */
-export async function requestApproval(req: ApprovalRequest, actor: string): Promise<{ approvalId: string }> {
+export async function requestApproval(
+  req: ApprovalRequest,
+  actor: string
+): Promise<{ approvalId: string }> {
   const approvalId = `apv_${randomUUID()}`;
 
   // Store in the task's metadata as a pending approval
-  await db.update(agentTasks).set({
-    error: `PENDING_APPROVAL:${approvalId}`,
-    status: "running", // stays running but blocked
-  }).where(eq(agentTasks.id, req.taskId));
+  await db
+    .update(agentTasks)
+    .set({
+      error: `PENDING_APPROVAL:${approvalId}`,
+      status: 'running', // stays running but blocked
+    })
+    .where(eq(agentTasks.id, req.taskId));
 
-  await appendAudit("approval.requested", {
-    approvalId, agentId: req.agentId, taskId: req.taskId,
-    tool: req.tool, riskLevel: req.riskLevel,
-    payload: req.payload, reasoning: req.reasoning,
-  }, actor);
+  await appendAudit(
+    'approval.requested',
+    {
+      approvalId,
+      agentId: req.agentId,
+      taskId: req.taskId,
+      tool: req.tool,
+      riskLevel: req.riskLevel,
+      payload: req.payload,
+      reasoning: req.reasoning,
+    },
+    actor
+  );
 
-  broadcastSSE({ type: "approval.requested", data: { approvalId, agentId: req.agentId, taskId: req.taskId, tool: req.tool, riskLevel: req.riskLevel, reasoning: req.reasoning }, timestamp: Date.now() });
+  broadcastSSE({
+    type: 'approval.requested',
+    data: {
+      approvalId,
+      agentId: req.agentId,
+      taskId: req.taskId,
+      tool: req.tool,
+      riskLevel: req.riskLevel,
+      reasoning: req.reasoning,
+    },
+    timestamp: Date.now(),
+  });
 
   return { approvalId };
 }
@@ -219,26 +272,40 @@ export async function resolveApproval(
   operatorName: string
 ): Promise<void> {
   const task = await db.query.agentTasks.findFirst({ where: eq(agentTasks.id, taskId) });
-  if (!task) throw new Error("Task not found");
+  if (!task) throw new Error('Task not found');
 
   if (approved) {
-    await db.update(agentTasks).set({
-      status: "queued",
-      error: null,
-    }).where(eq(agentTasks.id, taskId));
+    await db
+      .update(agentTasks)
+      .set({
+        status: 'queued',
+        error: null,
+      })
+      .where(eq(agentTasks.id, taskId));
 
-    await appendAudit("approval.approved", { taskId, operator: operatorName }, operatorName);
-    broadcastSSE({ type: "task.update", data: { taskId, status: "queued", approved: true, operator: operatorName }, timestamp: Date.now() });
-    (await import("./task-worker.js")).wakeWorker();
+    await appendAudit('approval.approved', { taskId, operator: operatorName }, operatorName);
+    broadcastSSE({
+      type: 'task.update',
+      data: { taskId, status: 'queued', approved: true, operator: operatorName },
+      timestamp: Date.now(),
+    });
+    (await import('./task-worker.js')).wakeWorker();
   } else {
-    await db.update(agentTasks).set({
-      status: "cancelled",
-      error: "Denied by operator",
-      finishedAt: new Date(),
-    }).where(eq(agentTasks.id, taskId));
+    await db
+      .update(agentTasks)
+      .set({
+        status: 'cancelled',
+        error: 'Denied by operator',
+        finishedAt: new Date(),
+      })
+      .where(eq(agentTasks.id, taskId));
 
-    await appendAudit("approval.denied", { taskId, operator: operatorName }, operatorName);
-    broadcastSSE({ type: "task.update", data: { taskId, status: "cancelled", approved: false, operator: operatorName }, timestamp: Date.now() });
+    await appendAudit('approval.denied', { taskId, operator: operatorName }, operatorName);
+    broadcastSSE({
+      type: 'task.update',
+      data: { taskId, status: 'cancelled', approved: false, operator: operatorName },
+      timestamp: Date.now(),
+    });
   }
 }
 
@@ -280,11 +347,11 @@ export async function validateWithRetry<T>(
 
     // Format the Zod error as a system observation for the agent
     const errorMsg = result.error.issues
-      .map((i) => `[${i.path.join(".") || "root"}] ${i.message}`)
-      .join("; ");
+      .map((i) => `[${i.path.join('.') || 'root'}] ${i.message}`)
+      .join('; ');
 
-    const observation = `SYSTEM ERROR: Your output failed validation. ` +
-      `Fix these issues and retry: ${errorMsg}`;
+    const observation =
+      `SYSTEM ERROR: Your output failed validation. ` + `Fix these issues and retry: ${errorMsg}`;
 
     corrections.push(`Attempt ${attempt}: ${observation}`);
 
@@ -312,7 +379,7 @@ export async function validateWithRetry<T>(
     }
   }
 
-  return { success: false, error: "Exhausted retries", attempts: maxRetries + 1, corrections };
+  return { success: false, error: 'Exhausted retries', attempts: maxRetries + 1, corrections };
 }
 
 // ── Stability: Circuit Breaker ────────────────────────────────
@@ -333,10 +400,7 @@ const CB_RESET_MS = env.NEXUS_CB_RESET_MS;
  * the breaker trips and immediately rejects subsequent calls for CB_RESET_MS.
  * Prevents infinite error loops and wasted token spend.
  */
-export async function withCircuitBreaker<T>(
-  key: string,
-  fn: () => Promise<T>
-): Promise<T> {
+export async function withCircuitBreaker<T>(key: string, fn: () => Promise<T>): Promise<T> {
   const state = breakers.get(key) ?? { failures: 0, lastFailureAt: 0, tripped: false };
 
   // Check if breaker should reset
@@ -346,8 +410,10 @@ export async function withCircuitBreaker<T>(
   }
 
   if (state.tripped) {
-    throw new Error(`CIRCUIT_BREAKER_TRIPPED: ${key} has failed ${state.failures} times. ` +
-      `Retry in ${Math.ceil((CB_RESET_MS - (Date.now() - state.lastFailureAt)) / 1000)}s.`);
+    throw new Error(
+      `CIRCUIT_BREAKER_TRIPPED: ${key} has failed ${state.failures} times. ` +
+        `Retry in ${Math.ceil((CB_RESET_MS - (Date.now() - state.lastFailureAt)) / 1000)}s.`
+    );
   }
 
   try {
@@ -398,13 +464,13 @@ export async function saveSnapshot(
     context,
   });
 
-  await appendAudit("snapshot.saved", { snapId, sagaId, stepIndex, stepName }, actor);
+  await appendAudit('snapshot.saved', { snapId, sagaId, stepIndex, stepName }, actor);
   return snapId;
 }
 
 /** Load the latest snapshot for a saga (for crash recovery). */
 export async function loadLatestSnapshot(sagaId: string) {
-  const { desc } = await import("drizzle-orm");
+  const { desc } = await import('drizzle-orm');
   const snaps = await db.query.stateSnapshots.findMany({
     where: eq(stateSnapshots.sagaId, sagaId),
     orderBy: desc(stateSnapshots.stepIndex),

@@ -15,17 +15,17 @@
  * server/src/services/llm-router.ts (model routing), and the existing
  * agent orchestration system.
  */
-import { randomUUID } from "node:crypto";
+import { randomUUID } from 'node:crypto';
 
-import { appendAudit } from "../lib/audit.js";
-import { log } from "../lib/logging.js";
-import { getEnv } from "../lib/env.js";
-import { estimateTokens } from "../lib/tokens.js";
+import { appendAudit } from '../lib/audit.js';
+import { log } from '../lib/logging.js';
+import { getEnv } from '../lib/env.js';
+import { estimateTokens } from '../lib/tokens.js';
 // import { eq, sql, and, lt, gte } from "drizzle-orm";  // removed unused
 
 // ── Priority Levels ──────────────────────────────────────────────
 
-export type SchedulerPriority = "interactive" | "background" | "maintenance";
+export type SchedulerPriority = 'interactive' | 'background' | 'maintenance';
 
 export const PRIORITY_ORDER: Record<SchedulerPriority, number> = {
   interactive: 100,
@@ -36,14 +36,14 @@ export const PRIORITY_ORDER: Record<SchedulerPriority, number> = {
 // ── Model Routing ────────────────────────────────────────────────
 
 export type TaskCategory =
-  | "chat"
-  | "reasoning"
-  | "extraction"
-  | "embedding"
-  | "vision"
-  | "code"
-  | "distillation"
-  | "tool_call";
+  | 'chat'
+  | 'reasoning'
+  | 'extraction'
+  | 'embedding'
+  | 'vision'
+  | 'code'
+  | 'distillation'
+  | 'tool_call';
 
 export interface ModelRoute {
   category: TaskCategory;
@@ -55,14 +55,70 @@ export interface ModelRoute {
 }
 
 const DEFAULT_ROUTES: ModelRoute[] = [
-  { category: "chat",         model: "gpt-4o-mini", maxTokens: 2048, temperature: 0.7, costPer1kPrompt: 0.15,   costPer1kCompletion: 0.60 },
-  { category: "reasoning",    model: "gpt-4o",       maxTokens: 4096, temperature: 0.3, costPer1kPrompt: 2.50,   costPer1kCompletion: 10.00 },
-  { category: "extraction",   model: "gpt-4o-mini", maxTokens: 1024, temperature: 0.1, costPer1kPrompt: 0.15,   costPer1kCompletion: 0.60 },
-  { category: "embedding",    model: "text-embedding-3-small", maxTokens: 8191, temperature: 0.0, costPer1kPrompt: 0.02, costPer1kCompletion: 0.00 },
-  { category: "vision",       model: "gpt-4o",       maxTokens: 4096, temperature: 0.5, costPer1kPrompt: 2.50,   costPer1kCompletion: 10.00 },
-  { category: "code",         model: "gpt-4o",       maxTokens: 4096, temperature: 0.2, costPer1kPrompt: 2.50,   costPer1kCompletion: 10.00 },
-  { category: "distillation", model: "gpt-4o-mini", maxTokens: 2048, temperature: 0.3, costPer1kPrompt: 0.15,   costPer1kCompletion: 0.60 },
-  { category: "tool_call",    model: "gpt-4o-mini", maxTokens: 1024, temperature: 0.0, costPer1kPrompt: 0.15,   costPer1kCompletion: 0.60 },
+  {
+    category: 'chat',
+    model: 'gpt-4o-mini',
+    maxTokens: 2048,
+    temperature: 0.7,
+    costPer1kPrompt: 0.15,
+    costPer1kCompletion: 0.6,
+  },
+  {
+    category: 'reasoning',
+    model: 'gpt-4o',
+    maxTokens: 4096,
+    temperature: 0.3,
+    costPer1kPrompt: 2.5,
+    costPer1kCompletion: 10.0,
+  },
+  {
+    category: 'extraction',
+    model: 'gpt-4o-mini',
+    maxTokens: 1024,
+    temperature: 0.1,
+    costPer1kPrompt: 0.15,
+    costPer1kCompletion: 0.6,
+  },
+  {
+    category: 'embedding',
+    model: 'text-embedding-3-small',
+    maxTokens: 8191,
+    temperature: 0.0,
+    costPer1kPrompt: 0.02,
+    costPer1kCompletion: 0.0,
+  },
+  {
+    category: 'vision',
+    model: 'gpt-4o',
+    maxTokens: 4096,
+    temperature: 0.5,
+    costPer1kPrompt: 2.5,
+    costPer1kCompletion: 10.0,
+  },
+  {
+    category: 'code',
+    model: 'gpt-4o',
+    maxTokens: 4096,
+    temperature: 0.2,
+    costPer1kPrompt: 2.5,
+    costPer1kCompletion: 10.0,
+  },
+  {
+    category: 'distillation',
+    model: 'gpt-4o-mini',
+    maxTokens: 2048,
+    temperature: 0.3,
+    costPer1kPrompt: 0.15,
+    costPer1kCompletion: 0.6,
+  },
+  {
+    category: 'tool_call',
+    model: 'gpt-4o-mini',
+    maxTokens: 1024,
+    temperature: 0.0,
+    costPer1kPrompt: 0.15,
+    costPer1kCompletion: 0.6,
+  },
 ];
 
 // ── Rate Limit Configuration ─────────────────────────────────────
@@ -75,10 +131,10 @@ export interface RateLimitConfig {
 }
 
 const DEFAULT_RATE_LIMITS: Record<string, RateLimitConfig> = {
-  default: { rpm: 60, tpm: 100_000, concurrency: 5, priority: "background" },
-  interactive: { rpm: 120, tpm: 200_000, concurrency: 10, priority: "interactive" },
-  background: { rpm: 30, tpm: 50_000, concurrency: 3, priority: "background" },
-  maintenance: { rpm: 10, tpm: 20_000, concurrency: 1, priority: "maintenance" },
+  default: { rpm: 60, tpm: 100_000, concurrency: 5, priority: 'background' },
+  interactive: { rpm: 120, tpm: 200_000, concurrency: 10, priority: 'interactive' },
+  background: { rpm: 30, tpm: 50_000, concurrency: 3, priority: 'background' },
+  maintenance: { rpm: 10, tpm: 20_000, concurrency: 1, priority: 'maintenance' },
 };
 
 // ── Token Budget ─────────────────────────────────────────────────
@@ -131,7 +187,7 @@ export interface ScheduledRequest {
   prompt: string;
   maxTokens: number;
   temperature: number;
-  status: "queued" | "running" | "completed" | "failed" | "timed_out" | "cancelled";
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'timed_out' | 'cancelled';
   queuedAt: number;
   startedAt?: number;
   finishedAt?: number;
@@ -207,7 +263,7 @@ function getOrCreateUser(userId: string, priority?: SchedulerPriority): UserStat
 }
 
 function getDefaultRateLimit(priority?: SchedulerPriority): RateLimitConfig {
-  const key = priority ?? "default";
+  const key = priority ?? 'default';
   return (DEFAULT_RATE_LIMITS[key] ?? DEFAULT_RATE_LIMITS.default)!;
 }
 
@@ -275,11 +331,13 @@ function checkRateLimit(us: UserState, tokens: number): { allowed: boolean; reas
 
 // ── Queue Operations ─────────────────────────────────────────────
 
-export function enqueue(req: Omit<ScheduledRequest, "id" | "status" | "queuedAt">): ScheduledRequest {
+export function enqueue(
+  req: Omit<ScheduledRequest, 'id' | 'status' | 'queuedAt'>
+): ScheduledRequest {
   const request: ScheduledRequest = {
     ...req,
-    id: rid("sched"),
-    status: "queued",
+    id: rid('sched'),
+    status: 'queued',
     queuedAt: now(),
   };
 
@@ -291,7 +349,7 @@ export function enqueue(req: Omit<ScheduledRequest, "id" | "status" | "queuedAt"
     return a.queuedAt - b.queuedAt;
   });
 
-  log.info("llm_scheduler.enqueued", {
+  log.info('llm_scheduler.enqueued', {
     id: request.id,
     userId: request.userId,
     agentId: request.agentId,
@@ -321,10 +379,10 @@ export function cancelRequest(id: string): boolean {
   const req = removed[0];
   if (!req) return false;
 
-  req.status = "cancelled";
+  req.status = 'cancelled';
   req.finishedAt = now();
 
-  log.info("llm_scheduler.cancelled", { id: req.id, userId: req.userId });
+  log.info('llm_scheduler.cancelled', { id: req.id, userId: req.userId });
   return true;
 }
 
@@ -336,8 +394,8 @@ function drainTimedOut(): number {
   const remaining: ScheduledRequest[] = [];
 
   for (const req of state.queue) {
-    if (req.status === "queued" && cutoff - req.queuedAt >= req.timeoutMs) {
-      req.status = "timed_out";
+    if (req.status === 'queued' && cutoff - req.queuedAt >= req.timeoutMs) {
+      req.status = 'timed_out';
       req.finishedAt = cutoff;
       req.error = `Request timed out after ${req.timeoutMs}ms`;
       timedOut.push(req);
@@ -357,11 +415,11 @@ function _adoptTimedOutForUser(userId: string): number {
   state.queue = state.queue.filter((req) => {
     if (
       req.userId === userId &&
-      req.status === "running" &&
+      req.status === 'running' &&
       req.startedAt &&
       cutoff - req.startedAt >= req.timeoutMs
     ) {
-      req.status = "timed_out";
+      req.status = 'timed_out';
       req.finishedAt = cutoff;
       req.error = `Execution timed out after ${req.timeoutMs}ms`;
       state.metrics.timedOut++;
@@ -385,7 +443,7 @@ export async function schedule(req: {
   traceId?: string;
 }): Promise<ScheduledRequest> {
   const route = pickModelRoute(req.category);
-  const priority = req.priority ?? "background";
+  const priority = req.priority ?? 'background';
   const us = getOrCreateUser(req.userId, priority);
 
   const estimatedTokens = estimateTokens(req.prompt) + (req.maxTokens ?? route.maxTokens);
@@ -405,14 +463,18 @@ export async function schedule(req: {
       traceId: req.traceId,
     });
 
-    await appendAudit("llm_scheduler.queued", {
-      id: scheduled.id,
-      userId: req.userId,
-      agentId: req.agentId,
-      category: req.category,
-      priority,
-      reason: rateCheck.reason,
-    }, "llm-scheduler");
+    await appendAudit(
+      'llm_scheduler.queued',
+      {
+        id: scheduled.id,
+        userId: req.userId,
+        agentId: req.agentId,
+        category: req.category,
+        priority,
+        reason: rateCheck.reason,
+      },
+      'llm-scheduler'
+    );
 
     return scheduled;
   }
@@ -423,7 +485,7 @@ export async function schedule(req: {
   us.budget.used += estimatedTokens;
 
   const scheduled: ScheduledRequest = {
-    id: rid("sched"),
+    id: rid('sched'),
     userId: req.userId,
     agentId: req.agentId,
     category: req.category,
@@ -432,21 +494,25 @@ export async function schedule(req: {
     prompt: req.prompt,
     maxTokens: req.maxTokens ?? route.maxTokens,
     temperature: req.temperature ?? route.temperature,
-    status: "running",
+    status: 'running',
     queuedAt: now(),
     startedAt: now(),
     timeoutMs: req.timeoutMs ?? 60_000,
     traceId: req.traceId,
   };
 
-  await appendAudit("llm_scheduler.scheduled", {
-    id: scheduled.id,
-    userId: req.userId,
-    agentId: req.agentId,
-    category: req.category,
-    priority,
-    model: route.model,
-  }, "llm-scheduler");
+  await appendAudit(
+    'llm_scheduler.scheduled',
+    {
+      id: scheduled.id,
+      userId: req.userId,
+      agentId: req.agentId,
+      category: req.category,
+      priority,
+      model: route.model,
+    },
+    'llm-scheduler'
+  );
 
   return scheduled;
 }
@@ -460,11 +526,15 @@ export function cancel(userId: string, requestId: string): boolean {
   return cancelRequest(requestId);
 }
 
-export function complete(requestId: string, result: unknown, usage: { promptTokens: number; completionTokens: number }): void {
+export function complete(
+  requestId: string,
+  result: unknown,
+  usage: { promptTokens: number; completionTokens: number }
+): void {
   const req = state.queue.find((r) => r.id === requestId);
   if (!req) return;
 
-  req.status = "completed";
+  req.status = 'completed';
   req.finishedAt = now();
   req.result = result;
   req.promptTokens = usage.promptTokens;
@@ -481,7 +551,7 @@ export function complete(requestId: string, result: unknown, usage: { promptToke
   state.metrics.processed++;
   state.metrics.tokensProcessed += usage.promptTokens + usage.completionTokens;
   state.metrics.totalCost += req.cost;
-  state.metrics.totalLatencyMs += (req.finishedAt - (req.startedAt ?? req.queuedAt));
+  state.metrics.totalLatencyMs += req.finishedAt - (req.startedAt ?? req.queuedAt);
   state.metrics.latencySamples.push(req.finishedAt - (req.startedAt ?? req.queuedAt));
 
   state.costLog.push({
@@ -496,7 +566,7 @@ export function complete(requestId: string, result: unknown, usage: { promptToke
     timestamp: now(),
   });
 
-  log.info("llm_scheduler.completed", {
+  log.info('llm_scheduler.completed', {
     id: requestId,
     promptTokens: usage.promptTokens,
     completionTokens: usage.completionTokens,
@@ -509,7 +579,7 @@ export function fail(requestId: string, error: string): void {
   const req = state.queue.find((r) => r.id === requestId);
   if (!req) return;
 
-  req.status = "failed";
+  req.status = 'failed';
   req.finishedAt = now();
   req.error = error;
 
@@ -520,7 +590,7 @@ export function fail(requestId: string, error: string): void {
 
   state.metrics.failed++;
 
-  log.warn("llm_scheduler.failed", { id: requestId, error });
+  log.warn('llm_scheduler.failed', { id: requestId, error });
 }
 
 // ── Status & Metrics ─────────────────────────────────────────────
@@ -537,16 +607,16 @@ export function getStatus(): {
   };
 
   for (const req of state.queue) {
-    if (req.status === "queued") {
+    if (req.status === 'queued') {
       byPriority[req.priority]!.queued++;
-    } else if (req.status === "running") {
+    } else if (req.status === 'running') {
       byPriority[req.priority]!.running++;
     }
   }
 
   return {
-    queueDepth: state.queue.filter((r) => r.status === "queued").length,
-    running: state.queue.filter((r) => r.status === "running").length,
+    queueDepth: state.queue.filter((r) => r.status === 'queued').length,
+    running: state.queue.filter((r) => r.status === 'running').length,
     byPriority,
   };
 }
@@ -554,9 +624,8 @@ export function getStatus(): {
 export function getMetrics(): SchedulerMetrics {
   const status = getStatus();
   const samples = state.metrics.latencySamples;
-  const avgLatencyMs = samples.length > 0
-    ? Math.round(state.metrics.totalLatencyMs / samples.length)
-    : 0;
+  const avgLatencyMs =
+    samples.length > 0 ? Math.round(state.metrics.totalLatencyMs / samples.length) : 0;
 
   const sorted = [...samples].sort((a, b) => a - b);
   const p95Idx = Math.ceil(sorted.length * 0.95) - 1;
@@ -585,9 +654,7 @@ export function getUserStatus(userId: string): {
   const us = state.users.get(userIdKey(userId));
   if (!us) return null;
 
-  const queued = state.queue.filter(
-    (r) => r.userId === userId && r.status === "queued"
-  ).length;
+  const queued = state.queue.filter((r) => r.userId === userId && r.status === 'queued').length;
 
   return {
     rateLimit: us.rateLimit,
@@ -599,33 +666,27 @@ export function getUserStatus(userId: string): {
 
 // ── Configuration ────────────────────────────────────────────────
 
-export function setRateLimit(
-  userId: string,
-  config: Partial<RateLimitConfig>
-): void {
+export function setRateLimit(userId: string, config: Partial<RateLimitConfig>): void {
   const us = getOrCreateUser(userId);
   Object.assign(us.rateLimit, config);
-  log.info("llm_scheduler.rate_limit_updated", { userId, config });
+  log.info('llm_scheduler.rate_limit_updated', { userId, config });
 }
 
 export function setTokenBudget(userId: string, budget: number): void {
   const us = getOrCreateUser(userId);
   us.budget.budget = budget;
   us.budget.resetAt = now() + 60_000;
-  log.info("llm_scheduler.budget_updated", { userId, budget });
+  log.info('llm_scheduler.budget_updated', { userId, budget });
 }
 
 export function setModelRoutes(routes: ModelRoute[]): void {
   state.routes = routes;
-  log.info("llm_scheduler.routes_updated", { count: routes.length });
+  log.info('llm_scheduler.routes_updated', { count: routes.length });
 }
 
-export function registerRateLimitProfile(
-  name: string,
-  config: RateLimitConfig
-): void {
+export function registerRateLimitProfile(name: string, config: RateLimitConfig): void {
   DEFAULT_RATE_LIMITS[name] = config;
-  log.info("llm_scheduler.profile_registered", { name, config });
+  log.info('llm_scheduler.profile_registered', { name, config });
 }
 
 // ── Scheduler Tick ───────────────────────────────────────────────
@@ -637,7 +698,7 @@ async function tick(): Promise<void> {
   try {
     drainTimedOut();
 
-    const runnable = state.queue.filter((r) => r.status === "queued");
+    const runnable = state.queue.filter((r) => r.status === 'queued');
     for (const req of runnable) {
       const us = state.users.get(userIdKey(req.userId));
       if (!us) continue;
@@ -646,7 +707,7 @@ async function tick(): Promise<void> {
       const rateCheck = checkRateLimit(us, estimatedTokens);
       if (!rateCheck.allowed) continue;
 
-      req.status = "running";
+      req.status = 'running';
       req.startedAt = now();
       us.running.add(req.agentId);
       us.bucket.requests.push(now());
@@ -661,7 +722,7 @@ async function tick(): Promise<void> {
 export function startScheduler(intervalMs: number = 1000): void {
   if (state.tickTimer) return;
   state.tickTimer = setInterval(tick, intervalMs);
-  log.info("llm_scheduler.started", { intervalMs });
+  log.info('llm_scheduler.started', { intervalMs });
 }
 
 export function stopScheduler(): void {
@@ -669,7 +730,7 @@ export function stopScheduler(): void {
     clearInterval(state.tickTimer);
     state.tickTimer = null;
   }
-  log.info("llm_scheduler.stopped");
+  log.info('llm_scheduler.stopped');
 }
 
 // ── Reset (for testing) ──────────────────────────────────────────
@@ -694,9 +755,11 @@ export function resetScheduler(): void {
 
 // ── Cost Query ───────────────────────────────────────────────────
 
-export function getCostLog(
-  filter?: { userId?: string; agentId?: string; since?: number }
-): CostRecord[] {
+export function getCostLog(filter?: {
+  userId?: string;
+  agentId?: string;
+  since?: number;
+}): CostRecord[] {
   let log = state.costLog;
   if (filter?.userId) {
     log = log.filter((r) => r.userId === filter.userId);
@@ -710,7 +773,10 @@ export function getCostLog(
   return log;
 }
 
-export function getUserCost(userId: string, since?: number): {
+export function getUserCost(
+  userId: string,
+  since?: number
+): {
   totalCost: number;
   requestCount: number;
   totalTokens: number;

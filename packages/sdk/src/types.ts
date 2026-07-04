@@ -10,7 +10,7 @@ export interface Message {
   tool_call_id?: string;
 }
 
-export type ContentPart = 
+export type ContentPart =
   | { type: 'text'; text: string }
   | { type: 'image'; data: string; mime_type: string }
   | { type: 'tool_result'; content: string; is_error: boolean };

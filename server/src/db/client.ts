@@ -10,15 +10,15 @@
  * without worrying about which schema file is active.
  */
 
-import { createRequire } from "module";
+import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-import * as sqliteSchema from "./schema-sqlite.js";
-import * as pgSchema from "./schema.js";
-import { getEnv } from "../lib/env.js";
+import * as sqliteSchema from './schema-sqlite.js';
+import * as pgSchema from './schema.js';
+import { getEnv } from '../lib/env.js';
 
-const rawUrl = (getEnv().DATABASE_URL || "").trim();
-const isSqlite = !(rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgresql://"));
+const rawUrl = (getEnv().DATABASE_URL || '').trim();
+const isSqlite = !(rawUrl.startsWith('postgres://') || rawUrl.startsWith('postgresql://'));
 
 let _sqlite: any = null;
 let _pgClient: any = null;
@@ -53,24 +53,24 @@ function releaseWriteLock(): void {
 }
 
 function createSqliteDb() {
-  const Database = require("better-sqlite3");
-  const conn = new Database("./agentic-os.db");
-  conn.pragma("journal_mode = WAL");
-  conn.pragma("foreign_keys = ON");
-  conn.pragma("busy_timeout = 5000");
-  conn.pragma("synchronous = NORMAL");
+  const Database = require('better-sqlite3');
+  const conn = new Database('./agentic-os.db');
+  conn.pragma('journal_mode = WAL');
+  conn.pragma('foreign_keys = ON');
+  conn.pragma('busy_timeout = 5000');
+  conn.pragma('synchronous = NORMAL');
   _sqlite = conn;
 
   // Use require for drizzle-orm/better-sqlite3 — drizzle-orm v0.45 ships CJS
-  const { drizzle } = require("drizzle-orm/better-sqlite3") as {
+  const { drizzle } = require('drizzle-orm/better-sqlite3') as {
     drizzle: (client: any, opts?: { schema?: Record<string, any> }) => any;
   };
   return drizzle(conn, { schema: sqliteSchema });
 }
 
 function createPgDb() {
-  const postgres = require("postgres");
-  const { drizzle } = require("drizzle-orm/postgres-js") as {
+  const postgres = require('postgres');
+  const { drizzle } = require('drizzle-orm/postgres-js') as {
     drizzle: (client: any, opts?: { schema?: Record<string, any> }) => any;
   };
   const client = postgres(rawUrl, {
@@ -85,7 +85,7 @@ function createPgDb() {
 const db: any = isSqlite ? createSqliteDb() : createPgDb();
 
 /** Human-readable backend label. */
-export const getBackend = (): string => (isSqlite ? "sqlite" : "postgresql");
+export const getBackend = (): string => (isSqlite ? 'sqlite' : 'postgresql');
 
 /** Clean shutdown — safe to call multiple times. */
 export async function closeDb(): Promise<void> {
@@ -116,19 +116,17 @@ export { isSqlite };
  * IMPORTANT: Do NOT perform network calls (LLM requests, embedding generation)
  * inside the transaction callback — hold the mutex for the minimum time possible.
  */
-export async function withTransaction<T>(
-  fn: (tx: any) => Promise<T>
-): Promise<T> {
+export async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
   if (isSqlite) {
     await acquireWriteLock();
     try {
-      _sqlite.exec("BEGIN");
+      _sqlite.exec('BEGIN');
       try {
         const result = await fn(db);
-        _sqlite.exec("COMMIT");
+        _sqlite.exec('COMMIT');
         return result;
       } catch (e) {
-        _sqlite.exec("ROLLBACK");
+        _sqlite.exec('ROLLBACK');
         throw e;
       }
     } finally {

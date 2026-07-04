@@ -19,17 +19,17 @@
  * `used >= budget`, requests are denied. Budgets auto-expire.
  */
 
-import { db } from "../db/client.js";
-import { llmProviderHealth, llmTokenBudgets } from "../db/client.js";
-import { eq, sql } from "drizzle-orm";
-import { appendAudit } from "../lib/audit.js";
-import { log } from "../lib/logging.js";
-import { env } from "../lib/env.js";
+import { db } from '../db/client.js';
+import { llmProviderHealth, llmTokenBudgets } from '../db/client.js';
+import { eq, sql } from 'drizzle-orm';
+import { appendAudit } from '../lib/audit.js';
+import { log } from '../lib/logging.js';
+import { env } from '../lib/env.js';
 
 /* ─── Provider contract ──────────────────────────────────────────────────── */
 
 export interface ChatMessage {
-  role: "system" | "user" | "assistant" | "tool";
+  role: 'system' | 'user' | 'assistant' | 'tool';
   content: string;
   name?: string;
   toolCallId?: string;
@@ -44,7 +44,7 @@ export interface ProviderRequest {
   stream?: boolean;
   tools?: Array<{ name: string; description: string; jsonSchema: unknown }>;
   /** Required provider capabilities. */
-  requires?: Array<"vision" | "tools" | "1m_context" | "json_mode">;
+  requires?: Array<'vision' | 'tools' | '1m_context' | 'json_mode'>;
 }
 
 export interface ProviderResponse {
@@ -60,19 +60,22 @@ export interface ProviderResponse {
 
 export interface ProviderAdapter {
   readonly name: string;
-  readonly capabilities: Set<"vision" | "tools" | "1m_context" | "json_mode">;
-  readonly models: string[];                  // e.g. ["gpt-4o", "gpt-4o-mini"]
-  invoke(req: ProviderRequest, opts: { apiKey?: string; baseUrl?: string }): Promise<ProviderResponse>;
+  readonly capabilities: Set<'vision' | 'tools' | '1m_context' | 'json_mode'>;
+  readonly models: string[]; // e.g. ["gpt-4o", "gpt-4o-mini"]
+  invoke(
+    req: ProviderRequest,
+    opts: { apiKey?: string; baseUrl?: string }
+  ): Promise<ProviderResponse>;
 }
 
 /* ─── Provider registry ──────────────────────────────────────────────────── */
 
-import { openaiProvider } from "./providers/openai.js";
-import { anthropicProvider } from "./providers/anthropic.js";
-import { googleProvider } from "./providers/google.js";
-import { ollamaProvider } from "./providers/ollama.js";
-import { vllmProvider } from "./providers/vllm.js";
-import { m3Provider } from "./providers/m3.js";
+import { openaiProvider } from './providers/openai.js';
+import { anthropicProvider } from './providers/anthropic.js';
+import { googleProvider } from './providers/google.js';
+import { ollamaProvider } from './providers/ollama.js';
+import { vllmProvider } from './providers/vllm.js';
+import { m3Provider } from './providers/m3.js';
 
 const REGISTRY: Record<string, ProviderAdapter> = {
   openai: openaiProvider,
@@ -95,10 +98,13 @@ export interface RoutingPolicy {
   /** Optional override per request: force a specific provider. */
   force?: string;
   /** Required capability mask — pick the first provider that has all of them. */
-  requires?: ProviderRequest["requires"];
+  requires?: ProviderRequest['requires'];
 }
 
-export function pickProvider(model: string, policy: RoutingPolicy): { adapter: ProviderAdapter; apiKey?: string } | null {
+export function pickProvider(
+  model: string,
+  policy: RoutingPolicy
+): { adapter: ProviderAdapter; apiKey?: string } | null {
   if (policy.force && REGISTRY[policy.force]) {
     return { adapter: REGISTRY[policy.force]!, apiKey: apiKeyFor(policy.force) };
   }
@@ -117,20 +123,27 @@ export function pickProvider(model: string, policy: RoutingPolicy): { adapter: P
 
 function apiKeyFor(provider: string): string | undefined {
   switch (provider) {
-    case "openai":    return env.OPENAI_API_KEY || void 0;
-    case "anthropic": return env.ANTHROPIC_API_KEY || void 0;
-    case "google":    return env.GOOGLE_API_KEY || void 0;
-    case "ollama":    return undefined;
-    case "vllm":      return env.VLLM_API_KEY || void 0;
-    case "m3":        return env.M3_API_KEY || void 0;
-    default:          return undefined;
+    case 'openai':
+      return env.OPENAI_API_KEY || void 0;
+    case 'anthropic':
+      return env.ANTHROPIC_API_KEY || void 0;
+    case 'google':
+      return env.GOOGLE_API_KEY || void 0;
+    case 'ollama':
+      return undefined;
+    case 'vllm':
+      return env.VLLM_API_KEY || void 0;
+    case 'm3':
+      return env.M3_API_KEY || void 0;
+    default:
+      return undefined;
   }
 }
 
 /* ─── Circuit breaker ────────────────────────────────────────────────────── */
 
 interface BreakerState {
-  state: "closed" | "open" | "half_open";
+  state: 'closed' | 'open' | 'half_open';
   failureCount: number;
   successCount: number;
   openedAt: number | null;
@@ -148,7 +161,7 @@ const breakers = new Map<string, BreakerState>();
 function getBreaker(provider: string): BreakerState {
   let b = breakers.get(provider);
   if (!b) {
-    b = { state: "closed", failureCount: 0, successCount: 0, openedAt: null, p95Ms: 0 };
+    b = { state: 'closed', failureCount: 0, successCount: 0, openedAt: null, p95Ms: 0 };
     breakers.set(provider, b);
   }
   return b;
@@ -160,11 +173,11 @@ async function recordSuccess(provider: string, durationMs: number): Promise<void
   b.failureCount = 0;
   // rolling p95 estimate
   b.p95Ms = b.p95Ms === 0 ? durationMs : b.p95Ms * 0.95 + durationMs * 0.05;
-  if (b.state === "half_open" && b.successCount >= BREAKER_CONFIG.successThreshold) {
-    b.state = "closed";
+  if (b.state === 'half_open' && b.successCount >= BREAKER_CONFIG.successThreshold) {
+    b.state = 'closed';
     b.openedAt = null;
     await persistBreaker(provider, b);
-    log.info("llm.breaker_closed", { provider });
+    log.info('llm.breaker_closed', { provider });
   } else {
     await persistBreaker(provider, b);
   }
@@ -173,54 +186,60 @@ async function recordSuccess(provider: string, durationMs: number): Promise<void
 async function recordFailure(provider: string): Promise<void> {
   const b = getBreaker(provider);
   b.failureCount++;
-  if (b.state === "half_open" || b.failureCount >= BREAKER_CONFIG.failureThreshold) {
-    b.state = "open";
+  if (b.state === 'half_open' || b.failureCount >= BREAKER_CONFIG.failureThreshold) {
+    b.state = 'open';
     b.openedAt = Date.now();
-    log.warn("llm.breaker_opened", { provider, failureCount: b.failureCount });
+    log.warn('llm.breaker_opened', { provider, failureCount: b.failureCount });
   }
   await persistBreaker(provider, b);
 }
 
 async function persistBreaker(provider: string, b: BreakerState): Promise<void> {
-  await db.insert(llmProviderHealth).values({
-    provider,
-    state: b.state,
-    failureCount: b.failureCount,
-    successCount: b.successCount,
-    p95Ms: b.p95Ms,
-    lastFailureAt: b.failureCount > 0 ? new Date() : null,
-    lastSuccessAt: b.successCount > 0 ? new Date() : null,
-    openedAt: b.openedAt ? new Date(b.openedAt) : null,
-    updatedAt: new Date(),
-  }).onConflictDoUpdate({
-    target: llmProviderHealth.provider,
-    set: {
+  await db
+    .insert(llmProviderHealth)
+    .values({
+      provider,
       state: b.state,
       failureCount: b.failureCount,
       successCount: b.successCount,
       p95Ms: b.p95Ms,
+      lastFailureAt: b.failureCount > 0 ? new Date() : null,
+      lastSuccessAt: b.successCount > 0 ? new Date() : null,
+      openedAt: b.openedAt ? new Date(b.openedAt) : null,
       updatedAt: new Date(),
-    },
-  });
+    })
+    .onConflictDoUpdate({
+      target: llmProviderHealth.provider,
+      set: {
+        state: b.state,
+        failureCount: b.failureCount,
+        successCount: b.successCount,
+        p95Ms: b.p95Ms,
+        updatedAt: new Date(),
+      },
+    });
 }
 
 export async function canCallProvider(provider: string): Promise<boolean> {
   const b = getBreaker(provider);
-  if (b.state === "closed" || b.state === "half_open") return true;
+  if (b.state === 'closed' || b.state === 'half_open') return true;
   if (b.openedAt && Date.now() - b.openedAt >= BREAKER_CONFIG.openMs) {
-    b.state = "half_open";
+    b.state = 'half_open';
     b.successCount = 0;
     await persistBreaker(provider, b);
-    log.info("llm.breaker_half_open", { provider });
+    log.info('llm.breaker_half_open', { provider });
     return true;
   }
   return false;
 }
 
-export async function getBreakerSnapshot(): Promise<Record<string, { state: string; p95Ms: number; failureCount: number }>> {
+export async function getBreakerSnapshot(): Promise<
+  Record<string, { state: string; p95Ms: number; failureCount: number }>
+> {
   const rows = await db.query.llmProviderHealth.findMany();
   const out: Record<string, { state: string; p95Ms: number; failureCount: number }> = {};
-  for (const r of rows) out[r.provider] = { state: r.state, p95Ms: r.p95Ms, failureCount: r.failureCount };
+  for (const r of rows)
+    out[r.provider] = { state: r.state, p95Ms: r.p95Ms, failureCount: r.failureCount };
   return out;
 }
 
@@ -231,45 +250,61 @@ export async function setBudget(opts: {
   budget: number;
   expiresAt?: Date;
 }): Promise<void> {
-  await db.insert(llmTokenBudgets).values({
-    sessionId: opts.sessionId,
-    budget: opts.budget,
-    used: 0,
-    hardKill: false,
-    reason: null,
-    expiresAt: opts.expiresAt ?? null,
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).onConflictDoUpdate({
-    target: llmTokenBudgets.sessionId,
-    set: { budget: opts.budget, expiresAt: opts.expiresAt ?? null, updatedAt: new Date() },
-  });
+  await db
+    .insert(llmTokenBudgets)
+    .values({
+      sessionId: opts.sessionId,
+      budget: opts.budget,
+      used: 0,
+      hardKill: false,
+      reason: null,
+      expiresAt: opts.expiresAt ?? null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: llmTokenBudgets.sessionId,
+      set: { budget: opts.budget, expiresAt: opts.expiresAt ?? null, updatedAt: new Date() },
+    });
 }
 
 export async function killSession(sessionId: string, reason: string): Promise<void> {
-  await db.update(llmTokenBudgets)
+  await db
+    .update(llmTokenBudgets)
     .set({ hardKill: true, reason, updatedAt: new Date() })
     .where(eq(llmTokenBudgets.sessionId, sessionId));
-  await appendAudit("llm.session_killed", { sessionId, reason }, "llm-gateway");
+  await appendAudit('llm.session_killed', { sessionId, reason }, 'llm-gateway');
 }
 
-export async function getBudget(sessionId: string): Promise<{ budget: number; used: number; hardKill: boolean; expiresAt: Date | null } | null> {
-  const row = await db.query.llmTokenBudgets.findFirst({ where: eq(llmTokenBudgets.sessionId, sessionId) });
+export async function getBudget(
+  sessionId: string
+): Promise<{ budget: number; used: number; hardKill: boolean; expiresAt: Date | null } | null> {
+  const row = await db.query.llmTokenBudgets.findFirst({
+    where: eq(llmTokenBudgets.sessionId, sessionId),
+  });
   if (!row) return null;
   return { budget: row.budget, used: row.used, hardKill: row.hardKill, expiresAt: row.expiresAt };
 }
 
-export async function chargeBudget(sessionId: string, tokens: number): Promise<{ allowed: boolean; reason?: string; remaining: number }> {
-  const row = await db.query.llmTokenBudgets.findFirst({ where: eq(llmTokenBudgets.sessionId, sessionId) });
+export async function chargeBudget(
+  sessionId: string,
+  tokens: number
+): Promise<{ allowed: boolean; reason?: string; remaining: number }> {
+  const row = await db.query.llmTokenBudgets.findFirst({
+    where: eq(llmTokenBudgets.sessionId, sessionId),
+  });
   if (!row) {
     // No budget set → create a default 100k budget
     await setBudget({ sessionId, budget: 100_000 });
     return { allowed: true, remaining: 100_000 };
   }
-  if (row.hardKill) return { allowed: false, reason: row.reason ?? "hard_kill", remaining: 0 };
-  if (row.expiresAt && row.expiresAt.getTime() < Date.now()) return { allowed: false, reason: "budget_expired", remaining: 0 };
-  if (row.used + tokens > row.budget) return { allowed: false, reason: "budget_exceeded", remaining: row.budget - row.used };
-  await db.update(llmTokenBudgets)
+  if (row.hardKill) return { allowed: false, reason: row.reason ?? 'hard_kill', remaining: 0 };
+  if (row.expiresAt && row.expiresAt.getTime() < Date.now())
+    return { allowed: false, reason: 'budget_expired', remaining: 0 };
+  if (row.used + tokens > row.budget)
+    return { allowed: false, reason: 'budget_exceeded', remaining: row.budget - row.used };
+  await db
+    .update(llmTokenBudgets)
     .set({ used: sql`${llmTokenBudgets.used} + ${tokens}`, updatedAt: new Date() })
     .where(eq(llmTokenBudgets.sessionId, sessionId));
   return { allowed: true, remaining: row.budget - row.used - tokens };
@@ -278,7 +313,7 @@ export async function chargeBudget(sessionId: string, tokens: number): Promise<{
 /* ─── Gateway dispatch (the public entry point) ────────────────────────── */
 
 export interface GatewayCall {
-  sessionId: string;          // budget key
+  sessionId: string; // budget key
   policy: RoutingPolicy;
   request: ProviderRequest;
 }
@@ -286,12 +321,16 @@ export interface GatewayCall {
 export async function callLLMGateway(call: GatewayCall): Promise<ProviderResponse> {
   const picked = pickProvider(call.request.model, call.policy);
   if (!picked) {
-    await appendAudit("llm.no_provider", { model: call.request.model, policy: call.policy }, "llm-gateway");
+    await appendAudit(
+      'llm.no_provider',
+      { model: call.request.model, policy: call.policy },
+      'llm-gateway'
+    );
     throw new Error(`no_provider_for_model:${call.request.model}`);
   }
 
   if (!(await canCallProvider(picked.adapter.name))) {
-    await appendAudit("llm.circuit_open", { provider: picked.adapter.name }, "llm-gateway");
+    await appendAudit('llm.circuit_open', { provider: picked.adapter.name }, 'llm-gateway');
     throw new Error(`circuit_open:${picked.adapter.name}`);
   }
 
@@ -299,7 +338,11 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
   const estTokens = estimateTokens(call.request);
   const charge = await chargeBudget(call.sessionId, estTokens);
   if (!charge.allowed) {
-    await appendAudit("llm.budget_denied", { sessionId: call.sessionId, reason: charge.reason }, "llm-gateway");
+    await appendAudit(
+      'llm.budget_denied',
+      { sessionId: call.sessionId, reason: charge.reason },
+      'llm-gateway'
+    );
     throw new Error(`budget_denied:${charge.reason}`);
   }
 
@@ -307,27 +350,38 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
   try {
     const resp = await picked.adapter.invoke(call.request, {
       apiKey: picked.apiKey,
-      baseUrl: String((env as Record<string, unknown>)[`${picked.adapter.name.toUpperCase()}_BASE_URL`] ?? "") || void 0,
+      baseUrl:
+        String(
+          (env as Record<string, unknown>)[`${picked.adapter.name.toUpperCase()}_BASE_URL`] ?? ''
+        ) || void 0,
     });
     await recordSuccess(picked.adapter.name, resp.durationMs);
     await chargeBudget(call.sessionId, resp.totalTokens);
-    await appendAudit("llm.call", {
-      provider: picked.adapter.name,
-      model: resp.model,
-      sessionId: call.sessionId,
-      promptTokens: resp.promptTokens,
-      completionTokens: resp.completionTokens,
-      durationMs: resp.durationMs,
-    }, "llm-gateway");
+    await appendAudit(
+      'llm.call',
+      {
+        provider: picked.adapter.name,
+        model: resp.model,
+        sessionId: call.sessionId,
+        promptTokens: resp.promptTokens,
+        completionTokens: resp.completionTokens,
+        durationMs: resp.durationMs,
+      },
+      'llm-gateway'
+    );
     return resp;
   } catch (e) {
     await recordFailure(picked.adapter.name);
-    await appendAudit("llm.call_failed", {
-      provider: picked.adapter.name,
-      model: call.request.model,
-      sessionId: call.sessionId,
-      error: e instanceof Error ? e.message : String(e),
-    }, "llm-gateway");
+    await appendAudit(
+      'llm.call_failed',
+      {
+        provider: picked.adapter.name,
+        model: call.request.model,
+        sessionId: call.sessionId,
+        error: e instanceof Error ? e.message : String(e),
+      },
+      'llm-gateway'
+    );
     throw e;
   }
 }

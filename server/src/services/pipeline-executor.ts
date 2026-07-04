@@ -16,21 +16,17 @@
  * passing each node's outputs as inputs to downstream nodes keyed by edge id.
  * Cycles are rejected at save time (we validate acyclic on insert).
  */
-import { randomUUID } from "node:crypto";
-import { db } from "../db/client.js";
-import { pipelines, pipelineRuns } from "../db/client.js";
-import { eq } from "drizzle-orm";
-import { appendAudit } from "../lib/audit.js";
-import { log } from "../lib/logging.js";
+import { randomUUID } from 'node:crypto';
+import { db } from '../db/client.js';
+import { pipelines, pipelineRuns } from '../db/client.js';
+import { eq } from 'drizzle-orm';
+import { appendAudit } from '../lib/audit.js';
+import { log } from '../lib/logging.js';
 
 /* ─── DAG types ──────────────────────────────────────────────────────────── */
 
 export type NodeType =
-  | "trigger.manual"
-  | "agent.run"
-  | "tool.invoke"
-  | "guardrail.check"
-  | "output.sink";
+  'trigger.manual' | 'agent.run' | 'tool.invoke' | 'guardrail.check' | 'output.sink';
 
 export interface PipelineNode {
   id: string;
@@ -61,26 +57,33 @@ export interface PipelineRunRequest {
 
 export interface PipelineRunResult {
   runId: string;
-  status: "succeeded" | "failed" | "cancelled";
+  status: 'succeeded' | 'failed' | 'cancelled';
   durationMs: number;
-  nodeResults: Record<string, { status: "ok" | "failed" | "skipped"; output: unknown; error?: string }>;
+  nodeResults: Record<
+    string,
+    { status: 'ok' | 'failed' | 'skipped'; output: unknown; error?: string }
+  >;
   error?: string;
 }
 
 /* ─── Validation (acyclic, single trigger, all edges resolve) ────────────── */
 
 export function validateDAG(dag: PipelineDAG): { ok: true } | { ok: false; reason: string } {
-  if (dag.nodes.length === 0) return { ok: false, reason: "empty_dag" };
+  if (dag.nodes.length === 0) return { ok: false, reason: 'empty_dag' };
   const ids = new Set(dag.nodes.map((n) => n.id));
   for (const e of dag.edges) {
-    if (!ids.has(e.from) || !ids.has(e.to)) return { ok: false, reason: `dangling_edge:${e.from}->${e.to}` };
+    if (!ids.has(e.from) || !ids.has(e.to))
+      return { ok: false, reason: `dangling_edge:${e.from}->${e.to}` };
   }
-  const triggers = dag.nodes.filter((n) => n.type === "trigger.manual");
-  if (triggers.length > 1) return { ok: false, reason: "multiple_triggers" };
+  const triggers = dag.nodes.filter((n) => n.type === 'trigger.manual');
+  if (triggers.length > 1) return { ok: false, reason: 'multiple_triggers' };
   // Cycle detection (Kahn's algorithm)
   const indeg = new Map<string, number>();
   const adj = new Map<string, string[]>();
-  for (const n of dag.nodes) { indeg.set(n.id, 0); adj.set(n.id, []); }
+  for (const n of dag.nodes) {
+    indeg.set(n.id, 0);
+    adj.set(n.id, []);
+  }
   for (const e of dag.edges) {
     adj.get(e.from)!.push(e.to);
     indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
@@ -97,7 +100,7 @@ export function validateDAG(dag: PipelineDAG): { ok: true } | { ok: false; reaso
       if (d === 0) queue.push(next);
     }
   }
-  if (visited !== dag.nodes.length) return { ok: false, reason: "cycle_detected" };
+  if (visited !== dag.nodes.length) return { ok: false, reason: 'cycle_detected' };
   return { ok: true };
 }
 
@@ -114,21 +117,33 @@ export async function savePipeline(input: {
   const v = validateDAG(input.dag);
   if (!v.ok) throw new Error(`pipeline_invalid:${v.reason}`);
   const id = input.id ?? `pipe_${randomUUID()}`;
-  await db.insert(pipelines).values({
-    id,
-    name: input.name,
-    description: input.description ?? "",
-    dag: input.dag as unknown as Record<string, unknown>,
-    trigger: (input.trigger ?? {}) as Record<string, unknown>,
-    enabled: true,
-    author: input.author ?? "user",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-  }).onConflictDoUpdate({
-    target: pipelines.id,
-    set: { dag: input.dag as unknown as Record<string, unknown>, name: input.name, description: input.description ?? "", updatedAt: new Date() },
-  });
-  await appendAudit("pipeline.saved", { id, name: input.name, nodeCount: input.dag.nodes.length, edgeCount: input.dag.edges.length }, input.author ?? "user");
+  await db
+    .insert(pipelines)
+    .values({
+      id,
+      name: input.name,
+      description: input.description ?? '',
+      dag: input.dag as unknown as Record<string, unknown>,
+      trigger: (input.trigger ?? {}) as Record<string, unknown>,
+      enabled: true,
+      author: input.author ?? 'user',
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .onConflictDoUpdate({
+      target: pipelines.id,
+      set: {
+        dag: input.dag as unknown as Record<string, unknown>,
+        name: input.name,
+        description: input.description ?? '',
+        updatedAt: new Date(),
+      },
+    });
+  await appendAudit(
+    'pipeline.saved',
+    { id, name: input.name, nodeCount: input.dag.nodes.length, edgeCount: input.dag.edges.length },
+    input.author ?? 'user'
+  );
   return id;
 }
 
@@ -145,57 +160,77 @@ export async function runPipeline(req: PipelineRunRequest): Promise<PipelineRunR
   await db.insert(pipelineRuns).values({
     id: runId,
     pipelineId: req.pipelineId,
-    status: "running",
+    status: 'running',
     startedAt: new Date(),
     nodeResults: {},
-    triggeredBy: req.triggeredBy ?? "manual",
+    triggeredBy: req.triggeredBy ?? 'manual',
     createdAt: new Date(),
   });
 
-  const nodeResults: PipelineRunResult["nodeResults"] = {};
+  const nodeResults: PipelineRunResult['nodeResults'] = {};
   const outputs = new Map<string, unknown>(Object.entries(req.inputs ?? {}));
   let runError: string | undefined;
 
   try {
     const waves = topoWaves(dag);
     for (const wave of waves) {
-      await Promise.all(wave.map(async (nodeId) => {
-        const node = dag.nodes.find((n) => n.id === nodeId)!;
-        // collect upstream outputs
-        const upstream = dag.edges
-          .filter((e) => e.to === nodeId)
-          .map((e) => outputs.get(e.from))
-          .filter((v) => v !== undefined);
-        try {
-          const out = await executeNode(node, upstream);
-          outputs.set(nodeId, out);
-          nodeResults[nodeId] = { status: "ok", output: out };
-        } catch (e) {
-          nodeResults[nodeId] = { status: "failed", output: null, error: e instanceof Error ? e.message : String(e) };
-          throw e;
-        }
-      }));
+      await Promise.all(
+        wave.map(async (nodeId) => {
+          const node = dag.nodes.find((n) => n.id === nodeId)!;
+          // collect upstream outputs
+          const upstream = dag.edges
+            .filter((e) => e.to === nodeId)
+            .map((e) => outputs.get(e.from))
+            .filter((v) => v !== undefined);
+          try {
+            const out = await executeNode(node, upstream);
+            outputs.set(nodeId, out);
+            nodeResults[nodeId] = { status: 'ok', output: out };
+          } catch (e) {
+            nodeResults[nodeId] = {
+              status: 'failed',
+              output: null,
+              error: e instanceof Error ? e.message : String(e),
+            };
+            throw e;
+          }
+        })
+      );
     }
   } catch (e) {
     runError = e instanceof Error ? e.message : String(e);
   }
 
   const durationMs = Date.now() - start;
-  const status: PipelineRunResult["status"] = runError ? "failed" : "succeeded";
+  const status: PipelineRunResult['status'] = runError ? 'failed' : 'succeeded';
 
-  await db.update(pipelineRuns)
-    .set({ status, finishedAt: new Date(), durationMs, nodeResults: nodeResults as Record<string, unknown>, error: runError ?? null })
+  await db
+    .update(pipelineRuns)
+    .set({
+      status,
+      finishedAt: new Date(),
+      durationMs,
+      nodeResults: nodeResults as Record<string, unknown>,
+      error: runError ?? null,
+    })
     .where(eq(pipelineRuns.id, runId));
 
-  await appendAudit("pipeline.run_completed", { runId, pipelineId: req.pipelineId, status, durationMs, error: runError }, req.triggeredBy ?? "manual");
-  log.info("pipeline.run_completed", { runId, status, durationMs });
+  await appendAudit(
+    'pipeline.run_completed',
+    { runId, pipelineId: req.pipelineId, status, durationMs, error: runError },
+    req.triggeredBy ?? 'manual'
+  );
+  log.info('pipeline.run_completed', { runId, status, durationMs });
   return { runId, status, durationMs, nodeResults, error: runError };
 }
 
 function topoWaves(dag: PipelineDAG): string[][] {
   const indeg = new Map<string, number>();
   const adj = new Map<string, string[]>();
-  for (const n of dag.nodes) { indeg.set(n.id, 0); adj.set(n.id, []); }
+  for (const n of dag.nodes) {
+    indeg.set(n.id, 0);
+    adj.set(n.id, []);
+  }
   for (const e of dag.edges) {
     adj.get(e.from)!.push(e.to);
     indeg.set(e.to, (indeg.get(e.to) ?? 0) + 1);
@@ -221,32 +256,40 @@ function topoWaves(dag: PipelineDAG): string[][] {
 
 async function executeNode(node: PipelineNode, inputs: unknown[]): Promise<unknown> {
   switch (node.type) {
-    case "trigger.manual":
+    case 'trigger.manual':
       return inputs[0] ?? {};
-    case "agent.run": {
-      const agentId = String(node.config.agentId ?? "");
-      const messages = Array.isArray(inputs[0]) ? inputs[0] as Array<{ role: string; content: string }> : [];
-      const { callLLMGateway } = await import("./llm-gateway-v2.js");
+    case 'agent.run': {
+      const agentId = String(node.config.agentId ?? '');
+      const messages = Array.isArray(inputs[0])
+        ? (inputs[0] as Array<{ role: string; content: string }>)
+        : [];
+      const { callLLMGateway } = await import('./llm-gateway-v2.js');
       const resp = await callLLMGateway({
         sessionId: `pipeline:${agentId}:${randomUUID().slice(0, 8)}`,
-        policy: { preferred: ["m3", "anthropic", "openai", "google", "ollama", "vllm"] },
-        request: { model: String(node.config.model ?? "m3-reasoning"), messages: messages.map((m) => ({ role: m.role as "user" | "assistant" | "system", content: m.content })) },
+        policy: { preferred: ['m3', 'anthropic', 'openai', 'google', 'ollama', 'vllm'] },
+        request: {
+          model: String(node.config.model ?? 'm3-reasoning'),
+          messages: messages.map((m) => ({
+            role: m.role as 'user' | 'assistant' | 'system',
+            content: m.content,
+          })),
+        },
       });
       return { text: resp.text, tokens: resp.totalTokens };
     }
-    case "tool.invoke": {
+    case 'tool.invoke': {
       // Stub: real impl wires to the sandboxed tool registry; for now pass-through.
-      return { tool: String(node.config.tool ?? ""), inputs };
+      return { tool: String(node.config.tool ?? ''), inputs };
     }
-    case "guardrail.check": {
-      const pattern = String(node.config.pattern ?? "");
-      const flags = String(node.config.flags ?? "");
+    case 'guardrail.check': {
+      const pattern = String(node.config.pattern ?? '');
+      const flags = String(node.config.flags ?? '');
       const re = new RegExp(pattern, flags);
-      const text = String(inputs[0] ?? "");
+      const text = String(inputs[0] ?? '');
       if (!re.test(text)) throw new Error(`guardrail_failed:${pattern}`);
       return { ok: true };
     }
-    case "output.sink":
+    case 'output.sink':
       return inputs[0] ?? null;
     default: {
       const _exhaustive: never = node.type;
@@ -258,7 +301,7 @@ async function executeNode(node: PipelineNode, inputs: unknown[]): Promise<unkno
 /* ─── List runs (for the UI) ────────────────────��───────────────────────── */
 
 export async function listPipelineRuns(pipelineId: string, limit = 50) {
-  const { desc } = await import("drizzle-orm");
+  const { desc } = await import('drizzle-orm');
   return db.query.pipelineRuns.findMany({
     where: eq(pipelineRuns.pipelineId, pipelineId),
     orderBy: [desc(pipelineRuns.createdAt)],
