@@ -13,12 +13,14 @@
 import { getEnv } from '../lib/env.js';
 import { db } from '../db/client.js';
 import { sandboxExecutions } from '../db/client.js';
-import { randomUUID } from 'node:crypto';
+import { randomUUID, createHash } from 'node:crypto';
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import * as acorn from 'acorn';
+import { appendAudit } from '../lib/audit.js';
 
 const execAsync = promisify(execFile);
 
@@ -125,10 +127,75 @@ async function executeInDocker(input: SandboxInput): Promise<SandboxResult> {
   }
 }
 
+// ── AST Pre-Parsing & Dangerous Token Detection ─────────────
+
+/**
+ * Regex patterns for dangerous tokens that should never execute.
+ * These are checked BEFORE the code reaches any sandbox.
+ */
+const DANGEROUS_PATTERNS = [
+  { pattern: /process\b/, description: 'process global access' },
+  { pattern: /\brequire\s*\(/, description: 'require() call' },
+  { pattern: /\bimport\s*\(/, description: 'dynamic import()' },
+  {
+    pattern: /\bglobalThis\s*\.\s*(?:process|require|import)\b/,
+    description: 'globalThis access to dangerous globals',
+  },
+  { pattern: /__proto__/, description: '__proto__ manipulation' },
+  { pattern: /constructor\s*\.\s*constructor/, description: 'prototype chain climb' },
+];
+
+/**
+ * Perform AST pre-parsing using acorn to validate syntax and reject
+ * dangerous constructs before any code reaches the sandbox worker.
+ * Returns null if the code is valid, or an error message if rejected.
+ */
+function preParseAndValidate(code: string): string | null {
+  // Empty checks
+  if (!code || code.trim().length === 0) {
+    return 'Empty code';
+  }
+
+  // Reject code containing dangerous token patterns
+  for (const entry of DANGEROUS_PATTERNS) {
+    if (entry.pattern.test(code)) {
+      return `Rejected: ${entry.description} detected in code`;
+    }
+  }
+
+  // Attempt AST parsing to validate syntax
+  try {
+    acorn.parse(code, {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      allowAwaitOutsideFunction: true,
+    });
+  } catch (parseErr) {
+    return `Syntax error: ${parseErr instanceof Error ? parseErr.message : String(parseErr)}`;
+  }
+
+  return null; // Code is valid
+}
+
 // ── Public API ────────────────────────────────────────────────
 
 export async function executeSandboxed(input: SandboxInput): Promise<SandboxResult> {
+  const start = Date.now();
   const env = getEnv();
+
+  // Phase 1: AST pre-parsing and validation before any execution context
+  const validationError = preParseAndValidate(input.code);
+  if (validationError) {
+    return {
+      ok: false,
+      output: null,
+      stdout: '',
+      stderr: validationError,
+      durationMs: Date.now() - start,
+      exitCode: 1,
+    };
+  }
+
   const useDocker = env.NEXUS_SANDBOX_ENABLED && (await isDockerAvailable());
 
   // Dynamic import to avoid loading worker_threads module at import time
@@ -137,7 +204,16 @@ export async function executeSandboxed(input: SandboxInput): Promise<SandboxResu
 
   const result = useDocker ? await executeInDocker(input) : await executeInWorker(input);
 
+  // ── Telemetry & Audit Logging ─────────────────────────────
   const recordId = `sbx_${randomUUID()}`;
+  const safeResult = {
+    ok: result?.ok ?? false,
+    output: result?.output ?? null,
+    stdout: result?.stdout ?? '',
+    stderr: result?.stderr ?? '',
+    durationMs: result?.durationMs ?? Date.now() - start,
+    exitCode: result?.exitCode ?? -1,
+  };
   await db
     .insert(sandboxExecutions)
     .values({
@@ -146,17 +222,71 @@ export async function executeSandboxed(input: SandboxInput): Promise<SandboxResu
       type: useDocker ? 'docker' : 'worker',
       code: input.code.slice(0, 5000),
       language: input.language,
-      exitCode: result.exitCode,
-      stdout: result.stdout.slice(0, 5000),
-      stderr: result.stderr.slice(0, 5000),
-      durationMs: result.durationMs,
-      status: result.ok ? 'completed' : 'failed',
+      exitCode: safeResult.exitCode,
+      stdout: safeResult.stdout.slice(0, 5000),
+      stderr: safeResult.stderr.slice(0, 5000),
+      durationMs: safeResult.durationMs,
+      status: safeResult.ok ? 'completed' : 'failed',
     })
     .catch(() => {
       /* non-critical — log is best-effort */
     });
 
-  return result;
+  // Append audit trail for sandbox execution
+  try {
+    await appendAudit(
+      'sandbox.execute',
+      {
+        sandboxId: recordId,
+        type: useDocker ? 'docker' : 'worker',
+        language: input.language,
+        durationMs: safeResult.durationMs,
+        ok: safeResult.ok,
+        exitCode: safeResult.exitCode,
+        codeHash:
+          input.code.length > 0
+            ? createHash('sha256').update(input.code).digest('hex').slice(0, 16)
+            : 'empty',
+      },
+      'system'
+    );
+  } catch {
+    /* non-critical */
+  }
+
+  // Export execution metrics to Prometheus-compatible counters
+  // These counters are accessible via the /metrics endpoint
+  sandboxExecutionCount.total++;
+  sandboxExecutionCount[safeResult.ok ? 'success' : 'failure']++;
+  sandboxExecutionLatencyMs.total += safeResult.durationMs;
+  if (safeResult.durationMs > sandboxExecutionLatencyMs.max) {
+    sandboxExecutionLatencyMs.max = safeResult.durationMs;
+  }
+
+  return safeResult;
+}
+
+// ── Telemetry Counters ────────────────────────────────────────
+// In-memory counters for sandbox execution metrics.
+// These are exported to Prometheus via the /metrics endpoint.
+const sandboxExecutionCount = { total: 0, success: 0, failure: 0 };
+const sandboxExecutionLatencyMs = { total: 0, max: 0 };
+
+/**
+ * Get sandbox execution metrics for Prometheus export.
+ */
+export function getSandboxMetrics(): Record<string, number> {
+  return {
+    sandbox_executions_total: sandboxExecutionCount.total,
+    sandbox_executions_success: sandboxExecutionCount.success,
+    sandbox_executions_failure: sandboxExecutionCount.failure,
+    sandbox_latency_ms_total: sandboxExecutionLatencyMs.total,
+    sandbox_latency_ms_max: sandboxExecutionLatencyMs.max,
+    sandbox_latency_ms_avg:
+      sandboxExecutionCount.total > 0
+        ? Math.round(sandboxExecutionLatencyMs.total / sandboxExecutionCount.total)
+        : 0,
+  };
 }
 
 // ── Helpers ───────────────────────────────────────────────────

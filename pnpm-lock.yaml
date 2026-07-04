@@ -113,6 +113,12 @@ importers:
       '@opentelemetry/semantic-conventions':
         specifier: ^1.41.1
         version: 1.41.1
+      '@types/acorn':
+        specifier: ^6.0.4
+        version: 6.0.4
+      acorn:
+        specifier: ^8.17.0
+        version: 8.17.0
       better-sqlite3:
         specifier: ^11.10.0
         version: 11.10.0
@@ -1099,6 +1105,10 @@ packages:
 
   '@tauri-apps/plugin-opener@2.5.4':
     resolution: {integrity: sha512-1HnPkb+AmgO29HBazm4uPLKB+r7zzcTBW1d0fyYp1uP+jwtpoiNDGKMMzz58SFp49nOIrxdE3aUJtT57lfO9CQ==}
+
+  '@types/acorn@6.0.4':
+    resolution: {integrity: sha512-DafqcBAjbOOmgqIx3EF9EAdBKAKgspv00aQVIW3fVQ0TXo5ZPBeSRey1SboVAUzjw8Ucm7cd1gtTSlosYoEQLA==}
+    deprecated: This is a stub types definition. acorn provides its own type definitions, so you do not need this installed.
 
   '@types/babel__core@7.20.5':
     resolution: {integrity: sha512-qoQprZvz5wQFJwMDqeseRXWv3rqMvhgpbXFfVyWhbx9X47POIA6i/+dXefEmZKoAgOaTdaIgNSMqMIU61yRyzA==}
@@ -3259,6 +3269,10 @@ snapshots:
   '@tauri-apps/plugin-opener@2.5.4':
     dependencies:
       '@tauri-apps/api': 2.11.1
+
+  '@types/acorn@6.0.4':
+    dependencies:
+      acorn: 8.17.0
 
   '@types/babel__core@7.20.5':
     dependencies:

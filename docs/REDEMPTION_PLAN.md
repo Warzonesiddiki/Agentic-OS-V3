@@ -19,7 +19,7 @@ This document defines the **definitive 20-Phase, 400-Subphase Master Execution P
 ```
 Phase 01: Repository Hygiene, Mono-Repo Workspace & Governance [DONE]
 Phase 02: Strict TypeScript ESM Compilation & Zero-Warning Type Safety [DONE]
-Phase 03: Zero-Trust Isolation Sandbox (Worker Thread Pool & Hardened VM)
+Phase 03: Zero-Trust Isolation Sandbox (Worker Thread Pool & Hardened VM) [DONE] [DONE]
 Phase 04: Database Mutex Serialization, WAL Concurrency & Migration Integrity
 Phase 05: Automated Testing, CI/CD Pipeline & Coverage Enforcement
 Phase 06: Native SQLite FTS5 & pgvector High-Performance Hybrid Search Engine
@@ -101,26 +101,26 @@ _Goal: Eliminate all TypeScript compilation errors across the entire codebase (`
 
 _Goal: Eliminate VM prototype-climbing vulnerabilities, implement worker thread isolation, freeze prototypes, and enforce strict execution quotas._
 
-- [ ] 3.1. Perform threat assessment on existing `server/src/services/sandbox.ts` to identify prototype climb vectors (`input.constructor.constructor`).
-- [ ] 3.2. Deprecate insecure in-process `vm.createContext` execution paths.
-- [ ] 3.3. Build `server/src/services/sandbox-worker.ts` utilizing Node.js `worker_threads` with isolated context.
-- [ ] 3.4. Implement structured JSON message-passing protocol (`postMessage` / `on('message')`) between host and sandbox worker.
-- [ ] 3.5. Enforce hard execution timeout handling via `worker.terminate()` when execution duration exceeds threshold.
-- [ ] 3.6. Enforce memory resource limits (`resourceLimits: { maxOldGenerationSizeMb: 64 }`) on spawned sandbox workers.
-- [ ] 3.7. Freeze global prototypes (`Object.prototype`, `Function.prototype`, `Array.prototype`) inside worker thread startup.
-- [ ] 3.8. Block access to dangerous primitives (`process`, `require`, `import`, `globalThis.fetch`) within sandbox scope.
-- [ ] 3.9. Implement AST pre-parsing using `acorn` to validate JavaScript expression syntax before execution.
-- [ ] 3.10. Reject code containing dangerous tokens or syntax constructs prior to worker execution.
-- [ ] 3.11. Implement a warm worker thread pool (default size: 4) to eliminate cold-start overhead for user script execution.
-- [ ] 3.12. Wire Docker container sandbox provider as primary isolated executor when `NEXUS_DOCKER_SANDBOX=true`.
-- [ ] 3.13. Create security regression test suite (`server/tests/sandbox-security.test.ts`) testing exploit vectors (infinite loops, memory bombs, prototype pollution).
-- [ ] 3.14. Assert all exploit test cases fail securely with appropriate sandbox error codes.
-- [ ] 3.15. Assert valid JavaScript function execution works deterministically with correct output.
-- [ ] 3.16. Audit and update `skill-compiler.ts` to use the hardened sandbox worker for all dynamic skill evaluations.
-- [ ] 3.17. Add telemetry logging for sandbox execution latency, memory consumption, and error rates.
-- [ ] 3.18. Update `docs/SECURITY.md` with full sandbox threat model and isolation architecture.
-- [ ] 3.19. Run full sandbox test suite and verify 100% pass rate.
-- [ ] 3.20. Git checkpoint: `security: phase 3 — zero-trust worker sandbox implementation`.
+- [x] 3.1. Perform threat assessment on existing `server/src/services/sandbox.ts` to identify prototype climb vectors (`input.constructor.constructor`).
+- [x] 3.2. Deprecate insecure in-process `vm.createContext` execution paths.
+- [x] 3.3. Build `server/src/services/sandbox-worker.ts` utilizing Node.js `worker_threads` with isolated context.
+- [x] 3.4. Implement structured JSON message-passing protocol (`postMessage` / `on('message')`) between host and sandbox worker.
+- [x] 3.5. Enforce hard execution timeout handling via `worker.terminate()` when execution duration exceeds threshold.
+- [x] 3.6. Enforce memory resource limits (`resourceLimits: { maxOldGenerationSizeMb: 64 }`) on spawned sandbox workers.
+- [x] 3.7. Freeze global prototypes (`Object.prototype`, `Function.prototype`, `Array.prototype`) inside worker thread startup.
+- [x] 3.8. Block access to dangerous primitives (`process`, `require`, `import`, `globalThis.fetch`) within sandbox scope.
+- [x] 3.9. Implement AST pre-parsing using `acorn` to validate JavaScript expression syntax before execution.
+- [x] 3.10. Reject code containing dangerous tokens or syntax constructs prior to worker execution.
+- [x] 3.11. Implement a warm worker thread pool (default size: 4) to eliminate cold-start overhead for user script execution.
+- [x] 3.12. Wire Docker container sandbox provider as primary isolated executor when `NEXUS_DOCKER_SANDBOX=true`.
+- [x] 3.13. Create security regression test suite (`server/tests/sandbox-security.test.ts`) testing exploit vectors (infinite loops, memory bombs, prototype pollution).
+- [x] 3.14. Assert all exploit test cases fail securely with appropriate sandbox error codes.
+- [x] 3.15. Assert valid JavaScript function execution works deterministically with correct output.
+- [x] 3.16. Audit and update `skill-compiler.ts` to use the hardened sandbox worker for all dynamic skill evaluations.
+- [x] 3.17. Add telemetry logging for sandbox execution latency, memory consumption, and error rates.
+- [x] 3.18. Update `docs/SECURITY.md` with full sandbox threat model and isolation architecture.
+- [x] 3.19. Run full sandbox test suite and verify 100% pass rate.
+- [x] 3.20. Git checkpoint: `security: phase 3 — zero-trust worker sandbox implementation`.
 
 ---
 

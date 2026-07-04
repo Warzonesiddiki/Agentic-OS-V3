@@ -9,14 +9,14 @@
  *   - Blocked dangerous globals (require, process, import, etc.)
  *   - No shared object references (message-passing only)
  *
- * Safety model:
- *   - The Worker itself is the security boundary, not `new Function()` inside it.
- *   - Even if the code escapes the Function sandbox, it's still trapped in the Worker.
- *   - The Worker has no access to require, process, or any I/O.
- *   - If the Worker hangs, it gets terminated with no memory leaks.
+ * The worker bootstrap code lives in sandbox-worker-bootstrap.js — a plain
+ * CommonJS file that Node.js can load natively as a Worker entry point.
+ * This works identically under both tsx/vitest (.ts sources) and in
+ * production builds (compiled .js).
  */
 
-import { Worker, isMainThread, parentPort, workerData } from 'node:worker_threads';
+import { Worker } from 'node:worker_threads';
+import { fileURLToPath } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
 // ── Types ─────────────────────────────────────────────────────
@@ -59,9 +59,10 @@ function getPool(): PoolEntry[] {
 }
 
 function createSandboxWorker(): Worker {
-  // Create an inline Worker using the worker_threads bootstrap
-  const worker = new Worker(new URL(import.meta.url), {
-    workerData: { role: 'sandbox-worker' },
+  // Load the plain .js bootstrap file as the Worker entry point
+  const bootstrapUrl = new URL('./sandbox-worker-bootstrap.cjs', import.meta.url);
+  const bootstrapPath = fileURLToPath(bootstrapUrl);
+  const worker = new Worker(bootstrapPath, {
     resourceLimits: {
       maxOldGenerationSizeMb: 64,
       maxYoungGenerationSizeMb: 16,
@@ -72,86 +73,10 @@ function createSandboxWorker(): Worker {
   return worker;
 }
 
-// ── Bootstrap: Worker entry point ─────────────────────────────
-
-if (!isMainThread && workerData?.role === 'sandbox-worker' && parentPort) {
-  // We're inside a sandbox worker — set up the execution environment
-  setupWorkerEnvironment();
-}
-
-function setupWorkerEnvironment(): void {
-  // Guard: only run in actual sandbox worker threads, not in main thread or vitest workers
-  if (!parentPort) {
-    // Not in a worker thread — do nothing
-    return;
-  }
-
-  // Freeze prototypes to prevent prototype pollution
-  Object.freeze(Object.prototype);
-  Object.freeze(Array.prototype);
-  Object.freeze(Function.prototype);
-
-  // Block dangerous globals by replacing them
-  const noop = () => {
-    throw new Error('Access denied: blocked in sandbox');
-  };
-
-  // Override import.meta (partially)
-  // Override require if it exists (CommonJS)
-  if (typeof require !== 'undefined') {
-    (globalThis as Record<string, unknown>).require = noop;
-  }
-
-  // Listen for messages from the parent
-  parentPort!.on('message', (message: { id: string; code: string; input: unknown }) => {
-    try {
-      const { id, code, input } = message;
-
-      // Validate code structure
-      if (typeof code !== 'string' || code.length === 0) {
-        throw new Error('Empty or invalid code');
-      }
-
-      // Extract the function body safely
-      let fnBody = code;
-      // Strip module.exports prefix if present
-      if (fnBody.includes('module.exports')) {
-        fnBody = fnBody.split('module.exports')[0] ?? fnBody;
-      }
-      // Strip comments
-      fnBody = fnBody.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/.*$/gm, '');
-      // Remove "function compiledTask(input) {" wrapper if present
-      fnBody = fnBody.replace(/function\s+\w+\s*\(\s*\w*\s*\)\s*\{/, '');
-      // Remove trailing closing braces
-      fnBody = fnBody.replace(/}\s*$/, '').trim();
-
-      // Try to parse as JSON first (simple value)
-      let parsed: unknown;
-      try {
-        parsed = JSON.parse(fnBody);
-      } catch {
-        // Not JSON — execute as function body
-        const fn = new Function('input', `"use strict";\n${fnBody}`);
-        const result = fn(input);
-        parsed = result;
-      }
-
-      parentPort!.postMessage({ id, result: parsed, error: null });
-    } catch (err) {
-      parentPort!.postMessage({
-        id: message.id,
-        result: null,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    }
-  });
-}
-
 // ── Public API ────────────────────────────────────────────────
 
 /**
  * Execute untrusted code in a secure worker thread sandbox.
- * Falls back to a simple eval-based execution if no worker available.
  */
 export async function executeInWorker(input: SandboxInput): Promise<SandboxResult> {
   const start = Date.now();
@@ -207,7 +132,7 @@ function acquireWorker(): PoolEntry | null {
       return entry;
     }
   }
-  // All busy — could create a temporary worker, but we'll just fail
+  // All busy — return null (caller handles the fallback)
   return null;
 }
 
