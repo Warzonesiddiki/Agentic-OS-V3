@@ -1,17 +1,17 @@
 /**
- * services/sandbox.ts — Docker / Node.js vm sandbox execution environment.
+ * services/sandbox.ts — Docker / Worker sandbox execution environment.
  *
  * Replaces the unsafe `new Function()` eval in skill-compiler.ts with
  * real sandboxed execution — either inside ephemeral Docker containers
- * or, when Docker is unavailable, using Node.js `vm.Script` with an
+ * or, when Docker is unavailable, using Node.js worker threads with an
  * isolated context that blocks access to `require`, `process`, and
  * all dangerous globals.
  *
  * When Docker is unavailable (or NEXUS_SANDBOX_ENABLED=false), falls
- * back to vm-isolated in-process execution (for development convenience).
+ * back to worker-based in-process execution (for development convenience).
  */
 import { getEnv } from "../lib/env.js";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { sandboxExecutions } from "../db/client.js";
 import { randomUUID } from "node:crypto";
 import { writeFileSync, mkdtempSync, rmSync } from "node:fs";
@@ -19,7 +19,6 @@ import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import vm from "node:vm";
 
 const execAsync = promisify(execFile);
 
@@ -69,7 +68,7 @@ async function executeInDocker(input: SandboxInput): Promise<SandboxResult> {
 
   const wrapper = input.language === "python"
     ? input.code
-    : `const input = ${JSON.stringify(input.input ?? {})};\n${input.code}\nconsole.log(JSON.stringify(module.exports.compiledTask(input)));`;
+    : `const input = ${JSON.stringify(input.input ?? {})};\\n${input.code}\\nconsole.log(JSON.stringify(module.exports.compiledTask(input)));`;
 
   writeFileSync(scriptFile, wrapper, "utf-8");
 
@@ -112,95 +111,25 @@ async function executeInDocker(input: SandboxInput): Promise<SandboxResult> {
   }
 }
 
-// ── In-Process Fallback (vm-isolated) ─────────────────────────
-
-/** Build a safe sandbox context with only sanctioned globals. */
-function createSandboxContext(input: unknown) {
-  const _stdoutLines: string[] = [];
-  const _capturedStdout = () => _stdoutLines.join("\n");
-
-  const ctx: Record<string, unknown> = {
-    input,
-    console: {
-      log: (...args: unknown[]) => {
-        _stdoutLines.push(args.map(String).join(" "));
-      },
-      warn: (...args: unknown[]) => {
-        _stdoutLines.push("[warn] " + args.map(String).join(" "));
-      },
-      error: (...args: unknown[]) => {
-        _stdoutLines.push("[error] " + args.map(String).join(" "));
-      },
-    },
-    JSON, Math, Array, Object, String, Number, Boolean, Date, RegExp,
-    Map, Set, WeakMap, WeakSet,
-    parseInt, parseFloat, isNaN, isFinite,
-    Error, TypeError, RangeError, SyntaxError, ReferenceError,
-    undefined: undefined, null: null,
-    NaN: NaN, Infinity: Infinity,
-    _capturedStdout,
-  };
-  return ctx;
-}
-
-/** Execute code inside a Node.js vm.Script with an isolated context. */
-function executeInProcess(input: SandboxInput): SandboxResult {
-  const env = getEnv();
-  const timeoutMs = input.timeoutMs ?? env.NEXUS_SANDBOX_TIMEOUT_MS;
-  const start = Date.now();
-
-  try {
-    // Extract function body from compiled-task wrapper
-    const fnBody = input.code
-      .split("module.exports")[0] ?? ""
-      .replace(/\/\*\*[\s\S]*?\*\//g, "")
-      .replace("function compiledTask(input) {", "")
-      .replace(/}\s*$/, "")
-      .trim();
-
-    // Wrap in an IIFE that takes `input` as parameter, then run in sandboxed context
-    const scriptCode = `(function(input) { ${fnBody} })`;
-    const context = vm.createContext(createSandboxContext(input.input ?? {}));
-    const script = new vm.Script(scriptCode);
-    const fn = script.runInContext(context, { timeout: timeoutMs });
-    const output = fn(input.input ?? {});
-    const stdout = (context._capturedStdout as () => string)();
-
-    return {
-      ok: true,
-      output,
-      stdout: stdout || JSON.stringify(output),
-      stderr: "",
-      durationMs: Date.now() - start,
-      exitCode: 0,
-    };
-  } catch (e) {
-    return {
-      ok: false,
-      output: null,
-      stdout: "",
-      stderr: e instanceof Error ? e.message.slice(0, 10000) : String(e).slice(0, 10000),
-      durationMs: Date.now() - start,
-      exitCode: 1,
-    };
-  }
-}
-
 // ── Public API ────────────────────────────────────────────────
 
 export async function executeSandboxed(input: SandboxInput): Promise<SandboxResult> {
   const env = getEnv();
   const useDocker = env.NEXUS_SANDBOX_ENABLED && await isDockerAvailable();
 
+  // Dynamic import to avoid loading worker_threads module at import time
+  // (worker_threads may fail in some test environments)
+  const { executeInWorker } = await import("./sandbox-worker.js");
+
   const result = useDocker
     ? await executeInDocker(input)
-    : executeInProcess(input);
+    : await executeInWorker(input);
 
   const recordId = `sbx_${randomUUID()}`;
   await db.insert(sandboxExecutions).values({
     id: recordId,
     agentId: "sandbox",
-    type: useDocker ? "docker" : "in-process",
+    type: useDocker ? "docker" : "worker",
     code: input.code.slice(0, 5000),
     language: input.language,
     exitCode: result.exitCode,

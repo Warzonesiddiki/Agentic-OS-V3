@@ -5,7 +5,7 @@
  */
 import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { eq, sql, desc } from "drizzle-orm";
-import { apiKeys, agents, db, isSqlite } from "../db/client.js";
+import { apiKeys, isSqlite } from "../db/client.js";
 import { getEnv } from "../lib/env.js";
 import { log } from "../lib/logging.js";
 
@@ -47,7 +47,24 @@ export type Scope =
   | "admin.key.read"
   | "admin.key.write"
   | "dashboard.*"
-  | "dashboard.read";
+  | "dashboard.read"
+  | "memory:read"
+  | "memory:write"
+  | "skill:read"
+  | "skill:write"
+  | "audit:read"
+  | "brain:admin"
+  | "vault:read"
+  | "vault:write"
+  | "safety:write"
+  | "llm:chat"
+  | "llm:admin"
+  | "plugin:admin"
+  | "plugin:invoke"
+  | "federated:write"
+  | "federated:read"
+  | "pipeline:admin"
+  | "pipeline:execute";
 
 /** Scopes defined in this application — ideally this would live in a config table. */
 const ALL_SCOPES: Scope[] = [
@@ -62,6 +79,11 @@ const ALL_SCOPES: Scope[] = [
   "admin.key.write",
   "dashboard.*",
   "dashboard.read",
+  "memory:read",
+  "memory:write",
+  "skill:read",
+  "skill:write",
+  "audit:read",
 ];
 
 export function isValidScope(s: string): s is Scope {
@@ -189,6 +211,14 @@ export function hasScope(principal: Principal | null, scope: Scope): boolean {
   return Boolean(principal?.scopes.includes(scope));
 }
 
+/** Constant-time string comparison (safe for secrets). */
+export function timingSafeStrEq(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const bufA = Buffer.from(a);
+  const bufB = Buffer.from(b);
+  return timingSafeEqual(bufA, bufB);
+}
+
 /* ------------------------------------------------------------------ *
  * Principal administration: create / list / revoke API keys. The raw
  * key is returned EXACTLY ONCE at creation (only its hash is persisted);
@@ -228,7 +258,7 @@ export async function listPrincipals(
     db.select({ count: sql<number>`count(*)` }).from(apiKeys),
   ]);
   const total = Number(countResult[0]?.count ?? 0);
-  const items = rows.map((r) => ({
+  const items = rows.map((r: any) => ({
     id: r.id,
     name: r.name,
     scopes: (r.scopes ?? []).filter((s: string): s is Scope => ALL_SCOPES.includes(s as Scope)),

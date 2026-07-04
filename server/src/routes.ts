@@ -3,7 +3,7 @@
  * Each route validates with Zod, enforces auth + scope, and returns an envelope.
  */
 import { Hono } from "hono";
-import { db } from "./db/client.ts";
+import { db } from "./db/client.js";
 import { memories, skills, projects, notes, auditLog, tokenLedger, systemMeta, agents as agentsTable } from "./db/client.js";
 import { eq, gt, sql } from "drizzle-orm";
 import { ok, err } from "./lib/envelope.js";
@@ -448,10 +448,7 @@ api.get("/api/v1/analytics", async (c) => {
   }).from(agentsTable).groupBy(agentsTable.status);
 
   // Single query for all totals (replaces 6 sequential COUNT queries)
-  const totalsQuery = await db.execute<{
-    memories: number; skills: number; audit: number;
-    tokens_saved: number; agents: number; tasks: number;
-  }>(sql`
+  const totalsQuery = await db.execute(sql`
     SELECT
       (SELECT count(*)::int FROM memories) AS memories,
       (SELECT count(*)::int FROM skills) AS skills,
@@ -460,8 +457,8 @@ api.get("/api/v1/analytics", async (c) => {
       (SELECT count(*)::int FROM agents) AS agents,
       (SELECT count(*)::int FROM agent_tasks) AS tasks
   `);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw SQL result shape is not statically known
-  const t: Record<string, any> = (Array.isArray(totalsQuery) ? totalsQuery[0] : totalsQuery) ?? {};
+   
+  const t: Record<string, unknown> = (Array.isArray(totalsQuery) ? totalsQuery[0] : totalsQuery) ?? {};
 
   return c.json(ok({
     totals: {

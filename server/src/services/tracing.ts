@@ -19,7 +19,7 @@
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
 import { getRegistry } from "./metrics.js";
@@ -343,7 +343,7 @@ export class BatchSpanProcessor implements SpanProcessor {
       } catch (e) {
         log.error("span_batch_export_failed", { error: e instanceof Error ? e.message : String(e) });
         // Re-queue dropped spans
-        const dropped = this._buffer.splice(0, this._buffer.length);
+        const _dropped = this._buffer.splice(0, this._buffer.length);
         // Only re-queue if we didn't reach max queue again
         if (this._buffer.length === 0) {
           for (const s of spans) {
@@ -445,7 +445,7 @@ class TracerImpl implements Tracer {
   ): Span {
     // Resolve traceId — use existing parent trace or create new
     let traceId: string;
-    let parentId: string | null = options?.parentId ?? null;
+    const parentId: string | null = options?.parentId ?? null;
 
     if (parentId) {
       // Find the parent span's trace

@@ -2,6 +2,8 @@
  * ACP (Agent Communication Protocol) - JSON-RPC 2.0 based
  */
 
+import type { Message, ToolDefinition, ChatOptions, HealthStatus } from './types.js';
+
 export interface AcpRequest {
   jsonrpc: '2.0';
   method: string;
@@ -94,16 +96,4 @@ export class AcpClient {
   }
 }
 
-interface ChatOptions {
-  model?: string;
-  temperature?: number;
-  max_tokens?: number;
-  stream?: boolean;
-}
 
-interface HealthStatus {
-  status: string;
-  version: string;
-  uptime: number;
-  providers: number;
-}

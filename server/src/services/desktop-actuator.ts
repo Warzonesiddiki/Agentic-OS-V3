@@ -37,7 +37,7 @@ async function captureScreenshotBase64(): Promise<string> {
  * This is defense-in-depth — callers should also validate inputs. */
 function sanitizePs(input: string): string {
   return input
-    .replace(/\u0000/g, "")       // null bytes
+    .split(String.fromCharCode(0)).join("")       // null bytes
     .replace(/[`|&;()]/g, "")     // shell metacharacters
     .replace(/\$\(/g, "")         // subexpression
     .replace(/\$\{[^}]*\}/g, "") // interpolation

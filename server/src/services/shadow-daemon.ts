@@ -9,8 +9,10 @@
  * Runs as a daemon agent at ring 4 (lowest priority / no tool access).
  */
 
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { log } from "../lib/logging.js";
+import { and, eq, gte } from "drizzle-orm";
+import { memories, agentTasks, auditLog } from "../db/client.js";
 
 /* ── Shadow Analysis Results ── */
 
@@ -64,10 +66,9 @@ async function detectAnomalies(): Promise<ShadowInsight[]> {
   const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
 
   // 1. Detect conflicting memories: same entity, opposite assertions
-  const recentMemories = await db.query.memories.findMany({
-    where: (t, { and, gte }) => and(gte(t.createdAt, SEVEN_DAYS_AGO)),
-    limit: 500,
-  });
+  const recentMemories = await db.select().from(memories).where(
+    gte(memories.createdAt, SEVEN_DAYS_AGO)
+  ).limit(500);
 
   const byContent: Map<string, typeof recentMemories> = new Map();
   for (const m of recentMemories) {
@@ -78,20 +79,20 @@ async function detectAnomalies(): Promise<ShadowInsight[]> {
 
   for (const [, group] of byContent) {
     if (group.length < 2) continue;
-    const kinds = new Set(group.map((m) => m.kind));
+    const kinds = new Set(group.map((m: any) => m.kind));
     if (kinds.size > 2) {
       insights.push({
         type: "anomaly",
         severity: "warning",
         title: "Contradictory memory cluster detected",
         detail: `${group.length} memories about "${group[0]!.title}" span ${kinds.size} different kinds (${[...kinds].join(", ")}). Possible fragment overlap.`,
-        relatedIds: group.map((m) => m.id),
+        relatedIds: group.map((m: any) => m.id),
       });
     }
   }
 
   // 2. Check for memory decay — many very low importance memories
-  const lowImportance = recentMemories.filter((m) => (m.importance ?? 0.5) < 0.15);
+  const lowImportance = recentMemories.filter((m: any) => (m.importance ?? 0.5) < 0.15);
   if (lowImportance.length > 20) {
     insights.push({
       type: "anomaly",
@@ -106,8 +107,6 @@ async function detectAnomalies(): Promise<ShadowInsight[]> {
 
 /* ── Trend Tracking ── */
 
-
-
 async function trackTrends(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
 
@@ -117,30 +116,22 @@ async function trackTrends(): Promise<ShadowInsight[]> {
 
     const [tasks7d, tasks30d, , topActionResult, successRateResult] = await Promise.all([
       // Tasks in last 7 days
-      db.query.agentTasks.findMany({
-        where: (t, { and, gte }) => and(gte(t.createdAt, SEVEN_DAYS_AGO)),
-        limit: 1,
-        columns: { id: true },
-      }).then((r) => r.length),
+      db.select({ id: agentTasks.id }).from(agentTasks).where(
+        gte(agentTasks.createdAt, SEVEN_DAYS_AGO)
+      ).then((r: any) => r.length),
       // Tasks in last 30 days
-      db.query.agentTasks.findMany({
-        where: (t, { and, gte }) => and(gte(t.createdAt, THIRTY_DAYS_AGO)),
-        limit: 1,
-        columns: { id: true },
-      }).then((r) => r.length),
+      db.select({ id: agentTasks.id }).from(agentTasks).where(
+        gte(agentTasks.createdAt, THIRTY_DAYS_AGO)
+      ).then((r: any) => r.length),
       // Audit entries in last 7 days
-      db.query.auditLog.findMany({
-        where: (t, { and, gte }) => and(gte(t.createdAt, SEVEN_DAYS_AGO)),
-        limit: 100,
-        columns: { id: true, actor: true },
-      }).then((r) => ({ count: r.length, uniqueActors: new Set(r.map((x) => x.actor)).size })),
+      db.select({ id: auditLog.id, actor: auditLog.actor }).from(auditLog).where(
+        gte(auditLog.createdAt, SEVEN_DAYS_AGO)
+      ).limit(100).then((r: any) => ({ count: r.length, uniqueActors: new Set(r.map((x: { actor: string }) => x.actor)).size })),
       // Most frequent action in last 7 days
       (async () => {
-        const rows = await db.query.auditLog.findMany({
-          where: (t, { and, gte }) => and(gte(t.createdAt, SEVEN_DAYS_AGO)),
-          columns: { action: true },
-          limit: 100,
-        });
+        const rows = await db.select({ action: auditLog.action }).from(auditLog).where(
+          gte(auditLog.createdAt, SEVEN_DAYS_AGO)
+        ).limit(100);
         const counts = new Map<string, number>();
         for (const r of rows) {
           counts.set(r.action, (counts.get(r.action) ?? 0) + 1);
@@ -154,16 +145,18 @@ async function trackTrends(): Promise<ShadowInsight[]> {
       })(),
       // Task success rate
       (async () => {
-        const success = await db.query.agentTasks.findMany({
-          where: (t, { and, gte, eq }) => and(gte(t.createdAt, SEVEN_DAYS_AGO), eq(t.status, "succeeded")),
-          limit: 1,
-          columns: { id: true },
-        }).then((r) => r.length);
-        const failed = await db.query.agentTasks.findMany({
-          where: (t, { and, gte, eq }) => and(gte(t.createdAt, SEVEN_DAYS_AGO), eq(t.status, "failed")),
-          limit: 1,
-          columns: { id: true },
-        }).then((r) => r.length);
+        const success = await db.select({ id: agentTasks.id }).from(agentTasks).where(
+          and(
+            gte(agentTasks.createdAt, SEVEN_DAYS_AGO),
+            eq(agentTasks.status, "succeeded")
+          )
+        ).then((r: any) => r.length);
+        const failed = await db.select({ id: agentTasks.id }).from(agentTasks).where(
+          and(
+            gte(agentTasks.createdAt, SEVEN_DAYS_AGO),
+            eq(agentTasks.status, "failed")
+          )
+        ).then((r: any) => r.length);
         const total = success + failed;
         return total > 0 ? success / total : 1;
       })(),
@@ -200,10 +193,9 @@ async function generateImplicitConclusions(): Promise<ShadowInsight[]> {
 
   try {
     // Check for frequently paired tags across memories
-    const recentMemories = await db.query.memories.findMany({
-      where: (t, { and, gte }) => and(gte(t.createdAt, new Date(Date.now() - 30 * 24 * 3600_000).toISOString())),
-      limit: 200,
-    });
+    const recentMemories = await db.select().from(memories).where(
+      gte(memories.createdAt, new Date(Date.now() - 30 * 24 * 3600_000).toISOString())
+    ).limit(200);
 
     const tagPairs = new Map<string, number>();
     for (const m of recentMemories) {
@@ -259,10 +251,12 @@ async function analyzeGaps(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
 
   try {
-    const recentSkills = await db.query.memories.findMany({
-      where: (t, { and, eq, gte }) => and(eq(t.kind, "skill"), gte(t.createdAt, new Date(Date.now() - 14 * 24 * 3600_000).toISOString())),
-      limit: 100,
-    });
+    const recentSkills = await db.select().from(memories).where(
+      and(
+        eq(memories.kind, "skill"),
+        gte(memories.createdAt, new Date(Date.now() - 14 * 24 * 3600_000).toISOString())
+      )
+    ).limit(100);
 
     if (recentSkills.length === 0) {
       insights.push({

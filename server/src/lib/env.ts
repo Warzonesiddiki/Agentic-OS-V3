@@ -18,7 +18,7 @@ config(); // Load .env into process.env
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(9900),
   NODE_ENV: z.enum(["development", "production", "test"]).default("development"),
-  DATABASE_URL: z.string().default("file:./agentic-os.db"),
+  DATABASE_URL: z.string(),
   NEXUS_API_KEY: z.string().default("nk_local_dev_key"),
   NEXUS_ALLOWED_ORIGINS: z.string().default("http://localhost:9900"),
   NEXUS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(100000).default(120),

@@ -12,13 +12,13 @@
  *
  * Source: AutoGPT continuous triggers, CrewAI Flow scheduling.
  */
+import { log } from "../lib/logging.js";
 import { CronExpressionParser, type CronExpression } from "cron-parser";
 import { randomUUID } from "node:crypto";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { cronJobs } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { env } from "../lib/env.js";
-import { log } from "../lib/logging.js";
 import { eq, and, gte, lte, desc, sql } from "drizzle-orm";
 
 // ── Types ──────────────────────────────────────────────────────
@@ -203,7 +203,7 @@ export class Scheduler {
     this.started = true;
     const interval = env.NEXUS_SCHEDULER_TICK_MS;
     this.tickTimer = setInterval(() => this.tick(), interval);
-    this.tick().catch((e) => log.error("scheduler_initial_tick_failed", { error: (e as Error).message }));
+    this.tick().catch((e: any) => log.error("scheduler_initial_tick_failed", { error: (e as Error).message }));
     log.info("scheduler_started", { interval, maxConcurrent: this.config.maxConcurrentJobs, timezone: this.config.timezone });
   }
 
@@ -253,15 +253,15 @@ export class Scheduler {
       action: row.taskLabel,
       payload: row.taskInput,
       status: row.enabled ? "active" : "paused",
-      lastRun: row.lastRunAt,
-      nextRun: row.nextRunAt,
+      lastRun: row.lastRunAt instanceof Date ? row.lastRunAt : (row.lastRunAt ? new Date(row.lastRunAt) : null),
+      nextRun: row.nextRunAt instanceof Date ? row.nextRunAt : (row.nextRunAt ? new Date(row.nextRunAt) : null),
       runCount: row.runCount,
       maxRetries: input.maxRetries ?? this.config.retryConfig.maxRetries,
       timeoutMs: input.timeoutMs ?? 300000,
       timezone: input.timezone ?? this.config.timezone,
       tags: input.tags ?? [],
-      createdAt: row.createdAt,
-      updatedAt: row.createdAt,
+      createdAt: row.createdAt instanceof Date ? row.createdAt : new Date(row.createdAt),
+      updatedAt: row.createdAt instanceof Date ? new Date(row.createdAt) : row.createdAt,
     };
 
     await appendAudit("scheduler.job_created", { jobId: job.id, name: job.name, expression: job.expression, action: job.action, timezone: job.timezone }, actor);
@@ -323,7 +323,7 @@ export class Scheduler {
       baseQuery.where(cond);
     }
     const rows = await baseQuery.orderBy(desc(cronJobs.createdAt)).limit(200);
-    return rows.map((r) => this.rowToJob(r));
+    return rows.map((r: any) => this.rowToJob(r));
   }
 
   /** Get a single job by ID. */
@@ -421,7 +421,7 @@ export class Scheduler {
   private async runWithRetry(
     row: typeof cronJobs.$inferSelect,
     execution: JobExecution,
-    startTime: number,
+    _startTime: number,
   ): Promise<{ status: ExecutionStatus; output: unknown; error: string | null }> {
     const maxRetries = this.config.retryConfig.maxRetries;
     let lastError: string | null = null;
@@ -553,7 +553,7 @@ export class Scheduler {
   }> {
     const all = await db.select().from(cronJobs);
     return {
-      active: all.filter((r) => r.enabled).length,
+      active: all.filter((r: any) => r.enabled).length,
       running: this.running.size,
       total: all.length,
       maxConcurrent: this.config.maxConcurrentJobs,
@@ -571,15 +571,15 @@ export class Scheduler {
       action: row.taskLabel,
       payload: row.taskInput,
       status: row.enabled ? "active" : "paused",
-      lastRun: row.lastRunAt,
-      nextRun: row.nextRunAt,
+      lastRun: row.lastRunAt instanceof Date ? row.lastRunAt : (row.lastRunAt ? new Date(row.lastRunAt) : null),
+      nextRun: row.nextRunAt instanceof Date ? row.nextRunAt : (row.nextRunAt ? new Date(row.nextRunAt) : null),
       runCount: row.runCount,
       maxRetries: this.config.retryConfig.maxRetries,
       timeoutMs: 300000,
       timezone: this.config.timezone,
       tags: [],
-      createdAt: row.createdAt,
-      updatedAt: row.createdAt,
+      createdAt: new Date(row.createdAt),
+      updatedAt: new Date(row.createdAt),
     };
   }
 }
@@ -603,5 +603,5 @@ export function resetScheduler(): void {
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
+  return new Promise((resolve: any) => setTimeout(resolve, ms));
 }

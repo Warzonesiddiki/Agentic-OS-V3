@@ -15,7 +15,7 @@
  * degrades to BM25-only (lexical mode).
  */
 import { inArray, sql, isNotNull, desc } from "drizzle-orm";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { memories, skills, tokenLedger, notes } from "../db/client.js";
 import { bm25, estimateTokens, packByBudget } from "../lib/tokens.js";
 import { appendAudit } from "../lib/audit.js";
@@ -225,9 +225,9 @@ export async function recall(
   };
 
   // ---- Build lookup maps for metadata ----
-  const memMap = new Map(allMemories.map((m: MemRow) => [m.id, m]));
-  const skillMap = new Map(allSkills.map((s: SkillRow) => [s.id, s]));
-  const noteMap = new Map(allNotes.map((n: NoteRow) => [n.id, n]));
+    const memMap = new Map<string, MemRow>(allMemories.map((m: MemRow) => [m.id, m]));
+    const skillMap = new Map<string, SkillRow>(allSkills.map((s: SkillRow) => [s.id, s]));
+    const noteMap = new Map<string, NoteRow>(allNotes.map((n: NoteRow) => [n.id, n]));
 
   const now = Date.now();
 
@@ -315,7 +315,7 @@ export async function recall(
 
   // ---- Side effects: bump recallCount + ledger ----
   const memIds = packed.filter((p) => p.type === "memory").map((p) => p.id);
-  await db.transaction(async (tx) => {
+  await db.transaction(async (tx: any) => {
     if (memIds.length) {
       await tx
         .update(memories)

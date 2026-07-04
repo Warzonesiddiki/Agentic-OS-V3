@@ -31,7 +31,7 @@ async function bootstrap(): Promise<void> {
   const env = getEnv();
   const { ensureSchemaOrDie, dbReachable } = await import("./setup.js");
   const { createApp } = await import("./app.js");
-  const { db } = await import("./db/client");
+  const { db } = await import("./db/client.js");
   const { hashApiKey, generateApiKey, invalidateAuthCache } = await import("./lib/security.js");
   const { apiKeys } = await import("./db/client.js");
   const { eq } = await import("drizzle-orm");
@@ -150,7 +150,7 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
   // Close the database pool.
   try {
-    const { closeDb } = await import("./db/client");
+    const { closeDb } = await import("./db/client.js");
     await closeDb();
   } catch { /* best-effort */ }
 

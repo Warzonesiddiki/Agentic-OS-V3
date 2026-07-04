@@ -10,7 +10,7 @@
  */
 import { getEnv, env, llmConfigured } from "../lib/env.js";
 import { safeFetch } from "../lib/http.js";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { memories, skills, notes } from "../db/client.js";
 import { sql, isNull } from "drizzle-orm";
 
@@ -134,7 +134,7 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
 
     for (let i = 0; i < memsToEmbed.length; i += BATCH_SIZE) {
       const batch = memsToEmbed.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((m) => m.text.slice(0, 8000)); // cap input length
+      const texts = batch.map((m: any) => m.text.slice(0, 8000)); // cap input length
       const embeddings = await embedBatch(texts);
       for (let j = 0; j < batch.length; j++) {
         await updateMemoryEmbedding(batch[j]!.id, embeddings[j]!);
@@ -150,7 +150,7 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
 
     for (let i = 0; i < skillsToEmbed.length; i += BATCH_SIZE) {
       const batch = skillsToEmbed.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((s) => s.text.slice(0, 8000));
+      const texts = batch.map((s: any) => s.text.slice(0, 8000));
       const embeddings = await embedBatch(texts);
       for (let j = 0; j < batch.length; j++) {
         await updateSkillEmbedding(batch[j]!.id, embeddings[j]!);
@@ -166,7 +166,7 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
 
     for (let i = 0; i < notesToEmbed.length; i += BATCH_SIZE) {
       const batch = notesToEmbed.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((n) => n.text.slice(0, 8000));
+      const texts = batch.map((n: any) => n.text.slice(0, 8000));
       const embeddings = await embedBatch(texts);
       for (let j = 0; j < batch.length; j++) {
         await updateNoteEmbedding(batch[j]!.id, embeddings[j]!);

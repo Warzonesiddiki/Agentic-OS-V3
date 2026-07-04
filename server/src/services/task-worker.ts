@@ -108,7 +108,7 @@ async function runMaintenance(actor: string): Promise<void> {
   const now = new Date();
 
   // 1. Reclaim stale tasks (M37b): tasks stuck in "running" for > staleTaskTimeoutMs
-  const { db } = await import("../db/client");
+  const { db } = await import("../db/client.js");
   const { agentTasks } = await import("../db/schema.js");
   const { and, eq, lt, sql } = await import("drizzle-orm");
 
@@ -381,7 +381,7 @@ async function handleCheckpoint(input: Record<string, unknown>, actor: string): 
 
 async function handleAmbientDistillation(input: Record<string, unknown>, actor: string): Promise<unknown> {
   const { distillTranscript } = await import("./llm.js");
-  const { db } = await import("../db/client");
+  const { db } = await import("../db/client.js");
   const { memories: memSchema } = await import("../db/schema.js");
   const { appendAudit } = await import("../lib/audit.js");
   const { randomUUID } = await import("node:crypto");

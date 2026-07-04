@@ -13,7 +13,7 @@
  * This permanently replaces expensive LLM reasoning with native code for
  * deterministic tasks, drastically reducing token spend and latency.
  */
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { trajectoryLogs, agentTasks, compiledScripts } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { eq, desc, and, gte } from "drizzle-orm";
@@ -78,8 +78,8 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
     if (tasks.length < COMPILATION_THRESHOLD) continue;
 
     // Extract input/output shapes from samples
-    const sampleInputs = tasks.slice(0, 10).map((t) => t.input);
-    const sampleOutputs = tasks.slice(0, 10).map((t) => t.output);
+    const sampleInputs = tasks.slice(0, 10).map((t: any) => t.input);
+    const sampleOutputs = tasks.slice(0, 10).map((t: any) => t.output);
 
     // Check if outputs are structurally similar (deterministic transformation)
     const inputShape = extractShape(sampleInputs[0]);
@@ -101,11 +101,11 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
       )
       .limit(tasks.length);
 
-    const totalTokens = tokenUsages.reduce((sum, t) => {
+    const totalTokens = tokenUsages.reduce((sum: number, t: any) => {
       const usage = t.tokenUsage as { total?: number } | null;
       return sum + (usage?.total ?? 0);
     }, 0);
-    const totalLatency = tokenUsages.reduce((sum, t) => sum + t.latencyMs, 0);
+    const totalLatency = tokenUsages.reduce((sum: number, t: any) => sum + t.latencyMs, 0);
 
     patterns.push({
       signature: createHash("sha256").update(normalizedLabel).digest("hex").slice(0, 16),
@@ -212,14 +212,14 @@ export function generateScript(pattern: DetectedPattern): GeneratedScript {
  */
 function compiledTask(input) {
   // Extract input fields
-  ${inputKeys.map((k) => `const ${k.replace(/[^a-zA-Z0-9_]/g, "_")} = input["${k}"];`).join("\n  ")}
+  ${inputKeys.map((k: any) => `const ${k.replace(/[^a-zA-Z0-9_]/g, "_")} = input["${k}"];`).join("\n  ")}
 
   // Deterministic transformation (extracted from pattern analysis)
   // NOTE: This is a structural mapping. If the task involves complex
   // reasoning that varies per input, this compiled function should be
   // deprecated and the LLM call restored.
   const output = {
-    ${outputKeys.map((k) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(",\n    ")}
+    ${outputKeys.map((k: any) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(",\n    ")}
   };
 
   return output;
@@ -257,11 +257,11 @@ function inferOutputExpression(
 
   // Check if the output values are constant across all samples
   const outputValues = pattern.sampleOutputs
-    .map((o) => (o as Record<string, unknown>)?.[outputKey])
-    .filter((v) => v !== undefined);
+    .map((o: any) => (o as Record<string, unknown>)?.[outputKey])
+    .filter((v: any) => v !== undefined);
 
   if (outputValues.length >= 2) {
-    const allSame = outputValues.every((v) => JSON.stringify(v) === JSON.stringify(outputValues[0]));
+    const allSame = outputValues.every((v: any) => JSON.stringify(v) === JSON.stringify(outputValues[0]));
     if (allSame) {
       return JSON.stringify(outputValues[0]);
     }

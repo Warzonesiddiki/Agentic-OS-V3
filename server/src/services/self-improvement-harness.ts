@@ -26,7 +26,7 @@
  *   - Harness NEVER reads raw content from `memories` — only metrics + counters.
  */
 import { randomUUID } from "node:crypto";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import {
   improvementProposals,
   metricSnapshots,
@@ -97,7 +97,7 @@ export async function collectRecentMetrics(metric: string, limit = 100): Promise
     orderBy: [desc(metricSnapshots.capturedAt)],
     limit,
   });
-  const values = rows.map((r) => ({
+  const values = rows.map((r: any) => ({
     value: r.value,
     capturedAt: r.capturedAt,
     tags: (r.tags ?? {}) as Record<string, unknown>,
@@ -107,7 +107,7 @@ export async function collectRecentMetrics(metric: string, limit = 100): Promise
 
 function summarize(metric: string, values: MetricWindow["values"]): MetricWindow {
   if (!values.length) return { metric, values, p50: 0, p95: 0, mean: 0, n: 0 };
-  const sorted = values.map((v) => v.value).sort((a, b) => a - b);
+  const sorted = values.map((v: any) => v.value).sort((a, b) => a - b);
   const p = (q: number) => {
     const idx = Math.min(sorted.length - 1, Math.floor(q * sorted.length));
     return sorted[idx]!;
@@ -294,7 +294,7 @@ export async function measureAndFinalize(id: string, graceWindowMs = 5 * 60_000)
   });
 
   const newP95 = recentRows.length
-    ? summarize(p.targetMetric, recentRows.map((r) => ({ value: r.value, capturedAt: r.capturedAt, tags: {} }))).p95
+    ? summarize(p.targetMetric, recentRows.map((r: any) => ({ value: r.value, capturedAt: r.capturedAt, tags: {} }))).p95
     : p.baselineValue;
 
   const measuredDelta = newP95 - p.baselineValue; // lower = better for latency

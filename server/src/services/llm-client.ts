@@ -1,4 +1,4 @@
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { trajectoryLogs } from "../db/client.js";
 import { callLLM, callLLMStructured } from "./llm.js";
 import { withCircuitBreaker, validateWithRetry } from "./operations-ext.js";

@@ -17,7 +17,7 @@
  *
  * Env: DATABASE_URL must point at a reachable Postgres.
  */
-import { db, closeDb } from "./db/client.ts";
+import { db, closeDb } from "./db/client.js";
 import { recall } from "./services/recall.js";
 import { createMemory, captureSession } from "./services.js";
 import { exportBrain, importBrain } from "./services/brain.js";

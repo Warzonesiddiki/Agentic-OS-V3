@@ -16,6 +16,7 @@
     "noImplicitOverride": true,
     "noFallthroughCasesInSwitch": true,
     "esModuleInterop": true,
+    "downlevelIteration": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
@@ -24,14 +25,10 @@
   },
   "include": [
     "src",
-    "tests",
-    "drizzle.config.ts"
+    "tests"
   ],
   "exclude": [
     "node_modules",
-    "dist",
-    "src/services/omniroute/**",
-    "src/services/omniroute.ts",
-    "src/services/unified-gateway/**"
+    "dist"
   ]
 }

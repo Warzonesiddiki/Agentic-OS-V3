@@ -10,7 +10,7 @@ import { sql, desc } from "drizzle-orm";
 import { createMemory, captureSession, recordFeedback, isKillSwitchOn } from "./services.js";
 import { recall } from "./services/recall.js";
 import { verifyAuditChain } from "./lib/audit.js";
-import { db } from "./db/client.ts";
+import { db } from "./db/client.js";
 import { memories, skills, tokenLedger, auditLog, notes } from "./db/client.js";
 import { dbReachable } from "./setup.js";
 import type { Scope } from "./lib/security.js";
@@ -116,7 +116,7 @@ export function createNexusMcpServer(actor: string, scopes: Scope[]): McpServer 
 
   server.resource("ambient", "nexus://brain/ambient", { description: "Compact top-importance memory context.", mimeType: "text/markdown" }, async () => {
     const top = await db.query.memories.findMany({ orderBy: desc(memories.importance), limit: 6 });
-    const lines = ["# NEXUS ambient context", ...top.map((m) => `- ${m.title}`)];
+    const lines = ["# NEXUS ambient context", ...top.map((m: any) => `- ${m.title}`)];
     const text = lines.join("\n");
     return { contents: [{ uri: "nexus://brain/ambient", mimeType: "text/markdown", text }] };
   });

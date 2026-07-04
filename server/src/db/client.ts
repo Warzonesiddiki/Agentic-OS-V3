@@ -23,13 +23,42 @@ const isSqlite = !(rawUrl.startsWith("postgres://") || rawUrl.startsWith("postgr
 let _sqlite: any = null;
 let _pgClient: any = null;
 
-/* eslint-disable @typescript-eslint/no-require-imports */
+// ── SQLite Write Mutex ──────────────────────────────────────
+// Serializes SQLite write operations to prevent transaction interleaving.
+// SQLite only supports one writer at a time; with an async callback in
+// withTransaction, the event loop could schedule a second BEGIN before
+// the first COMMIT, causing "cannot start a transaction within a transaction".
+const _writeQueue: Array<() => void> = [];
+let _writing = false;
+
+function acquireWriteLock(): Promise<void> {
+  return new Promise((resolve) => {
+    _writeQueue.push(resolve);
+    if (!_writing) drainWriteQueue();
+  });
+}
+
+function drainWriteQueue(): void {
+  if (_writeQueue.length === 0) {
+    _writing = false;
+    return;
+  }
+  _writing = true;
+  const next = _writeQueue.shift();
+  next!();
+}
+
+function releaseWriteLock(): void {
+  drainWriteQueue();
+}
 
 function createSqliteDb() {
   const Database = require("better-sqlite3");
   const conn = new Database("./agentic-os.db");
   conn.pragma("journal_mode = WAL");
   conn.pragma("foreign_keys = ON");
+  conn.pragma("busy_timeout = 5000");
+  conn.pragma("synchronous = NORMAL");
   _sqlite = conn;
 
   // Use require for drizzle-orm/better-sqlite3 — drizzle-orm v0.45 ships CJS
@@ -77,6 +106,38 @@ export function isPoolInitialized(): boolean {
 
 export { db };
 export { isSqlite };
+
+/**
+ * Cross-backend async transaction helper.
+ *
+ * PostgreSQL: uses `db.transaction()`, which natively accepts async callbacks.
+ * SQLite: uses a mutex to serialize write access + manual BEGIN/COMMIT/ROLLBACK.
+ *
+ * IMPORTANT: Do NOT perform network calls (LLM requests, embedding generation)
+ * inside the transaction callback — hold the mutex for the minimum time possible.
+ */
+export async function withTransaction<T>(
+  fn: (tx: any) => Promise<T>
+): Promise<T> {
+  if (isSqlite) {
+    await acquireWriteLock();
+    try {
+      _sqlite.exec("BEGIN");
+      try {
+        const result = await fn(db);
+        _sqlite.exec("COMMIT");
+        return result;
+      } catch (e) {
+        _sqlite.exec("ROLLBACK");
+        throw e;
+      }
+    } finally {
+      releaseWriteLock();
+    }
+  } else {
+    return await db.transaction(fn);
+  }
+}
 
 /* ── Re-export the correct schema tables for the active backend ── */
 export const {

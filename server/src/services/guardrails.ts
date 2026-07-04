@@ -1,5 +1,5 @@
 /**
- * guardrails.ts — Input, output, and tool guardrails with content filtering.
+ * guardrails.ts — Input, output tool guardrails with content filtering.
  *
  * Provides:
  *   - Input guardrails  (block bad input before agent processing)
@@ -633,10 +633,10 @@ function _trackResult(guardrailName: string, passed: boolean): void {
 export function getGuardrailReport(): GuardrailReport {
   let totalChecks = 0;
   let totalViolations = 0;
-  let blocked = 0;
-  let warned = 0;
-  let modified = 0;
-  let loggedOnly = 0;
+  const blocked = 0;
+  const warned = 0;
+  const modified = 0;
+  const loggedOnly = 0;
   const byGuardrail: Record<string, { checked: number; violations: number }> = {};
 
   for (const [name, stats] of reportStats) {

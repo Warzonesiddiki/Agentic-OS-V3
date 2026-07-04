@@ -33,10 +33,10 @@
  *   - `src/lib/os/kernel.ts`    → doGraphRecall, compactContext
  */
 import { createHash, verify, randomUUID } from "node:crypto";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { federatedMemoryProofs } from "../db/client.js";
 import { memories, skills, notes } from "../db/client.js";
-import { desc, eq, and, sql, isNotNull, inArray } from "drizzle-orm";
+import { desc, eq, and, sql, isNotNull } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
 import { embedQuery, embeddingsAvailable } from "./embeddings.js";
@@ -263,7 +263,7 @@ export async function listRecentProofs(opts?: { materialized?: boolean; topic?: 
     limit: opts?.limit ?? 50,
   });
   if (opts?.topic) {
-    return rows.filter((r) => (r.topicTags ?? []).includes(opts.topic!));
+    return rows.filter((r: any) => (r.topicTags ?? []).includes(opts.topic!));
   }
   return rows;
 }
@@ -592,11 +592,11 @@ export class FederatedRecall {
 
     let page = all;
     if (query.options?.cursor !== undefined) {
-      const cursorIdx = all.findIndex((i) => i.score < query.options!.cursor!);
+      const cursorIdx = all.findIndex((i: any) => i.score < query.options!.cursor!);
       page = cursorIdx >= 0 ? all.slice(cursorIdx) : [];
     }
     if (query.options?.minScore !== undefined) {
-      page = page.filter((i) => i.score >= query.options!.minScore!);
+      page = page.filter((i: any) => i.score >= query.options!.minScore!);
     }
     const { packed, tokensUsed, truncated } = packByBudget(page, budget);
 
@@ -781,9 +781,9 @@ export class FederatedRecall {
         ]);
 
         const allSem = [
-          ...semMemResult.map((r) => ({ id: r.id, distance: r.distance })),
-          ...semSkillResult.map((r) => ({ id: r.id, distance: r.distance })),
-          ...semNoteResult.map((r) => ({ id: r.id, distance: r.distance })),
+          ...semMemResult.map((r: any) => ({ id: r.id, distance: r.distance })),
+          ...semSkillResult.map((r: any) => ({ id: r.id, distance: r.distance })),
+          ...semNoteResult.map((r: any) => ({ id: r.id, distance: r.distance })),
         ].sort((a, b) => a.distance - b.distance);
 
         allSem.forEach((r, i) => {
@@ -796,9 +796,9 @@ export class FederatedRecall {
     }
 
     const bm25Candidates = new Set<string>([
-      ...bm25Mem.map((s) => s.id),
-      ...bm25Skill.map((s) => s.id),
-      ...bm25Note.map((s) => s.id),
+      ...bm25Mem.map((s: any) => s.id),
+      ...bm25Skill.map((s: any) => s.id),
+      ...bm25Note.map((s: any) => s.id),
     ]);
 
     const allCandidates = new Set([...bm25Candidates, ...semanticCandidates]);
@@ -825,9 +825,9 @@ export class FederatedRecall {
       rrfScores.set(id, { score: normalizedRrf, matchedBy });
     }
 
-    const memMap = new Map(allMemories.map((m: MemRow) => [m.id, m]));
-    const skillMap = new Map(allSkills.map((s: SkillRow) => [s.id, s]));
-    const noteMap = new Map(allNotes.map((n: NoteRow) => [n.id, n]));
+    const memMap = new Map<string, MemRow>(allMemories.map((m: MemRow) => [m.id, m]));
+        const skillMap = new Map<string, SkillRow>(allSkills.map((s: SkillRow) => [s.id, s]));
+        const noteMap = new Map<string, NoteRow>(allNotes.map((n: NoteRow) => [n.id, n]));
 
     const items: RecallItem[] = [];
     for (const [id, { score: rrf, matchedBy }] of rrfScores) {
@@ -878,20 +878,20 @@ export class FederatedRecall {
     });
 
     if (filters?.topicTags?.length) {
-      fedRows = fedRows.filter((r) =>
-        filters.topicTags!.some((t) => (r.topicTags ?? []).includes(t)),
+      fedRows = fedRows.filter((r: any) =>
+        filters.topicTags!.some((t: any) => (r.topicTags ?? []).includes(t)),
       );
     }
     if (filters?.since) {
-      fedRows = fedRows.filter((r) => r.receivedAt >= filters.since!);
+      fedRows = fedRows.filter((r: any) => r.receivedAt >= filters.since!);
     }
     if (filters?.until) {
-      fedRows = fedRows.filter((r) => r.receivedAt <= filters.until!);
+      fedRows = fedRows.filter((r: any) => r.receivedAt <= filters.until!);
     }
 
     if (!fedRows.length) return [];
 
-    const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => t.length > 1);
+    const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t: any) => t.length > 1);
     const queryEmbedding = useSemantic ? await embedQuery(query) : null;
 
     const items: RecallItem[] = [];
@@ -1030,8 +1030,8 @@ export function composeAgentState(
   query: string,
   budget: number,
 ): { items: RecallItem[]; expanded: string[]; tokens: number } {
-  const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t) => t.length > 1);
-  const scored = cards.map((c) => {
+  const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter((t: any) => t.length > 1);
+  const scored = cards.map((c: any) => {
     const text = `${c.title} ${c.summary} ${c.body}`.toLowerCase();
     let bm25 = 0;
     for (const t of queryTerms) {
@@ -1047,7 +1047,7 @@ export function composeAgentState(
     };
   });
 
-  const sorted = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
+  const sorted = scored.filter((s: any) => s.score > 0).sort((a, b) => b.score - a.score);
   const expanded: string[] = [];
   let tokens = 0;
   const items: RecallItem[] = [];

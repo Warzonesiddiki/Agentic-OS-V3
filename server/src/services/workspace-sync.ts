@@ -5,7 +5,7 @@
  * into local IDE configuration files (.cursorrules, CLAUDE.md, etc.)
  * so agents always have up-to-date project context.
  */
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { memories } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { writeFileSync, readFileSync, mkdirSync } from "node:fs";
@@ -43,7 +43,7 @@ async function extractConventions(): Promise<string> {
   for (const m of top) {
     lines.push(`## ${m.title}`);
     lines.push(m.content);
-    if (m.tags.length) lines.push(`\n*Tags: ${m.tags.map((t) => `#${t}`).join(" ")}*`);
+    if (m.tags.length) lines.push(`\n*Tags: ${m.tags.map((t: any) => `#${t}`).join(" ")}*`);
     lines.push("");
   }
 

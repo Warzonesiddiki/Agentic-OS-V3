@@ -1,7 +1,0 @@
-crates found at byte 15507
-�── crates/                        # Rust crates (Cargo workspace)
-│   ├── core/                      # Agentic OS core types & traits
-│   ├── config/                    # Configuration parser
-│   ├── acp/                       # ACP server implementation
-│   ├── gateway/                   # Gateway core
-│   ├── orchestrator/              # Agent orchestration

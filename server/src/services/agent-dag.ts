@@ -15,7 +15,7 @@
 import { randomUUID } from "node:crypto";
 import { log } from "../lib/logging.js";
 import { appendAudit } from "../lib/audit.js";
-import { runAgent, type AgentConfig, type AgentResult } from "./agent-runtime.js";
+import { runAgent, type AgentConfig } from "./agent-runtime.js";
 
 /* ─── Core Types ─────────────────────────────────────────────────────────── */
 

@@ -11,6 +11,8 @@ coverage/
 server/dist/
 
 # Rust build artifacts
+target/
+**/target/
 nexus-tauri/src-tauri/target/
 
 # env / secrets — NEVER commit
@@ -19,10 +21,11 @@ nexus-tauri/src-tauri/target/
 !.env.example
 !server/.env.example
 
-# editor / OS
+# editor / OS / AI scratch
 .DS_Store
 .vscode/
 .idea/
+.claude/
 *.log
 *.swp
 *.swo
@@ -33,5 +36,55 @@ Thumbs.db
 # Tauri resources (generated at build time)
 nexus-tauri/src-tauri/resources/backend/
 
-# OS temp files
+# OS temp files & scratch
 nexus-port*.txt
+tsc_errors.txt
+
+# Databases
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+
+# Executables
+*.exe
+
+# Python Cache
+*.pyc
+__pycache__/
+
+# Foreign AI assistant config — not part of the project
+.aionr/
+.aionrs/
+.zai/
+.agentic-os-rules.md
+
+# Debug / temp scripts from clean-up
+_fix_*.py
+fix_*.py
+*_raw.txt
+compile_*.ps1
+errors.txt
+out.txt
+test.txt
+_compile_parts.ps1
+all_backtick_names.txt
+analyze_crates.py
+bootstrap-monorepo.sh
+crates_raw.txt
+crates_section_debug.txt
+crates_section_exact.txt
+debug_hex.py
+debug_output.txt
+HANDOVER.md
+brutal_project_audit.md
+faked_features_report.md
+ARCHITECTURE_ANALYSIS.md
+Dockerfile.backend
+Dockerfile.frontend
+
+# Redemption plan moved to docs/
+/reports/
+
+# Vendored third-party source — will be extracted in Phase 13 then removed
+/gemini-cli/

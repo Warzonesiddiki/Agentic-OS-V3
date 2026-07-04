@@ -18,10 +18,10 @@
  * Budget model: per-session token budget with hard kill switch. If
  * `used >= budget`, requests are denied. Budgets auto-expire.
  */
-import { randomUUID } from "node:crypto";
-import { db } from "../db/client";
+
+import { db } from "../db/client.js";
 import { llmProviderHealth, llmTokenBudgets } from "../db/client.js";
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
 import { env } from "../lib/env.js";
@@ -303,7 +303,7 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
     throw new Error(`budget_denied:${charge.reason}`);
   }
 
-  const start = Date.now();
+  const _start = Date.now();
   try {
     const resp = await picked.adapter.invoke(call.request, {
       apiKey: picked.apiKey,

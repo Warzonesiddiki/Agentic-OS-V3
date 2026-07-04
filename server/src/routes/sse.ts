@@ -20,7 +20,7 @@ sse.post("/api/v1/events/token", async (c) => {
   const bearerKey = c.req.header("authorization")?.replace(/^Bearer\s+/i, "").trim();
   if (!bearerKey) return c.json(err("UNAUTHORIZED", "Authorization header required.", c.get("requestId") ?? ""), 401);
   const { authenticate: auth } = await import("../lib/security.js");
-  const { db } = await import("../db/client");
+  const { db } = await import("../db/client.js");
   const principal = await auth(db, bearerKey);
   if (!principal) return c.json(err("UNAUTHORIZED", "Invalid API key.", c.get("requestId") ?? ""), 401);
   const { randomBytes } = await import("node:crypto");
@@ -41,7 +41,7 @@ sse.get("/api/v1/events", async (c) => {
     const bearerKey = c.req.header("authorization")?.replace(/^Bearer\s+/i, "").trim();
     if (bearerKey) {
       const { authenticate: auth } = await import("../lib/security.js");
-      const { db } = await import("../db/client");
+      const { db } = await import("../db/client.js");
       const principal = await auth(db, bearerKey);
       if (!principal) return c.json(err("UNAUTHORIZED", "Invalid API key.", c.get("requestId") ?? ""), 401);
     }

@@ -4,7 +4,7 @@
  * Contains: Cron daemon management, ambient voice ingestion,
  * HITL approval gates, Zod auto-correction loop, circuit breaker.
  */
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { cronJobs, agentTasks, stateSnapshots } from "../db/client.js";
 import { appendAudit } from "../lib/audit.js";
 import { enqueueTask, spawnAgent } from "./kernel.js";

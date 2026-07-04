@@ -17,7 +17,7 @@
  * Cycles are rejected at save time (we validate acyclic on insert).
  */
 import { randomUUID } from "node:crypto";
-import { db } from "../db/client";
+import { db } from "../db/client.js";
 import { pipelines, pipelineRuns } from "../db/client.js";
 import { eq } from "drizzle-orm";
 import { appendAudit } from "../lib/audit.js";

@@ -25,8 +25,8 @@
  * Default-deny: a plugin without a matching capability entry cannot invoke
  * that capability. Period.
  */
-import { createHash, createHmac, randomUUID, timingSafeEqual, verify } from "node:crypto";
-import { db } from "../db/client";
+import { createHash, randomUUID, verify } from "node:crypto";
+import { db } from "../db/client.js";
 import {
   plugins,
   pluginInstallations,
@@ -83,13 +83,13 @@ export interface PluginReceipt {
 /* ─── In-memory cache of loaded plugins ──────────────────────────────────── */
 
 const loaded = new Map<string, LoadedPlugin>();
-let manifestCacheStamp = 0;
+let _manifestCacheStamp = 0;
 
 /* ─── Publisher trust store ──────────────────────────────────────────────── */
 
 const TRUSTED_PUBLISHERS = new Set<string>([
   // populated from env: NEXUS_PLUGIN_PUBLISHER_PUBKEYS=pk1,pk2,pk3
-  ...(process.env.NEXUS_PLUGIN_PUBLISHER_PUBKEYS?.split(",").map((s) => s.trim()).filter(Boolean) ?? []),
+  ...(process.env.NEXUS_PLUGIN_PUBLISHER_PUBKEYS?.split(",").map((s: any) => s.trim()).filter(Boolean) ?? []),
 ]);
 
 /* ─── Manifest verification ─────────────────────────────────────────────── */
@@ -253,7 +253,7 @@ export async function listInstalledPlugins(): Promise<LoadedPlugin[]> {
 /* ─── Capability check (default-deny) ────────────────────────────────────── */
 
 export function checkCapability(plugin: LoadedPlugin, capability: string): CapabilitySpec | null {
-  return plugin.manifest.capabilities.find((c) => matchesCapability(c, capability)) ?? null;
+  return plugin.manifest.capabilities.find((c: any) => matchesCapability(c, capability)) ?? null;
 }
 
 function matchesCapability(spec: CapabilitySpec, requested: string): boolean {
@@ -355,7 +355,7 @@ export async function listReceipts(opts?: { pluginId?: string; limit?: number })
     orderBy: [desc(pluginReceipts.createdAt)],
     limit: opts?.limit ?? 100,
   });
-  return rows.map((r) => ({
+  return rows.map((r: any) => ({
     id: r.id,
     pluginId: r.pluginId,
     installId: r.installId,
@@ -383,5 +383,5 @@ export async function revokePlugin(pluginId: string, reason: string): Promise<vo
 
 export function invalidatePluginCache(): void {
   loaded.clear();
-  manifestCacheStamp = Date.now();
+  _manifestCacheStamp = Date.now();
 }

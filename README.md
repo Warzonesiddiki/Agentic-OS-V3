@@ -671,20 +671,29 @@ Emergency mutation blocker:
 
 ## Roadmap
 
-- [x] Core memory + recall (BM25 + pgvector RRF)
-- [x] Agentic OS kernel (syscalls, scheduler, IPC)
-- [x] Skill compiler (auto-detect patterns → compile)
-- [x] Hash-chained audit ledger
-- [x] MCP server (tools, resources, prompts)
-- [x] Obsidian vault sync
-- [x] Docker sandboxed execution
-- [x] Browser automation (Playwright)
-- [x] VLM-driven desktop actuation
-- [x] P2P swarm (libp2p)
-- [ ] IBC cross-chain protocol
-- [ ] WebAssembly plugin runtime
-- [ ] Federated learning across instances
-- [ ] Real-time multi-agent collaboration
+For the detailed 20-Phase / 400-Subphase Zero-Compromise Engineering Master Plan, see [docs/REDEMPTION_PLAN.md](docs/REDEMPTION_PLAN.md).
+
+- [x] Phase 1: Repository Hygiene, Mono-Repo Workspace & Governance
+- [ ] Phase 2: Strict TypeScript ESM Compilation & Zero-Warning Type Safety
+- [ ] Phase 3: Zero-Trust Isolation Sandbox (Worker Thread Pool & Hardened VM)
+- [ ] Phase 4: Database Mutex Serialization, WAL Concurrency & Migration Integrity
+- [ ] Phase 5: Automated Testing, CI/CD Pipeline & Coverage Enforcement
+- [ ] Phase 6: Native SQLite FTS5 & pgvector High-Performance Hybrid Search Engine
+- [ ] Phase 7: Full Portkey Multi-Provider Gateway & Unified LLM Bridge
+- [ ] Phase 8: OmniRoute Intelligent Fallback & Dynamic Routing Engine
+- [ ] Phase 9: Production Rust Workspace Hardening (Safety, Tools, Observability)
+- [ ] Phase 10: Native Goose Provider Framework Port & Token Streaming
+- [ ] Phase 11: Agent Runtime Execution Engine & Kernel Syscall System
+- [ ] Phase 12: MCP (Model Context Protocol) Registry, OAuth & Subprocess Transport
+- [ ] Phase 13: Google Gemini A2A (Agent-to-Agent) Inter-Agent Protocol Server
+- [ ] Phase 14: On-Chain Audit Logging & Cryptographic Merkle Root Verification
+- [ ] Phase 15: Cross-Platform Native GUI Desktop Actuator (Windows/Mac/Linux/Docker)
+- [ ] Phase 16: Multi-Stage Docker Containerization, Orchestration & Hardening
+- [ ] Phase 17: Observability, OpenTelemetry Tracing & Prometheus Metrics Dashboard
+- [ ] Phase 18: Frontend React Control Plane, Visual Pipeline Builder & Terminal
+- [ ] Phase 19: Full End-to-End System Integration & Real-World Validation Suite
+- [ ] Phase 20: Open-Source Release Readiness, Verification & GitHub Publishing
+
 
 ---
 

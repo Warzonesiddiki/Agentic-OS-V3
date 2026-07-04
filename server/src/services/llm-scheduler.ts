@@ -16,16 +16,12 @@
  * agent orchestration system.
  */
 import { randomUUID } from "node:crypto";
-import { db } from "../db/client";
+
 import { appendAudit } from "../lib/audit.js";
 import { log } from "../lib/logging.js";
 import { getEnv } from "../lib/env.js";
 import { estimateTokens } from "../lib/tokens.js";
 // import { eq, sql, and, lt, gte } from "drizzle-orm";  // removed unused
-import {
-  agents,
-  agentTasks,
-} from "../db/client.js";
 
 // ── Priority Levels ──────────────────────────────────────────────
 
@@ -355,7 +351,7 @@ function drainTimedOut(): number {
   return timedOut.length;
 }
 
-function adoptTimedOutForUser(userId: string): number {
+function _adoptTimedOutForUser(userId: string): number {
   const cutoff = now();
   let count = 0;
   state.queue = state.queue.filter((req) => {

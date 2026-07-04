@@ -25,8 +25,8 @@ describe("env validation", () => {
     vi.doMock("dotenv", () => ({ config: vi.fn() }));
     delete process.env.DATABASE_URL;
     process.env.NODE_ENV = "development";
-    const env = await import("../src/lib/env.js");
-    expect(() => env.getEnv()).toThrow(/DATABASE_URL/);
+    const envModule = await import("../src/lib/env.js");
+    expect(() => envModule.getEnv()).toThrow(/DATABASE_URL/);
   });
 
   it("parses NEXUS_OTEL_ENDPOINT when set", async () => {
