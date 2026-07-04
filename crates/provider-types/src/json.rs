@@ -53,11 +53,10 @@ fn repair_truncated_json(s: &str) -> String {
             '"' => in_string = true,
             '{' => closers.push('}'),
             '[' => closers.push(']'),
-            '}' | ']' => {
-                if closers.last() == Some(&c) {
-                    closers.pop();
-                }
+            '}' | ']' if closers.last() == Some(&c) => {
+                closers.pop();
             }
+            '}' | ']' => {}
             _ => {}
         }
     }

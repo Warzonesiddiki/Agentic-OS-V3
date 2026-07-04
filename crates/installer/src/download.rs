@@ -13,6 +13,7 @@ pub struct DownloadConfig {
     pub output_path: PathBuf,
 }
 
+#[allow(dead_code)]
 pub struct Downloader {
     client: Client,
     config: DownloadConfig,

@@ -24,7 +24,7 @@ import { mcpRegistry } from '../../src/services/mcp-registry.js';
 import { getMessageBus } from '../../src/services/message-bus.js';
 import { resetDesktopActuator, getDesktopActuator } from '../../src/services/desktop-actuator.js';
 import { computeMerkleRoot } from '../../src/services/blockchain.js';
-import { executePipeline } from '../../src/services/pipeline-executor.js';
+import { runPipeline } from '../../src/services/pipeline-executor.js';
 
 // Setup Mock LLM responses to simulate LLM Gateways and OmniRoute
 vi.mock('../../src/services/llm.js', () => ({
@@ -135,7 +135,7 @@ describe('NEXUS 2.0 — End-to-End System Integration & Validation Suite', () =>
   it('E2E Scenario 5: Google A2A delegation & SSE progress logging', async () => {
     const res = await app.request('/.well-known/agent.json');
     expect(res.status).toBe(200);
-    const body = await res.json();
+    const body = (await res.json()) as any;
     expect(body.protocolVersion).toBe('0.3.0');
   });
 
