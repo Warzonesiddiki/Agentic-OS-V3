@@ -70,6 +70,24 @@ function createSandboxWorker(): Worker {
     // Do not inherit process.env or any stdio
     env: {},
   });
+
+  // ── Handle Worker Exit ──────────────────────────────────
+  // Workers self-terminate after each execution (see bootstrap finally block).
+  // Detect exit and replace with a fresh worker in the pool, but only if
+  // the pool entry hasn't already been replaced (e.g. by a concurrent timeout).
+  worker.on('exit', (_exitCode) => {
+    const pool = getPool();
+    for (const entry of pool) {
+      if (entry.worker === worker) {
+        // This worker is still the current one — replace it
+        entry.worker = createSandboxWorker();
+        entry.busy = false;
+        break;
+      }
+    }
+    // If worker wasn't found in pool, it was already replaced — nothing to do
+  });
+
   return worker;
 }
 
