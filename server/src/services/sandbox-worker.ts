@@ -155,13 +155,7 @@ function acquireWorker(): PoolEntry | null {
 }
 
 function releaseWorker(id: string): void {
-  const entries = getPool();
-  for (const entry of entries) {
-    if (entry.id === id) {
-      entry.busy = false;
-      return;
-    }
-  }
+  // no-op: worker self-terminates after execution. 'exit' handler resets busy state on replacement.
 }
 
 // ── Execution ─────────────────────────────────────────────────
