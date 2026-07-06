@@ -38,39 +38,28 @@ Object.freeze(Function.prototype);
 
 function deleteDangerousGlobals() {
   const dangerous = [
-    // Process — full access to env, exit, cwd, signals, IPC
     "process",
-    // Buffer — raw memory read/write, arbitrary size allocation
     "Buffer",
-    // Network exfiltration
     "fetch",
     "WebSocket",
     "EventSource",
     "XMLHttpRequest",
-    // Timers — indefinite execution vectors that bypass wall-clock timeout
     "setTimeout",
     "clearTimeout",
     "setInterval",
     "clearInterval",
     "setImmediate",
     "clearImmediate",
-    // Microtask — can extend execution beyond timeout
     "queueMicrotask",
-    // Timing side-channels
     "performance",
-    // Info disclosure
     "console",
-    // Web APIs (available in Node 18+)
     "Response",
     "Request",
     "Headers",
-    // Crypto — could be used for data exfiltration encoding, hash brute-force
     "crypto",
     "Crypto",
     "SubtleCrypto",
-    // Structured cloning — potential shared-memory attacks
     "structuredClone",
-    // Compression — CPU exhaustion vector
     "CompressionStream",
     "DecompressionStream",
   ];
@@ -80,24 +69,8 @@ function deleteDangerousGlobals() {
     if (t && typeof t === "object") {
       for (const name of dangerous) {
         try {
-          try {
-            delete t[name];
-          } catch {}
-          Object.defineProperty(t, name, {
-            configurable: false,
-            enumerable: false,
-            get() {
-              return undefined;
-            },
-            set() {
-              throw new Error("Access denied: " + name + " is blocked in sandbox");
-            }
-          });
-        } catch {
-          try {
-            t[name] = undefined;
-          } catch {}
-        }
+          delete t[name];
+        } catch {}
       }
     }
   }
@@ -218,28 +191,30 @@ if (parentPort) {
       try {
         parsed = JSON.parse(fnBody);
       } catch (_) {
-        // Execute as function body inside new Function.
-        // new Function creates a function in the global scope,
-        // but we're already inside a Worker with no access to
-        // require, process, or any I/O.
-        //
-        // Two code shapes are supported:
-        //   1. Function expression: "(function(input) { return ... })"
-        //      → invoked with (input) at the end
-        //   2. Raw function body: "return input.a + input.b;"
-        //      → used directly as the function body
+        // Execute as function body inside new Function with shadowed globals.
         var code;
         var trimmed = fnBody.trim();
-        // Detect function expressions: starts with "function" or "(function"
         if (/^\s*\(?\s*function\s*\(/.test(trimmed)) {
-          // Function expression pattern — invoke it with input
           code = '"use strict";\nreturn (' + fnBody + ')(input);';
         } else {
-          // Raw function body — use directly
           code = '"use strict";\n' + fnBody;
         }
-        var fn = new Function("input", code);
-        parsed = fn(input);
+
+        var shadowKeys = [
+          "process", "Buffer", "globalThis", "global", "require", "console",
+          "WebAssembly", "Reflect", "Proxy", "Symbol", "fetch",
+          "setTimeout", "setInterval", "clearTimeout", "clearInterval",
+          "setImmediate", "clearImmediate", "queueMicrotask"
+        ];
+
+        var args = ["input"].concat(shadowKeys).concat(code);
+        var fn = Function.prototype.constructor.apply(null, args);
+
+        var invokeArgs = [input];
+        for (var idx = 0; idx < shadowKeys.length; idx++) {
+          invokeArgs.push(undefined);
+        }
+        parsed = fn.apply(null, invokeArgs);
       }
 
       parentPort.postMessage({ id: id, result: parsed, error: null });
