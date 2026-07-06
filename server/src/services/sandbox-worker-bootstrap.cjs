@@ -82,7 +82,7 @@ function deleteDangerousGlobals() {
             configurable: false,
             enumerable: false,
             get() {
-              throw new Error("Access denied: " + name + " is blocked in sandbox");
+              return undefined;
             },
             set() {
               throw new Error("Access denied: " + name + " is blocked in sandbox");
@@ -104,6 +104,7 @@ deleteDangerousGlobals();
 // Replace require with a throwing stub. Keep a reference for bootstrap
 // internal use only (parentPort) — user code MUST NOT get it.
 const _origRequire = require;
+const _process = typeof process !== "undefined" ? process : null;
 require = function (id) {
   throw new Error(
     "Access denied: require() blocked in sandbox for: " + id
@@ -255,8 +256,8 @@ if (parentPort) {
       //
       // The pool in sandbox-worker.ts detects exit and replaces the
       // worker with a fresh one.
-      if (typeof process !== "undefined" && typeof process.exit === "function") {
-        process.exit(0);
+      if (_process && typeof _process.exit === "function") {
+        _process.exit(0);
       } else {
         // Fallback: if process was deleted, throw to force terminate
         throw new Error("SANDBOX_COMPLETE_SELF_TERMINATE");
