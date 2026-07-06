@@ -22,6 +22,9 @@
 const { parentPort } = require("worker_threads");
 const _process = typeof process !== "undefined" ? process : null;
 
+// ── Save references to originals before overriding ────────────
+const _origProcess = typeof process !== "undefined" ? process : null;
+
 // ── Prototype Hardening ───────────────────────────────────────
 Object.freeze(Object.prototype);
 Object.freeze(Array.prototype);
@@ -256,11 +259,8 @@ if (parentPort) {
       //
       // The pool in sandbox-worker.ts detects exit and replaces the
       // worker with a fresh one.
-      if (_process && typeof _process.exit === "function") {
-        _process.exit(0);
-      } else {
-        // Fallback: if process was deleted, throw to force terminate
-        throw new Error("SANDBOX_COMPLETE_SELF_TERMINATE");
+      if (_origProcess && typeof _origProcess.exit === "function") {
+        _origProcess.exit(0);
       }
     }
   });
