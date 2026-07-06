@@ -24,6 +24,7 @@ const _process = typeof process !== "undefined" ? process : null;
 
 // ── Save references to originals before overriding ────────────
 const _origProcess = typeof process !== "undefined" ? process : null;
+const _origSetImmediate = typeof setImmediate !== "undefined" ? setImmediate : null;
 
 // ── Prototype Hardening ───────────────────────────────────────
 Object.freeze(Object.prototype);
@@ -260,7 +261,13 @@ if (parentPort) {
       // The pool in sandbox-worker.ts detects exit and replaces the
       // worker with a fresh one.
       if (_origProcess && typeof _origProcess.exit === "function") {
-        _origProcess.exit(0);
+        if (typeof _origSetImmediate === "function") {
+          _origSetImmediate(function () {
+            _origProcess.exit(0);
+          });
+        } else {
+          _origProcess.exit(0);
+        }
       }
     }
   });
