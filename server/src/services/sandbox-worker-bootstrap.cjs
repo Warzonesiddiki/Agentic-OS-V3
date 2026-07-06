@@ -75,9 +75,23 @@ function deleteDangerousGlobals() {
     if (t && typeof t === "object") {
       for (const name of dangerous) {
         try {
-          delete t[name];
+          try {
+            delete t[name];
+          } catch {}
+          Object.defineProperty(t, name, {
+            configurable: false,
+            enumerable: false,
+            get() {
+              throw new Error("Access denied: " + name + " is blocked in sandbox");
+            },
+            set() {
+              throw new Error("Access denied: " + name + " is blocked in sandbox");
+            }
+          });
         } catch {
-          // Some globals may be non-configurable — best effort
+          try {
+            t[name] = undefined;
+          } catch {}
         }
       }
     }

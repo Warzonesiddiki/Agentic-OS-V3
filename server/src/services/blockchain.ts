@@ -437,6 +437,10 @@ export async function anchorAuditLogsBatch(force = false): Promise<AnchorResult 
     .where(gt(auditLog.sequence, lastSeq))
     .orderBy(asc(auditLog.sequence));
 
+  if (pendingEntries.length === 0) {
+    return null;
+  }
+
   const interval = env.NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL ?? 10;
   const maxAgeSec = Number(env.NEXUS_BLOCKCHAIN_ANCHOR_MAX_AGE ?? 3600);
 

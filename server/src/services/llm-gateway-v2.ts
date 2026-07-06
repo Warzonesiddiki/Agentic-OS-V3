@@ -469,85 +469,95 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
     if (!adapter) continue;
 
     const breakerAllowed = await canCallProvider(candidate.provider);
-    const healthAllowed = isProviderHealthy(candidate.provider);
-
-    if (!breakerAllowed || !healthAllowed) {
-      await appendAudit('llm.circuit_open', { provider: candidate.provider }, 'llm-gateway');
-      log.warn('omniroute.provider_bypassed', {
-        provider: candidate.provider,
-        breakerAllowed,
-        healthAllowed,
-      });
-      continue;
-    }
-
-    const apiKey = apiKeyFor(candidate.provider);
-    const candidateReq: ProviderRequest = {
-      ...call.request,
-      model: candidate.model,
-    };
+    let shouldCleanupProbe = breakerAllowed;
 
     try {
-      const resp = await adapter.invoke(candidateReq, {
-        apiKey,
-        baseUrl:
-          String(
-            (env as Record<string, unknown>)[`${candidate.provider.toUpperCase()}_BASE_URL`] ?? ''
-          ) || void 0,
-      });
+      const healthAllowed = isProviderHealthy(candidate.provider);
 
-      // Record success in circuit breaker & OmniRoute health registry
-      await recordSuccess(candidate.provider, resp.durationMs);
-      recordProviderSuccess(candidate.provider, resp.durationMs);
-
-      // Charge only the actual tokens used (no pre-charge was made — avoids double-billing).
-      await chargeBudget(call.sessionId, resp.totalTokens);
-      await appendAudit(
-        'llm.call',
-        {
+      if (!breakerAllowed || !healthAllowed) {
+        await appendAudit('llm.circuit_open', { provider: candidate.provider }, 'llm-gateway');
+        log.warn('omniroute.provider_bypassed', {
           provider: candidate.provider,
-          model: resp.model,
-          sessionId: call.sessionId,
-          complexity: decision.complexity,
-          evaluationTimeMs: decision.evaluationTimeMs,
-          promptTokens: resp.promptTokens,
-          completionTokens: resp.completionTokens,
-          durationMs: resp.durationMs,
-        },
-        'llm-gateway'
-      );
-
-      return resp;
-    } catch (err) {
-      lastError = err;
-      await recordFailure(candidate.provider);
-
-      const { is5xx, status, reason } = is5xxOrTransientError(err);
-      recordProviderFailure(candidate.provider, status, reason);
-
-      await appendAudit(
-        'llm.call_failed',
-        {
-          provider: candidate.provider,
-          model: candidate.model,
-          sessionId: call.sessionId,
-          is5xx,
-          error: err instanceof Error ? err.message : String(err),
-        },
-        'llm-gateway'
-      );
-
-      log.warn('omniroute.failover_attempt', {
-        failedProvider: candidate.provider,
-        failedModel: candidate.model,
-        attemptIndex: i,
-        hasNext: i + 1 < candidates.length,
-        error: err instanceof Error ? err.message : String(err),
-      });
-
-      // If HTTP 5xx or transient failure and another candidate is available, failover dynamically
-      if (i + 1 < candidates.length) {
+          breakerAllowed,
+          healthAllowed,
+        });
         continue;
+      }
+
+      const apiKey = apiKeyFor(candidate.provider);
+      const candidateReq: ProviderRequest = {
+        ...call.request,
+        model: candidate.model,
+      };
+
+      try {
+        const resp = await adapter.invoke(candidateReq, {
+          apiKey,
+          baseUrl:
+            String(
+              (env as Record<string, unknown>)[`${candidate.provider.toUpperCase()}_BASE_URL`] ?? ''
+            ) || void 0,
+        });
+
+        shouldCleanupProbe = false; // Handled by recordSuccess
+        // Record success in circuit breaker & OmniRoute health registry
+        await recordSuccess(candidate.provider, resp.durationMs);
+        recordProviderSuccess(candidate.provider, resp.durationMs);
+
+        // Charge only the actual tokens used (no pre-charge was made — avoids double-billing).
+        await chargeBudget(call.sessionId, resp.totalTokens);
+        await appendAudit(
+          'llm.call',
+          {
+            provider: candidate.provider,
+            model: resp.model,
+            sessionId: call.sessionId,
+            complexity: decision.complexity,
+            evaluationTimeMs: decision.evaluationTimeMs,
+            promptTokens: resp.promptTokens,
+            completionTokens: resp.completionTokens,
+            durationMs: resp.durationMs,
+          },
+          'llm-gateway'
+        );
+
+        return resp;
+      } catch (err) {
+        shouldCleanupProbe = false; // Handled by recordFailure
+        lastError = err;
+        await recordFailure(candidate.provider);
+
+        const { is5xx, status, reason } = is5xxOrTransientError(err);
+        recordProviderFailure(candidate.provider, status, reason);
+
+        await appendAudit(
+          'llm.call_failed',
+          {
+            provider: candidate.provider,
+            model: candidate.model,
+            sessionId: call.sessionId,
+            is5xx,
+            error: err instanceof Error ? err.message : String(err),
+          },
+          'llm-gateway'
+        );
+
+        log.warn('omniroute.failover_attempt', {
+          failedProvider: candidate.provider,
+          failedModel: candidate.model,
+          attemptIndex: i,
+          hasNext: i + 1 < candidates.length,
+          error: err instanceof Error ? err.message : String(err),
+        });
+
+        // If HTTP 5xx or transient failure and another candidate is available, failover dynamically
+        if (i + 1 < candidates.length) {
+          continue;
+        }
+      }
+    } finally {
+      if (shouldCleanupProbe) {
+        halfOpenProbing.delete(candidate.provider);
       }
     }
   }
