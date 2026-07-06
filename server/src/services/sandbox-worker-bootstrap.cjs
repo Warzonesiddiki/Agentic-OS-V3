@@ -20,6 +20,7 @@
 "use strict";
 
 const { parentPort } = require("worker_threads");
+const _process = typeof process !== "undefined" ? process : null;
 
 // ── Prototype Hardening ───────────────────────────────────────
 Object.freeze(Object.prototype);
@@ -104,7 +105,6 @@ deleteDangerousGlobals();
 // Replace require with a throwing stub. Keep a reference for bootstrap
 // internal use only (parentPort) — user code MUST NOT get it.
 const _origRequire = require;
-const _process = typeof process !== "undefined" ? process : null;
 require = function (id) {
   throw new Error(
     "Access denied: require() blocked in sandbox for: " + id
