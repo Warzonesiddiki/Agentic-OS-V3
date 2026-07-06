@@ -93,6 +93,8 @@ const schema = z.object({
   NEXUS_BLOCKCHAIN_PRIVATE_KEY: z.string().default(''),
   NEXUS_BLOCKCHAIN_CHAIN_ID: z.coerce.number().int().min(1).max(999999).default(1),
   NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL: z.coerce.number().int().min(1).max(100000).default(10),
+  NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL_SEC: z.coerce.number().int().min(1).max(3600000).default(60),
+  NEXUS_BLOCKCHAIN_ANCHOR_MAX_AGE: z.coerce.number().int().min(1).max(315360000).default(3600),
   // Provider API keys (standard env vars, validated through env proxy)
   OPENAI_API_KEY: z.string().default(''),
   ANTHROPIC_API_KEY: z.string().default(''),
