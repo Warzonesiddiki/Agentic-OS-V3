@@ -21,6 +21,18 @@ vi.mock('../src/services/audit-engine.js', () => ({
   logToolReceipt: vi.fn().mockResolvedValue({ id: 'mock_receipt' }),
 }));
 
+vi.mock('../src/services/kernel.js', () => ({
+  getAgent: vi.fn().mockResolvedValue(null),
+  authorizeToolCall: vi.fn().mockImplementation(async (agentId, ring, tool, target, actor, minRing) => {
+    if (ring === 4) return false;
+    if (minRing !== undefined && ring > minRing) return false;
+    return true;
+  }),
+  incrementTokenUsage: vi.fn().mockResolvedValue(0),
+  pauseAgent: vi.fn().mockResolvedValue(null),
+  listAgents: vi.fn().mockResolvedValue([]),
+}));
+
 // ── Phase 3.2: Message Bus ──────────────────────────────────
 import { getMessageBus, type BusMessage } from '../src/services/message-bus.js';
 
