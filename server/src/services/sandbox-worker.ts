@@ -154,9 +154,7 @@ function acquireWorker(): PoolEntry | null {
   return null;
 }
 
-function releaseWorker(id: string): void {
-  // no-op: worker self-terminates after execution. 'exit' handler resets busy state on replacement.
-}
+function releaseWorker(id: string): void {}
 
 // ── Execution ─────────────────────────────────────────────────
 
