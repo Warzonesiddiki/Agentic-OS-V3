@@ -1,15 +1,22 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
- * blockchain.ts — On-Chain Audit Logging & Cryptographic Merkle Root Verification (Phase 14).
- *
+ * blockchain.ts — Merkle Tree Audit Logging (NO CHAIN SUBMISSION).
+ * 
  * Implements:
- * 1. Cryptographic SHA-256 Merkle tree calculation (`computeMerkleRoot`).
- * 2. Audit log batch aggregation and Merkle root anchoring.
- * 3. Raw EVM transaction encoder placing Merkle root into tx data field.
- * 4. JSON-RPC client with spending cap checks and graceful RPC fallback.
- * 5. Verification logic for anchor records (`verifyAnchor`).
+ *   1. Cryptographic SHA-256 Merkle tree calculation (`computeMerkleRoot`).
+ *   2. Audit log batch aggregation and aggregation and Merkle root anchoring (LOCAL ONLY).
+ *   3. Raw EVM transaction encoder placing Merkle root into tx data field (FOR ILLUSTRATION ONLY).
+ *   4. JSON-RPC client with spending cap checks and graceful RPC fallback (NOT ACTUALLY USED FOR SUBMISSION).
+ *   5. Verification logic for anchor records (`verifyAnchor`).
+ * 
+ * LIMITATIONS: This module does NOT submit transactions to any blockchain. The "anchoring" writes to a local
+ *   database table (`anchoredRoots`) but does not broadcast to Ethereum/Polygon/etc. The JSON-RPC client
+ *   is present but only used for local fallback or if configured (which is false by default).
+ *   The Merkle tree audit chain is functional and tamper-evident locally.
  */
 
 import { createHash, randomUUID, createPrivateKey, sign } from 'node:crypto';
+import { keccak_256 } from 'js-sha3';
 import { db, isSqlite, auditLog, merkleCheckpoints, anchoredRoots } from '../db/client.js';
 import { eq, and, gte, lte, desc, asc, sql, gt } from 'drizzle-orm';
 import { env } from '../lib/env.js';
@@ -147,11 +154,7 @@ function encodeLengthHeader(len: number, offset: number): Buffer {
 }
 
 function keccak256(data: Buffer): string {
-  try {
-    return createHash('sha3-256').update(data).digest('hex');
-  } catch {
-    return createHash('sha256').update(data).digest('hex');
-  }
+  return keccak_256(data);
 }
 
 /**
@@ -284,7 +287,7 @@ export async function submitEvmAnchor(
       txHash: fallbackTxHash,
       status: 'confirmed',
       blockNumber: null,
-      confirmedAt: isSqlite ? (new Date().toISOString() as any) : new Date(),
+      confirmedAt: isSqlite ? new Date().toISOString() : new Date(),
     });
 
     blockchainAnchorsTotal.inc({ status: 'fallback' });
@@ -381,7 +384,7 @@ export async function submitEvmAnchor(
       txHash: fallbackTxHash,
       status: 'confirmed',
       blockNumber: null,
-      confirmedAt: isSqlite ? (new Date().toISOString() as any) : new Date(),
+      confirmedAt: isSqlite ? new Date().toISOString() : new Date(),
     });
 
     blockchainAnchorsTotal.inc({ status: 'fallback' });
@@ -404,7 +407,7 @@ export async function submitEvmAnchor(
  * Aggregates un-anchored Merkle checkpoints or pending audit log entries
  * into a Merkle tree and submits an on-chain/local anchor.
  */
-export async function anchorAuditLogsBatch(): Promise<AnchorResult | null> {
+export async function anchorAuditLogsBatch(force = false): Promise<AnchorResult | null> {
   const unanchored = await db
     .select({
       checkpoint: merkleCheckpoints,
@@ -435,8 +438,19 @@ export async function anchorAuditLogsBatch(): Promise<AnchorResult | null> {
     .orderBy(asc(auditLog.sequence));
 
   const interval = env.NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL ?? 10;
+  const maxAgeSec = Number(env.NEXUS_BLOCKCHAIN_ANCHOR_MAX_AGE ?? 3600);
 
-  if (pendingEntries.length >= interval) {
+  let forceByAge = false;
+  if (lastCp.length > 0) {
+    const createdAt = lastCp[0]!.createdAt;
+    const createdAtDate = createdAt instanceof Date ? createdAt : new Date(createdAt);
+    const ageMs = Date.now() - createdAtDate.getTime();
+    if (ageMs > maxAgeSec * 1000) {
+      forceByAge = true;
+    }
+  }
+
+  if (pendingEntries.length >= interval || force || forceByAge) {
     const chunkHashes = pendingEntries.map((e: any) => e.entryHash);
     const root = computeMerkleRoot(chunkHashes);
     const prevCkHash = lastCp.length > 0 ? lastCp[0]!.merkleRoot : '0'.repeat(64);

@@ -24,7 +24,7 @@ import { llmProviderHealth, llmTokenBudgets } from '../db/client.js';
 import { eq, sql } from 'drizzle-orm';
 import { appendAudit } from '../lib/audit.js';
 import { log } from '../lib/logging.js';
-import { env } from '../lib/env.js';
+import { env, getEnv } from '../lib/env.js';
 import {
   resolveOmniRoute,
   recordProviderSuccess,
@@ -194,13 +194,23 @@ interface BreakerState {
   p95Ms: number;
 }
 
-const BREAKER_CONFIG = {
-  failureThreshold: 5,
-  successThreshold: 3,
-  openMs: 30_000,
-};
+function getBreakerConfig() {
+  const e = getEnv();
+  return {
+    failureThreshold: e.NEXUS_CB_THRESHOLD,
+    successThreshold: 3,
+    openMs: e.NEXUS_CB_RESET_MS,
+  };
+}
 
 const breakers = new Map<string, BreakerState>();
+
+/**
+ * Tracks providers that are currently executing their half-open probe request.
+ * Only one concurrent request may pass through during the half-open window —
+ * all others are rejected (fail-closed) until the probe resolves.
+ */
+const halfOpenProbing = new Set<string>();
 
 function getBreaker(provider: string): BreakerState {
   let b = breakers.get(provider);
@@ -213,11 +223,14 @@ function getBreaker(provider: string): BreakerState {
 
 async function recordSuccess(provider: string, durationMs: number): Promise<void> {
   const b = getBreaker(provider);
+  const cfg = getBreakerConfig();
   b.successCount++;
   b.failureCount = 0;
   // rolling p95 estimate
   b.p95Ms = b.p95Ms === 0 ? durationMs : b.p95Ms * 0.95 + durationMs * 0.05;
-  if (b.state === 'half_open' && b.successCount >= BREAKER_CONFIG.successThreshold) {
+  // Release the half-open probe semaphore regardless of outcome path
+  halfOpenProbing.delete(provider);
+  if (b.state === 'half_open' && b.successCount >= cfg.successThreshold) {
     b.state = 'closed';
     b.openedAt = null;
     await persistBreaker(provider, b);
@@ -229,8 +242,11 @@ async function recordSuccess(provider: string, durationMs: number): Promise<void
 
 async function recordFailure(provider: string): Promise<void> {
   const b = getBreaker(provider);
+  const cfg = getBreakerConfig();
   b.failureCount++;
-  if (b.state === 'half_open' || b.failureCount >= BREAKER_CONFIG.failureThreshold) {
+  // Release the half-open probe semaphore on failure too
+  halfOpenProbing.delete(provider);
+  if (b.state === 'half_open' || b.failureCount >= cfg.failureThreshold) {
     b.state = 'open';
     b.openedAt = Date.now();
     log.warn('llm.breaker_opened', { provider, failureCount: b.failureCount });
@@ -266,12 +282,32 @@ async function persistBreaker(provider: string, b: BreakerState): Promise<void> 
 
 export async function canCallProvider(provider: string): Promise<boolean> {
   const b = getBreaker(provider);
-  if (b.state === 'closed' || b.state === 'half_open') return true;
-  if (b.openedAt && Date.now() - b.openedAt >= BREAKER_CONFIG.openMs) {
+  const cfg = getBreakerConfig();
+
+  if (b.state === 'closed') return true;
+
+  // Half-open: allow EXACTLY ONE probe request through. Concurrent callers
+  // during the probe window are rejected (fail-closed) to prevent burst floods.
+  if (b.state === 'half_open') {
+    if (halfOpenProbing.has(provider)) {
+      log.warn('llm.breaker_half_open_probe_active', {
+        provider,
+        note: 'Concurrent request rejected; probe already in-flight.',
+      });
+      return false;
+    }
+    halfOpenProbing.add(provider);
+    return true;
+  }
+
+  // Open: check if cooldown has elapsed and transition to half-open
+  if (b.openedAt && Date.now() - b.openedAt >= cfg.openMs) {
     b.state = 'half_open';
-    b.successCount = 0;
+    b.successCount = 0; // reset success counter on each half-open transition
     await persistBreaker(provider, b);
     log.info('llm.breaker_half_open', { provider });
+    // Claim the first probe slot immediately
+    halfOpenProbing.add(provider);
     return true;
   }
   return false;
@@ -377,16 +413,26 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
     });
   }
 
-  // 2. Budget check (estimate tokens and pre-charge session budget)
+  // 2. Budget check — do a soft check (estimate) before calling the provider to fail fast
+  // on sessions that are already over budget. We do NOT pre-charge here; we charge actuals
+  // after the response to avoid the double-charge bug (estimate + actual = 2× billing).
   const estTokens = estimateTokens(call.request);
-  const charge = await chargeBudget(call.sessionId, estTokens);
-  if (!charge.allowed) {
+  const preCheck = await chargeBudget(call.sessionId, 0); // zero-charge probe to check kill/expiry
+  if (!preCheck.allowed) {
     await appendAudit(
       'llm.budget_denied',
-      { sessionId: call.sessionId, reason: charge.reason },
+      { sessionId: call.sessionId, reason: preCheck.reason },
       'llm-gateway'
     );
-    throw new Error(`budget_denied:${charge.reason}`);
+    throw new Error(`budget_denied:${preCheck.reason}`);
+  }
+  if (preCheck.remaining < estTokens * 1.2) {
+    await appendAudit(
+      'llm.budget_denied',
+      { sessionId: call.sessionId, reason: 'insufficient_remaining', estTokens, remaining: preCheck.remaining },
+      'llm-gateway'
+    );
+    throw new Error('budget_denied:insufficient_remaining');
   }
 
   // 3. Assemble candidate provider & model failover chain
@@ -454,6 +500,7 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
       await recordSuccess(candidate.provider, resp.durationMs);
       recordProviderSuccess(candidate.provider, resp.durationMs);
 
+      // Charge only the actual tokens used (no pre-charge was made — avoids double-billing).
       await chargeBudget(call.sessionId, resp.totalTokens);
       await appendAudit(
         'llm.call',
@@ -514,9 +561,44 @@ function estimateTokens(req: ProviderRequest): number {
   return Math.ceil(total / 4) + (req.maxTokens ?? 1024);
 }
 
-export function streamLLMGateway(call: GatewayCall): ReadableStream<Uint8Array> {
+export async function streamLLMGateway(call: GatewayCall): Promise<ReadableStream<Uint8Array>> {
+  // ── Budget guard: must check before initiating any stream ────────────
+  // Mirrors the non-streaming gateway's pre-check. A zero-charge probe validates
+  // the session is alive, not hard-killed, and not expired before we open the
+  // SSE/stream connection. Without this, streaming bypasses all session limits.
+  const preCheck = await chargeBudget(call.sessionId, 0);
+  if (!preCheck.allowed) {
+    await appendAudit(
+      'llm.budget_denied',
+      { sessionId: call.sessionId, reason: preCheck.reason, via: 'stream' },
+      'llm-gateway'
+    );
+    throw new Error(`budget_denied:${preCheck.reason}`);
+  }
+
+  const estTokens = estimateTokens(call.request);
+  if (preCheck.remaining < estTokens * 1.2) {
+    await appendAudit(
+      'llm.budget_denied',
+      {
+        sessionId: call.sessionId,
+        reason: 'insufficient_remaining',
+        estTokens,
+        remaining: preCheck.remaining,
+        via: 'stream',
+      },
+      'llm-gateway'
+    );
+    throw new Error('budget_denied:insufficient_remaining');
+  }
+
   const picked = pickProvider(call.request.model, call.policy);
   const provider = picked ? picked.adapter.name : 'portkey';
+
+  // Stream without pre-charging tokens to avoid double-billing and because
+  // stream completion tokens are approximate. We rely on the pre-check with
+  // safety margin to ensure we have sufficient budget for the estimate.
+
   return streamPortkeyBridge(call.request, {
     provider,
     apiKey: picked?.apiKey,

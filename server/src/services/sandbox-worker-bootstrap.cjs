@@ -1,5 +1,5 @@
 /**
- * sandbox-worker-bootstrap.js — Worker thread bootstrap for sandbox execution.
+ * sandbox-worker-bootstrap.cjs — Worker thread bootstrap for sandbox execution.
  *
  * This file runs inside a Node.js Worker thread (separate V8 isolate).
  * It is loaded via new Worker(fileURL) — NOT via eval — so it works
@@ -8,8 +8,10 @@
  * Safety measures applied at worker startup:
  *   1. Freeze Object/Array/Function prototypes (anti-pollution)
  *   2. Replace require() with throwing stub (anti-escape)
- *   3. message-passing only (no shared references)
- *   4. new Function() for user code (sandboxed by worker boundary)
+ *   3. DELETE all dangerous globals (process, Buffer, network, timers, etc.)
+ *   4. message-passing only (no shared references)
+ *   5. new Function() for user code (sandboxed by worker boundary)
+ *   6. Worker self-terminates after each execution to prevent cross-run pollution
  *
  * NOTE: This file is CommonJS because Worker threads in Node.js
  * load .js files as CJS by default when using the file:// protocol.
@@ -24,7 +26,69 @@ Object.freeze(Object.prototype);
 Object.freeze(Array.prototype);
 Object.freeze(Function.prototype);
 
-// ── Block Dangerous Globals ─────────────────────────────────
+// ── Delete All Dangerous Globals ─────────────────────────────
+// This is the LAST LINE OF DEFENSE. The AST layer in sandbox.ts
+// blocks these statically; this worker runtime layer ensures they
+// are gone even if the AST is bypassed via some obfuscation technique.
+
+function deleteDangerousGlobals() {
+  const dangerous = [
+    // Process — full access to env, exit, cwd, signals, IPC
+    "process",
+    // Buffer — raw memory read/write, arbitrary size allocation
+    "Buffer",
+    // Network exfiltration
+    "fetch",
+    "WebSocket",
+    "EventSource",
+    "XMLHttpRequest",
+    // Timers — indefinite execution vectors that bypass wall-clock timeout
+    "setTimeout",
+    "clearTimeout",
+    "setInterval",
+    "clearInterval",
+    "setImmediate",
+    "clearImmediate",
+    // Microtask — can extend execution beyond timeout
+    "queueMicrotask",
+    // Timing side-channels
+    "performance",
+    // Info disclosure
+    "console",
+    // Web APIs (available in Node 18+)
+    "Response",
+    "Request",
+    "Headers",
+    // Crypto — could be used for data exfiltration encoding, hash brute-force
+    "crypto",
+    "Crypto",
+    "SubtleCrypto",
+    // Structured cloning — potential shared-memory attacks
+    "structuredClone",
+    // Compression — CPU exhaustion vector
+    "CompressionStream",
+    "DecompressionStream",
+  ];
+
+  const targets = [globalThis, global];
+  for (const t of targets) {
+    if (t && typeof t === "object") {
+      for (const name of dangerous) {
+        try {
+          delete t[name];
+        } catch {
+          // Some globals may be non-configurable — best effort
+        }
+      }
+    }
+  }
+}
+
+deleteDangerousGlobals();
+
+// ── Block require() ──────────────────────────────────────────
+// Replace require with a throwing stub. Keep a reference for bootstrap
+// internal use only (parentPort) — user code MUST NOT get it.
 const _origRequire = require;
 require = function (id) {
   throw new Error(
@@ -166,6 +230,23 @@ if (parentPort) {
         result: null,
         error: err instanceof Error ? err.message : String(err),
       });
+    } finally {
+      // ── Self-Terminate ──────────────────────────────────
+      // Exit the worker after each execution to prevent cross-run
+      // state pollution. Even though all dangerous globals are deleted
+      // at startup, a task could pollute non-frozen prototypes like
+      // String.prototype, Number.prototype, etc. or add new properties
+      // to globalThis. Self-termination guarantees a clean state
+      // for every execution.
+      //
+      // The pool in sandbox-worker.ts detects exit and replaces the
+      // worker with a fresh one.
+      if (typeof process !== "undefined" && typeof process.exit === "function") {
+        process.exit(0);
+      } else {
+        // Fallback: if process was deleted, throw to force terminate
+        throw new Error("SANDBOX_COMPLETE_SELF_TERMINATE");
+      }
     }
   });
 }
