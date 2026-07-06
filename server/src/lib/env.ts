@@ -22,6 +22,7 @@ const schema = z.object({
   NEXUS_API_KEY: z.string().default('nk_local_dev_key'),
   NEXUS_ALLOWED_ORIGINS: z.string().default('http://localhost:9900'),
   NEXUS_RATE_LIMIT_PER_MINUTE: z.coerce.number().int().min(1).max(100000).default(120),
+  NEXUS_RATE_LIMIT_SSE_PER_MINUTE: z.coerce.number().int().min(1).max(100000).default(1200),
   NEXUS_MAX_BODY_BYTES: z.coerce
     .number()
     .int()
