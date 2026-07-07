@@ -15,18 +15,19 @@ import { ApiError } from './lib/errors.js';
 // The frontend imports these via shared/types.ts.
 
 export async function isKillSwitchOn(tx?: any): Promise<boolean> {
-  const client = tx ?? db;
-  let row;
-  if (tx && !isSqlite) {
-    const rows = await tx.select().from(systemMeta).where(eq(systemMeta.key, 'killSwitch')).for('update');
-    row = rows[0];
-  } else {
-    row = await client.query.systemMeta.findFirst({ where: eq(systemMeta.key, 'killSwitch') });
+  const client = tx || db;
+  let query = client.select().from(systemMeta).where(eq(systemMeta.key, 'killSwitch'));
+  if (tx) {
+    const { isSqlite } = await import('./db/client.js');
+    if (!isSqlite) {
+      query = query.for('update');
+    }
   }
+  const [row] = await query.limit(1);
   return row?.value === '1';
 }
 
-async function assertOperational(tx?: any): Promise<void> {
+export async function assertOperational(tx?: any): Promise<void> {
   if (await isKillSwitchOn(tx))
     throw new ApiError('SAFETY_KILL_SWITCH', 'Kill switch is engaged — mutations are blocked.');
 }
