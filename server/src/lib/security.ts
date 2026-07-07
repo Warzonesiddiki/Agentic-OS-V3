@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * security.ts — real API-key auth & authorization.
  * Keys are hashed with scrypt (Node's audited KDF) and never stored raw.
@@ -13,6 +14,8 @@ const SCRYPT_KEYLEN = 32;
 
 /** Hash a raw key into a self-contained "<saltHex>:<hashHex>" record. */
 export function hashApiKey(raw: string): string {
+  // Length limit to prevent DoS via overly long passwords causing excessive scrypt computation.
+  if (raw.length > 512) throw new Error('API key too long for hashing');
   const salt = randomBytes(16).toString('hex');
   const hash = scryptSync(raw, salt, SCRYPT_KEYLEN).toString('hex');
   return `${salt}:${hash}`;
@@ -21,14 +24,28 @@ export function hashApiKey(raw: string): string {
 /**
  * Verify a raw key against a "<saltHex>:<hashHex>" record.
  * Comparison is constant-time (scrypt-derived output), not the hex strings.
+ * The length mismatch check runs AFTER scrypt computation to avoid a timing
+ * side-channel: an attacker must not be able to distinguish "wrong length"
+ * from "wrong key" by response time.
  */
 export function verifyApiKey(raw: string, record: string): boolean {
+  // Length limit to prevent DoS via overly long passwords causing excessive scrypt computation.
+  if (raw.length > 512) return false;
   const colon = record.indexOf(':');
   if (colon === -1) return false;
   const salt = record.slice(0, colon);
   const expectedHash = record.slice(colon + 1);
+  const expectedBuf = Buffer.from(expectedHash, 'hex');
+  // Always run scryptSync first to keep response time consistent regardless of
+  // record format.
   const actualHash = scryptSync(raw, salt, SCRYPT_KEYLEN);
-  return timingSafeEqual(Buffer.from(expectedHash, 'hex'), actualHash);
+  // timingSafeEqual requires equal-length buffers; malformed records must not throw.
+  if (expectedBuf.length !== SCRYPT_KEYLEN) return false;
+  try {
+    return timingSafeEqual(expectedBuf, actualHash);
+  } catch {
+    return false;
+  }
 }
 
 /** Generate a human-usable key (not a hash — this is the one we show once). */
@@ -207,8 +224,24 @@ export async function authenticate(db: any, key: string | null): Promise<Princip
   return principal;
 }
 
+/**
+ * Check if a principal has a given scope, with wildcard matching.
+ * A scope like 'admin.*' matches 'admin.read', 'admin.write', 'admin.key.*', 'admin.key.read', etc.
+ * This enables least-privilege assignment while allowing broad role scopes.
+ */
 export function hasScope(principal: Principal | null, scope: Scope): boolean {
-  return Boolean(principal?.scopes.includes(scope));
+  if (!principal) return false;
+  // Fast path: exact match
+  if (principal.scopes.includes(scope)) return true;
+  // Wildcard matching: convert scope patterns to prefix checks
+  // e.g. principal has 'admin.*' → check if scope starts with 'admin.'
+  for (const granted of principal.scopes) {
+    if (granted.endsWith('.*')) {
+      const prefix = granted.slice(0, -1); // e.g. 'admin.'
+      if (scope.startsWith(prefix)) return true;
+    }
+  }
+  return false;
 }
 
 /** Constant-time string comparison (safe for secrets). */

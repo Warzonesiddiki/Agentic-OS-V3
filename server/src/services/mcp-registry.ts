@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * services/mcp-registry.ts — Phase 3.3 & Phase 12: MCP Server Registry
  *
@@ -608,7 +609,9 @@ export class MCPRegistry {
     this.reconnectAttempts.set(id, attempts);
 
     // Exponential backoff: 1s, 2s, 4s, 8s, 16s, max 30s
-    const delay = Math.min(1000 * Math.pow(2, attempts - 1), 30000);
+    // ±25% random jitter prevents reconnection storms when multiple servers fail together
+    const baseDelay = Math.min(1000 * Math.pow(2, attempts - 1), 30000);
+    const jitter = baseDelay * (0.75 + Math.random() * 0.5); // 75%–125% of base
 
     const timer = setTimeout(async () => {
       this.reconnectTimers.delete(id);
@@ -616,7 +619,7 @@ export class MCPRegistry {
       if (server && (server.status === 'error' || server.status === 'disconnected')) {
         await this.connect(id).catch(() => {});
       }
-    }, delay);
+    }, jitter);
 
     this.reconnectTimers.set(id, timer);
   }
