@@ -129,7 +129,9 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
   }
   
   // Set rate limit headers
-  c.header('X-RateLimit-Limit', ((principalId ? 5 : 1) * (route === 'sse' ? Number(env.NEXUS_RATE_LIMIT_SSE_PER_MINUTE) : Number(env.NEXUS_RATE_LIMIT_PER_MINUTE))).toString());
+  const baseLimit = route === 'sse' ? Number(env.NEXUS_RATE_LIMIT_SSE_PER_MINUTE) : Number(env.NEXUS_RATE_LIMIT_PER_MINUTE);
+  const limit = principalId ? baseLimit * 5 : baseLimit;
+  c.header('X-RateLimit-Limit', limit.toString());
   c.header('X-RateLimit-Remaining', result.remaining.toString());
   c.header('X-RateLimit-Reset', String(Date.now() + result.resetMs));
   
