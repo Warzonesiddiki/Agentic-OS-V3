@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * self-improvement-harness.ts
  * ────────────────────────────
@@ -123,14 +124,15 @@ export async function recordMetric(
 ): Promise<void> {
   const now = new Date();
   const start = new Date(now.getTime() - windowMs);
+  const { isSqlite } = await import('../db/client.js');
   await db.insert(metricSnapshots).values({
     id: `ms_${randomUUID()}`,
     metric,
     value,
-    windowStart: start,
-    windowEnd: now,
-    tags,
-    capturedAt: now,
+    windowStart: isSqlite ? start.toISOString() : start,
+    windowEnd: isSqlite ? now.toISOString() : now,
+    tags: isSqlite ? JSON.stringify(tags) : tags,
+    capturedAt: isSqlite ? now.toISOString() : now,
   });
 }
 
@@ -158,6 +160,7 @@ export function detectRegression(
 export async function proposeImprovement(input: ProposalInput): Promise<ProposalRecord> {
   const id = `prop_${randomUUID()}`;
   const now = new Date();
+  const { isSqlite } = await import('../db/client.js');
   const [row] = await db
     .insert(improvementProposals)
     .values({
@@ -170,14 +173,14 @@ export async function proposeImprovement(input: ProposalInput): Promise<Proposal
       expectedDelta: input.expectedDelta,
       riskClass: input.riskClass,
       status: 'draft',
-      patch: input.patch as unknown as Record<string, unknown>,
+      patch: isSqlite ? JSON.stringify(input.patch) : (input.patch as unknown as Record<string, unknown>),
       rationale: input.rationale ?? '',
       author: 'harness',
       reviewer: null,
       rolloutPct: 0,
       measuredDelta: null,
-      createdAt: now,
-      updatedAt: now,
+      createdAt: isSqlite ? now.toISOString() : now,
+      updatedAt: isSqlite ? now.toISOString() : now,
       decidedAt: null,
     })
     .returning();
@@ -216,14 +219,30 @@ export async function listProposals(filter?: {
     orderBy: [desc(improvementProposals.createdAt)],
     limit: filter?.limit ?? 50,
   });
-  return rows as unknown as ProposalRecord[];
+  const { isSqlite } = await import('../db/client.js');
+  return rows.map((r: any) => ({
+    ...r,
+    patch: isSqlite && typeof r.patch === 'string' ? JSON.parse(r.patch) : r.patch,
+    createdAt: isSqlite ? new Date(r.createdAt) : r.createdAt,
+    updatedAt: isSqlite ? new Date(r.updatedAt) : r.updatedAt,
+    decidedAt: r.decidedAt ? new Date(r.decidedAt) : null,
+  })) as ProposalRecord[];
 }
 
 export async function getProposal(id: string): Promise<ProposalRecord | null> {
   const row = await db.query.improvementProposals.findFirst({
     where: eq(improvementProposals.id, id),
   });
-  return (row as unknown as ProposalRecord) ?? null;
+  if (!row) return null;
+  const { isSqlite } = await import('../db/client.js');
+  const r = row as any;
+  return {
+    ...r,
+    patch: isSqlite && typeof r.patch === 'string' ? JSON.parse(r.patch) : r.patch,
+    createdAt: isSqlite ? new Date(r.createdAt) : r.createdAt,
+    updatedAt: isSqlite ? new Date(r.updatedAt) : r.updatedAt,
+    decidedAt: r.decidedAt ? new Date(r.decidedAt) : null,
+  } as ProposalRecord;
 }
 
 /* ─── Approval gate (Sentinel) ───────────────────────────────────────────── */
