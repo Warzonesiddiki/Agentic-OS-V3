@@ -1,0 +1,299 @@
+# Instincts generated from https://github.com/Warzonesiddiki/Agentic-OS-V3
+# Generated: 2026-07-07T17:45:53.431Z
+# Version: 2.0
+# NOTE: This file supplements (does not replace) any existing curated instincts.
+# High-confidence manually curated instincts should be preserved alongside these.
+
+---
+id: Agentic-OS-V3-commit-conventional
+trigger: "when writing a commit message"
+confidence: 0.85
+domain: git
+source: repo-analysis
+source_repo: https://github.com/Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic OS V3 Commit Conventional
+
+## Action
+
+Use conventional commit format with prefixes: chore
+
+## Evidence
+
+- 1 commits analyzed
+- Detected conventional commit pattern
+- Examples: chore(deps-dev): bump vitest from 3.2.6 to 4.1.10
+
+---
+id: Agentic-OS-V3-commit-length
+trigger: "when writing a commit message"
+confidence: 0.6
+domain: git
+source: repo-analysis
+source_repo: https://github.com/Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic OS V3 Commit Length
+
+## Action
+
+Keep commit messages concise (~49 characters)
+
+## Evidence
+
+- Average commit message length: 49 chars
+- Based on 1 commits
+
+---
+id: Agentic-OS-V3-naming-files
+trigger: "when creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic OS V3 Naming Files
+
+## Action
+
+Use camelCase naming convention
+
+## Evidence
+
+- Analyzed file naming patterns in repository
+- Dominant pattern: camelCase
+
+---
+id: Agentic-OS-V3-import-relative
+trigger: "when importing modules"
+confidence: 0.75
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic OS V3 Import Relative
+
+## Action
+
+Use relative imports for project files
+
+## Evidence
+
+- Import analysis shows relative import pattern
+- Example: import { x } from '../lib/x'
+
+---
+id: Agentic-OS-V3-export-style
+trigger: "when exporting from a module"
+confidence: 0.7
+domain: code-style
+source: repo-analysis
+source_repo: https://github.com/Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic OS V3 Export Style
+
+## Action
+
+Prefer named exports
+
+## Evidence
+
+- Export pattern analysis
+- Dominant style: named
+
+---
+id: Agentic-OS-V3-test-separate
+trigger: "when writing tests"
+confidence: 0.8
+domain: testing
+source: repo-analysis
+source_repo: https://github.com/Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic OS V3 Test Separate
+
+## Action
+
+Place tests in the tests/ or __tests__/ directory, mirroring src structure
+
+## Evidence
+
+- Separate test directory pattern detected
+- Tests live in dedicated test folders
+
+---
+id: agentic-os-v3-instinct-file-naming
+trigger: "When creating a new file"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct File Naming
+
+## Action
+
+Name the file using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.files
+
+---
+id: agentic-os-v3-instinct-function-naming
+trigger: "When defining a new function"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct Function Naming
+
+## Action
+
+Name the function using camelCase
+
+## Evidence
+
+- Pattern in namingConventions.functions
+
+---
+id: agentic-os-v3-instinct-class-naming
+trigger: "When defining a new class"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct Class Naming
+
+## Action
+
+Name the class using PascalCase
+
+## Evidence
+
+- Pattern in namingConventions.classes
+
+---
+id: agentic-os-v3-instinct-constant-naming
+trigger: "When defining a constant"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct Constant Naming
+
+## Action
+
+Name the constant using SCREAMING_SNAKE_CASE
+
+## Evidence
+
+- Pattern in namingConventions.constants
+
+---
+id: agentic-os-v3-instinct-import-style
+trigger: "When importing modules"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct Import Style
+
+## Action
+
+Use relative import paths
+
+## Evidence
+
+- Pattern in importStyle
+
+---
+id: agentic-os-v3-instinct-export-style
+trigger: "When exporting modules or functions"
+confidence: 0.8
+domain: code-style
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct Export Style
+
+## Action
+
+Use named exports
+
+## Evidence
+
+- Pattern in exportStyle
+
+---
+id: agentic-os-v3-instinct-git-commit-format
+trigger: "When making a commit"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct Git Commit Format
+
+## Action
+
+Format the commit message using the conventional commit style, starting with a prefix such as chore
+
+## Evidence
+
+- Pattern in commits.type: conventional
+- Seen in commit: chore(deps-dev): bump vitest from 3.2.6 to 4.1.10
+
+---
+id: agentic-os-v3-instinct-git-commit-prefix
+trigger: "When updating development dependencies"
+confidence: 0.9
+domain: git
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct Git Commit Prefix
+
+## Action
+
+Use the commit prefix chore(deps-dev):
+
+## Evidence
+
+- Seen in commit: chore(deps-dev): bump vitest from 3.2.6 to 4.1.10
+
+---
+id: agentic-os-v3-instinct-test-location
+trigger: "When adding or updating tests"
+confidence: 0.7
+domain: testing
+source: repo-analysis
+source_repo: Warzonesiddiki/Agentic-OS-V3
+---
+
+# Agentic Os V3 Instinct Test Location
+
+## Action
+
+Place test files in a separate location from source files
+
+## Evidence
+
+- Pattern in architecture.testLocation: separate
+
