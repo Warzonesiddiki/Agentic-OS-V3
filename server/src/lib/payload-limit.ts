@@ -7,7 +7,7 @@ import { env } from "./env.js";
  * @returns Hono middleware function
  */
 export function createPayloadLimitMiddleware(maxBytes?: number) {
-  const limit = maxBytes ?? (Number(env.NEXUS_MAX_BODY_BYTES) || 5 * 1024 * 1024); // 5MB default
+  const limit = maxBytes ?? (Number(env.NEXUS_MAX_BODY_BYTES) || 5 * 1024 * 1024);
   
   return async function payloadLimit(c: Context, next: () => Promise<void>): Promise<Response | void> {
     const reader = c.req.raw.clone().body?.getReader();
@@ -17,9 +17,7 @@ export function createPayloadLimitMiddleware(maxBytes?: number) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          if (value) {
-            bytesRead += value.length;
-          }
+          bytesRead += value.length;
           if (bytesRead > limit) {
             await reader.cancel();
             return c.json(
