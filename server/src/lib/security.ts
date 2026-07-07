@@ -84,7 +84,7 @@ export type Scope =
   | 'pipeline:execute';
 
 /** Scopes defined in this application — ideally this would live in a config table. */
-const ALL_SCOPES: Scope[] = [
+const ALL_SCOPES = [
   'chat.*',
   'chat.read',
   'chat.write',
@@ -109,11 +109,11 @@ const ALL_SCOPES: Scope[] = [
   'llm:admin',
   'plugin:admin',
   'plugin:invoke',
-  'federated:read',
   'federated:write',
+  'federated:read',
   'pipeline:admin',
   'pipeline:execute',
-];
+] as const satisfies readonly Scope[];
 
 export function isValidScope(s: string): s is Scope {
   return ALL_SCOPES.includes(s as Scope);
