@@ -39,7 +39,7 @@ export async function securityHeaders(c: Context, next: () => Promise<void>): Pr
  * Set security headers (alias for clarity in app.ts).
  */
 export function setSecurityHeaders(c: Context): void {
-  const nonce = (c.get('cspNonce') as string | undefined) ?? '';
+  const nonce = c.get('cspNonce') ?? '';
   const headers = getSecurityHeaders(nonce);
   for (const [key, value] of Object.entries(headers)) {
     c.header(key, value);
