@@ -95,7 +95,7 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
   // Determine rate limit type based on path
   const route = c.req.path.startsWith('/api/events') ? 'sse' : undefined;
   
-  // Check for auth bearer token to apply per-principal rate limiting.
+  // Apply rate limit per principal if authenticated, otherwise per IP
   const authHeader = c.req.header('authorization') ?? '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
   let principalId: string | undefined;
@@ -106,12 +106,11 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
         principalId = principal.id;
       }
     } catch {
-      // ignore auth error here, fallback to IP rate limit
+      // ignore
     }
   }
 
-  // Apply rate limit
-  const result = principalId
+  const result = principalId 
     ? await consumePrincipal(principalId, route)
     : await consume(ip, route);
   
@@ -129,9 +128,8 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
   }
   
   // Set rate limit headers
-  const baseLimit = route === 'sse' ? Number(env.NEXUS_RATE_LIMIT_SSE_PER_MINUTE) : Number(env.NEXUS_RATE_LIMIT_PER_MINUTE);
-  const limit = principalId ? baseLimit * 5 : baseLimit;
-  c.header('X-RateLimit-Limit', limit.toString());
+  const multiplier = principalId ? 5 : 1;
+  c.header('X-RateLimit-Limit', (multiplier * (route === 'sse' ? Number(env.NEXUS_RATE_LIMIT_SSE_PER_MINUTE) : Number(env.NEXUS_RATE_LIMIT_PER_MINUTE))).toString());
   c.header('X-RateLimit-Remaining', result.remaining.toString());
   c.header('X-RateLimit-Reset', String(Date.now() + result.resetMs));
   
