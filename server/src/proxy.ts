@@ -7,7 +7,7 @@ import { randomBytes } from 'node:crypto';
 import { env } from './lib/env.js';
 import { securityHeaders as getSecurityHeaders } from './lib/security-headers.js';
 import { generateUuid } from './lib/utils/id.js';
-import { consume, clientIpFromHeaders } from './lib/rate-limit.js';
+import { consume, consumePrincipal, clientIpFromHeaders } from './lib/rate-limit.js';
 import { createPayloadLimitMiddleware } from './lib/payload-limit.js';
 import { authenticate } from './lib/security.js';
 import { db } from './db/client.js';
@@ -95,8 +95,25 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
   // Determine rate limit type based on path
   const route = c.req.path.startsWith('/api/events') ? 'sse' : undefined;
   
+  // Check for auth bearer token to apply per-principal rate limiting
+  const authHeader = c.req.header('authorization') ?? '';
+  const token = authHeader.replace(/^Bearer\s+/i, '').trim();
+  let principalId: string | undefined;
+  if (token) {
+    try {
+      const principal = await authenticate(db, token);
+      if (principal) {
+        principalId = principal.id;
+      }
+    } catch {
+      // ignore auth error here, fallback to IP rate limit
+    }
+  }
+
   // Apply rate limit
-  const result = await consume(ip, route);
+  const result = principalId
+    ? await consumePrincipal(principalId, route)
+    : await consume(ip, route);
   
   if (!result.allowed) {
     return c.json(
@@ -112,7 +129,7 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
   }
   
   // Set rate limit headers
-  c.header('X-RateLimit-Limit', (route === 'sse' ? Number(env.NEXUS_RATE_LIMIT_SSE_PER_MINUTE) : Number(env.NEXUS_RATE_LIMIT_PER_MINUTE)).toString());
+  c.header('X-RateLimit-Limit', ((principalId ? 5 : 1) * (route === 'sse' ? Number(env.NEXUS_RATE_LIMIT_SSE_PER_MINUTE) : Number(env.NEXUS_RATE_LIMIT_PER_MINUTE))).toString());
   c.header('X-RateLimit-Remaining', result.remaining.toString());
   c.header('X-RateLimit-Reset', String(Date.now() + result.resetMs));
   
