@@ -13,7 +13,7 @@
 import { config } from 'dotenv';
 import { z } from 'zod';
 
-config(); // Load .env into process.env
+config(); // Load .env file into process.env
 
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(9900),

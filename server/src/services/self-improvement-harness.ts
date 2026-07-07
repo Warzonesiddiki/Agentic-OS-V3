@@ -299,7 +299,7 @@ export const ENV_OVERRIDE_ALLOWLIST = new Set([
   'NEXUS_MEMORY_RECALL_K',
   'NEXUS_MEMORY_IMPORTANCE_THRESHOLD'
 ]);
-export const ENV_AUDIT_TRAIL: Array<{ key: string; value: string; timestamp: Date }> = [];
+export const ENV_AUDIT_TRAIL: Array<{ key: string; value: string; timestamp: Date }> = []; // Tracks runtime env changes
 
 /**
  * Apply a proposal's patch. Hard refusal: BLOCKING + SAFETY risk classes.
