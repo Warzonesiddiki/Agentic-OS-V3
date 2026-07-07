@@ -17,7 +17,9 @@ export function createPayloadLimitMiddleware(maxBytes?: number) {
         while (true) {
           const { done, value } = await reader.read();
           if (done) break;
-          bytesRead += value.length;
+          if (value) {
+            bytesRead += value.length;
+          }
           if (bytesRead > limit) {
             await reader.cancel();
             return c.json(
