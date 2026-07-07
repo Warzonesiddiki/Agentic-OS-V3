@@ -205,18 +205,17 @@ export class HardenedStdioClientTransport implements Transport {
     if (this.started) throw new Error('Stdio transport already started');
     this.started = true;
 
+    const mergedEnv = { ...process.env, ...this.config.env };
+    const filteredEnv: Record<string, string> = {};
+    const allowedKeys = new Set(['PATH', 'HOME', 'NODE_ENV', 'NEXUS_LLM_PROVIDER', 'NEXUS_LLM_API_KEY']);
+    for (const [key, val] of Object.entries(mergedEnv)) {
+      if (allowedKeys.has(key) && val !== undefined) {
+        filteredEnv[key] = String(val);
+      }
+    }
+
     this.process = spawn(this.config.command, this.config.args ?? [], {
-      env: (() => {
-        const mergedEnv = { ...process.env, ...this.config.env };
-        const filtered: Record<string, string> = {};
-        const allowed = new Set(['PATH', 'HOME', 'NODE_ENV', 'NEXUS_LLM_PROVIDER', 'NEXUS_LLM_API_KEY']);
-        for (const [k, v] of Object.entries(mergedEnv)) {
-          if (allowed.has(k) && v !== undefined) {
-            filtered[k] = String(v);
-          }
-        }
-        return filtered;
-      })(),
+      env: filteredEnv,
       cwd: this.config.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
