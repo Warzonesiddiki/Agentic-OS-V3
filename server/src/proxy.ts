@@ -95,7 +95,7 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
   // Determine rate limit type based on path
   const route = c.req.path.startsWith('/api/events') ? 'sse' : undefined;
   
-  // Check for auth bearer token to apply per-principal rate limiting
+  // Check for auth bearer token to apply per-principal rate limiting.
   const authHeader = c.req.header('authorization') ?? '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
   let principalId: string | undefined;
