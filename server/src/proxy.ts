@@ -95,7 +95,7 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
   // Determine rate limit type based on path
   const route = c.req.path.startsWith('/api/events') ? 'sse' : undefined;
   
-  // Apply rate limit per authenticated principal, otherwise fallback to IP
+  // Apply rate limit per authenticated principal, fallback to IP
   const authHeader = c.req.header('authorization') ?? '';
   const token = authHeader.replace(/^Bearer\s+/i, '').trim();
   let principalId: string | undefined;
