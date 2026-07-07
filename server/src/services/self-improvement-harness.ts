@@ -29,7 +29,7 @@
 import { randomUUID } from 'node:crypto';
 import { db } from '../db/client.js';
 import { improvementProposals, metricSnapshots } from '../db/client.js';
-import { desc, eq, and, gte } from 'drizzle-orm';
+import { desc, eq, and, gte, or } from 'drizzle-orm';
 import { appendAudit } from '../lib/audit.js';
 import { log } from '../lib/logging.js';
 
@@ -393,6 +393,18 @@ export async function harnessTick(opts: {
     const baseline = summarize(metric, win.values.slice(split));
     const current = summarize(metric, win.values.slice(0, split));
     if (detectRegression(current, baseline, threshold)) {
+      const existing = await db.query.improvementProposals.findFirst({
+        where: and(
+          eq(improvementProposals.targetMetric, metric),
+          or(
+            eq(improvementProposals.status, 'draft'),
+            eq(improvementProposals.status, 'testing'),
+            eq(improvementProposals.status, 'canary')
+          )
+        ),
+      });
+      if (existing) continue;
+
       const proposal = await proposeImprovement({
         title: `Auto-detected regression on ${metric}`,
         summary: `p95 of ${metric} degraded from ${baseline.p95.toFixed(2)} to ${current.p95.toFixed(2)} (Δ ${(((current.p95 - baseline.p95) / baseline.p95) * 100).toFixed(1)}%).`,
