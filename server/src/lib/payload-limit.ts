@@ -20,7 +20,16 @@ export function createPayloadLimitMiddleware(maxBytes?: number) {
           bytesRead += value.length;
           if (bytesRead > limit) {
             await reader.cancel();
-            return c.json({ ok: false, error: { code: 'PAYLOAD_TOO_LARGE', message: `Payload too large. Maximum size allowed is ${limit} bytes.` } }, 413);
+            return c.json(
+              {
+                ok: false,
+                error: {
+                  code: 'PAYLOAD_TOO_LARGE',
+                  message: `Payload too large. Maximum size allowed is ${limit} bytes.`,
+                },
+              },
+              413
+            );
           }
         }
       } catch {
