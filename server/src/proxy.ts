@@ -110,23 +110,23 @@ export async function rateLimit(c: Context, next: () => Promise<void>): Promise<
     }
   }
 
-  const result = principalId 
+  const result = principalId
     ? await consumePrincipal(principalId, route)
     : await consume(ip, route);
-  
+
   if (!result.allowed) {
     return c.json(
-      { 
-        ok: false, 
-        error: { 
-          code: 'RATE_LIMITED', 
-          message: 'Too many requests, please try again later.' 
-        } 
-      }, 
+      {
+        ok: false,
+        error: {
+          code: 'RATE_LIMITED',
+          message: 'Too many requests, please try again later.',
+        },
+      },
       429
     );
   }
-  
+
   // Set rate limit headers
   const multiplier = principalId ? 5 : 1;
   c.header('X-RateLimit-Limit', (multiplier * (route === 'sse' ? Number(env.NEXUS_RATE_LIMIT_SSE_PER_MINUTE) : Number(env.NEXUS_RATE_LIMIT_PER_MINUTE))).toString());
