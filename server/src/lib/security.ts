@@ -101,6 +101,18 @@ const ALL_SCOPES: Scope[] = [
   'skill:read',
   'skill:write',
   'audit:read',
+  'brain:admin',
+  'vault:read',
+  'vault:write',
+  'safety:write',
+  'llm:chat',
+  'llm:admin',
+  'plugin:admin',
+  'plugin:invoke',
+  'federated:read',
+  'federated:write',
+  'pipeline:admin',
+  'pipeline:execute',
 ];
 
 export function isValidScope(s: string): s is Scope {

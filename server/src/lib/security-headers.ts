@@ -2,9 +2,10 @@ import { getEnv } from './env.js';
 
 /**
  * Get security headers apply all responses.
+ * @param nonce Optional CSP nonce
  * @returns {Record<string, string>} Headers object
  */
-export function securityHeaders(): Record<string, string> {
+export function securityHeaders(nonce?: string): Record<string, string> {
   const env = getEnv();
   
   const headers: Record<string, string> = {
@@ -30,11 +31,14 @@ export function securityHeaders(): Record<string, string> {
   // Content Security Policy
   let csp = "default-src 'self'; ";
   
-  // Script sources
-  csp += "script-src 'self' 'unsafe-inline' 'unsafe-eval'; ";
-  
-  // Style sources
-  csp += "style-src 'self' 'unsafe-inline'; ";
+  // Script and Style sources with optional nonce
+  if (nonce) {
+    csp += `script-src 'self' 'nonce-${nonce}'; `;
+    csp += `style-src 'self' 'nonce-${nonce}'; `;
+  } else {
+    csp += "script-src 'self'; ";
+    csp += "style-src 'self'; ";
+  }
   
   // Image sources
   csp += "img-src 'self' data: https:; ";

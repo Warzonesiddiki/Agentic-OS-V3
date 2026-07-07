@@ -287,6 +287,20 @@ export async function rejectProposal(
 
 const ALLOWED_PATCH_KINDS = new Set<ProposalPatch['kind']>(['env', 'cache_ttl', 'feature_flag']);
 
+export const ENV_OVERRIDE_ALLOWLIST = new Set([
+  'NEXUS_CACHE_TTL_MS',
+  'NEXUS_RATE_LIMIT_PER_MINUTE',
+  'NEXUS_RATE_LIMIT_SSE_PER_MINUTE',
+  'NEXUS_MAX_BODY_BYTES',
+  'NEXUS_LLM_TEMPERATURE',
+  'NEXUS_LLM_MAX_TOKENS',
+  'NEXUS_LOG_LEVEL',
+  'NEXUS_AUTONOMOUS_MODE',
+  'NEXUS_MEMORY_RECALL_K',
+  'NEXUS_MEMORY_IMPORTANCE_THRESHOLD'
+]);
+export const ENV_AUDIT_TRAIL: Array<{ key: string; value: string; timestamp: Date }> = [];
+
 /**
  * Apply a proposal's patch. Hard refusal: BLOCKING + SAFETY risk classes.
  * Soft refusal: any patch kind not in ALLOWED_PATCH_KINDS (e.g. fs.write).
@@ -315,7 +329,12 @@ export async function applyPatch(
   // For cache_ttl and feature_flag, we record an advisory and rely on the
   // consumer to read process.env.NEXUS_* — no in-process state mutation here.
   if (p.patch.kind === 'env') {
+    if (!ENV_OVERRIDE_ALLOWLIST.has(p.patch.key)) {
+      return { applied: false, reason: `key_not_whitelisted:${p.patch.key}` };
+    }
     process.env[p.patch.key] = String(p.patch.value);
+    ENV_AUDIT_TRAIL.push({ key: p.patch.key, value: String(p.patch.value), timestamp: new Date() });
+    await appendAudit('improvement.env_override_applied', { key: p.patch.key, value: p.patch.value }, 'harness');
   }
 
   await db

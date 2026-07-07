@@ -10,31 +10,23 @@ export function createPayloadLimitMiddleware(maxBytes?: number) {
   const limit = maxBytes ?? (Number(env.NEXUS_MAX_BODY_BYTES) || 5 * 1024 * 1024); // 5MB default
   
   return async function payloadLimit(c: Context, next: () => Promise<void>): Promise<Response | void> {
-    // Only check Content-Length if present
-    const contentLengthHeader = c.req.header('content-length');
-    if (!contentLengthHeader) {
-      return await next();
+    const reader = c.req.raw.clone().body?.getReader();
+    if (reader) {
+      let bytesRead = 0;
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          bytesRead += value.length;
+          if (bytesRead > limit) {
+            await reader.cancel();
+            return c.json({ ok: false, error: { code: 'PAYLOAD_TOO_LARGE', message: `Payload too large. Maximum size allowed is ${limit} bytes.` } }, 413);
+          }
+        }
+      } catch {
+        // ignore
+      }
     }
-    
-    const contentLength = parseInt(contentLengthHeader || '0', 10);
-    
-    if (isNaN(contentLength) || contentLength <= 0) {
-      return await next();
-    }
-    
-    if (contentLength > limit) {
-      return c.json(
-        {
-          ok: false,
-          error: {
-            code: 'PAYLOAD_TOO_LARGE',
-            message: `Payload too large. Maximum size allowed is ${limit} bytes.`,
-          },
-        },
-        413
-      );
-    }
-    
     return await next();
   };
 }

@@ -82,3 +82,30 @@ export async function consume(key: string, route?: string): Promise<RateLimitRes
   if (allowed) bucket.tokens--;
   return { allowed, remaining: bucket.tokens, resetMs: WINDOW_MS - (now - bucket.lastRefill) };
 }
+
+export async function consumePrincipal(principalId: string, route?: string): Promise<RateLimitResult> {
+  const PRINCIPAL_LIMIT_MULTIPLIER = 5;
+  const baseLimit = maxTokens(route);
+  const limit = PRINCIPAL_LIMIT_MULTIPLIER * baseLimit;
+  const now = Date.now();
+  const bucketKey = route === 'sse' ? `principal:sse:${principalId}` : `principal:rest:${principalId}`;
+  let bucket = buckets.get(bucketKey);
+  if (!bucket || now - bucket.lastRefill >= WINDOW_MS) {
+    if (buckets.size >= MAX_BUCKETS) {
+      let oldestKey: string | undefined;
+      let oldestTime = Infinity;
+      buckets.forEach((b, k) => {
+        if (b.lastRefill < oldestTime) {
+          oldestTime = b.lastRefill;
+          oldestKey = k;
+        }
+      });
+      if (oldestKey) buckets.delete(oldestKey);
+    }
+    bucket = { tokens: limit, lastRefill: now };
+    buckets.set(bucketKey, bucket);
+  }
+  const allowed = bucket.tokens > 0;
+  if (allowed) bucket.tokens--;
+  return { allowed, remaining: bucket.tokens, resetMs: WINDOW_MS - (now - bucket.lastRefill) };
+}

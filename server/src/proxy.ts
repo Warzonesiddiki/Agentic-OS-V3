@@ -3,6 +3,7 @@
  * Extracted from app.ts for modularity and testability.
  */
 
+import { randomBytes } from 'node:crypto';
 import { env } from './lib/env.js';
 import { securityHeaders as getSecurityHeaders } from './lib/security-headers.js';
 import { generateUuid } from './lib/utils/id.js';
@@ -25,8 +26,10 @@ export async function requestId(c: Context, next: () => Promise<void>): Promise<
  * Apply security headers to all responses.
  */
 export async function securityHeaders(c: Context, next: () => Promise<void>): Promise<void | Response> {
+  const nonce = randomBytes(16).toString('hex');
+  c.set('cspNonce', nonce);
   await next();
-  const headers = getSecurityHeaders();
+  const headers = getSecurityHeaders(nonce);
   for (const [key, value] of Object.entries(headers)) {
     c.header(key, value);
   }
@@ -36,7 +39,8 @@ export async function securityHeaders(c: Context, next: () => Promise<void>): Pr
  * Set security headers (alias for clarity in app.ts).
  */
 export function setSecurityHeaders(c: Context): void {
-  const headers = getSecurityHeaders();
+  const nonce = (c.get('cspNonce') as string | undefined) ?? '';
+  const headers = getSecurityHeaders(nonce);
   for (const [key, value] of Object.entries(headers)) {
     c.header(key, value);
   }

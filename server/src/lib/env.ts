@@ -91,6 +91,7 @@ const schema = z.object({
   NEXUS_BLOCKCHAIN_ENABLED: z.coerce.boolean().default(false),
   NEXUS_BLOCKCHAIN_RPC_URL: z.string().default(''),
   NEXUS_BLOCKCHAIN_PRIVATE_KEY: z.string().default(''),
+  NEXUS_BLOCKCHAIN_ENCRYPTION_KEY: z.string().default(''),
   NEXUS_BLOCKCHAIN_CHAIN_ID: z.coerce.number().int().min(1).max(999999).default(1),
   NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL: z.coerce.number().int().min(1).max(100000).default(10),
   NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL_SEC: z.coerce.number().int().min(1).max(3600000).default(60),
@@ -125,6 +126,9 @@ export function getEnv(): Env {
     throw new Error(`Invalid environment configuration:\n${msg}`);
   }
   _env = parsed.data;
+  if (_env.NEXUS_BLOCKCHAIN_PRIVATE_KEY && /^[a-fA-F0-9]{64}$/.test(_env.NEXUS_BLOCKCHAIN_PRIVATE_KEY) && !_env.NEXUS_BLOCKCHAIN_ENCRYPTION_KEY) {
+    console.warn('[NEXUS] WARNING: NEXUS_BLOCKCHAIN_PRIVATE_KEY is a raw unencrypted 64-hex key, but NEXUS_BLOCKCHAIN_ENCRYPTION_KEY is empty. This is insecure!');
+  }
   if (_env.NODE_ENV === 'production') {
     if (_env.NEXUS_ALLOWED_ORIGINS.includes('localhost') || _env.NEXUS_ALLOWED_ORIGINS === '*') {
       throw new Error(

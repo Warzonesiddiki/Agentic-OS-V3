@@ -5,7 +5,7 @@
  * audit rolls back its mutation. The kill switch is enforced before each tx.
  */
 import { and, eq, sql } from 'drizzle-orm';
-import { db } from './db/client.js';
+import { db, isSqlite } from './db/client.js';
 import { memories, skills, projects, feedback, systemMeta } from './db/client.js';
 import { appendAudit, type Tx } from './lib/audit.js';
 import { estimateTokens } from './lib/tokens.js';
@@ -14,19 +14,27 @@ import { ApiError } from './lib/errors.js';
 // Shared types are defined locally below and re-exported.
 // The frontend imports these via shared/types.ts.
 
-export async function isKillSwitchOn(): Promise<boolean> {
-  const row = await db.query.systemMeta.findFirst({ where: eq(systemMeta.key, 'killSwitch') });
+export async function isKillSwitchOn(tx?: any): Promise<boolean> {
+  const client = tx ?? db;
+  let row;
+  if (tx && !isSqlite) {
+    const rows = await tx.select().from(systemMeta).where(eq(systemMeta.key, 'killSwitch')).for('update');
+    row = rows[0];
+  } else {
+    row = await client.query.systemMeta.findFirst({ where: eq(systemMeta.key, 'killSwitch') });
+  }
   return row?.value === '1';
 }
 
-async function assertOperational(): Promise<void> {
-  if (await isKillSwitchOn())
+async function assertOperational(tx?: any): Promise<void> {
+  if (await isKillSwitchOn(tx))
     throw new ApiError('SAFETY_KILL_SWITCH', 'Kill switch is engaged — mutations are blocked.');
 }
 
 export async function createMemory(input: MemoryRow, actor: string): Promise<unknown> {
   await assertOperational();
   return db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     // Auto-generate embedding if provider is configured.
     // Failures are logged (not swallowed) but don't block the write.
     let embedding: number[] | undefined;
@@ -76,6 +84,7 @@ export async function updateMemory(
 ): Promise<unknown> {
   await assertOperational();
   return db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     const existing = await tx.query.memories.findFirst({ where: eq(memories.id, id) });
     if (!existing) throw new ApiError('NOT_FOUND', `Memory ${id} not found.`);
     const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -115,6 +124,7 @@ export async function updateMemory(
 export async function deleteMemory(id: string, actor: string): Promise<void> {
   await assertOperational();
   await db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     const [deleted] = await tx
       .delete(memories)
       .where(eq(memories.id, id))
@@ -127,6 +137,7 @@ export async function deleteMemory(id: string, actor: string): Promise<void> {
 export async function createSkill(input: SkillRow, actor: string): Promise<unknown> {
   await assertOperational();
   return db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     const [created] = await tx
       .insert(skills)
       .values({
@@ -155,6 +166,7 @@ export async function updateSkill(
 ): Promise<unknown> {
   await assertOperational();
   return db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     const existing = await tx.query.skills.findFirst({ where: eq(skills.id, id) });
     if (!existing) throw new ApiError('NOT_FOUND', `Skill ${id} not found.`);
     const updates: Record<string, unknown> = { updatedAt: new Date() };
@@ -172,6 +184,7 @@ export async function updateSkill(
 export async function deleteSkill(id: string, actor: string): Promise<void> {
   await assertOperational();
   await db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     const [deleted] = await tx.delete(skills).where(eq(skills.id, id)).returning({ id: skills.id });
     if (!deleted) throw new ApiError('NOT_FOUND', `Skill ${id} not found.`);
     await appendAudit('skill.deleted', { id }, actor, tx);
@@ -190,6 +203,7 @@ export async function recordOutcome(
 ): Promise<unknown> {
   await assertOperational();
   return db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     const inc = outcome === 'success' ? 1 : 0;
     const failInc = outcome === 'failure' ? 1 : 0;
     const [updated] = await tx
@@ -227,6 +241,7 @@ export async function transferProject(
   await assertOperational();
   const project = await ensureProject(input.projectName, input.description ?? 'transfer');
   const { memCreated, sklUpserted } = await db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     let mc = 0;
     let sc = 0;
     for (const m of input.memories ?? []) {
@@ -297,6 +312,7 @@ export async function checkpoint(
   await assertOperational();
   const projectId = projectName ? (await ensureProject(projectName, 'checkpoint')).id : null;
   return db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     const [row] = await tx
       .insert(memories)
       .values({
@@ -337,6 +353,7 @@ export async function captureSession(
     const { distillTranscript } = await import('./services/llm.js');
     const distilled = await distillTranscript(transcript);
     const created = await db.transaction(async (tx: Tx) => {
+      await assertOperational(tx);
       const rows: unknown[] = [];
       for (const d of distilled) {
         const [row] = await tx
@@ -377,6 +394,7 @@ export async function captureSession(
           ).id
         : null);
     await db.transaction(async (tx: Tx) => {
+      await assertOperational(tx);
       const [raw] = await tx
         .insert(memories)
         .values({
@@ -408,20 +426,24 @@ export async function ensureProject(
   name: string,
   source: string
 ): Promise<{ id: string; created: boolean }> {
-  // Race-safe: use ON CONFLICT DO NOTHING. Two concurrent calls with the same
-  // name both succeed — the first inserts, the second is a no-op, then we
-  // re-read to get the actual ID. No unique constraint violation possible.
-  const id = `prj_${randomUUID()}`;
-  const [row] = await db
-    .insert(projects)
-    .values({ id, name, source, status: 'active' })
-    .onConflictDoNothing({ target: projects.name })
-    .returning();
-  if (row) return { id: row.id, created: true };
-  const existing = await db.query.projects.findFirst({ where: eq(projects.name, name) });
-  if (!existing)
-    throw new Error(`Project "${name}" exists but could not be read after conflict resolution.`);
-  return { id: existing.id, created: false };
+  await assertOperational();
+  return db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
+    // Race-safe: use ON CONFLICT DO NOTHING. Two concurrent calls with the same
+    // name both succeed — the first inserts, the second is a no-op, then we
+    // re-read to get the actual ID. No unique constraint violation possible.
+    const id = `prj_${randomUUID()}`;
+    const [row] = await tx
+      .insert(projects)
+      .values({ id, name, source, status: 'active' })
+      .onConflictDoNothing({ target: projects.name })
+      .returning();
+    if (row) return { id: row.id, created: true };
+    const existing = await tx.query.projects.findFirst({ where: eq(projects.name, name) });
+    if (!existing)
+      throw new Error(`Project "${name}" exists but could not be read after conflict resolution.`);
+    return { id: existing.id, created: false };
+  });
 }
 
 export async function setKillSwitch(
@@ -429,7 +451,9 @@ export async function setKillSwitch(
   reason: string | undefined,
   actor: string
 ): Promise<void> {
+  await assertOperational();
   await db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     const value = enabled ? '1' : '0';
     await tx
       .insert(systemMeta)
@@ -457,7 +481,9 @@ export async function recordFeedback(
   input: { query: string; itemId: string; itemType: string; helpful: boolean },
   actor: string
 ): Promise<void> {
+  await assertOperational();
   await db.transaction(async (tx: Tx) => {
+    await assertOperational(tx);
     await tx.insert(feedback).values({
       id: `fb_${randomUUID()}`,
       query: input.query,
