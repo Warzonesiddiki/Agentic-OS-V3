@@ -2,8 +2,44 @@
  * Self-improvement-harness unit tests — pure functions only, no database required.
  * Tests detection logic, metric summarization, and budget calculations.
  */
-import { describe, it, expect } from "vitest";
-import { detectRegression, type MetricWindow } from "../src/services/self-improvement-harness.js";
+import { describe, it, expect, vi } from "vitest";
+import { detectRegression, harnessTick, type MetricWindow } from "../src/services/self-improvement-harness.js";
+import { db } from "../src/db/client.js";
+
+vi.mock("../src/db/client.js", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/db/client.js")>();
+  return {
+    ...actual,
+    db: {
+      ...actual.db,
+      query: {
+        metricSnapshots: {
+          findMany: vi.fn(),
+        },
+        improvementProposals: {
+          findFirst: vi.fn(),
+        },
+      },
+      insert: vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([{ id: "prop_123" }]),
+        }),
+      }),
+    },
+  };
+});
+
+vi.mock("../src/lib/audit.js", () => ({
+  appendAudit: vi.fn().mockResolvedValue(undefined),
+}));
+
+vi.mock("../src/lib/logging.js", () => ({
+  log: {
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn(),
+  },
+}));
 
 describe("self-improvement — detectRegression", () => {
   it("detects regression when p95 increases beyond threshold", () => {
@@ -78,5 +114,25 @@ describe("self-improvement — detectRegression", () => {
     };
     // 60% improvement should not trigger regression
     expect(detectRegression(current, baseline, 0.10)).toBe(false);
+  });
+});
+
+describe("self-improvement — harnessTick", () => {
+  it("does not create duplicate proposal if active proposal exists", async () => {
+    const mockSnapshots = [
+      ...Array(10).fill(null).map(() => ({ value: 200, capturedAt: new Date() })),
+      ...Array(10).fill(null).map(() => ({ value: 100, capturedAt: new Date() })),
+    ];
+    vi.mocked(db.query.metricSnapshots.findMany).mockResolvedValue(mockSnapshots as any);
+
+    // Case A: No existing active proposal
+    vi.mocked(db.query.improvementProposals.findFirst).mockResolvedValue(undefined as any);
+    const result1 = await harnessTick({ metrics: ["cpu_usage"] });
+    expect(result1.proposalsCreated).toBe(1);
+
+    // Case B: Existing active proposal exists
+    vi.mocked(db.query.improvementProposals.findFirst).mockResolvedValue({ id: "prop_existing" } as any);
+    const result2 = await harnessTick({ metrics: ["cpu_usage"] });
+    expect(result2.proposalsCreated).toBe(0);
   });
 });
