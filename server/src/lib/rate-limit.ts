@@ -89,6 +89,7 @@ export async function consumePrincipal(principalId: string, route?: string): Pro
   const limit = PRINCIPAL_LIMIT_MULTIPLIER * baseLimit;
   const now = Date.now();
   const bucketKey = route === 'sse' ? `principal:sse:${principalId}` : `principal:rest:${principalId}`;
+  
   let bucket = buckets.get(bucketKey);
   if (!bucket || now - bucket.lastRefill >= WINDOW_MS) {
     if (buckets.size >= MAX_BUCKETS) {
