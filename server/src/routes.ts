@@ -51,6 +51,7 @@ import { automation } from './routes/automation.js';
 import { sse } from './routes/sse.js';
 import { v3upgrade } from './routes/v3-upgrade.js';
 import { agentLifecycle } from './routes/agent-lifecycle.js';
+import { kernelRouter } from './routes/kernel.js';
 import { a2aRouter } from './routes/a2a.js';
 
 export const api = new Hono<NexusEnv>();
@@ -63,6 +64,7 @@ api.route('/', automation);
 api.route('/', sse);
 api.route('/', v3upgrade);
 api.route('/', agentLifecycle);
+api.route('/', kernelRouter);
 api.route('/', a2aRouter);
 api.route('/', auditRouter);
 api.route('/', analyticsRouter);
