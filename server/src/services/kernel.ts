@@ -11,11 +11,11 @@
  * Every operation appends to the hash-chained audit log.
  */
 import { db } from '../db/client.js';
-import { agents, agentTasks } from '../db/client.js';
+import { agents, agentTasks, ringPolicies, auditLog } from '../db/client.js';
 import { appendAudit } from '../lib/audit.js';
 import { logToolReceipt } from './audit-engine.js';
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql, desc, asc } from 'drizzle-orm';
+import { and, eq, sql, desc, asc, in } from 'drizzle-orm';
 import { getMessageBus } from './message-bus.js';
 
 // ── Agent Registry ────────────────────────────────────────────
@@ -691,4 +691,465 @@ export async function recoverAgentProcesses(actor: string = 'system') {
   }
 
   return recovered;
+}
+
+// ─────────────────────────────────────────────────────────────
+// PHASE 11 — Advanced Kernel & Scheduling Subsystem (kernel side)
+// Typed kernel event bus, ring policy store (hot-reload ACL),
+// per-ring resource budget controller, priority inheritance (PIP),
+// agent lifecycle hooks, Mermaid state-machine export, distributed
+// barriers, control-group budget inheritance, and gang scheduling.
+// ─────────────────────────────────────────────────────────────
+
+// ── Typed Kernel Event Bus ───────────────────────────────────
+export type KernelEventType =
+  | 'task.enqueued'
+  | 'task.completed'
+  | 'task.failed'
+  | 'agent.spawned'
+  | 'agent.preempted'
+  | 'ring.budget_exceeded';
+
+export type KernelEventCallback = (payload: Record<string, unknown>) => void;
+
+const kernelEventSubs = new Map<KernelEventType, Set<KernelEventCallback>>();
+const kernelEventHistory: Array<{
+  type: KernelEventType;
+  at: number;
+  payload: Record<string, unknown>;
+}> = [];
+
+export function subscribeKernelEvent(type: KernelEventType, cb: KernelEventCallback): () => void {
+  const set = kernelEventSubs.get(type) ?? new Set();
+  set.add(cb);
+  kernelEventSubs.set(type, set);
+  return () => set.delete(cb);
+}
+
+export function publishKernelEvent(type: KernelEventType, payload: Record<string, unknown>): void {
+  kernelEventHistory.push({ type, at: Date.now(), payload });
+  if (kernelEventHistory.length > 1000) kernelEventHistory.shift();
+  const set = kernelEventSubs.get(type);
+  if (set) {
+    for (const cb of set) {
+      try {
+        cb(payload);
+      } catch (e) {
+        log.error('kernel_event_subscriber_error', {
+          type,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      }
+    }
+  }
+  try {
+    getMessageBus().publish(type, 'kernel', (payload.agentId as string) ?? 'kernel', payload);
+  } catch {
+    /* bus unavailable */
+  }
+}
+
+export function getKernelEventHistory(): Array<{
+  type: KernelEventType;
+  at: number;
+  payload: Record<string, unknown>;
+}> {
+  return [...kernelEventHistory];
+}
+
+// ── Typed scheduling errors ──────────────────────────────────
+export class BackpressureError extends Error {
+  constructor(public readonly queueDepth: number, public readonly highWatermark: number) {
+    super(`Backpressure: queue depth ${queueDepth} exceeds high watermark ${highWatermark}`);
+    this.name = 'BackpressureError';
+    Object.setPrototypeOf(this, BackpressureError.prototype);
+  }
+}
+
+export class DeadlineAdmissionError extends Error {
+  constructor(public readonly reason: string) {
+    super(`Deadline admission rejected: ${reason}`);
+    this.name = 'DeadlineAdmissionError';
+    Object.setPrototypeOf(this, DeadlineAdmissionError.prototype);
+  }
+}
+
+// ── Ring Policy Store (hot-reload ACL) ───────────────────────
+export interface RingPolicy {
+  ring: number;
+  tools: string[];
+  maxConcurrency: number;
+  maxTokensPerMin: number;
+  maxApiCallsPerMin: number;
+}
+
+function defaultRingPolicy(ring: number): RingPolicy {
+  return {
+    ring,
+    tools: RING_TOOL_ACCESS[ring] ?? [],
+    maxConcurrency: 0,
+    maxTokensPerMin: 0,
+    maxApiCallsPerMin: 0,
+  };
+}
+
+class RingPolicyStore {
+  private cache = new Map<number, RingPolicy>();
+  private loaded = false;
+
+  constructor() {
+    for (let r = 0; r <= 4; r++) this.cache.set(r, defaultRingPolicy(r));
+  }
+
+  get(ring: number): RingPolicy {
+    return this.cache.get(ring) ?? defaultRingPolicy(ring);
+  }
+
+  async reload(): Promise<void> {
+    const rows = await db.select().from(ringPolicies);
+    for (const row of rows) {
+      this.cache.set(row.ring, {
+        ring: row.ring,
+        tools: row.tools,
+        maxConcurrency: row.maxConcurrency,
+        maxTokensPerMin: row.maxTokensPerMin,
+        maxApiCallsPerMin: row.maxApiCallsPerMin,
+      });
+    }
+    this.loaded = true;
+  }
+
+  async ensureLoaded(): Promise<void> {
+    if (this.loaded) return;
+    await this.reload();
+  }
+
+  async set(ring: number, patch: Partial<Omit<RingPolicy, 'ring'>>): Promise<RingPolicy> {
+    const current = this.get(ring);
+    const next: RingPolicy = { ...current, ...patch, ring };
+    await db
+      .insert(ringPolicies)
+      .values({
+        id: `ring_${ring}`,
+        ring,
+        tools: next.tools,
+        maxConcurrency: next.maxConcurrency,
+        maxTokensPerMin: next.maxTokensPerMin,
+        maxApiCallsPerMin: next.maxApiCallsPerMin,
+        updatedAt: new Date(),
+      })
+      .onConflictDoUpdate({
+        target: ringPolicies.ring,
+        set: {
+          tools: next.tools,
+          maxConcurrency: next.maxConcurrency,
+          maxTokensPerMin: next.maxTokensPerMin,
+          maxApiCallsPerMin: next.maxApiCallsPerMin,
+          updatedAt: new Date(),
+        },
+      });
+    this.cache.set(ring, next);
+    this.publish(ring);
+    return next;
+  }
+
+  private publish(ring: number): void {
+    publishKernelEvent('ring.budget_exceeded', {
+      ring,
+      reason: 'policy_updated',
+      tools: this.get(ring).tools,
+    });
+  }
+}
+
+export const ringPolicyStore = new RingPolicyStore();
+
+// ── Per-Ring Resource Budget Controller (cgroups-style) ──────
+interface RingUsage {
+  concurrency: number;
+  tokens: Array<{ at: number; n: number }>;
+  apiCalls: Array<{ at: number; n: number }>;
+}
+
+const ringUsageMap = new Map<number, RingUsage>();
+const RING_WINDOW_MS = 60_000;
+
+function touchRing(ring: number): RingUsage {
+  let u = ringUsageMap.get(ring);
+  if (!u) {
+    u = { concurrency: 0, tokens: [], apiCalls: [] };
+    ringUsageMap.set(ring, u);
+  }
+  return u;
+}
+
+function rollWindow(entries: Array<{ at: number; n: number }>, now: number): number {
+  const cutoff = now - RING_WINDOW_MS;
+  while (entries.length && entries[0]!.at < cutoff) entries.shift();
+  return entries.reduce((s, e) => s + e.n, 0);
+}
+
+export interface RingBudgetSnapshot {
+  ring: number;
+  maxConcurrency: number;
+  concurrency: number;
+  maxTokensPerMin: number;
+  tokensPerMin: number;
+  maxApiCallsPerMin: number;
+  apiCallsPerMin: number;
+  exceeded: boolean;
+}
+
+export function ringBudgetStatus(ring: number): RingBudgetSnapshot {
+  const policy = ringPolicyStore.get(ring);
+  const u = touchRing(ring);
+  const now = Date.now();
+  const tokens = rollWindow(u.tokens, now);
+  const apiCalls = rollWindow(u.apiCalls, now);
+  const exceeded =
+    (policy.maxConcurrency > 0 && u.concurrency >= policy.maxConcurrency) ||
+    (policy.maxTokensPerMin > 0 && tokens >= policy.maxTokensPerMin) ||
+    (policy.maxApiCallsPerMin > 0 && apiCalls >= policy.maxApiCallsPerMin);
+  return {
+    ring,
+    maxConcurrency: policy.maxConcurrency,
+    concurrency: u.concurrency,
+    maxTokensPerMin: policy.maxTokensPerMin,
+    tokensPerMin: tokens,
+    maxApiCallsPerMin: policy.maxApiCallsPerMin,
+    apiCallsPerMin: apiCalls,
+    exceeded,
+  };
+}
+
+export function acquireRingBudget(ring: number, tokens = 0): boolean {
+  const policy = ringPolicyStore.get(ring);
+  const u = touchRing(ring);
+  const now = Date.now();
+  if (policy.maxConcurrency > 0 && u.concurrency >= policy.maxConcurrency) {
+    publishKernelEvent('ring.budget_exceeded', { ring, reason: 'concurrency', snapshot: ringBudgetStatus(ring) });
+    return false;
+  }
+  if (policy.maxTokensPerMin > 0 && rollWindow(u.tokens, now) + tokens > policy.maxTokensPerMin) {
+    publishKernelEvent('ring.budget_exceeded', { ring, reason: 'tokens', snapshot: ringBudgetStatus(ring) });
+    return false;
+  }
+  if (policy.maxApiCallsPerMin > 0 && rollWindow(u.apiCalls, now) + 1 > policy.maxApiCallsPerMin) {
+    publishKernelEvent('ring.budget_exceeded', { ring, reason: 'api_calls', snapshot: ringBudgetStatus(ring) });
+    return false;
+  }
+  u.concurrency += 1;
+  if (tokens > 0) u.tokens.push({ at: now, n: tokens });
+  u.apiCalls.push({ at: now, n: 1 });
+  return true;
+}
+
+export function releaseRingBudget(ring: number): void {
+  const u = touchRing(ring);
+  if (u.concurrency > 0) u.concurrency -= 1;
+}
+
+// ── Priority Inheritance Protocol (PIP) ──────────────────────
+interface HeldResource {
+  resource: string;
+  holderPriority: number;
+  waiters: Array<{ agentId: string; priority: number }>;
+}
+
+const heldResources = new Map<string, HeldResource>();
+const inheritedPriority = new Map<string, number>();
+
+export function inheritPriority(
+  waiterAgentId: string,
+  waiterPriority: number,
+  holderAgentId: string,
+  resource: string
+): void {
+  const res = heldResources.get(resource) ?? { resource, holderPriority: waiterPriority, waiters: [] };
+  res.holderPriority = Math.max(res.holderPriority, waiterPriority);
+  res.waiters.push({ agentId: waiterAgentId, priority: waiterPriority });
+  heldResources.set(resource, res);
+  inheritedPriority.set(holderAgentId, res.holderPriority);
+  log.info('pip_inherit', { holderAgentId, waiterAgentId, resource, priority: res.holderPriority });
+}
+
+export function restorePriority(holderAgentId: string, resource: string): void {
+  heldResources.delete(resource);
+  inheritedPriority.delete(holderAgentId);
+  log.info('pip_restore', { holderAgentId, resource });
+}
+
+export function effectivePriority(agentId: string, basePriority: number): number {
+  return inheritedPriority.get(agentId) ?? basePriority;
+}
+
+export function getHeldResources(): Array<{ resource: string; holderPriority: number; waiters: number }> {
+  return Array.from(heldResources.values()).map((r) => ({
+    resource: r.resource,
+    holderPriority: r.holderPriority,
+    waiters: r.waiters.length,
+  }));
+}
+
+// ── Agent Lifecycle Hooks (schedule-aware) ───────────────────
+export interface AgentLifecycleHooks {
+  onPreempt?: (agentId: string) => Promise<void> | void;
+  onResume?: (agentId: string) => Promise<void> | void;
+}
+
+const lifecycleHooks = new Map<string, AgentLifecycleHooks>();
+
+export function registerLifecycleHooks(agentId: string, hooks: AgentLifecycleHooks): void {
+  lifecycleHooks.set(agentId, { ...(lifecycleHooks.get(agentId) ?? {}), ...hooks });
+}
+
+export async function preemptAgent(agentId: string): Promise<void> {
+  const hooks = lifecycleHooks.get(agentId);
+  if (hooks?.onPreempt) {
+    try {
+      await hooks.onPreempt(agentId);
+    } catch (e) {
+      log.error('agent_preempt_hook_failed', {
+        agentId,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+  await appendAudit('agent.preempted', { agentId }, 'kernel');
+  publishKernelEvent('agent.preempted', { agentId });
+  getMessageBus().publish('agent.preempted', 'kernel', agentId, { agentId });
+}
+
+export async function resumeAgentHooks(agentId: string): Promise<void> {
+  const hooks = lifecycleHooks.get(agentId);
+  if (hooks?.onResume) {
+    try {
+      await hooks.onResume(agentId);
+    } catch (e) {
+      log.error('agent_resume_hook_failed', {
+        agentId,
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+}
+
+// ── Agent State Machine Visualizer (Mermaid) ─────────────────
+export async function exportKernelStateMachine(): Promise<{
+  mermaid: string;
+  agents: Array<{ id: string; name: string; status: string; ring: number }>;
+}> {
+  const rows = await db.select().from(agents);
+  const lines: string[] = ['stateDiagram-v2'];
+  const validStates = ['idle', 'thinking', 'executing_tool', 'errored', 'quarantined', 'paused', 'completed', 'terminated'];
+  for (const a of rows) {
+    const safeId = `A_${a.id.replace(/[^a-zA-Z0-9_]/g, '_')}`;
+    lines.push(`  ${safeId} : ${a.name} [ring ${a.ring}]`);
+    if (!validStates.includes(a.status)) continue;
+    if (a.status === 'idle') lines.push(`  [*] --> ${safeId}`);
+    if (a.status === 'terminated' || a.status === 'completed') lines.push(`  ${safeId} --> [*]`);
+  }
+  const transitions = await db.query.auditLog.findMany({
+    where: sql`${auditLog.action} IN ('agent.spawned','task.completed','agent.preempted','agent.paused','agent.resumed','agent.terminated')`,
+    orderBy: [desc(auditLog.createdAt)],
+    limit: 500,
+  });
+  for (const t of transitions) {
+    const p = (t.payload ?? {}) as Record<string, unknown>;
+    const agentId = (p.agentId as string) ?? (p.agent as string);
+    if (!agentId) continue;
+    const safeId = `A_${agentId.replace(/[^a-zA-Z0-9_]/g, '_')}`;
+    if (t.action === 'agent.paused') lines.push(`  ${safeId} --> ${safeId}_paused : pause`);
+  }
+  return {
+    mermaid: lines.join('\n'),
+    agents: rows.map((a) => ({ id: a.id, name: a.name, status: a.status, ring: a.ring })),
+  };
+}
+
+// ── Distributed Barrier Synchronization ──────────────────────
+interface Barrier {
+  name: string;
+  total: number;
+  arrived: Set<string>;
+  resolve: () => void;
+  timer?: ReturnType<typeof setTimeout>;
+}
+
+const barriers = new Map<string, Barrier>();
+
+export function barrierWait(name: string, timeoutMs: number, memberId: string, total?: number): Promise<void> {
+  let b = barriers.get(name);
+  if (!b) {
+    b = { name, total: total ?? 0, arrived: new Set(), resolve: () => {} };
+    barriers.set(name, b);
+  }
+  if (total && total > b.total) b.total = total;
+  const released = new Promise<void>((resolve) => {
+    b!.resolve = resolve;
+  });
+  b.arrived.add(memberId);
+  if (b.total > 0 && b.arrived.size >= b.total) {
+    if (b.timer) clearTimeout(b.timer);
+    barriers.delete(name);
+    b.resolve();
+  } else if (!b.timer) {
+    b.timer = setTimeout(() => {
+      barriers.delete(name);
+      b!.resolve();
+    }, timeoutMs);
+  }
+  return released;
+}
+
+export function barrierStatus(name: string): { name: string; arrived: number; total: number } | null {
+  const b = barriers.get(name);
+  if (!b) return null;
+  return { name: b.name, arrived: b.arrived.size, total: b.total };
+}
+
+// ── Agent Control Groups (recursive budget inheritance) ──────
+export interface Cgroup {
+  cpuWeight: number;
+  memWeight: number;
+  tokenShare: number;
+}
+
+const DEFAULT_CGROUP: Cgroup = { cpuWeight: 100, memWeight: 100, tokenShare: 100 };
+
+export function parseCgroup(raw: unknown): Cgroup {
+  let c: unknown = raw;
+  if (typeof raw === 'string') {
+    try {
+      c = JSON.parse(raw);
+    } catch {
+      c = {};
+    }
+  }
+  const obj = (c ?? {}) as Partial<Cgroup>;
+  return {
+    cpuWeight: typeof obj.cpuWeight === 'number' ? obj.cpuWeight : DEFAULT_CGROUP.cpuWeight,
+    memWeight: typeof obj.memWeight === 'number' ? obj.memWeight : DEFAULT_CGROUP.memWeight,
+    tokenShare: typeof obj.tokenShare === 'number' ? obj.tokenShare : DEFAULT_CGROUP.tokenShare,
+  };
+}
+
+export function inheritCgroup(parentCgroup: Cgroup | null, fraction = 0.5): Cgroup {
+  const base = parentCgroup ?? DEFAULT_CGROUP;
+  return {
+    cpuWeight: Math.max(1, Math.round(base.cpuWeight * fraction)),
+    memWeight: Math.max(1, Math.round(base.memWeight * fraction)),
+    tokenShare: Math.max(1, Math.round(base.tokenShare * fraction)),
+  };
+}
+
+// ── Gang Scheduling ──────────────────────────────────────────
+const gangMembers = new Map<string, string[]>();
+
+export function getGangMembers(primaryTaskId: string): string[] {
+  return gangMembers.get(primaryTaskId) ?? [];
+}
+
+export function clearGangMembers(primaryTaskId: string): void {
+  gangMembers.delete(primaryTaskId);
 }
