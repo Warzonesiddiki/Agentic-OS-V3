@@ -302,12 +302,15 @@ export const agents = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
     lastHeartbeatAt: timestamp('last_heartbeat_at', { withTimezone: true }),
+    schedulingMode: text('scheduling_mode').notNull().default('preemptive'), // 'cooperative' | 'preemptive'
+    cgroup: jsonb('cgroup').notNull().default({}), // { cpuWeight?, memWeight?, tokenShare? }
   },
   (t) => ({
     parentIdx: index('agent_parent_idx').on(t.parentId),
     statusIdx: index('agent_status_idx').on(t.status),
     kindCheck: check('agent_kind_check', sql`${t.kind} IN ('master', 'sub-agent', 'daemon')`),
     statusCheck: check('agent_status_check', sql`${t.status} IN ('idle', 'thinking', 'executing_tool', 'errored', 'quarantined', 'completed')`),
+    schedulingModeCheck: check('agent_scheduling_mode_check', sql`${t.schedulingMode} IN ('cooperative', 'preemptive')`),
   })
 );
 
@@ -331,6 +334,11 @@ export const agentTasks = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     startedAt: timestamp('started_at', { withTimezone: true }),
     finishedAt: timestamp('finished_at', { withTimezone: true }),
+    deadline: timestamp('deadline', { withTimezone: true }), // nullable — EDF hard-real-time
+    quantumMs: integer('quantum_ms'), // nullable — preemptive timeslice
+    checkpoint: jsonb('checkpoint').notNull().default({}), // context save/restore snapshot
+    gangId: text('gang_id'), // nullable — gang scheduling group id
+    estimatedDurationMs: integer('estimated_duration_ms'), // nullable — admission control
   },
   (t) => ({
     agentIdx: index('task_agent_idx').on(t.agentId),
@@ -340,9 +348,46 @@ export const agentTasks = pgTable(
     statusPriorityQueueIdx: index('agent_tasks_status_priority_queue_idx').on(t.status, t.priority, t.queue),
     queuedPriorityCreatedIdx: index('agent_tasks_queued_priority_created_idx').on(t.priority, t.createdAt).where(sql`status = 'queued'`),
     agentStatusIdx: index('agent_tasks_agent_status_idx').on(t.agentId, t.status),
+    queueDeadlineIdx: index('task_queue_deadline_idx').on(t.queue, t.deadline),
     kindCheck: check('task_kind_check', sql`${t.kind} IN ('interactive', 'background', 'maintenance', 'safety', 'self_improvement')`),
     queueCheck: check('task_queue_check', sql`${t.queue} IN ('Q0', 'Q1', 'Q2', 'Q3', 'Q4')`),
     statusCheck: check('task_status_check', sql`${t.status} IN ('queued', 'running', 'succeeded', 'failed', 'cancelled', 'dead_letter')`),
+  })
+);
+
+export const ringPolicies = pgTable(
+  'ring_policies',
+  {
+    id: text('id').primaryKey(),
+    ring: integer('ring').notNull().unique(),
+    tools: text('tools').array().notNull().default([]),
+    maxConcurrency: integer('max_concurrency').notNull().default(0),
+    maxTokensPerMin: integer('max_tokens_per_min').notNull().default(0),
+    maxApiCallsPerMin: integer('max_api_calls_per_min').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    ringIdx: index('ring_policy_ring_idx').on(t.ring),
+    ringCheck: check('ring_policy_ring_check', sql`${t.ring} BETWEEN 0 AND 4`),
+  })
+);
+
+export const schedulerMetrics = pgTable(
+  'scheduler_metrics',
+  {
+    id: text('id').primaryKey(),
+    queue: text('queue').notNull(),
+    p50: real('p50').notNull().default(0),
+    p90: real('p90').notNull().default(0),
+    p99: real('p99').notNull().default(0),
+    p999: real('p999').notNull().default(0),
+    sampleCount: integer('sample_count').notNull().default(0),
+    windowStart: timestamp('window_start', { withTimezone: true }).notNull(),
+    windowEnd: timestamp('window_end', { withTimezone: true }).notNull(),
+    computedAt: timestamp('computed_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    queueIdx: index('scheduler_metrics_queue_idx').on(t.queue),
   })
 );
 

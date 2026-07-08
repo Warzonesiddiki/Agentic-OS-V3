@@ -348,4 +348,6 @@ export const {
   llmTokenBudgets,
   pipelines,
   pipelineRuns,
+  ringPolicies,
+  schedulerMetrics,
 } = isSqlite ? sqliteSchema : pgSchema;
