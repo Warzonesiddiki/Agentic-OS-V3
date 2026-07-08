@@ -49,6 +49,7 @@ export const memories = sqliteTable(
     importanceIdx: index('mem_importance_idx').on(t.importance),
     createdIdx: index('mem_created_idx').on(t.createdAt),
     projectIdx: index('mem_project_idx').on(t.projectId),
+    kindImportanceIdx: index('memories_kind_importance_idx').on(t.kind, t.importance),
   })
 );
 
@@ -85,7 +86,9 @@ export const skills = sqliteTable(
     embedding: embeddingCol(),
   },
   (t) => ({
-    nameProjectIdx: uniqueIndex('skill_name_project_unique').on(t.name, t.projectId),
+    // Aligned with PG schema: COALESCE makes NULL project_id behave as ''
+    // so the unique constraint holds (otherwise SQLite treats each NULL as distinct).
+    nameUnique: uniqueIndex('skill_name_unique').on(t.name, sql`COALESCE(${t.projectId}, '')`),
     categoryIdx: index('skill_category_idx').on(t.category),
     ratingIdx: index('skill_rating_idx').on(t.rating),
   })
@@ -258,7 +261,7 @@ export const trajectoryLogs = sqliteTable(
   {
     id: text('id').primaryKey(),
     auditSequence: integer('audit_sequence').notNull(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     model: text('model').notNull(),
     promptSent: text('prompt_sent').notNull(),
     responseReceived: text('response_received').notNull().default(''),
@@ -279,7 +282,7 @@ export const toolReceipts = sqliteTable(
   {
     id: text('id').primaryKey(),
     auditSequence: integer('audit_sequence').notNull(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     tool: text('tool').notNull(),
     target: text('target'),
     preHash: text('pre_hash'),
@@ -314,7 +317,7 @@ export const agents = sqliteTable(
     tokensUsed: integer('tokens_used').notNull().default(0),
     timeoutMs: integer('timeout_ms').notNull().default(120000),
     maxRetries: integer('max_retries').notNull().default(3),
-    metadata: text('metadata').notNull().default('{}'),
+    metadata: text('metadata', { mode: 'json' }).notNull().default('{}'),
     createdAt: text('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
@@ -333,7 +336,7 @@ export const agentTasks = sqliteTable(
   'agent_tasks',
   {
     id: text('id').primaryKey(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     label: text('label').notNull(),
     kind: text('kind').notNull().default('interactive'),
     queue: text('queue').notNull().default('Q1'),
@@ -357,6 +360,9 @@ export const agentTasks = sqliteTable(
     statusIdx: index('task_status_idx').on(t.status),
     queueIdx: index('task_queue_idx').on(t.queue),
     idemUnique: uniqueIndex('task_idem_unique').on(t.idempotencyKey),
+    statusPriorityQueueIdx: index('agent_tasks_status_priority_queue_idx').on(t.status, t.priority, t.queue),
+    queuedPriorityCreatedIdx: index('agent_tasks_queued_priority_created_idx').on(t.priority, t.createdAt).where(sql`status = 'queued'`),
+    agentStatusIdx: index('agent_tasks_agent_status_idx').on(t.agentId, t.status),
   })
 );
 
@@ -380,6 +386,7 @@ export const cronJobs = sqliteTable(
   (t) => ({
     enabledIdx: index('cron_enabled_idx').on(t.enabled),
     nextRunIdx: index('cron_nextrun_idx').on(t.nextRunAt),
+    enabledNextRunIdx: index('cron_jobs_enabled_next_run_idx').on(t.nextRunAt).where(sql`enabled = 1`),
   })
 );
 
@@ -410,6 +417,7 @@ export const spanLogs = sqliteTable(
     typeIdx: index('span_type_idx').on(t.type),
     createdIdx: index('span_created_idx').on(t.createdAt),
     parentIdx: index('span_parent_idx').on(t.parentId),
+    traceParentIdx: index('span_logs_trace_parent_idx').on(t.traceId, t.parentId),
   })
 );
 
@@ -417,7 +425,7 @@ export const sandboxExecutions = sqliteTable(
   'sandbox_executions',
   {
     id: text('id').primaryKey(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     type: text('type').notNull().default('docker'),
     code: text('code').notNull(),
     language: text('language').notNull().default('javascript'),
@@ -441,7 +449,7 @@ export const stateSnapshots = sqliteTable(
   {
     id: text('id').primaryKey(),
     sagaId: text('saga_id').notNull(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     stepIndex: integer('step_index').notNull(),
     stepName: text('step_name').notNull(),
     context: text('context').notNull().default('{}'),
@@ -603,12 +611,12 @@ export const pluginReceipts = sqliteTable(
     id: text('id').primaryKey(),
     pluginId: text('plugin_id').notNull(),
     installId: text('install_id'),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').references(() => agents.id, { onDelete: 'set null' }),
     capability: text('capability').notNull(),
     inputSha256: text('input_sha256').notNull(),
     outputSha256: text('output_sha256').notNull(),
     exitCode: integer('exit_code').notNull().default(0),
-    fuelUsed: integer('fuel_used').notNull().default(0),
+    fuelUsed: text('fuel_used').notNull().default('0'),
     durationMs: integer('duration_ms').notNull().default(0),
     authorized: integer('authorized', { mode: 'boolean' }).notNull().default(false),
     createdAt: text('created_at')
@@ -737,5 +745,6 @@ export const pipelineRuns = sqliteTable(
     pipelineIdx: index('pipeline_run_pipeline_idx').on(t.pipelineId),
     statusIdx: index('pipeline_run_status_idx').on(t.status),
     createdIdx: index('pipeline_run_created_idx').on(t.createdAt),
+    pipelineStatusIdx: index('pipeline_runs_pipeline_status_idx').on(t.pipelineId, t.status),
   })
 );

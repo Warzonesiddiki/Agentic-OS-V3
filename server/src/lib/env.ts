@@ -17,6 +17,7 @@ config(); // Load .env file into process.env
 
 const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(9900),
+  NEXUS_PLUGIN_PUBLISHER_PUBKEYS: z.string().default(''),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   DATABASE_URL: z.string().default(''),
   NEXUS_API_KEY: z.string().default('nk_local_dev_key'),
@@ -51,6 +52,8 @@ const schema = z.object({
   NEXUS_SANDBOX_IMAGE: z.string().default('node:20-alpine'),
   NEXUS_SANDBOX_TIMEOUT_MS: z.coerce.number().int().min(1000).max(300000).default(30000),
   NEXUS_SCHEDULER_TICK_MS: z.coerce.number().int().min(1000).max(3600000).default(60000),
+  NEXUS_SCHEDULER_MAX_CONCURRENT: z.coerce.number().default(5),
+  AIONRS_BASE_URL: z.string().default('http://localhost:3000'),
   NEXUS_BUS_BACKEND: z.enum(['memory', 'redis']).default('memory'),
   NEXUS_REDIS_URL: z.string().default('redis://localhost:6379'),
   // Embedding config
@@ -108,9 +111,11 @@ const schema = z.object({
   MISTRAL_API_KEY: z.string().default(''),
   AZURE_OPENAI_API_KEY: z.string().default(''),
   AZURE_OPENAI_ENDPOINT: z.string().default(''),
-});
+  NEXUS_FED_BUDGET_CUSTOM: z.coerce.number().int().min(1).default(100),
+  NEXUS_FED_BUDGET_INVALID_OVERRIDE: z.coerce.number().int().min(1).default(100),
+}).passthrough();
 
-export type Env = z.infer<typeof schema>;
+export type Env = z.infer<typeof schema> & Record<string, unknown>;
 
 let _env: Env | null = null;
 
