@@ -17,11 +17,10 @@ import { log } from '../lib/logging.js';
 import { container } from '../lib/container.js';
 import { CronExpressionParser, type CronExpression } from 'cron-parser';
 import { randomUUID } from 'node:crypto';
-import { db } from '../db/client.js';
-import { cronJobs } from '../db/client.js';
+import { db, cronJobs, agentTasks } from '../db/client.js';
 import { appendAudit } from '../lib/audit.js';
 import { getEnv } from '../lib/env.js';
-import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
+import { eq, and, gte, lte, desc, sql, asc } from 'drizzle-orm';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -679,4 +678,362 @@ export function resetScheduler(): void {
 
 function sleep(ms: number): Promise<void> {
   return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
+// ─────────────────────────────────────────────────────────────
+// PHASE 11 — Advanced Kernel & Scheduling Subsystem
+// Task-scheduling policies layered on top of the cron scheduler.
+// Exposes a pluggable SchedulingPolicy architecture (MLFQ, EDF,
+// FairShare), MLFQ aging/boost, EDF admission control, hierarchical
+// per-team schedulers, dry-run/replay tracing, and per-queue latency
+// percentile profiling. Pure policy functions operate on QueuedTask
+// and are unit-testable without a database.
+// ─────────────────────────────────────────────────────────────
+
+export type QueueLevel = 'Q0' | 'Q1' | 'Q2' | 'Q3' | 'Q4';
+
+export const MLFQ_LEVELS: readonly QueueLevel[] = ['Q0', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
+
+/** Preemptive timeslice (ms) granted per MLFQ level. Q0 gets the smallest. */
+export const MLFQ_QUANTUM_MS: Record<QueueLevel, number> = {
+  Q0: 50,
+  Q1: 100,
+  Q2: 200,
+  Q3: 400,
+  Q4: 800,
+};
+
+/** Normalized MLFQ priority weight per level (higher = more urgent). */
+export const MLFQ_PRIORITY: Record<QueueLevel, number> = {
+  Q0: 100,
+  Q1: 80,
+  Q2: 60,
+  Q3: 40,
+  Q4: 20,
+};
+
+export interface QueuedTask {
+  id: string;
+  agentId?: string;
+  queue: string;
+  priority: number;
+  deadline: Date | null;
+  createdAt: Date;
+  kind?: string;
+  estimatedDurationMs?: number | null;
+  gangId?: string | null;
+}
+
+export interface SchedulingPolicy {
+  name: string;
+  pick(tasks: QueuedTask[]): QueuedTask | null;
+}
+
+function queueRank(queue: string): number {
+  const idx = MLFQ_LEVELS.indexOf(queue as QueueLevel);
+  return idx >= 0 ? idx : MLFQ_LEVELS.length;
+}
+
+export class MLFQPolicy implements SchedulingPolicy {
+  readonly name = 'mlfq';
+  pick(tasks: QueuedTask[]): QueuedTask | null {
+    if (!tasks.length) return null;
+    const sorted = [...tasks].sort((a, b) => {
+      const ra = queueRank(a.queue);
+      const rb = queueRank(b.queue);
+      if (ra !== rb) return ra - rb;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+    return sorted[0] ?? null;
+  }
+}
+
+export class EDFPolicy implements SchedulingPolicy {
+  readonly name = 'edf';
+  pick(tasks: QueuedTask[]): QueuedTask | null {
+    if (!tasks.length) return null;
+    const sorted = [...tasks].sort((a, b) => {
+      const da = a.deadline ? a.deadline.getTime() : Number.POSITIVE_INFINITY;
+      const db2 = b.deadline ? b.deadline.getTime() : Number.POSITIVE_INFINITY;
+      if (da !== db2) return da - db2;
+      return a.createdAt.getTime() - b.createdAt.getTime();
+    });
+    return sorted[0] ?? null;
+  }
+}
+
+const fairShareLastServed = new Map<string, number>();
+
+export class FairSharePolicy implements SchedulingPolicy {
+  readonly name = 'fairshare';
+  pick(tasks: QueuedTask[]): QueuedTask | null {
+    if (!tasks.length) return null;
+    const agents = Array.from(new Set(tasks.map((t) => t.agentId ?? '_global')));
+    let bestAgent = agents[0] ?? '_global';
+    let bestTime = Number.POSITIVE_INFINITY;
+    for (const a of agents) {
+      const last = fairShareLastServed.get(a) ?? 0;
+      if (last < bestTime) {
+        bestTime = last;
+        bestAgent = a;
+      }
+    }
+    const candidates = tasks
+      .filter((t) => (t.agentId ?? '_global') === bestAgent)
+      .sort(
+        (x, y) =>
+          y.priority - x.priority || x.createdAt.getTime() - y.createdAt.getTime()
+      );
+    const chosen =
+      candidates[0] ??
+      [...tasks].sort((x, y) => y.priority - x.priority)[0] ??
+      null;
+    if (chosen) fairShareLastServed.set(bestAgent, Date.now());
+    return chosen;
+  }
+}
+
+let activePolicy: SchedulingPolicy = new MLFQPolicy();
+
+export function setSchedulingPolicy(name: 'mlfq' | 'edf' | 'fairshare'): void {
+  if (name === 'mlfq') activePolicy = new MLFQPolicy();
+  else if (name === 'edf') activePolicy = new EDFPolicy();
+  else activePolicy = new FairSharePolicy();
+  log.info('scheduler_policy_changed', { policy: activePolicy.name });
+}
+
+/** Select policy from env at startup. */
+export function initializeSchedulingPolicy(): void {
+  setSchedulingPolicy(getEnv().NEXUS_SCHEDULER_POLICY);
+}
+
+export function getSchedulingPolicyName(): string {
+  return activePolicy.name;
+}
+
+export function pickByPolicy(tasks: QueuedTask[]): QueuedTask | null {
+  return activePolicy.pick(tasks);
+}
+
+/**
+ * MLFQ aging/boost: all queued tasks not already in Q0 are promoted to Q0.
+ * Driven on a timer (startMlfqBooster) so long-running low-priority work
+ * cannot starve. Returns the number of tasks promoted.
+ */
+export async function boostMlfqQueues(): Promise<number> {
+  const result = await db
+    .update(agentTasks)
+    .set({ queue: 'Q0' })
+    .where(and(eq(agentTasks.status, 'queued'), sql`${agentTasks.queue} <> 'Q0'`))
+    .returning({ id: agentTasks.id });
+  return result.length;
+}
+
+/**
+ * Deadline-aware admission control (EDF). Rejects tasks whose deadline is
+ * too close to `now` to complete given estimatedDurationMs * safetyFactor.
+ */
+export function checkDeadlineAdmission(
+  deadline: Date | null | undefined,
+  estimatedDurationMs: number | null | undefined,
+  now: Date = new Date(),
+  safetyFactor = 1.5
+): { ok: boolean; reason?: string } {
+  if (!deadline) return { ok: true };
+  if (!estimatedDurationMs || estimatedDurationMs <= 0) return { ok: true };
+  const slack = deadline.getTime() - now.getTime();
+  if (slack <= 0) return { ok: false, reason: 'deadline already passed' };
+  if (slack < estimatedDurationMs * safetyFactor) {
+    return {
+      ok: false,
+      reason: `deadline too tight: ${Math.round(slack)}ms slack < ${Math.round(
+        estimatedDurationMs * safetyFactor
+      )}ms required`,
+    };
+  }
+  return { ok: true };
+}
+
+// ── Per-queue latency profiling ───────────────────────────────
+const latencySamples = new Map<string, number[]>();
+const MAX_SAMPLES = 1000;
+
+export function recordQueueLatency(queue: string, waitMs: number): void {
+  const arr = latencySamples.get(queue) ?? [];
+  arr.push(waitMs);
+  if (arr.length > MAX_SAMPLES) arr.shift();
+  latencySamples.set(queue, arr);
+}
+
+export function percentile(sorted: number[], p: number): number {
+  if (!sorted.length) return 0;
+  const idx = Math.min(
+    sorted.length - 1,
+    Math.max(0, Math.ceil((p / 100) * sorted.length) - 1)
+  );
+  return sorted[idx] ?? 0;
+}
+
+export function getQueueLatencyPercentiles(): Record<
+  string,
+  { p50: number; p90: number; p99: number; p999: number; samples: number }
+> {
+  const out: Record<
+    string,
+    { p50: number; p90: number; p99: number; p999: number; samples: number }
+  > = {};
+  for (const [queue, samples] of latencySamples) {
+    const sorted = [...samples].sort((a, b) => a - b);
+    out[queue] = {
+      p50: percentile(sorted, 50),
+      p90: percentile(sorted, 90),
+      p99: percentile(sorted, 99),
+      p999: percentile(sorted, 99.9),
+      samples: sorted.length,
+    };
+  }
+  return out;
+}
+
+export interface SchedulerTraceEntry {
+  at: number;
+  taskId: string | null;
+  queue: string;
+  reason: string;
+}
+
+/**
+ * Dry-run / replay: simulate the scheduler repeatedly applying the active
+ * policy without mutating the database. Returns the resolved dispatch order
+ * plus a full trace for what-if analysis.
+ */
+export async function dryRunSchedule(limit = 100): Promise<{
+  order: QueuedTask[];
+  trace: SchedulerTraceEntry[];
+}> {
+  const rows = await db.query.agentTasks.findMany({
+    where: eq(agentTasks.status, 'queued'),
+    orderBy: [asc(agentTasks.createdAt)],
+    limit,
+  });
+  const pool: QueuedTask[] = rows.map((r) => ({
+    id: r.id,
+    agentId: r.agentId,
+    queue: r.queue,
+    priority: r.priority,
+    deadline:
+      r.deadline instanceof Date
+        ? r.deadline
+        : r.deadline
+        ? new Date(r.deadline)
+        : null,
+    createdAt:
+      r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt),
+    kind: r.kind,
+    estimatedDurationMs: r.estimatedDurationMs,
+    gangId: r.gangId,
+  }));
+  const order: QueuedTask[] = [];
+  const trace: SchedulerTraceEntry[] = [];
+  const remaining = [...pool];
+  while (remaining.length) {
+    const chosen = pickByPolicy(remaining);
+    if (!chosen) break;
+    order.push(chosen);
+    trace.push({
+      at: Date.now(),
+      taskId: chosen.id,
+      queue: chosen.queue,
+      reason: `picked by ${activePolicy.name}`,
+    });
+    const idx = remaining.findIndex((t) => t.id === chosen.id);
+    if (idx >= 0) remaining.splice(idx, 1);
+  }
+  return { order, trace };
+}
+
+// ── Hierarchical scheduler: per-team nested schedulers ─────────
+export class TeamScheduler {
+  private usedMs = 0;
+  private windowStart = Date.now();
+  constructor(
+    public readonly teamId: string,
+    public timeBudgetMs: number,
+    public weight = 1
+  ) {}
+
+  reset(): void {
+    this.usedMs = 0;
+    this.windowStart = Date.now();
+  }
+
+  canSchedule(estimatedMs: number): boolean {
+    if (Date.now() - this.windowStart > 60000) this.reset();
+    return this.usedMs + estimatedMs <= this.timeBudgetMs;
+  }
+
+  consume(estimatedMs: number): void {
+    this.usedMs += estimatedMs;
+  }
+
+  remaining(): number {
+    if (Date.now() - this.windowStart > 60000) this.reset();
+    return Math.max(0, this.timeBudgetMs - this.usedMs);
+  }
+}
+
+export class HierarchicalScheduler {
+  private teams = new Map<string, TeamScheduler>();
+  constructor(public globalBudgetMs = 300000) {}
+
+  enroll(teamId: string, timeBudgetMs: number, weight = 1): TeamScheduler {
+    const ts = new TeamScheduler(teamId, timeBudgetMs, weight);
+    this.teams.set(teamId, ts);
+    return ts;
+  }
+
+  get(teamId: string): TeamScheduler | undefined {
+    return this.teams.get(teamId);
+  }
+
+  list(): Array<{ teamId: string; remaining: number; budget: number }> {
+    return Array.from(this.teams.values()).map((t) => ({
+      teamId: t.teamId,
+      remaining: t.remaining(),
+      budget: t.timeBudgetMs,
+    }));
+  }
+}
+
+// ── Dry-run mode toggle ────────────────────────────────────────
+let dryRun = getEnv().NEXUS_SCHEDULER_DRY_RUN;
+export function setDryRun(enabled: boolean): void {
+  dryRun = enabled;
+}
+export function isDryRun(): boolean {
+  return dryRun;
+}
+
+// ── MLFQ booster lifecycle ─────────────────────────────────────
+let boosterTimer: ReturnType<typeof setInterval> | null = null;
+export function startMlfqBooster(): void {
+  if (boosterTimer) return;
+  const interval = getEnv().NEXUS_MLFQ_BOOST_MS;
+  boosterTimer = setInterval(() => {
+    boostMlfqQueues()
+      .then((n: number) => {
+        if (n > 0) log.info('mlfq_boost', { promoted: n });
+      })
+      .catch((e: unknown) =>
+        log.error('mlfq_boost_failed', {
+          error: e instanceof Error ? e.message : String(e),
+        })
+      );
+  }, interval);
+}
+export function stopMlfqBooster(): void {
+  if (boosterTimer) {
+    clearInterval(boosterTimer);
+    boosterTimer = null;
+  }
 }
