@@ -1,3 +1,4 @@
+
 /**
  * services/scheduler.ts — Cron/Event Scheduler (Phase 4d).
  *
@@ -13,12 +14,13 @@
  * Source: AutoGPT continuous triggers, CrewAI Flow scheduling.
  */
 import { log } from '../lib/logging.js';
+import { container } from '../lib/container.js';
 import { CronExpressionParser, type CronExpression } from 'cron-parser';
 import { randomUUID } from 'node:crypto';
 import { db } from '../db/client.js';
 import { cronJobs } from '../db/client.js';
 import { appendAudit } from '../lib/audit.js';
-import { env } from '../lib/env.js';
+import { getEnv } from '../lib/env.js';
 import { eq, and, gte, lte, desc, sql } from 'drizzle-orm';
 
 // ── Types ──────────────────────────────────────────────────────
@@ -170,7 +172,7 @@ export class CronParser {
 
 const DEFAULT_CONFIG: SchedulerConfig = {
   timezone: 'UTC',
-  maxConcurrentJobs: parseInt(process.env.NEXUS_SCHEDULER_MAX_CONCURRENT ?? '10', 10),
+  maxConcurrentJobs: getEnv().NEXUS_SCHEDULER_MAX_CONCURRENT,
   retryConfig: {
     maxRetries: 3,
     backoffMs: 1000,
@@ -201,10 +203,10 @@ export class Scheduler {
   start(): void {
     if (this.started) return;
     this.started = true;
-    const interval = env.NEXUS_SCHEDULER_TICK_MS;
+    const interval = getEnv().NEXUS_SCHEDULER_TICK_MS;
     this.tickTimer = setInterval(() => this.tick(), interval);
-    this.tick().catch((e: any) =>
-      log.error('scheduler_initial_tick_failed', { error: (e as Error).message })
+    this.tick().catch((e: unknown) =>
+      log.error('scheduler_initial_tick_failed', { error: e instanceof Error ? e.message : String(e) })
     );
     log.info('scheduler_started', {
       interval,
@@ -360,7 +362,7 @@ export class Scheduler {
       baseQuery.where(cond);
     }
     const rows = await baseQuery.orderBy(desc(cronJobs.createdAt)).limit(200);
-    return rows.map((r: any) => this.rowToJob(r));
+    return rows.map((r: typeof cronJobs.$inferSelect) => this.rowToJob(r));
   }
 
   /** Get a single job by ID. */
@@ -610,7 +612,7 @@ export class Scheduler {
   }> {
     const all = await db.select().from(cronJobs);
     return {
-      active: all.filter((r: any) => r.enabled).length,
+      active: all.filter((r: typeof cronJobs.$inferSelect) => r.enabled).length,
       running: this.running.size,
       total: all.length,
       maxConcurrent: this.config.maxConcurrentJobs,
@@ -653,22 +655,28 @@ export class Scheduler {
 
 // ── Singleton ──────────────────────────────────────────────────
 
-let _instance: Scheduler | null = null;
-
 /** Get or create the global scheduler instance. */
 export function getScheduler(config?: Partial<SchedulerConfig>): Scheduler {
-  if (!_instance) {
-    _instance = new Scheduler(config);
+  try {
+    return container.resolve<Scheduler>("scheduler");
+  } catch {
+    const instance = new Scheduler(config);
+    container.register("scheduler", instance);
+    return instance;
   }
-  return _instance;
 }
 
 /** Reset the singleton (for testing). */
 export function resetScheduler(): void {
-  _instance?.stop();
-  _instance = null;
+  try {
+    const instance = container.resolve<Scheduler>("scheduler");
+    instance.stop();
+    container.register("scheduler", new Scheduler());
+  } catch {
+    // ignore
+  }
 }
 
 function sleep(ms: number): Promise<void> {
-  return new Promise((resolve: any) => setTimeout(resolve, ms));
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
 }
