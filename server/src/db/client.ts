@@ -20,6 +20,11 @@ import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
 import { Mutex, MutexInterface } from 'async-mutex';
+import type { Database as SqliteDatabase } from 'better-sqlite3';
+import type { Sql } from 'postgres';
+import { sql } from 'drizzle-orm';
+import type { BetterSQLiteTransaction } from 'drizzle-orm/better-sqlite3';
+import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import * as sqliteSchema from './schema-sqlite.js';
 import * as pgSchema from './schema.js';
 import { getEnv } from '../lib/env.js';
@@ -27,10 +32,10 @@ import { dbQueryDuration } from '../services/metrics.js';
 import { startToolSpan, endTracedSpan, recordSpanError } from '../services/tracing.js';
 
 const rawUrl = (getEnv().DATABASE_URL || '').trim();
-const isSqlite = !(rawUrl.startsWith('postgres://') || rawUrl.startsWith('postgresql://'));
+export const isSqlite = !(rawUrl.startsWith('postgres://') || rawUrl.startsWith('postgresql://'));
 
-let _sqlite: any = null;
-let _pgClient: any = null;
+let _sqlite: SqliteDatabase | null = null;
+let _pgClient: Sql | null = null;
 
 /** Maximum time (ms) a single transaction may hold the mutex before forced rollback. */
 const TX_TIMEOUT_MS = 30_000;
@@ -113,7 +118,10 @@ function createPgDb() {
   return drizzle(client, { schema: pgSchema });
 }
 
-const db: any = isSqlite ? createSqliteDb() : createPgDb();
+export type DatabaseType = any;
+// DbTx is defined below, so we remove the duplicate at line 122
+
+const db: DatabaseType = isSqlite ? createSqliteDb() : createPgDb();
 
 /** Human-readable backend label. */
 export const getBackend = (): string => (isSqlite ? 'sqlite' : 'postgresql');
@@ -164,7 +172,31 @@ export async function dbHealthy(): Promise<boolean> {
 }
 
 export { db };
-export { isSqlite };
+
+export function getPgClient(): Sql | null {
+  return _pgClient;
+}
+
+export async function getDbLockStatus() {
+  if (isSqlite) {
+    return {
+      isLocked: _writeMutex.isLocked(),
+      queueLength: (_writeMutex as any)._queue?.length || 0,
+    };
+  } else {
+    try {
+      const rows = await db.execute(sql`
+        SELECT count(*) as count FROM pg_locks
+      `);
+      return {
+        isLocked: (rows as any)[0]?.count > 0,
+        count: Number((rows as any)[0]?.count || 0),
+      };
+    } catch {
+      return { isLocked: false, count: 0 };
+    }
+  }
+}
 
 /**
  * Cross-backend async transaction helper.
@@ -181,7 +213,24 @@ export { isSqlite };
  * IMPORTANT: Do NOT perform network calls (LLM requests, embedding generation)
  * inside the transaction callback — hold the mutex for the minimum time possible.
  */
-export async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+export type DbTx = any;
+
+/**
+ * Cross-backend async transaction helper.
+ *
+ * PostgreSQL: uses `db.transaction()`, which natively accepts async callbacks.
+ * SQLite: uses a mutex to serialize write access + manual BEGIN/COMMIT/ROLLBACK.
+ *
+ * SAFETY FEATURES:
+ * - 30-second transaction timeout: if the callback does not resolve within
+ *   TX_TIMEOUT_MS, the transaction is automatically rolled back.
+ * - Exponential backoff retry: if a SQLITE_BUSY error is caught, the
+ *   transaction is retried up to MAX_RETRIES times with increasing delay.
+ *
+ * IMPORTANT: Do NOT perform network calls (LLM requests, embedding generation)
+ * inside the transaction callback — hold the mutex for the minimum time possible.
+ */
+export async function withTransaction<T>(fn: (tx: DbTx) => Promise<T>): Promise<T> {
   const startTime = performance.now();
   const span = startToolSpan('db.transaction', { agentId: 'system', toolName: 'db.transaction' });
   try {
@@ -199,7 +248,7 @@ export async function withTransaction<T>(fn: (tx: any) => Promise<T>): Promise<T
   }
 }
 
-async function withTransactionSqlite<T>(fn: (tx: any) => Promise<T>): Promise<T> {
+async function withTransactionSqlite<T>(fn: (tx: DbTx) => Promise<T>): Promise<T> {
   let lastError: unknown;
 
   for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
@@ -211,17 +260,17 @@ async function withTransactionSqlite<T>(fn: (tx: any) => Promise<T>): Promise<T>
 
     const release = await _writeMutex.acquire();
     try {
-      _sqlite.exec('BEGIN');
+      _sqlite!.exec('BEGIN');
       try {
         const result = await withTimeout(
           fn(db),
           TX_TIMEOUT_MS,
           'Transaction timed out after 30s — rolling back.'
         );
-        _sqlite.exec('COMMIT');
+        _sqlite!.exec('COMMIT');
         return result;
       } catch (e) {
-        _sqlite.exec('ROLLBACK');
+        _sqlite!.exec('ROLLBACK');
         if (isSqliteBusyError(e) && attempt < MAX_RETRIES - 1) {
           lastError = e;
           continue; // Retry
@@ -236,8 +285,9 @@ async function withTransactionSqlite<T>(fn: (tx: any) => Promise<T>): Promise<T>
   throw lastError ?? new Error('withTransaction: exhausted retries');
 }
 
-async function withTransactionPg<T>(fn: (tx: any) => Promise<T>): Promise<T> {
-  return await db.transaction(async (tx: any) => {
+async function withTransactionPg<T>(fn: (tx: DbTx) => Promise<T>): Promise<T> {
+  const pgDb = db as any;
+  return await pgDb.transaction(async (tx: any) => {
     return await withTimeout(
       fn(tx),
       TX_TIMEOUT_MS,

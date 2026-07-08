@@ -14,11 +14,13 @@ import {
   uniqueIndex,
   index,
   bigint,
+  vector,
+  check,
 } from 'drizzle-orm/pg-core';
 import { sql } from 'drizzle-orm';
 
-/** Embedding column — text for SQLite compatibility (stores JSON array); falls back to jsonb in dev mode via dev-schema.ts. */
-const embeddingCol = () => real('embedding').array();
+/** Embedding column — 1536-dimensional vector for PG. */
+const embeddingCol = () => vector('embedding', { dimensions: 1536 });
 
 export const memories = pgTable(
   'memories',
@@ -43,6 +45,10 @@ export const memories = pgTable(
     importanceIdx: index('mem_importance_idx').on(t.importance),
     createdIdx: index('mem_created_idx').on(t.createdAt),
     projectIdx: index('mem_project_idx').on(t.projectId),
+    embeddingIdx: index('mem_embedding_idx').using('hnsw', t.embedding.op('vector_cosine_ops')),
+    kindImportanceIdx: index('memories_kind_importance_idx').on(t.kind, t.importance),
+    tagsGinIdx: index('mem_tags_gin_idx').using('gin', t.tags),
+    kindCheck: check('mem_kind_check', sql`${t.kind} IN ('episodic', 'semantic', 'preference', 'reflexion', 'fact')`),
   })
 );
 
@@ -74,6 +80,7 @@ export const skills = pgTable(
     nameUnique: uniqueIndex('skill_name_unique').on(t.name, sql`COALESCE(${t.projectId}, '')`),
     categoryIdx: index('skill_category_idx').on(t.category),
     ratingIdx: index('skill_rating_idx').on(t.rating),
+    embeddingIdx: index('skill_embedding_idx').using('hnsw', t.embedding.op('vector_cosine_ops')),
   })
 );
 
@@ -94,6 +101,7 @@ export const projects = pgTable(
   },
   (t) => ({
     nameUnique: uniqueIndex('project_name_unique').on(t.name),
+    statusCheck: check('project_status_check', sql`${t.status} IN ('active', 'archived', 'paused')`),
   })
 );
 
@@ -115,6 +123,7 @@ export const notes = pgTable(
   (t) => ({
     pathUnique: uniqueIndex('note_path_unique').on(t.path),
     indexedAtIdx: index('note_indexed_at_idx').on(t.indexedAt),
+    embeddingIdx: index('note_embedding_idx').using('hnsw', t.embedding.op('vector_cosine_ops')),
   })
 );
 
@@ -135,6 +144,7 @@ export const auditLog = pgTable(
   (t) => ({
     seqIdx: index('audit_seq_idx').on(t.sequence),
     createdAtIdx: index('audit_created_idx').on(t.createdAt),
+    payloadGinIdx: index('audit_payload_gin_idx').using('gin', t.payload),
   })
 );
 
@@ -166,6 +176,7 @@ export const anchoredRoots = pgTable(
   (t) => ({
     cpIdx: index('anchor_checkpoint_idx').on(t.checkpointId),
     rootIdx: index('anchor_root_idx').on(t.merkleRoot),
+    statusCheck: check('anchor_status_check', sql`${t.status} IN ('pending', 'confirmed', 'failed')`),
   })
 );
 
@@ -208,7 +219,7 @@ export const apiKeys = pgTable(
     id: text('id').primaryKey(),
     name: text('name').notNull(),
     keyHash: text('key_hash').notNull(),
-    scopes: text('scopes').array().notNull(),
+    scopes: text('scopes').array().notNull().default([]),
     status: text('status').notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     lastUsedAt: timestamp('last_used_at', { withTimezone: true }),
@@ -230,7 +241,7 @@ export const trajectoryLogs = pgTable(
   {
     id: text('id').primaryKey(),
     auditSequence: bigint('audit_sequence', { mode: 'number' }).notNull(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     model: text('model').notNull(),
     promptSent: text('prompt_sent').notNull(),
     responseReceived: text('response_received').notNull().default(''),
@@ -249,7 +260,7 @@ export const toolReceipts = pgTable(
   {
     id: text('id').primaryKey(),
     auditSequence: bigint('audit_sequence', { mode: 'number' }).notNull(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     tool: text('tool').notNull(),
     target: text('target'), // file path, command, URL, etc.
     preHash: text('pre_hash'), // hash of state before mutation
@@ -295,6 +306,8 @@ export const agents = pgTable(
   (t) => ({
     parentIdx: index('agent_parent_idx').on(t.parentId),
     statusIdx: index('agent_status_idx').on(t.status),
+    kindCheck: check('agent_kind_check', sql`${t.kind} IN ('master', 'sub-agent', 'daemon')`),
+    statusCheck: check('agent_status_check', sql`${t.status} IN ('idle', 'thinking', 'executing_tool', 'errored', 'quarantined', 'completed')`),
   })
 );
 
@@ -302,7 +315,7 @@ export const agentTasks = pgTable(
   'agent_tasks',
   {
     id: text('id').primaryKey(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     label: text('label').notNull(),
     kind: text('kind').notNull().default('interactive'), // interactive | background | maintenance | safety | self_improvement
     queue: text('queue').notNull().default('Q1'), // Q0-Q4
@@ -324,6 +337,12 @@ export const agentTasks = pgTable(
     statusIdx: index('task_status_idx').on(t.status),
     queueIdx: index('task_queue_idx').on(t.queue),
     idemUnique: uniqueIndex('task_idem_unique').on(t.idempotencyKey),
+    statusPriorityQueueIdx: index('agent_tasks_status_priority_queue_idx').on(t.status, t.priority, t.queue),
+    queuedPriorityCreatedIdx: index('agent_tasks_queued_priority_created_idx').on(t.priority, t.createdAt).where(sql`status = 'queued'`),
+    agentStatusIdx: index('agent_tasks_agent_status_idx').on(t.agentId, t.status),
+    kindCheck: check('task_kind_check', sql`${t.kind} IN ('interactive', 'background', 'maintenance', 'safety', 'self_improvement')`),
+    queueCheck: check('task_queue_check', sql`${t.queue} IN ('Q0', 'Q1', 'Q2', 'Q3', 'Q4')`),
+    statusCheck: check('task_status_check', sql`${t.status} IN ('queued', 'running', 'succeeded', 'failed', 'cancelled', 'dead_letter')`),
   })
 );
 
@@ -345,6 +364,7 @@ export const cronJobs = pgTable(
   (t) => ({
     enabledIdx: index('cron_enabled_idx').on(t.enabled),
     nextRunIdx: index('cron_nextrun_idx').on(t.nextRunAt),
+    enabledNextRunIdx: index('cron_jobs_enabled_next_run_idx').on(t.nextRunAt).where(sql`enabled = true`),
   })
 );
 
@@ -375,6 +395,9 @@ export const spanLogs = pgTable(
     typeIdx: index('span_type_idx').on(t.type),
     createdIdx: index('span_created_idx').on(t.createdAt),
     parentIdx: index('span_parent_idx').on(t.parentId),
+    traceParentIdx: index('span_logs_trace_parent_idx').on(t.traceId, t.parentId),
+    typeCheck: check('span_type_check', sql`${t.type} IN ('agent_span', 'tool_span', 'llm_span', 'handoff_span')`),
+    statusCheck: check('span_status_check', sql`${t.status} IN ('ok', 'error', 'cancelled')`),
   })
 );
 
@@ -382,7 +405,7 @@ export const sandboxExecutions = pgTable(
   'sandbox_executions',
   {
     id: text('id').primaryKey(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     type: text('type').notNull().default('docker'), // docker | wasm | browser
     code: text('code').notNull(),
     language: text('language').notNull().default('javascript'),
@@ -396,6 +419,8 @@ export const sandboxExecutions = pgTable(
   (t) => ({
     agentIdx: index('sandbox_agent_idx').on(t.agentId),
     statusIdx: index('sandbox_status_idx').on(t.status),
+    typeCheck: check('sandbox_type_check', sql`${t.type} IN ('docker', 'wasm', 'browser')`),
+    statusCheck: check('sandbox_status_check', sql`${t.status} IN ('pending', 'running', 'completed', 'failed', 'timeout')`),
   })
 );
 
@@ -404,7 +429,7 @@ export const stateSnapshots = pgTable(
   {
     id: text('id').primaryKey(),
     sagaId: text('saga_id').notNull(),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
     stepIndex: integer('step_index').notNull(),
     stepName: text('step_name').notNull(),
     context: jsonb('context').notNull().default({}),
@@ -441,6 +466,7 @@ export const compiledScripts = pgTable(
   (t) => ({
     sigUnique: uniqueIndex('script_sig_unique').on(t.patternSignature),
     statusIdx: index('script_status_idx').on(t.status),
+    statusCheck: check('compiled_script_status_check', sql`${t.status} IN ('draft', 'testing', 'active', 'deprecated')`),
   })
 );
 
@@ -499,6 +525,8 @@ export const improvementProposals = pgTable(
     metricIdx: index('imp_prop_metric_idx').on(t.targetMetric),
     riskIdx: index('imp_prop_risk_idx').on(t.riskClass),
     createdIdx: index('imp_prop_created_idx').on(t.createdAt),
+    riskCheck: check('imp_prop_risk_check', sql`${t.riskClass} IN ('ADVISORY', 'BLOCKING', 'SAFETY')`),
+    statusCheck: check('imp_prop_status_check', sql`${t.status} IN ('draft', 'testing', 'canary', 'rolled_out', 'reverted', 'rejected')`),
   })
 );
 
@@ -531,6 +559,9 @@ export const plugins = pgTable(
     nameIdx: index('plugin_name_idx').on(t.name),
     shaIdx: index('plugin_sha_idx').on(t.contentSha256),
     trustIdx: index('plugin_trust_idx').on(t.trustState),
+    manifestGinIdx: index('plugin_manifest_gin_idx').using('gin', t.manifest),
+    sourceCheck: check('plugin_source_check', sql`${t.source} IN ('local', 'marketplace', 'signed-url')`),
+    trustCheck: check('plugin_trust_check', sql`${t.trustState} IN ('untrusted', 'trusted', 'revoked')`),
   })
 );
 
@@ -557,12 +588,12 @@ export const pluginReceipts = pgTable(
     id: text('id').primaryKey(),
     pluginId: text('plugin_id').notNull(),
     installId: text('install_id'),
-    agentId: text('agent_id').notNull(),
+    agentId: text('agent_id').references(() => agents.id, { onDelete: 'set null' }),
     capability: text('capability').notNull(),
     inputSha256: text('input_sha256').notNull(),
     outputSha256: text('output_sha256').notNull(),
     exitCode: integer('exit_code').notNull().default(0),
-    fuelUsed: bigint('fuel_used', { mode: 'number' }).notNull().default(0),
+    fuelUsed: text('fuel_used').notNull().default('0'),
     durationMs: integer('duration_ms').notNull().default(0),
     authorized: boolean('authorized').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
@@ -584,7 +615,7 @@ export const federatedMemoryProofs = pgTable(
     originPubkey: text('origin_pubkey').notNull(),
     signature: text('signature').notNull(),
     contentSha256: text('content_sha256').notNull(),
-    embedding: jsonb('embedding').notNull().default([]),
+    embedding: real('embedding').array(),
     topicTags: text('topic_tags').array().notNull().default([]),
     importance: real('importance').notNull().default(0.5),
     privacyClass: text('privacy_class').notNull().default('public'),
@@ -597,6 +628,7 @@ export const federatedMemoryProofs = pgTable(
     originIdx: index('fed_proof_origin_idx').on(t.originPeerId),
     materializedIdx: index('fed_proof_materialized_idx').on(t.materialized),
     receivedIdx: index('fed_proof_received_idx').on(t.receivedAt),
+    privacyCheck: check('fed_proof_privacy_check', sql`${t.privacyClass} IN ('public', 'private', 'protected')`),
   })
 );
 
@@ -617,6 +649,7 @@ export const llmProviderHealth = pgTable(
   },
   (t) => ({
     stateIdx: index('llm_prov_state_idx').on(t.state),
+    stateCheck: check('llm_prov_state_check', sql`${t.state} IN ('closed', 'half-open', 'open')`),
   })
 );
 
@@ -675,5 +708,7 @@ export const pipelineRuns = pgTable(
     pipelineIdx: index('pipeline_run_pipeline_idx').on(t.pipelineId),
     statusIdx: index('pipeline_run_status_idx').on(t.status),
     createdIdx: index('pipeline_run_created_idx').on(t.createdAt),
+    pipelineStatusIdx: index('pipeline_runs_pipeline_status_idx').on(t.pipelineId, t.status),
+    statusCheck: check('pipeline_run_status_check', sql`${t.status} IN ('pending', 'running', 'succeeded', 'failed', 'cancelled')`),
   })
 );
