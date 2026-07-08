@@ -15,7 +15,8 @@ import { agents, agentTasks } from '../db/client.js';
 import { appendAudit } from '../lib/audit.js';
 import { logToolReceipt } from './audit-engine.js';
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, sql, desc, asc } from 'drizzle-orm';
+import { getMessageBus } from './message-bus.js';
 
 // ── Agent Registry ────────────────────────────────────────────
 
@@ -24,6 +25,7 @@ export interface SpawnAgentInput {
   kind?: 'sub-agent' | 'daemon';
   parentId?: string;
   ring?: number; // 0-4
+  callerRing?: number; // ring of the caller (for privilege escalation guard)
   scopes?: string[];
   llmModel?: string;
   tokenBudget?: number;
@@ -34,9 +36,31 @@ export interface SpawnAgentInput {
 /**
  * Spawn a new sub-agent (or daemon) in the registry.
  * Master agents call this to delegate work to specialized sub-agents.
+ *
+ * SECURITY: The caller's ring (input.callerRing) is validated against the
+ * requested ring to prevent privilege escalation. A caller can only spawn
+ * agents at the same or lower privilege (higher ring number).
  */
 export async function spawnAgent(input: SpawnAgentInput, actor: string) {
-  const ring = Math.max(0, Math.min(4, input.ring ?? 2)); // default ring 2 (sub-agent)
+  // Validate ring: clamp to 0-4
+  const requestedRing = input.ring ?? 2; // default ring 2 (sub-agent)
+  if (typeof requestedRing !== 'number' || requestedRing < 0 || requestedRing > 4) {
+    throw new Error(`Invalid ring value: ${requestedRing}. Must be 0-4.`);
+  }
+
+  // Privilege escalation guard: caller cannot spawn agents at higher privilege (lower ring number)
+  if (input.callerRing !== undefined) {
+    if (typeof input.callerRing !== 'number' || input.callerRing < 0 || input.callerRing > 4) {
+      throw new Error(`Invalid callerRing value: ${input.callerRing}. Must be 0-4.`);
+    }
+    if (requestedRing < input.callerRing) {
+      throw new Error(
+        `Privilege escalation denied: caller ring ${input.callerRing} cannot spawn agent at ring ${requestedRing} (must be >= ${input.callerRing})`
+      );
+    }
+  }
+
+  const ring = Math.round(requestedRing); // ensure integer
   const id = `agt_${randomUUID()}`;
 
   const [agent] = await db
@@ -58,6 +82,11 @@ export async function spawnAgent(input: SpawnAgentInput, actor: string) {
     })
     .returning();
 
+  try {
+    const { agentSpawnsTotal } = await import('./metrics.js');
+    agentSpawnsTotal.inc();
+  } catch {}
+
   await appendAudit(
     'agent.spawned',
     {
@@ -69,6 +98,13 @@ export async function spawnAgent(input: SpawnAgentInput, actor: string) {
       scopes: input.scopes ?? [],
     },
     actor
+  );
+
+  getMessageBus().publish(
+    'agent.spawned',
+    'kernel',
+    id,
+    { agentId: id, name: input.name, kind: input.kind ?? 'sub-agent', ring }
   );
 
   return agent;
@@ -180,6 +216,10 @@ export async function terminateAgent(id: string, reason: string, actor: string) 
     .returning();
 
   if (updated) {
+    try {
+      const { agentTerminationsTotal } = await import('./metrics.js');
+      agentTerminationsTotal.inc();
+    } catch {}
     await appendAudit('agent.terminated', { agentId: id, reason }, actor);
   }
   return updated;
@@ -288,7 +328,7 @@ export interface EnqueueTaskInput {
  */
 export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
   // ── Hot-swap check: run compiled script if available ──
-  const { checkCompiledScript } = await import('./skill-compiler.js');
+  const { checkCompiledScript } = await import('./skill-template-engine.js');
   const compiled = await checkCompiledScript(input.label, input.input);
   if (compiled) {
     // Skip the scheduler entirely — the compiled script handled it.
@@ -368,6 +408,16 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
     actor
   );
 
+  getMessageBus().publish(
+    'task.enqueued',
+    'kernel',
+    input.agentId,
+    { taskId: task.id, agentId: input.agentId, label: input.label, queue }
+  );
+
+  const { notifyTaskQueued } = await import('./task-notifier.js');
+  notifyTaskQueued(task.id);
+
   return task;
 }
 
@@ -379,6 +429,7 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
 export async function pickNextTask(): Promise<typeof agentTasks.$inferSelect | null> {
   const queued = await db.query.agentTasks.findMany({
     where: eq(agentTasks.status, 'queued'),
+    orderBy: [desc(agentTasks.priority), asc(agentTasks.createdAt)],
     limit: 50,
   });
   if (!queued.length) return null;
