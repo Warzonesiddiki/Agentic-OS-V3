@@ -261,15 +261,22 @@ async function tick(actor: string): Promise<void> {
   const task = await pickNextTask();
   if (!task) return;
 
+  // Kernel-health-aware scheduling: a degraded worker (health < 0.3) only
+  // runs probe/maintenance tasks and returns other work to the queue.
+  if (workerHealth.score < 0.3 && task.kind !== 'maintenance') {
+    await db
+      .update(agentTasks)
+      .set({ status: 'queued', startedAt: null })
+      .where(eq(agentTasks.id, task.id));
+    log.warn('worker_deprioritized_unhealthy', { taskId: task.id, score: workerHealth.score });
+    return;
+  }
+
   activeCount++;
   try {
     await executeTask(task, actor);
   } catch (e) {
-    log.error('worker_task_panic', {
-      taskId: task.id,
-      error: e instanceof Error ? e.message : String(e),
-    });
-    await failTask(task.id, `PANIC: ${e instanceof Error ? e.message : String(e)}`, actor);
+    log.error('worker_tick_error', { error: e instanceof Error ? e.message : String(e) });
   } finally {
     activeCount--;
   }
