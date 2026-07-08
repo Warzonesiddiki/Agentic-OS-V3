@@ -13,10 +13,12 @@
 import { db } from '../db/client.js';
 import { agents, agentTasks, ringPolicies, auditLog } from '../db/client.js';
 import { appendAudit } from '../lib/audit.js';
+import { getEnv } from '../lib/env.js';
 import { logToolReceipt } from './audit-engine.js';
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql, desc, asc, in } from 'drizzle-orm';
+import { and, eq, sql, desc, asc, in, count } from 'drizzle-orm';
 import { getMessageBus } from './message-bus.js';
+import { pickByPolicy, recordQueueLatency, checkDeadlineAdmission, type QueuedTask } from './scheduler.js';
 
 // ── Agent Registry ────────────────────────────────────────────
 
@@ -31,6 +33,8 @@ export interface SpawnAgentInput {
   tokenBudget?: number;
   timeoutMs?: number;
   maxRetries?: number;
+  schedulingMode?: 'cooperative' | 'preemptive';
+  cgroup?: Partial<Cgroup>;
 }
 
 /**
@@ -60,8 +64,16 @@ export async function spawnAgent(input: SpawnAgentInput, actor: string) {
     }
   }
 
+  await ringPolicyStore.ensureLoaded();
+
   const ring = Math.round(requestedRing); // ensure integer
   const id = `agt_${randomUUID()}`;
+
+  let cgroup: Cgroup = parseCgroup(input.cgroup);
+  if (input.parentId && !input.cgroup) {
+    const parent = await db.query.agents.findFirst({ where: eq(agents.id, input.parentId) });
+    cgroup = inheritCgroup(parent ? parseCgroup(parent.cgroup) : null);
+  }
 
   const [agent] = await db
     .insert(agents)
@@ -78,6 +90,8 @@ export async function spawnAgent(input: SpawnAgentInput, actor: string) {
       tokensUsed: 0,
       timeoutMs: input.timeoutMs ?? 120000,
       maxRetries: input.maxRetries ?? 3,
+      schedulingMode: input.schedulingMode ?? 'preemptive',
+      cgroup,
       metadata: {},
     })
     .returning();
@@ -106,6 +120,8 @@ export async function spawnAgent(input: SpawnAgentInput, actor: string) {
     id,
     { agentId: id, name: input.name, kind: input.kind ?? 'sub-agent', ring }
   );
+
+  publishKernelEvent('agent.spawned', { agentId: id, name: input.name, ring });
 
   return agent;
 }
@@ -314,6 +330,10 @@ export interface EnqueueTaskInput {
   input?: unknown;
   idempotencyKey?: string;
   traceId?: string;
+  deadline?: string | Date;
+  quantumMs?: number;
+  estimatedDurationMs?: number;
+  gangId?: string;
 }
 
 /**
@@ -347,6 +367,10 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
       retryCount: 0,
       maxRetries: 3,
       traceId: input.traceId ?? null,
+      deadline: null,
+      quantumMs: null,
+      estimatedDurationMs: null,
+      gangId: null,
       createdAt: new Date(),
       startedAt: new Date(),
       finishedAt: new Date(),
@@ -366,12 +390,29 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
     return task;
   }
 
+  const depthRow = await db.select({ n: count() }).from(agentTasks).where(eq(agentTasks.status, 'queued'));
+  const depth = depthRow[0]?.n ?? 0;
+  const highWatermark = getEnv().NEXUS_SCHEDULER_BACKPRESSURE_DEPTH;
+  if (depth > highWatermark) {
+    throw new BackpressureError(depth, highWatermark);
+  }
+
   // Idempotency check
   if (input.idempotencyKey) {
     const existing = await db.query.agentTasks.findFirst({
       where: eq(agentTasks.idempotencyKey, input.idempotencyKey),
     });
     if (existing) return existing;
+  }
+
+  if (input.deadline) {
+    const admission = checkDeadlineAdmission(
+      input.deadline instanceof Date ? input.deadline : new Date(input.deadline),
+      input.estimatedDurationMs
+    );
+    if (!admission.ok) {
+      throw new DeadlineAdmissionError(admission.reason ?? 'deadline admission failed');
+    }
   }
 
   const queue = KIND_QUEUE[input.kind ?? 'interactive'] ?? 'Q1';
@@ -390,6 +431,10 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
       input: input.input ?? {},
       idempotencyKey: input.idempotencyKey ?? null,
       traceId: input.traceId ?? null,
+      deadline: input.deadline ? (input.deadline instanceof Date ? input.deadline : new Date(input.deadline)) : null,
+      quantumMs: input.quantumMs ?? null,
+      estimatedDurationMs: input.estimatedDurationMs ?? null,
+      gangId: input.gangId ?? null,
       retryCount: 0,
       maxRetries: 3,
     })
@@ -415,6 +460,8 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
     { taskId: task.id, agentId: input.agentId, label: input.label, queue }
   );
 
+  publishKernelEvent('task.enqueued', { taskId: task.id, agentId: input.agentId, queue });
+
   const { notifyTaskQueued } = await import('./task-notifier.js');
   notifyTaskQueued(task.id);
 
@@ -430,36 +477,63 @@ export async function pickNextTask(): Promise<typeof agentTasks.$inferSelect | n
   const queued = await db.query.agentTasks.findMany({
     where: eq(agentTasks.status, 'queued'),
     orderBy: [desc(agentTasks.priority), asc(agentTasks.createdAt)],
-    limit: 50,
+    limit: 100,
   });
   if (!queued.length) return null;
 
   const now = Date.now();
-  // Sort by effective priority (starvation-aware)
-  const scored = queued.map((t: (typeof queued)[number]) => ({
-    task: t,
-    eff: t.priority + Math.min(60, ((now - t.createdAt.getTime()) / 1000) * 0.5),
+  const pool: QueuedTask[] = queued.map((t) => ({
+    id: t.id,
+    agentId: t.agentId,
+    queue: t.queue,
+    priority: t.priority,
+    deadline: t.deadline instanceof Date ? t.deadline : t.deadline ? new Date(t.deadline) : null,
+    createdAt: t.createdAt instanceof Date ? t.createdAt : new Date(t.createdAt),
+    kind: t.kind,
+    estimatedDurationMs: t.estimatedDurationMs,
+    gangId: t.gangId,
   }));
-  scored.sort(
-    (
-      a: { task: (typeof queued)[number]; eff: number },
-      b: { task: (typeof queued)[number]; eff: number }
-    ) => b.eff - a.eff
-  );
 
-  const pick = scored[0]!.task;
+  // Resolve agent rings in a single batched query for ring-budget gating.
+  const agentIds = Array.from(new Set(queued.map((t) => t.agentId)));
+  const ringRows = await db
+    .select({ id: agents.id, ring: agents.ring })
+    .from(agents)
+    .where(in(agents.id, agentIds));
+  const ringMap = new Map(ringRows.map((r) => [r.id, r.ring] as const));
 
-  // Atomically claim it (CAS: only transition if still queued)
-  const [claimed] = await db
-    .update(agentTasks)
-    .set({
-      status: 'running',
-      startedAt: new Date(),
-    })
-    .where(and(eq(agentTasks.id, pick.id), eq(agentTasks.status, 'queued')))
-    .returning();
+  while (pool.length) {
+    const pick = pickByPolicy(pool);
+    if (!pick) return null;
+    const ring = ringMap.get(pick.agentId ?? '') ?? 0;
+    if (!acquireRingBudget(ring)) {
+      // Ring budget exhausted — skip this candidate and try the next.
+      const idx = pool.findIndex((t) => t.id === pick.id);
+      if (idx >= 0) pool.splice(idx, 1);
+      continue;
+    }
+    recordQueueLatency(pick.queue, now - pick.createdAt.getTime());
 
-  return claimed ?? null;
+    // Gang scheduling: co-claim all queued members of the same gang (all-or-nothing).
+    if (pick.gangId) {
+      const members = await db
+        .update(agentTasks)
+        .set({ status: 'running', startedAt: new Date() })
+        .where(and(eq(agentTasks.gangId, pick.gangId), eq(agentTasks.status, 'queued')))
+        .returning({ id: agentTasks.id });
+      gangMembers.set(pick.id, members.map((m) => m.id));
+      const [claimed] = await db.select().from(agentTasks).where(eq(agentTasks.id, pick.id));
+      return claimed ?? null;
+    }
+
+    const [claimed] = await db
+      .update(agentTasks)
+      .set({ status: 'running', startedAt: new Date() })
+      .where(and(eq(agentTasks.id, pick.id), eq(agentTasks.status, 'queued')))
+      .returning();
+    return claimed ?? null;
+  }
+  return null;
 }
 
 /** Mark a task as succeeded. */
@@ -473,6 +547,14 @@ export async function completeTask(taskId: string, output: unknown, actor: strin
     })
     .where(eq(agentTasks.id, taskId));
 
+  const done = await db.query.agentTasks.findFirst({ where: eq(agentTasks.id, taskId) });
+  if (done) {
+    const owner = await db.query.agents.findFirst({ where: eq(agents.id, done.agentId) });
+    if (owner) releaseRingBudget(owner.ring);
+    clearGangMembers(taskId);
+  }
+  publishKernelEvent('task.completed', { taskId });
+
   await appendAudit('task.completed', { taskId }, actor);
 }
 
@@ -483,6 +565,11 @@ export async function completeTask(taskId: string, output: unknown, actor: strin
 export async function failTask(taskId: string, error: string, actor: string) {
   const task = await db.query.agentTasks.findFirst({ where: eq(agentTasks.id, taskId) });
   if (!task) return;
+
+  const owner = await db.query.agents.findFirst({ where: eq(agents.id, task.agentId) });
+  if (owner) releaseRingBudget(owner.ring);
+  clearGangMembers(taskId);
+  publishKernelEvent('task.failed', { taskId, error });
 
   const retries = task.retryCount + 1;
 
@@ -587,7 +674,7 @@ export function checkACL(agentRing: number, tool: string, minRing?: number): boo
   if (agentRing >= 4) return false; // Quarantined: no permissions
   if (agentRing === 0) return true; // Kernel: full access
 
-  const allowed = RING_TOOL_ACCESS[agentRing] ?? [];
+  const allowed = ringPolicyStore.get(agentRing).tools;
   if (allowed.includes('*')) return true;
   if (allowed.includes(tool)) return true;
 
