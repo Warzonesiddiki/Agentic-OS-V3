@@ -325,6 +325,8 @@ export const agents = sqliteTable(
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
     lastHeartbeatAt: text('last_heartbeat_at'),
+    schedulingMode: text('scheduling_mode').notNull().default('preemptive'),
+    cgroup: text('cgroup').notNull().default('{}'),
   },
   (t) => ({
     parentIdx: index('agent_parent_idx').on(t.parentId),
@@ -354,6 +356,11 @@ export const agentTasks = sqliteTable(
       .default(sql`(CURRENT_TIMESTAMP)`),
     startedAt: text('started_at'),
     finishedAt: text('finished_at'),
+    deadline: text('deadline'),
+    quantumMs: integer('quantum_ms'),
+    checkpoint: text('checkpoint').notNull().default('{}'),
+    gangId: text('gang_id'),
+    estimatedDurationMs: integer('estimated_duration_ms'),
   },
   (t) => ({
     agentIdx: index('task_agent_idx').on(t.agentId),
@@ -363,6 +370,40 @@ export const agentTasks = sqliteTable(
     statusPriorityQueueIdx: index('agent_tasks_status_priority_queue_idx').on(t.status, t.priority, t.queue),
     queuedPriorityCreatedIdx: index('agent_tasks_queued_priority_created_idx').on(t.priority, t.createdAt).where(sql`status = 'queued'`),
     agentStatusIdx: index('agent_tasks_agent_status_idx').on(t.agentId, t.status),
+  })
+);
+export const ringPolicies = sqliteTable(
+  'ring_policies',
+  {
+    id: text('id').primaryKey(),
+    ring: integer('ring').notNull().unique(),
+    tools: text('tools').notNull().default('[]'),
+    maxConcurrency: integer('max_concurrency').notNull().default(0),
+    maxTokensPerMin: integer('max_tokens_per_min').notNull().default(0),
+    maxApiCallsPerMin: integer('max_api_calls_per_min').notNull().default(0),
+    updatedAt: text('updated_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    ringIdx: index('ring_policy_ring_idx').on(t.ring),
+  })
+);
+
+export const schedulerMetrics = sqliteTable(
+  'scheduler_metrics',
+  {
+    id: text('id').primaryKey(),
+    queue: text('queue').notNull(),
+    p50: real('p50').notNull().default(0),
+    p90: real('p90').notNull().default(0),
+    p99: real('p99').notNull().default(0),
+    p999: real('p999').notNull().default(0),
+    sampleCount: integer('sample_count').notNull().default(0),
+    windowStart: text('window_start').notNull(),
+    windowEnd: text('window_end').notNull(),
+    computedAt: text('computed_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    queueIdx: index('scheduler_metrics_queue_idx').on(t.queue),
   })
 );
 

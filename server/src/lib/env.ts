@@ -81,6 +81,12 @@ const schema = z.object({
   NEXUS_WORKER_STALE_TASK_MS: z.coerce.number().int().min(10000).max(3600000).default(300000),
   NEXUS_WORKER_HEARTBEAT_MS: z.coerce.number().int().min(10000).max(600000).default(120000),
   NEXUS_WORKER_AUTO_KILL: z.coerce.boolean().default(false),
+  // Scheduler policy (Phase 11)
+  NEXUS_MLFQ_BOOST_MS: z.coerce.number().int().min(1000).max(600000).default(5000),
+  NEXUS_SCHEDULER_POLICY: z.enum(['mlfq', 'edf', 'fairshare']).default('mlfq'),
+  NEXUS_SCHEDULER_BACKPRESSURE_DEPTH: z.coerce.number().int().min(1).max(100000).default(500),
+  NEXUS_SCHEDULER_DRY_RUN: z.coerce.boolean().default(false),
+  NEXUS_GANG_QUANTUM_MS: z.coerce.number().int().min(1000).max(600000).default(60000),
   // Recall corpus cap
   NEXUS_MAX_RECALL_CORPUS: z.coerce.number().int().min(100).max(500000).default(10000),
   // Auth cache config
