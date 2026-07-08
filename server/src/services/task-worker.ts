@@ -10,10 +10,11 @@
  * Designed for zero-overhead: no DB writes when the queue is empty.
  */
 import { log } from '../lib/logging.js';
+import { onTaskQueued } from './task-notifier.js';
 import { pickNextTask, completeTask, failTask, updateAgentState } from './kernel.js';
 import { withCircuitBreaker } from './operations-ext.js';
 import { env, llmConfigured } from '../lib/env.js';
-import { broadcastSSE } from './sse-bus.js';
+import { getMessageBus } from './message-bus.js';
 
 // ── Configuration ─────────────────────────────────────────────
 
@@ -45,6 +46,7 @@ let running = false;
 let activeCount = 0;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
 let maintenanceTimer: ReturnType<typeof setInterval> | null = null;
+let unsubTaskQueued: (() => void) | null = null;
 let cronBusy = false;
 let options: WorkerOptions = { ...DEFAULT_OPTIONS };
 
@@ -91,6 +93,13 @@ export function startWorker(actor: string): void {
       log.error('worker_maintenance_error', { error: e instanceof Error ? e.message : String(e) });
     }
   }, options.maintenanceIntervalMs);
+
+  // LISTEN/NOTIFY trigger wake mechanism
+  unsubTaskQueued = onTaskQueued(() => {
+    if (running) {
+      wakeWorker();
+    }
+  });
 }
 
 export function wakeWorker(): void {
@@ -110,6 +119,10 @@ export function stopWorker(): void {
     clearInterval(maintenanceTimer);
     maintenanceTimer = null;
   }
+  if (unsubTaskQueued) {
+    unsubTaskQueued();
+    unsubTaskQueued = null;
+  }
   log.info('worker_stopped', { activeCount });
 }
 
@@ -122,19 +135,41 @@ async function runMaintenance(actor: string): Promise<void> {
   const { db } = await import('../db/client.js');
   const { agentTasks } = await import('../db/schema.js');
   const { and, eq, lt, sql } = await import('drizzle-orm');
+  const isSqlite = !(env.DATABASE_URL || '').startsWith('postgres');
 
   const staleCutoff = new Date(now.getTime() - options.staleTaskTimeoutMs);
   const staleTasks = await db
     .update(agentTasks)
     .set({
-      status: 'queued',
-      error: sql`COALESCE(error, '') || ' [AUTO-REQUEUED: stale at ' || ${now.toISOString()} || ']'`,
+      retryCount: sql`${agentTasks.retryCount} + 1`,
+      status: sql`CASE WHEN ${agentTasks.retryCount} + 1 >= ${agentTasks.maxRetries} THEN 'dead_letter' ELSE 'queued' END`,
+      error: sql`COALESCE(${agentTasks.error}, '') || ' [AUTO-RECLAIMED: stale at ' || ${now.toISOString()} || ']'`,
+      finishedAt: sql`CASE WHEN ${agentTasks.retryCount} + 1 >= ${agentTasks.maxRetries} THEN ${isSqlite ? now.toISOString() : now} ELSE ${agentTasks.finishedAt} END`,
     })
     .where(and(eq(agentTasks.status, 'running'), lt(agentTasks.startedAt, staleCutoff)))
-    .returning({ id: agentTasks.id });
+    .returning({
+      id: agentTasks.id,
+      status: agentTasks.status,
+      agentId: agentTasks.agentId,
+      maxRetries: agentTasks.maxRetries,
+    });
 
   if (staleTasks.length > 0) {
     log.info('worker_stale_reclaimed', { count: staleTasks.length });
+    for (const t of staleTasks) {
+      if (t.status === 'dead_letter') {
+        try {
+          const { quarantineAgent } = await import('./kernel.js');
+          await quarantineAgent(
+            t.agentId,
+            `Task ${t.id} exceeded max retries (${t.maxRetries}) during stale reclamation`,
+            actor
+          );
+        } catch (e) {
+          log.error('worker_stale_quarantine_failed', { taskId: t.id, error: e instanceof Error ? e.message : String(e) });
+        }
+      }
+    }
   }
 
   // 2. Agent heartbeat monitor (P12): mark agents without recent heartbeats as errored
@@ -179,7 +214,7 @@ async function runMaintenance(actor: string): Promise<void> {
   // 5. Shadow cognition daemon (P9) — runs every 10th maintenance cycle (~10 min at default settings)
   _shadowCycleCount++;
   if (_shadowCycleCount % 10 === 0) {
-    import('../services/shadow-daemon.js')
+    import('../services/health-monitor.js')
       .then((m) => m.runShadowCycle())
       .catch((e) => {
         log.error('shadow_cycle_failed', { error: e instanceof Error ? e.message : String(e) });
@@ -216,18 +251,21 @@ async function executeTask(task: TaskRow, actor: string): Promise<void> {
   const { getAgent } = await import('./kernel.js');
   const agent = await getAgent(task.agentId);
   const timeout = agent?.timeoutMs ?? options.defaultTimeoutMs;
+  const bus = getMessageBus();
 
   await updateAgentState(task.agentId, 'thinking', `task:${task.label}`);
-  broadcastSSE({
-    type: 'agent.state',
-    data: { agentId: task.agentId, status: 'thinking', taskLabel: task.label },
-    timestamp: Date.now(),
-  });
-  broadcastSSE({
-    type: 'task.update',
-    data: { taskId: task.id, status: 'running', agentId: task.agentId, label: task.label },
-    timestamp: Date.now(),
-  });
+  bus.publish(
+    'agent.state',
+    'worker',
+    task.agentId,
+    { agentId: task.agentId, status: 'thinking', taskLabel: task.label }
+  );
+  bus.publish(
+    'task.update',
+    'worker',
+    task.agentId,
+    { taskId: task.id, status: 'running', agentId: task.agentId, label: task.label }
+  );
 
   try {
     const result = await withCircuitBreaker(`task:${task.id}`, async () => {
@@ -243,16 +281,18 @@ async function executeTask(task: TaskRow, actor: string): Promise<void> {
 
     await completeTask(task.id, result, actor);
     await updateAgentState(task.agentId, 'idle');
-    broadcastSSE({
-      type: 'agent.state',
-      data: { agentId: task.agentId, status: 'idle' },
-      timestamp: Date.now(),
-    });
-    broadcastSSE({
-      type: 'task.update',
-      data: { taskId: task.id, status: 'succeeded', agentId: task.agentId, label: task.label },
-      timestamp: Date.now(),
-    });
+    bus.publish(
+      'agent.state',
+      'worker',
+      task.agentId,
+      { agentId: task.agentId, status: 'idle' }
+    );
+    bus.publish(
+      'task.update',
+      'worker',
+      task.agentId,
+      { taskId: task.id, status: 'succeeded', agentId: task.agentId, label: task.label }
+    );
     log.info('worker_task_completed', {
       taskId: task.id,
       label: task.label,
@@ -262,22 +302,24 @@ async function executeTask(task: TaskRow, actor: string): Promise<void> {
     const errorMsg = e instanceof Error ? e.message : String(e);
     await failTask(task.id, errorMsg, actor);
     await updateAgentState(task.agentId, 'errored');
-    broadcastSSE({
-      type: 'agent.state',
-      data: { agentId: task.agentId, status: 'errored', error: errorMsg },
-      timestamp: Date.now(),
-    });
-    broadcastSSE({
-      type: 'task.update',
-      data: {
+    bus.publish(
+      'agent.state',
+      'worker',
+      task.agentId,
+      { agentId: task.agentId, status: 'errored', error: errorMsg }
+    );
+    bus.publish(
+      'task.update',
+      'worker',
+      task.agentId,
+      {
         taskId: task.id,
         status: 'failed',
         error: errorMsg,
         agentId: task.agentId,
         label: task.label,
-      },
-      timestamp: Date.now(),
-    });
+      }
+    );
     log.warn('worker_task_failed', {
       taskId: task.id,
       label: task.label,
@@ -303,13 +345,6 @@ async function dispatchTask(task: TaskRow, actor: string, signal: AbortSignal): 
     }
     if (labelLower.includes('recall') || labelLower.includes('search')) {
       return handleRecall(input, actor);
-    }
-    if (
-      labelLower.includes('browser') ||
-      labelLower.includes('navigate') ||
-      labelLower.includes('scrape')
-    ) {
-      return handleBrowserAction(input, task.agentId, actor);
     }
     if (labelLower.includes('capture') || labelLower.includes('session')) {
       return handleSessionCapture(input, actor);
@@ -451,14 +486,14 @@ async function handleSessionCapture(
   input: Record<string, unknown>,
   actor: string
 ): Promise<unknown> {
-  const { captureSession } = await import('../services.js');
+  const { captureSession } = await import('./memory.service.js');
   const transcript = (input?.transcript ?? '') as string;
   const projectName = input?.projectName as string | undefined;
   return captureSession(transcript, projectName, actor);
 }
 
 async function handleCheckpoint(input: Record<string, unknown>, actor: string): Promise<unknown> {
-  const { checkpoint } = await import('../services.js');
+  const { checkpoint } = await import('./memory.service.js');
   const label = (input?.label ?? 'checkpoint') as string;
   const context = (input?.context ?? '') as string;
   const projectName = input?.projectName as string | undefined;
@@ -510,23 +545,15 @@ async function handleBrainCompress(actor: string): Promise<unknown> {
 }
 
 async function handleSkillCompilation(actor: string): Promise<unknown> {
-  const { runCompilationPipeline } = await import('./skill-compiler.js');
+  const { runCompilationPipeline } = await import('./skill-template-engine.js');
   return runCompilationPipeline(actor);
-}
-
-async function handleBrowserAction(
-  input: Record<string, unknown>,
-  _agentId: string,
-  _actor: string
-): Promise<unknown> {
-  return { error: 'Browser automation not available', input };
 }
 
 async function handleWorkspaceSync(
   input: Record<string, unknown>,
   actor: string
 ): Promise<unknown> {
-  const { syncWorkspace } = await import('./workspace-sync.js');
+  const { syncWorkspace } = await import('./file-watcher.js');
   const workspaceDir = (input?.workspaceDir as string) ?? process.cwd();
   return syncWorkspace(workspaceDir, actor);
 }
