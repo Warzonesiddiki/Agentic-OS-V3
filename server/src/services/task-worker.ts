@@ -11,10 +11,14 @@
  */
 import { log } from '../lib/logging.js';
 import { onTaskQueued } from './task-notifier.js';
-import { pickNextTask, completeTask, failTask, updateAgentState } from './kernel.js';
+import { pickNextTask, completeTask, failTask, updateAgentState, getAgent, preemptAgent, releaseRingBudget } from './kernel.js';
 import { withCircuitBreaker } from './operations-ext.js';
 import { env, llmConfigured } from '../lib/env.js';
 import { getMessageBus } from './message-bus.js';
+import { db } from '../db/client.js';
+import { agentTasks } from '../db/schema.js';
+import { eq, and } from 'drizzle-orm';
+import { startMlfqBooster, stopMlfqBooster, initializeSchedulingPolicy } from './scheduler.js';
 
 // ── Configuration ─────────────────────────────────────────────
 
@@ -50,6 +54,32 @@ let unsubTaskQueued: (() => void) | null = null;
 let cronBusy = false;
 let options: WorkerOptions = { ...DEFAULT_OPTIONS };
 
+interface WorkerHealth {
+  score: number;
+  lastReport: number;
+  metrics: Record<string, unknown>;
+}
+
+let workerHealth: WorkerHealth = { score: 1, lastReport: Date.now(), metrics: {} };
+let healthCompleted = 0;
+let healthErrors = 0;
+
+export function reportWorkerHealth(score: number, metrics: Record<string, unknown> = {}): void {
+  workerHealth = { score: Math.max(0, Math.min(1, score)), lastReport: Date.now(), metrics };
+}
+
+export function getWorkerHealth(): WorkerHealth {
+  return { ...workerHealth };
+}
+
+function recordHealth(success: boolean, _latency: number): void {
+  if (success) healthCompleted++;
+  else healthErrors++;
+  const total = healthCompleted + healthErrors;
+  const score = total === 0 ? 1 : healthCompleted / total;
+  reportWorkerHealth(score, { completed: healthCompleted, errors: healthErrors });
+}
+
 export function configureWorker(opts: Partial<WorkerOptions>): void {
   options = { ...options, ...opts };
 }
@@ -69,6 +99,8 @@ export function workerStatus() {
 export function startWorker(actor: string): void {
   if (running) return;
   running = true;
+  initializeSchedulingPolicy();
+  startMlfqBooster();
   log.info('worker_started', {
     pollIntervalMs: options.pollIntervalMs,
     maxConcurrency: options.maxConcurrency,
@@ -111,6 +143,7 @@ export function wakeWorker(): void {
 
 export function stopWorker(): void {
   running = false;
+  stopMlfqBooster();
   if (pollTimer) {
     clearInterval(pollTimer);
     pollTimer = null;
@@ -248,84 +281,106 @@ type TaskRow = NonNullable<Awaited<ReturnType<typeof pickNextTask>>>;
 
 async function executeTask(task: TaskRow, actor: string): Promise<void> {
   const start = Date.now();
-  const { getAgent } = await import('./kernel.js');
   const agent = await getAgent(task.agentId);
-  const timeout = agent?.timeoutMs ?? options.defaultTimeoutMs;
+  const mode: 'cooperative' | 'preemptive' =
+    agent?.schedulingMode === 'cooperative' ? 'cooperative' : 'preemptive';
   const bus = getMessageBus();
 
   await updateAgentState(task.agentId, 'thinking', `task:${task.label}`);
-  bus.publish(
-    'agent.state',
-    'worker',
-    task.agentId,
-    { agentId: task.agentId, status: 'thinking', taskLabel: task.label }
-  );
-  bus.publish(
-    'task.update',
-    'worker',
-    task.agentId,
-    { taskId: task.id, status: 'running', agentId: task.agentId, label: task.label }
-  );
+  bus.publish('agent.state', 'worker', task.agentId, {
+    agentId: task.agentId,
+    status: 'thinking',
+    taskLabel: task.label,
+  });
+  bus.publish('task.update', 'worker', task.agentId, {
+    taskId: task.id,
+    status: 'running',
+    agentId: task.agentId,
+    label: task.label,
+  });
+
+  const controller = new AbortController();
+  let preemptTimer: ReturnType<typeof setTimeout> | null = null;
+  let preempted = false;
+  // Preemptive tasks get a hard wall-clock quantum; cooperative tasks run to completion.
+  const quantum = mode === 'preemptive' ? task.quantumMs ?? agent?.timeoutMs ?? options.defaultTimeoutMs : 0;
+
+  const runDispatch = async (): Promise<unknown> => {
+    if (quantum > 0) {
+      preemptTimer = setTimeout(() => {
+        preempted = true;
+        controller.abort();
+      }, quantum);
+    }
+    try {
+      return await dispatchTask(task, actor, controller.signal);
+    } finally {
+      if (preemptTimer) {
+        clearTimeout(preemptTimer);
+        preemptTimer = null;
+      }
+    }
+  };
 
   try {
-    const result = await withCircuitBreaker(`task:${task.id}`, async () => {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeout);
-
-      try {
-        return await dispatchTask(task, actor, controller.signal);
-      } finally {
-        clearTimeout(timer);
-      }
-    });
+    const result = await withCircuitBreaker(`task:${task.id}`, runDispatch);
 
     await completeTask(task.id, result, actor);
     await updateAgentState(task.agentId, 'idle');
-    bus.publish(
-      'agent.state',
-      'worker',
-      task.agentId,
-      { agentId: task.agentId, status: 'idle' }
-    );
-    bus.publish(
-      'task.update',
-      'worker',
-      task.agentId,
-      { taskId: task.id, status: 'succeeded', agentId: task.agentId, label: task.label }
-    );
+    bus.publish('agent.state', 'worker', task.agentId, { agentId: task.agentId, status: 'idle' });
+    bus.publish('task.update', 'worker', task.agentId, {
+      taskId: task.id,
+      status: 'succeeded',
+      agentId: task.agentId,
+      label: task.label,
+    });
     log.info('worker_task_completed', {
       taskId: task.id,
       label: task.label,
       durationMs: Date.now() - start,
     });
+    recordHealth(true, Date.now() - start);
   } catch (e) {
     const errorMsg = e instanceof Error ? e.message : String(e);
-    await failTask(task.id, errorMsg, actor);
-    await updateAgentState(task.agentId, 'errored');
-    bus.publish(
-      'agent.state',
-      'worker',
-      task.agentId,
-      { agentId: task.agentId, status: 'errored', error: errorMsg }
-    );
-    bus.publish(
-      'task.update',
-      'worker',
-      task.agentId,
-      {
-        taskId: task.id,
-        status: 'failed',
-        error: errorMsg,
+    if (preempted) {
+      // Quantum exceeded: snapshot execution state and requeue (context save/restore).
+      const snapshot = {
+        at: Date.now(),
         agentId: task.agentId,
         label: task.label,
-      }
-    );
+        preempted: true,
+        mode,
+      };
+      await db
+        .update(agentTasks)
+        .set({ status: 'queued', checkpoint: snapshot, startedAt: null })
+        .where(and(eq(agentTasks.id, task.id), eq(agentTasks.status, 'running')));
+      if (agent) releaseRingBudget(agent.ring);
+      await preemptAgent(task.agentId);
+      log.info('worker_preempted', { taskId: task.id, quantum, mode });
+      return;
+    }
+    await failTask(task.id, errorMsg, actor);
+    await updateAgentState(task.agentId, 'errored');
+    bus.publish('agent.state', 'worker', task.agentId, {
+      agentId: task.agentId,
+      status: 'errored',
+      error: errorMsg,
+    });
+    bus.publish('task.update', 'worker', task.agentId, {
+      taskId: task.id,
+      status: 'failed',
+      error: errorMsg,
+      agentId: task.agentId,
+      label: task.label,
+    });
     log.warn('worker_task_failed', {
       taskId: task.id,
       label: task.label,
       error: errorMsg,
       durationMs: Date.now() - start,
     });
+    recordHealth(false, Date.now() - start);
   }
 }
 
