@@ -17,8 +17,9 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write 'packages/**/*.ts'",
-    "validate": "pnpm -r lint && pnpm -r typecheck && pnpm -r test && pnpm -r build",
-    "validate:server": "cd server && npm run validate",
+    "rebuild:native": "pnpm rebuild better-sqlite3",
+    "validate": "pnpm run rebuild:native && pnpm -r lint && pnpm -r typecheck && pnpm -r test && pnpm -r build",
+    "validate:server": "cd server && pnpm rebuild better-sqlite3 && npm run validate",
     "prepare": "husky"
   },
   "dependencies": {
@@ -47,5 +48,8 @@
     "typescript": "^5.8",
     "vite": "^5.4.0",
     "vitest": "^3.1"
+  },
+  "engines": {
+    "node": ">=20"
   }
 }
