@@ -32,6 +32,8 @@ import { improvementProposals, metricSnapshots } from '../db/client.js';
 import { desc, eq, and, gte, or } from 'drizzle-orm';
 import { appendAudit } from '../lib/audit.js';
 import { log } from '../lib/logging.js';
+import { configureWorker } from './task-worker.js';
+import { setSchedulingPolicy } from './scheduler.js';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
 
@@ -285,7 +287,7 @@ export async function rejectProposal(
 
 /* ─── Patch application ──────────────────────────────────────────────────── */
 
-const ALLOWED_PATCH_KINDS = new Set<ProposalPatch['kind']>(['env', 'cache_ttl', 'feature_flag']);
+const ALLOWED_PATCH_KINDS = new Set<ProposalPatch['kind']>(['env', 'cache_ttl', 'feature_flag', 'pool_size']);
 
 export const ENV_OVERRIDE_ALLOWLIST = new Set([
   'NEXUS_CACHE_TTL_MS',
@@ -335,6 +337,22 @@ export async function applyPatch(
     process.env[p.patch.key] = String(p.patch.value);
     ENV_AUDIT_TRAIL.push({ key: p.patch.key, value: String(p.patch.value), timestamp: new Date() });
     await appendAudit('improvement.env_override_applied', { key: p.patch.key, value: p.patch.value }, 'harness');
+    // Live tuning of the scheduling policy via Forge's public setter (interface-only).
+    if (p.patch.key === 'NEXUS_SCHEDULER_POLICY') {
+      const policy = String(p.patch.value);
+      if (policy === 'mlfq' || policy === 'edf' || policy === 'fairshare') {
+        setSchedulingPolicy(policy);
+      }
+    }
+  }
+
+  // Live runtime-loop tuning via Forge's public worker setter (interface-only; never edits Forge's files).
+  if (p.patch.kind === 'pool_size') {
+    const capacity = Number(p.patch.value);
+    if (Number.isFinite(capacity) && capacity > 0) {
+      configureWorker({ maxConcurrency: Math.max(1, Math.min(50, Math.round(capacity))) });
+      await appendAudit('improvement.worker_pool_resized', { maxConcurrency: Math.round(capacity) }, 'harness');
+    }
   }
 
   await db
