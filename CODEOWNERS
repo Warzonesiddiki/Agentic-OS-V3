@@ -269,9 +269,6 @@ packages/sdk/src/webhooks.ts              @aeon
 
 # 18 Lorekeeper - Docs, ADRs, Plans & Personas
 docs/                                     @lorekeeper
-docs/DEPLOYMENT.md                        @bastion
-docs/PRODUCTION_CHECKLIST.md              @bastion
-docs/DR_RUNBOOK.md                        @bastion
 README*                                   @lorekeeper
 CHANGELOG.md                              @lorekeeper
 CONTRIBUTING.md                           @lorekeeper
