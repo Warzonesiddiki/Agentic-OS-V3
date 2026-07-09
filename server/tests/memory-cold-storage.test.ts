@@ -7,37 +7,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const updated: Array<{ id: string; patch: Record<string, unknown> }> = [];
 const archiveLog: Array<Record<string, unknown>> = [];
-const coldRows: Array<Record<string, unknown>> = [];
 
-const db = {
-  update: () => ({
-    set: (patch: Record<string, unknown>) => ({
-      where: (cond: { id?: string }) => {
-        updated.push({ id: cond?.id ?? 'x', patch });
+vi.mock('../src/db/client.js', () => ({
+  db: {
+    update: () => ({
+      set: (patch: Record<string, unknown>) => ({
+        where: (cond: { id?: string }) => {
+          updated.push({ id: cond?.id ?? 'x', patch });
+          return Promise.resolve(undefined);
+        },
+      }),
+    }),
+    insert: () => ({
+      values: (row: Record<string, unknown>) => {
+        archiveLog.push(row);
         return Promise.resolve(undefined);
       },
     }),
-  }),
-  insert: () => ({
-    values: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
-      const arr = Array.isArray(rows) ? rows : [rows];
-      archiveLog.push(...arr);
-      return Promise.resolve(undefined);
-    },
-  }),
-  select: () => ({
-    from: () => ({
-      where: () => ({
-        limit: () => Promise.resolve(coldRows),
-      }),
-    }),
-  }),
-};
-
-vi.mock('../src/db/client.js', () => ({
-  db,
+  },
   memories: { id: 'id', coldStorageAt: 'coldStorageAt', archivedAt: 'archivedAt', archiveLocation: 'archiveLocation' },
-  memoryArchive: {},
   isSqlite: true,
 }));
 
@@ -56,7 +44,6 @@ import { archiveMemory, restoreMemory, isColdStored } from '../src/services/memo
 beforeEach(() => {
   updated.length = 0;
   archiveLog.length = 0;
-  coldRows.length = 0;
 });
 
 describe('archiveMemory', () => {
@@ -67,11 +54,13 @@ describe('archiveMemory', () => {
     expect(updated[0].patch.archiveLocation).toBe('s3://bucket/key');
     expect(updated[0].patch.coldStorageAt).toBeDefined();
   });
+
   it('records an archive audit row', async () => {
     await archiveMemory('m2', 's3://x');
     expect(archiveLog).toHaveLength(1);
     expect(archiveLog[0].memoryId).toBe('m2');
   });
+
   it('rejects an empty location', async () => {
     await expect(archiveMemory('m3', '')).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });

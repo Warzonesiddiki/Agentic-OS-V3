@@ -1,6 +1,6 @@
 {
   "name": "server",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "private": true,
   "type": "module",
   "description": "NEXUS 2.0 — production-grade second brain & MCP server for AI agents",
@@ -12,11 +12,15 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
+    "verify:readiness": "tsx src/scripts/verify-system-readiness.ts",
+    "profile:perf": "tsx src/scripts/profile-system-performance.ts",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:integration": "vitest run --config vitest.integration.config.ts",
-    "validate": "npm run lint && npm run typecheck && npm test && npm run test:integration && npm run build"
+    "validate:integration:gate": "node -e \"if(process.env.DATABASE_URL){require('child_process').execSync('npm run test:integration',{stdio:'inherit'})}else{console.log('SKIP integration tests (DATABASE_URL not set)')}\"",
+    "validate": "npm run lint && npm run typecheck && npm test && npm run validate:integration:gate && npm run build",
+    "validate:full": "npm run lint && npm run typecheck && npm test && npm run test:integration && npm run build"
   },
   "dependencies": {
     "@agentic-os/a2a-server": "workspace:*",

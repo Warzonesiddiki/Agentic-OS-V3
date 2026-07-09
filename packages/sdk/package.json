@@ -1,24 +1,39 @@
 {
   "name": "@agentic-os/sdk",
-  "version": "0.1.0",
+  "version": "1.0.0",
+  "description": "NEXUS Agentic OS — TypeScript SDK (typed client, webhooks, human-readable errors)",
   "type": "module",
-  "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "types": "./dist/esm/index.d.ts",
   "exports": {
-    ".": "./dist/index.js",
-    "./acp": "./dist/acp.js"
+    ".": {
+      "types": "./dist/esm/index.d.ts",
+      "import": "./dist/esm/index.js",
+      "require": "./dist/cjs/index.js"
+    }
   },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
   "scripts": {
-    "build": "tsc",
-    "test": "vitest run",
-    "lint": "tsc --noEmit",
-    "typecheck": "tsc --noEmit"
+    "build": "npm run build:esm && npm run build:cjs",
+    "build:esm": "tsc -p tsconfig.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
+  "license": "MIT",
   "dependencies": {
-    "zod": "^3.24"
+    "zod": "^3.23.8"
   },
   "devDependencies": {
-    "typescript": "^5.8"
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

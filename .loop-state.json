@@ -1,0 +1,21 @@
+{
+  "state": {
+    "current_mode": "SLEEP",
+    "last_mode": "AUDIT",
+    "epoch": 5,
+    "last_updated": "2026-07-05T14:12:15Z",
+    "metrics": {
+      "business": {
+        "checkout_conversion": 1.0,
+        "pii_exfiltrated": 0,
+        "security_breaches": 0
+      },
+      "systemic_health": {
+        "p99_latency_ms": 12.5,
+        "error_rate": 0.0,
+        "compile_status": "PASSING",
+        "tests_passing_rate": 1.0
+      }
+    }
+  }
+}

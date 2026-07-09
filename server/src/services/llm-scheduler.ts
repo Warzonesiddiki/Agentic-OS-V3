@@ -500,6 +500,7 @@ export async function schedule(req: {
     timeoutMs: req.timeoutMs ?? 60_000,
     traceId: req.traceId,
   };
+  state.queue.push(scheduled);
 
   await appendAudit(
     'llm_scheduler.scheduled',

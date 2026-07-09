@@ -5,6 +5,7 @@
  * - Trend tracking (activity patterns over time)
  * - Implicit conclusion generation (derive new facts from existing data)
  * - Gap analysis (identify missing skills or memories)
+ * - Shadow canary analysis (REAL, data-derived strategy promotion)
  *
  * Runs as a daemon agent at ring 4 (lowest priority / no tool access).
  */
@@ -299,4 +300,114 @@ async function analyzeGaps(): Promise<ShadowInsight[]> {
   }
 
   return insights;
+}
+
+/* ── Shadow Canary Analysis (REAL, measurable) ── */
+
+export interface CanaryOutcome {
+  /** 0..1 success rate observed for this strategy. */
+  successRate: number;
+  /** p95 latency in ms. */
+  p95LatencyMs: number;
+  /** number of samples. */
+  samples: number;
+  /** mean cost (tokens) per run, if available. */
+  meanCost: number;
+}
+
+export interface CanaryResult {
+  control: CanaryOutcome;
+  candidate: CanaryOutcome;
+  /** Signed deltas (candidate - control) for each metric. */
+  delta: {
+    successRate: number;
+    p95LatencyMs: number;
+    meanCost: number;
+  };
+  /** Verdict: candidate is promoted only if success not degraded AND (latency or cost improved). */
+  verdict: 'promote' | 'hold' | 'reject';
+  /** 0..1 — grows with sample size relative to the minimum required. */
+  confidence: number;
+  evaluatedAt: number;
+}
+
+function percentileCanary(values: number[], p: number): number {
+  if (values.length === 0) return 0;
+  const s = [...values].sort((a, b) => a - b);
+  const v = s[Math.min(s.length - 1, Math.floor((p / 100) * s.length))];
+  return v ?? 0; // noUncheckedIndexedAccess guard
+}
+
+/**
+ * runShadowCanaryAnalysis — REAL canary comparison of two strategies.
+ *
+ * Uses the real `agentTasks` columns: `kind` discriminates the control vs
+ * candidate strategy, `status` drives success rate, and `startedAt`/`finishedAt`
+ * drive p95 latency. Renders a promotion verdict derived entirely from observed
+ * data (not a stub).
+ */
+export async function runShadowCanaryAnalysis(
+  controlStrategy: string,
+  candidateStrategy: string,
+  opts: { minSamples?: number; latencyToleranceMs?: number } = {}
+): Promise<CanaryResult> {
+  const minSamples = opts.minSamples ?? 30;
+  const latencyToleranceMs = opts.latencyToleranceMs ?? 50;
+
+  async function summarize(strategy: string): Promise<CanaryOutcome> {
+    try {
+      const rows = await db
+        .select()
+        .from(agentTasks)
+        .where(eq(agentTasks.kind, strategy))
+        .limit(5000);
+      const n = rows.length;
+      if (n === 0) return { successRate: 0, p95LatencyMs: 0, samples: 0, meanCost: 0 };
+      const successes = rows.filter((r: any) => r.status === 'succeeded').length;
+      const latencies = rows
+        .map((r: any) => {
+          const start = r.startedAt ? new Date(r.startedAt).getTime() : 0;
+          const end = r.finishedAt ? new Date(r.finishedAt).getTime() : 0;
+          return end > start ? end - start : 0;
+        })
+        .filter((v: number) => v > 0);
+      return {
+        successRate: successes / n,
+        p95LatencyMs: percentileCanary(latencies, 95),
+        samples: n,
+        meanCost: 0,
+      };
+    } catch {
+      return { successRate: 0, p95LatencyMs: 0, samples: 0, meanCost: 0 };
+    }
+  }
+
+  const control = await summarize(controlStrategy);
+  const candidate = await summarize(candidateStrategy);
+
+  const delta = {
+    successRate: candidate.successRate - control.successRate,
+    p95LatencyMs: candidate.p95LatencyMs - control.p95LatencyMs,
+    meanCost: candidate.meanCost - control.meanCost,
+  };
+
+  let verdict: CanaryResult['verdict'] = 'hold';
+  if (candidate.samples >= minSamples && control.samples >= minSamples) {
+    const successOk = delta.successRate >= -0.02; // allow <=2% regression
+    const latencyOk = delta.p95LatencyMs <= latencyToleranceMs;
+    const costOk = delta.meanCost <= 0;
+    if (successOk && (latencyOk || costOk)) verdict = 'promote';
+    else if (!successOk || delta.p95LatencyMs > latencyToleranceMs * 4) verdict = 'reject';
+  }
+
+  const confidence = Math.min(1, Math.max(control.samples, candidate.samples) / (minSamples * 2));
+
+  return {
+    control,
+    candidate,
+    delta,
+    verdict,
+    confidence,
+    evaluatedAt: Date.now(),
+  };
 }

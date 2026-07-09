@@ -12,6 +12,7 @@ import { db } from '../db/client.js';
 import { trajectoryLogs, toolReceipts, systemMeta } from '../db/client.js';
 import { appendAudit } from '../lib/audit.js';
 import { verifyAuditChain } from '../lib/audit.js';
+import { forward } from '../services/siem-forwarder.js';
 import { randomUUID } from 'node:crypto';
 
 // ── Secret Redaction ──────────────────────────────────────────
@@ -170,6 +171,12 @@ export async function verifyAndAutoKill(): Promise<{ healthy: boolean; reason?: 
 
   // CHAIN BROKEN — auto-engage kill switch immediately
   const reason = `Audit chain tampering detected at sequence #${result.brokenAt}. Auto-engaging kill switch.`;
+  await forward({
+    ts: Date.now(),
+    kind: 'audit.chain_tamper',
+    severity: 'critical',
+    attrs: { brokenAt: result.brokenAt ?? -1, autoKill: true },
+  });
   await db
     .insert(systemMeta)
     .values({ key: 'killSwitch', value: '1', updatedAt: new Date() })

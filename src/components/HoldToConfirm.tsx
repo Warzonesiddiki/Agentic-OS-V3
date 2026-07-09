@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, type KeyboardEvent } from "react";
 import { cn } from "./ui";
 
 interface HoldToConfirmProps {
@@ -58,17 +58,34 @@ export function HoldToConfirm({
     reset();
   }, [holding, reset]);
 
+  const handleKey = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        if (disabled || completed) return;
+        setCompleted(true);
+        onConfirm();
+        setTimeout(reset, 600);
+      }
+    },
+    [disabled, completed, onConfirm, reset]
+  );
+
   return (
     <button
+      type="button"
       onMouseDown={handleStart}
       onMouseUp={handleEnd}
       onMouseLeave={handleEnd}
       onTouchStart={handleStart}
       onTouchEnd={handleEnd}
       onTouchCancel={handleEnd}
+      onKeyDown={handleKey}
       disabled={disabled}
+      aria-label={completed ? confirmLabel : label + " — press Enter or Space to confirm"}
+      aria-disabled={disabled || undefined}
       className={cn(
-        "relative flex h-10 w-full items-center justify-center overflow-hidden rounded-lg border text-sm font-medium transition-colors",
+        "relative flex h-10 w-full items-center justify-center overflow-hidden rounded-lg border text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70",
         completed
           ? "border-emerald-500/50 bg-emerald-500/10 text-emerald-300"
           : disabled
@@ -84,6 +101,11 @@ export function HoldToConfirm({
         <span
           className="absolute bottom-0 left-0 h-0.5 bg-cyan-400 transition-none"
           style={{ width: `${progressRef.current * 100}%` }}
+          role="progressbar"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(progressRef.current * 100)}
+          aria-hidden="true"
         />
       )}
     </button>

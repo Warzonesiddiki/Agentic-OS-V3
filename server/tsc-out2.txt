@@ -1,0 +1,77 @@
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+src/routes/self-opt.ts(21,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'costKillSwitch'.
+src/routes/self-opt.ts(22,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'simulateCycle'.
+src/routes/self-opt.ts(23,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'powerCalculator'.
+src/routes/self-opt.ts(24,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'explorationBudgetStatus'.
+src/routes/self-opt.ts(25,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'createExperiment'.
+src/routes/self-opt.ts(26,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'finishExperiment'.
+src/routes/self-opt.ts(27,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'publishKnowledge'.
+src/routes/self-opt.ts(28,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'bestKnowledge'.
+src/routes/self-opt.ts(29,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'explainabilityReport'.
+src/routes/self-opt.ts(30,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'recordSatisfaction'.
+src/routes/self-opt.ts(31,3): error TS2305: Module '"../services/self-opt/gap-items.js"' has no exported member 'metaOptimize'.
+src/services/blackboard.ts(113,20): error TS2554: Expected 0 arguments, but got 1.
+src/services/blackboard.ts(176,32): error TS2554: Expected 0 arguments, but got 1.
+src/services/dag-executor.ts(132,26): error TS2554: Expected 0 arguments, but got 1.
+src/services/dag-executor.ts(161,39): error TS2345: Argument of type '{ id: string; deps: string[]; }[]' is not assignable to parameter of type '{ nodes: WaitNode[]; } | WaitEdge[]'.
+  Type '{ id: string; deps: string[]; }[]' is not assignable to type 'WaitEdge[]'.
+    Type '{ id: string; deps: string[]; }' is missing the following properties from type 'WaitEdge': from, to
+src/services/orchestrator.ts(73,39): error TS2554: Expected 0 arguments, but got 1.
+src/services/orchestrator.ts(82,30): error TS2554: Expected 0 arguments, but got 1.
+src/services/planner.ts(116,21): error TS2304: Cannot find name 'registry'.
+src/services/planner.ts(116,42): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/planner.ts(118,31): error TS7006: Parameter 'c' implicitly has an 'any' type.
+src/services/planner.ts(149,18): error TS2554: Expected 0 arguments, but got 1.
+src/services/self-opt/gap-items.ts(14,20): error TS2307: Cannot find module '../db/client.js' or its corresponding type declarations.
+src/services/self-opt/gap-items.ts(19,8): error TS2307: Cannot find module '../db/client.js' or its corresponding type declarations.
+src/services/self-opt/gap-items.ts(66,60): error TS2366: Function lacks ending return statement and return type does not include 'undefined'.
+src/services/self-opt/gap-items.ts(79,11): error TS18048: 'head' is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(84,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(89,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(100,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(106,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(116,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(130,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(152,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(164,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(184,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(194,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(207,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(224,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(229,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/gap-items.ts(234,1): error TS1184: Modifiers cannot appear here.
+src/services/self-opt/guardrail-guard.ts(187,24): error TS2345: Argument of type '"L0_budget_enforcer"' is not assignable to parameter of type '"L0_BUDGET" | "L1_COST" | "L2_CIRCUIT" | "L3_VERSION" | "L4_FAIRNESS" | "L5_EXPLAIN" | "L6_SATISFACTION" | "L7_META"'.
+src/services/self-opt/guardrail-guard.ts(191,24): error TS2345: Argument of type '"L0_budget_enforcer"' is not assignable to parameter of type '"L0_BUDGET" | "L1_COST" | "L2_CIRCUIT" | "L3_VERSION" | "L4_FAIRNESS" | "L5_EXPLAIN" | "L6_SATISFACTION" | "L7_META"'.
+src/services/self-opt/guardrail-guard.ts(198,28): error TS2345: Argument of type '"L4_fairness_guard"' is not assignable to parameter of type '"L0_BUDGET" | "L1_COST" | "L2_CIRCUIT" | "L3_VERSION" | "L4_FAIRNESS" | "L5_EXPLAIN" | "L6_SATISFACTION" | "L7_META"'.
+src/services/self-opt/guardrail-guard.ts(206,24): error TS2345: Argument of type '"L6_satisfaction_loop"' is not assignable to parameter of type '"L0_BUDGET" | "L1_COST" | "L2_CIRCUIT" | "L3_VERSION" | "L4_FAIRNESS" | "L5_EXPLAIN" | "L6_SATISFACTION" | "L7_META"'.
+src/services/self-opt/guardrail-guard.ts(211,24): error TS2345: Argument of type '"L5_explanation_budget"' is not assignable to parameter of type '"L0_BUDGET" | "L1_COST" | "L2_CIRCUIT" | "L3_VERSION" | "L4_FAIRNESS" | "L5_EXPLAIN" | "L6_SATISFACTION" | "L7_META"'.
+src/services/self-opt/tuners.ts(82,39): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/tuners.ts(82,69): error TS2532: Object is possibly 'undefined'.
+tests/kernel-panic.test.ts(58,12): error TS2304: Cannot find name 'isEmergencyMode'.
+tests/memory-templates.test.ts(79,12): error TS2532: Object is possibly 'undefined'.
+tests/phase15-performance.test.ts(29,3): error TS2724: '"../src/services/performance/index.js"' has no exported member named 'NodeReplicaRegistry'. Did you mean 'nodeReplicaRegistry'?
+tests/phase15-performance.test.ts(35,3): error TS2305: Module '"../src/services/performance/index.js"' has no exported member 'perfRoute'.
+tests/phase15-performance.test.ts(301,33): error TS7006: Parameter 'n' implicitly has an 'any' type.
+tests/phase20-reliability.test.ts(155,16): error TS2552: Cannot find name 'create'. Did you mean 'createPm'?
+tests/phase20-reliability.test.ts(224,12): error TS2532: Object is possibly 'undefined'.
+tests/resource-quota.test.ts(54,43): error TS2345: Argument of type '(bytes: number, extra: string) => string' is not assignable to parameter of type '(bytes: number, ...rest: unknown[]) => void | Promise<unknown>'.
+  Types of parameters 'extra' and 'rest' are incompatible.
+    Type 'unknown' is not assignable to type 'string'.
+tests/resource-quota.test.ts(64,45): error TS2345: Argument of type '(bytes: number) => number' is not assignable to parameter of type '(bytes: number, ...rest: unknown[]) => void | Promise<unknown>'.
+  Type 'number' is not assignable to type 'void | Promise<unknown>'.
+tests/scheduler-core.test.ts(116,12): error TS18048: 'pct.Q1' is possibly 'undefined'.
+tests/scheduler-core.test.ts(117,12): error TS18048: 'pct.Q1' is possibly 'undefined'.
+tests/scheduler-phase11.test.ts(92,12): error TS18048: 'p.Q1' is possibly 'undefined'.
+tests/scheduler-phase11.test.ts(93,12): error TS18048: 'p.Q1' is possibly 'undefined'.
+tests/scheduler-property.test.ts(60,5): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+tests/scheduler-property.test.ts(149,7): error TS2345: Argument of type '(rng: () => number) => { id: string; priority: number; deadline: Date | null; weight: number; }[]' is not assignable to parameter of type '(rng: () => number) => QueuedTask[]'.
+  Type '{ id: string; priority: number; deadline: Date | null; weight: number; }[]' is not assignable to type 'QueuedTask[]'.
+    Type '{ id: string; priority: number; deadline: Date | null; weight: number; }' is missing the following properties from type 'QueuedTask': queue, createdAt
+tests/self-opt.test.ts(20,3): error TS2305: Module '"../src/services/self-opt/gap-items.js"' has no exported member 'powerCalculator'.
+tests/self-opt.test.ts(21,3): error TS2305: Module '"../src/services/self-opt/gap-items.js"' has no exported member 'fairnessCheck'.
+tests/self-opt.test.ts(22,3): error TS2305: Module '"../src/services/self-opt/gap-items.js"' has no exported member 'generateHypothesis'.
+tests/smoke-new-services.test.ts(66,3): error TS2724: '"../src/services/guardrails.js"' has no exported member named 'applyInputGuardrails'. Did you mean 'listGuardrails'?
+tests/smoke-new-services.test.ts(67,3): error TS2305: Module '"../src/services/guardrails.js"' has no exported member 'applyOutputGuardrails'.
+tests/smoke-new-services.test.ts(68,3): error TS2305: Module '"../src/services/guardrails.js"' has no exported member 'resetGuardrailReport'.

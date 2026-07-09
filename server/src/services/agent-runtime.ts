@@ -31,6 +31,13 @@ import {
 import { db } from '../db/client.js';
 import { memories, skills, agents } from '../db/client.js';
 import { eq } from 'drizzle-orm';
+import { ConnectionPool } from './unified-gateway/connection-pool.js';
+
+// Backpressure for the agent dispatch loop
+export const agentDispatchPool = new ConnectionPool({
+  name: 'agent-dispatch',
+  max: Number(process.env.NEXUS_AGENT_CONCURRENCY ?? 4),
+});
 
 // ── Inline domain types (mirrors src/lib/os/types.ts) ──────────
 
@@ -916,14 +923,16 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
     });
 
     try {
-      const llmResult = await callLLM({
+      const llmResult = await agentDispatchPool.run(() =>
+        callLLM({
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: conversation },
         ],
         temperature: 0.5,
         maxTokens: 1024,
-      });
+      })
+      );
 
       totalTokens = await incrementTokenUsage(agentId, llmResult.usage.total, actor);
 
@@ -970,7 +979,7 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
         return { ok: true, answer, steps, iterations: i + 1, tokensUsed: totalTokens };
       }
 
-      const result = await runtime.executeAction(toolName, toolInput);
+      const result = await agentDispatchPool.run(() => runtime.executeAction(toolName, toolInput));
       const toolOutput = result.ok ? result.data : { error: result.error };
       steps.push({ iteration: i, thought, tool: toolName, toolInput, toolOutput });
 

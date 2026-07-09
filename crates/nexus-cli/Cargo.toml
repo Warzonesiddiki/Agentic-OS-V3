@@ -1,0 +1,24 @@
+[package]
+name = "nexus-cli"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+description = "NEXUS Agentic OS — TUI CLI (Phase 16). Browse the marketplace, install plugins, view agents, and verify webhooks from your terminal. Ships shell completion (bash/zsh/fish/powershell)."
+
+[dependencies]
+tokio = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+clap = { workspace = true }
+clap_complete = "4.5"
+ratatui = { workspace = true }
+crossterm = { workspace = true }
+reqwest = { workspace = true }
+base64 = { workspace = true }
+sha2 = { workspace = true }
+
+[dev-dependencies]
+tokio-test = { workspace = true }

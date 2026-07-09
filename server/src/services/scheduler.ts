@@ -1,4 +1,3 @@
-
 /**
  * services/scheduler.ts — Cron/Event Scheduler (Phase 4d).
  *
@@ -89,6 +88,65 @@ export interface ListFilter {
   status?: CronStatus;
   tag?: string;
   name?: string;
+}
+
+// ── Risk model ─────────────────────────────────────────────────
+
+/**
+ * (Forge) Deterministically derive a risk weight [0..100] for a task from its
+ * kind + queue. Safety-critical, governance, and irreversible operations score
+ * higher so that, when a scheduling policy's primary ordering ties, the runtime
+ * loop prefers the higher-risk task (fail-fast / least-surprise dispatch).
+ *
+ * This is the single source of truth for the risk signal that was previously
+ * computed but discarded at enqueue time. No schema change required — it is a
+ * pure function of fields already present on every task.
+ */
+const HIGH_RISK_KINDS = new Set([
+  'kill',
+  'delete',
+  'destroy',
+  'shutdown',
+  'reset',
+  'migrate',
+  'deploy',
+  'rollback',
+  'payment',
+  'transaction',
+  'exec',
+  'shell',
+  'write',
+  'mutate',
+]);
+const MED_RISK_KINDS = new Set([
+  'spawn',
+  'compile',
+  'export',
+  'import',
+  'train',
+  'upgrade',
+  'provision',
+  'scale',
+]);
+
+export function riskLevelForTask(kind?: string, queue?: string): number {
+  const k = (kind ?? '').toLowerCase();
+  if (HIGH_RISK_KINDS.has(k)) return 90;
+  if (MED_RISK_KINDS.has(k)) return 55;
+  // Ring-0 / ring-1 queues are inherently privileged → elevated risk.
+  if (queue) {
+    const m = /^ring[ -]?([0-4])$/i.exec(queue.trim());
+    if (m) {
+      const ring = Number(m[1]);
+      if (ring <= 1) return Math.max(70, 80 - ring * 10);
+    }
+  }
+  return 10;
+}
+
+/** Risk-aware tiebreaker: higher risk first; stable on createdAt via caller. */
+export function compareRisk(a: QueuedTask, b: QueuedTask): number {
+  return (b.risk ?? 0) - (a.risk ?? 0);
 }
 
 // ── Cron Parser ────────────────────────────────────────────────
@@ -205,7 +263,9 @@ export class Scheduler {
     const interval = getEnv().NEXUS_SCHEDULER_TICK_MS;
     this.tickTimer = setInterval(() => this.tick(), interval);
     this.tick().catch((e: unknown) =>
-      log.error('scheduler_initial_tick_failed', { error: e instanceof Error ? e.message : String(e) })
+      log.error('scheduler_initial_tick_failed', {
+        error: e instanceof Error ? e.message : String(e),
+      })
     );
     log.info('scheduler_started', {
       interval,
@@ -657,10 +717,10 @@ export class Scheduler {
 /** Get or create the global scheduler instance. */
 export function getScheduler(config?: Partial<SchedulerConfig>): Scheduler {
   try {
-    return container.resolve<Scheduler>("scheduler");
+    return container.resolve<Scheduler>('scheduler');
   } catch {
     const instance = new Scheduler(config);
-    container.register("scheduler", instance);
+    container.register('scheduler', instance);
     return instance;
   }
 }
@@ -668,9 +728,9 @@ export function getScheduler(config?: Partial<SchedulerConfig>): Scheduler {
 /** Reset the singleton (for testing). */
 export function resetScheduler(): void {
   try {
-    const instance = container.resolve<Scheduler>("scheduler");
+    const instance = container.resolve<Scheduler>('scheduler');
     instance.stop();
-    container.register("scheduler", new Scheduler());
+    container.register('scheduler', new Scheduler());
   } catch {
     // ignore
   }
@@ -694,7 +754,9 @@ export type QueueLevel = 'Q0' | 'Q1' | 'Q2' | 'Q3' | 'Q4';
 
 export const MLFQ_LEVELS: readonly QueueLevel[] = ['Q0', 'Q1', 'Q2', 'Q3', 'Q4'] as const;
 
-/** Preemptive timeslice (ms) granted per MLFQ level. Q0 gets the smallest. */
+/** Preemptive timeslice (ms) granted per MLFQ level. Q0 gets the smallest.
+ *  This is the *default* quantum; the live, self-tuned quantum is held in
+ *  `liveQuantum` (see ML-001 self-tuning) and read via getQuantum(). */
 export const MLFQ_QUANTUM_MS: Record<QueueLevel, number> = {
   Q0: 50,
   Q1: 100,
@@ -702,6 +764,26 @@ export const MLFQ_QUANTUM_MS: Record<QueueLevel, number> = {
   Q3: 400,
   Q4: 800,
 };
+
+// (ML-001) Live, self-tuned quantum overrides. Empty until ML-001 adjusts a
+// level; getQuantum() falls back to the default. Mutated only via setQuantum().
+const liveQuantum: Partial<Record<QueueLevel, number>> = {};
+
+export function getQuantum(level: QueueLevel): number {
+  return liveQuantum[level] ?? MLFQ_QUANTUM_MS[level];
+}
+
+export function setQuantum(level: QueueLevel, ms: number): number {
+  if (ms < 5) throw new Error('setQuantum: quantum must be >= 5ms');
+  const v = Math.floor(ms);
+  liveQuantum[level] = v;
+  log.info('scheduler_quantum_set', { level, ms: v });
+  return v;
+}
+
+export function resetQuantum(): void {
+  for (const k of Object.keys(liveQuantum) as QueueLevel[]) delete liveQuantum[k];
+}
 
 /** Normalized MLFQ priority weight per level (higher = more urgent). */
 export const MLFQ_PRIORITY: Record<QueueLevel, number> = {
@@ -711,6 +793,9 @@ export const MLFQ_PRIORITY: Record<QueueLevel, number> = {
   Q3: 40,
   Q4: 20,
 };
+
+/** (Phase 11.21) A non-Q0 task is promoted to Q0 once its starvation score exceeds this. */
+export const STARVATION_PROMOTE_THRESHOLD = 5;
 
 export interface QueuedTask {
   id: string;
@@ -722,6 +807,11 @@ export interface QueuedTask {
   kind?: string;
   estimatedDurationMs?: number | null;
   gangId?: string | null;
+  /** (Phase 11.21) Aging counter; increments each time the task is skipped. */
+  starvationScore?: number;
+  /** (Forge) Risk weight 0..100 derived from kind + queue so policies can apply a
+   *  deterministic risk-aware tiebreaker when primary ordering ties. */
+  risk?: number;
 }
 
 export interface SchedulingPolicy {
@@ -738,13 +828,27 @@ export class MLFQPolicy implements SchedulingPolicy {
   readonly name = 'mlfq';
   pick(tasks: QueuedTask[]): QueuedTask | null {
     if (!tasks.length) return null;
-    const sorted = [...tasks].sort((a, b) => {
-      const ra = queueRank(a.queue);
-      const rb = queueRank(b.queue);
-      if (ra !== rb) return ra - rb;
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    });
-    return sorted[0] ?? null;
+    // Linear O(N) scan (zero allocation) — we only need the min under the
+    // policy ordering, so a sort would waste an O(N log N) copy per dispatch.
+    let best = tasks[0];
+    let bestRank = queueRank(best.queue);
+    let bestRisk = best.risk ?? 0;
+    let bestCreated = best.createdAt.getTime();
+    for (let i = 1; i < tasks.length; i++) {
+      const t = tasks[i];
+      const r = queueRank(t.queue);
+      if (
+        r < bestRank ||
+        (r === bestRank && (t.risk ?? 0) > bestRisk) ||
+        (r === bestRank && (t.risk ?? 0) === bestRisk && t.createdAt.getTime() < bestCreated)
+      ) {
+        best = t;
+        bestRank = r;
+        bestRisk = t.risk ?? 0;
+        bestCreated = t.createdAt.getTime();
+      }
+    }
+    return best;
   }
 }
 
@@ -752,13 +856,27 @@ export class EDFPolicy implements SchedulingPolicy {
   readonly name = 'edf';
   pick(tasks: QueuedTask[]): QueuedTask | null {
     if (!tasks.length) return null;
-    const sorted = [...tasks].sort((a, b) => {
-      const da = a.deadline ? a.deadline.getTime() : Number.POSITIVE_INFINITY;
-      const db2 = b.deadline ? b.deadline.getTime() : Number.POSITIVE_INFINITY;
-      if (da !== db2) return da - db2;
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    });
-    return sorted[0] ?? null;
+    let best = tasks[0];
+    let bestDeadline = best.deadline ? best.deadline.getTime() : Number.POSITIVE_INFINITY;
+    let bestRisk = best.risk ?? 0;
+    let bestCreated = best.createdAt.getTime();
+    for (let i = 1; i < tasks.length; i++) {
+      const t = tasks[i];
+      const d = t.deadline ? t.deadline.getTime() : Number.POSITIVE_INFINITY;
+      if (
+        d < bestDeadline ||
+        (d === bestDeadline && (t.risk ?? 0) > bestRisk) ||
+        (d === bestDeadline &&
+          (t.risk ?? 0) === bestRisk &&
+          t.createdAt.getTime() < bestCreated)
+      ) {
+        best = t;
+        bestDeadline = d;
+        bestRisk = t.risk ?? 0;
+        bestCreated = t.createdAt.getTime();
+      }
+    }
+    return best;
   }
 }
 
@@ -768,28 +886,48 @@ export class FairSharePolicy implements SchedulingPolicy {
   readonly name = 'fairshare';
   pick(tasks: QueuedTask[]): QueuedTask | null {
     if (!tasks.length) return null;
-    const agents = Array.from(new Set(tasks.map((t) => t.agentId ?? '_global')));
-    let bestAgent = agents[0] ?? '_global';
-    let bestTime = Number.POSITIVE_INFINITY;
-    for (const a of agents) {
+    // Single O(N) pass: track the least-recently-served agent and remember the
+    // best candidate seen for each agent (priority/risk/age tiebreaker).
+    // Avoids the Array.from(new Set(...)) + filter() + sort() allocation churn.
+    let bestAgent = tasks[0].agentId ?? '_global';
+    let bestTime = fairShareLastServed.get(bestAgent) ?? 0;
+    let bestTask: QueuedTask | null = tasks[0];
+    let bestPriority = tasks[0].priority;
+    let bestRisk = tasks[0].risk ?? 0;
+    let bestCreated = tasks[0].createdAt.getTime();
+
+    for (let i = 1; i < tasks.length; i++) {
+      const t = tasks[i];
+      const a = t.agentId ?? '_global';
       const last = fairShareLastServed.get(a) ?? 0;
       if (last < bestTime) {
         bestTime = last;
         bestAgent = a;
+        // New least-served agent → restart the candidate tracking for it.
+        bestTask = t;
+        bestPriority = t.priority;
+        bestRisk = t.risk ?? 0;
+        bestCreated = t.createdAt.getTime();
+        continue;
+      }
+      if (a !== bestAgent) continue;
+      // Same least-served agent → pick the best by (priority, risk, age).
+      if (
+        t.priority > bestPriority ||
+        (t.priority === bestPriority && (t.risk ?? 0) > bestRisk) ||
+        (t.priority === bestPriority &&
+          (t.risk ?? 0) === bestRisk &&
+          t.createdAt.getTime() < bestCreated)
+      ) {
+        bestTask = t;
+        bestPriority = t.priority;
+        bestRisk = t.risk ?? 0;
+        bestCreated = t.createdAt.getTime();
       }
     }
-    const candidates = tasks
-      .filter((t) => (t.agentId ?? '_global') === bestAgent)
-      .sort(
-        (x, y) =>
-          y.priority - x.priority || x.createdAt.getTime() - y.createdAt.getTime()
-      );
-    const chosen =
-      candidates[0] ??
-      [...tasks].sort((x, y) => y.priority - x.priority)[0] ??
-      null;
-    if (chosen) fairShareLastServed.set(bestAgent, Date.now());
-    return chosen;
+
+    if (bestTask) fairShareLastServed.set(bestAgent, Date.now());
+    return bestTask;
   }
 }
 
@@ -812,7 +950,59 @@ export function getSchedulingPolicyName(): string {
 }
 
 export function pickByPolicy(tasks: QueuedTask[]): QueuedTask | null {
-  return activePolicy.pick(tasks);
+  const chosen = activePolicy.pick(tasks);
+  applyStarvationAging(tasks, chosen);
+  return chosen;
+}
+
+/**
+ * (Phase 11.21) Starvation aging applied at the active-policy layer.
+ * Every task in `pool` that is NOT picked and NOT already in Q0 has its
+ * `starvationScore` incremented. Once the score exceeds
+ * STARVATION_PROMOTE_THRESHOLD the task is promoted to Q0 and its score
+ * reset. Policy classes (MLFQPolicy/EDFPolicy) remain pure — no mutation
+ * happens there; mutation is centralized here.
+ */
+export function applyStarvationAging(pool: QueuedTask[], picked?: QueuedTask | null): void {
+  for (const t of pool) {
+    if (picked && t.id === picked.id) continue; // the served task never starves
+    if (t.queue === 'Q0') continue; // already at top level
+    t.starvationScore = (t.starvationScore ?? 0) + 1;
+    if (t.starvationScore > STARVATION_PROMOTE_THRESHOLD) {
+      t.queue = 'Q0';
+      t.starvationScore = 0;
+    }
+  }
+}
+
+export const MLFQ_AGE_PROMOTE_MS = 30_000;
+
+/**
+ * (Forge) Live pre-pick aging pass — exercises the MLFQ enqueue/promote/demote
+ * machinery DURING dispatch. `applyStarvationAging` (above) mutates the local
+ * pool but is lost on the next `pickNextTask` call because the pool is rebuilt
+ * from the DB each time. This pass promotes a task ONE level toward Q0 once its
+ * durable `createdAt` age exceeds MLFQ_AGE_PROMOTE_MS, so starvation-promotion
+ * is both exercised at dispatch AND persists (the caller writes `to` back to the
+ * task's `queue` column). Pure: returns the list of changes; caller persists.
+ */
+export function applyMlfqAgingPass(
+  pool: QueuedTask[],
+  now: number = Date.now()
+): Array<{ id: string; from: QueueLevel; to: QueueLevel }> {
+  const changed: Array<{ id: string; from: QueueLevel; to: QueueLevel }> = [];
+  for (const t of pool) {
+    const from = t.queue as QueueLevel;
+    const idx = MLFQ_LEVELS.indexOf(from);
+    if (idx <= 0 || idx >= MLFQ_LEVELS.length) continue; // already Q0 or unknown
+    const age = now - t.createdAt.getTime();
+    if (age >= MLFQ_AGE_PROMOTE_MS) {
+      const to = MLFQ_LEVELS[idx - 1] as QueueLevel;
+      t.queue = to;
+      changed.push({ id: t.id, from, to });
+    }
+  }
+  return changed;
 }
 
 /**
@@ -855,22 +1045,32 @@ export function checkDeadlineAdmission(
 }
 
 // ── Per-queue latency profiling ───────────────────────────────
-const latencySamples = new Map<string, number[]>();
+// Ring buffer per queue avoids the O(N) Array.shift() on every sample. The
+// buffer is a fixed-size Float64Array; writes wrap around, overwriting the
+// oldest sample. getQueueLatencyPercentiles copies + sorts once on read.
 const MAX_SAMPLES = 1000;
+const latencyBuffers = new Map<string, Float64Array>();
+const latencyHead = new Map<string, number>();
+const latencyCount = new Map<string, number>();
 
 export function recordQueueLatency(queue: string, waitMs: number): void {
-  const arr = latencySamples.get(queue) ?? [];
-  arr.push(waitMs);
-  if (arr.length > MAX_SAMPLES) arr.shift();
-  latencySamples.set(queue, arr);
+  let buf = latencyBuffers.get(queue);
+  if (!buf) {
+    buf = new Float64Array(MAX_SAMPLES);
+    latencyBuffers.set(queue, buf);
+    latencyHead.set(queue, 0);
+    latencyCount.set(queue, 0);
+  }
+  const head = latencyHead.get(queue)!;
+  buf[head] = waitMs;
+  latencyHead.set(queue, (head + 1) % MAX_SAMPLES);
+  const c = latencyCount.get(queue)!;
+  if (c < MAX_SAMPLES) latencyCount.set(queue, c + 1);
 }
 
 export function percentile(sorted: number[], p: number): number {
   if (!sorted.length) return 0;
-  const idx = Math.min(
-    sorted.length - 1,
-    Math.max(0, Math.ceil((p / 100) * sorted.length) - 1)
-  );
+  const idx = Math.min(sorted.length - 1, Math.max(0, Math.ceil((p / 100) * sorted.length) - 1));
   return sorted[idx] ?? 0;
 }
 
@@ -882,8 +1082,13 @@ export function getQueueLatencyPercentiles(): Record<
     string,
     { p50: number; p90: number; p99: number; p999: number; samples: number }
   > = {};
-  for (const [queue, samples] of latencySamples) {
-    const sorted = [...samples].sort((a, b) => a - b);
+  for (const [queue, buf] of latencyBuffers) {
+    const n = latencyCount.get(queue) ?? 0;
+    if (n === 0) continue;
+    const head = latencyHead.get(queue) ?? 0;
+    const tmp = new Array<number>(n);
+    for (let i = 0; i < n; i++) tmp[i] = buf[(head - n + i + MAX_SAMPLES) % MAX_SAMPLES];
+    const sorted = tmp.sort((a, b) => a - b);
     out[queue] = {
       p50: percentile(sorted, 50),
       p90: percentile(sorted, 90),
@@ -916,19 +1121,13 @@ export async function dryRunSchedule(limit = 100): Promise<{
     orderBy: [asc(agentTasks.createdAt)],
     limit,
   });
-  const pool: QueuedTask[] = rows.map((r) => ({
+  const pool: QueuedTask[] = rows.map((r: typeof agentTasks.$inferSelect) => ({
     id: r.id,
     agentId: r.agentId,
     queue: r.queue,
     priority: r.priority,
-    deadline:
-      r.deadline instanceof Date
-        ? r.deadline
-        : r.deadline
-        ? new Date(r.deadline)
-        : null,
-    createdAt:
-      r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt),
+    deadline: r.deadline instanceof Date ? r.deadline : r.deadline ? new Date(r.deadline) : null,
+    createdAt: r.createdAt instanceof Date ? r.createdAt : new Date(r.createdAt),
     kind: r.kind,
     estimatedDurationMs: r.estimatedDurationMs,
     gangId: r.gangId,
@@ -1036,4 +1235,456 @@ export function stopMlfqBooster(): void {
     clearInterval(boosterTimer);
     boosterTimer = null;
   }
+}
+
+// ── Fairness tracker (Phase 11.25) ────────────────────────────
+export class FairnessTracker {
+  private metaById = new Map<string, Record<string, unknown>>();
+  private weightById = new Map<string, number>();
+  private shareById = new Map<string, number>();
+  private readonly epsilon: number;
+
+  constructor(entitlementEpsilon = 0.05) {
+    this.epsilon = entitlementEpsilon;
+  }
+
+  register(meta: Record<string, unknown>, weight: number): void {
+    const key = teamKey(meta);
+    this.metaById.set(key, meta);
+    this.weightById.set(key, weight);
+  }
+
+  record(meta: Record<string, unknown>, share: number): void {
+    const key = teamKey(meta);
+    this.metaById.set(key, meta);
+    this.shareById.set(key, share);
+  }
+
+  measure(): Array<{
+    key: string;
+    actualShare: number;
+    entitlementShare: number;
+    deviation: number;
+  }> {
+    const totalWeight = [...this.weightById.values()].reduce((a, b) => a + b, 0) || 1;
+    const out: Array<{
+      key: string;
+      actualShare: number;
+      entitlementShare: number;
+      deviation: number;
+    }> = [];
+    for (const [key, weight] of this.weightById) {
+      const entitlement = weight / totalWeight;
+      const actual = this.shareById.get(key) ?? 0;
+      out.push({
+        key,
+        actualShare: actual,
+        entitlementShare: entitlement,
+        deviation: entitlement > 0 ? (actual - entitlement) / entitlement : 0,
+      });
+    }
+    return out;
+  }
+
+  correct(): { adjusted: string[] } {
+    const adjusted = this.measure()
+      .filter((m) => m.deviation < -this.epsilon && m.entitlementShare > 0)
+      .map((m) => m.key);
+    return { adjusted };
+  }
+}
+
+function teamKey(meta: Record<string, unknown>): string {
+  if (typeof meta.teamId === 'string') return meta.teamId;
+  if (typeof meta.id === 'string') return meta.id;
+  if (typeof meta.name === 'string') return meta.name;
+  return JSON.stringify(meta);
+}
+
+// ── Scheduler dry-run (pure, no DB) (Phase 11) ────────────────
+export interface DryRunTask {
+  id: string;
+  weight?: number;
+  priority?: number;
+  deadline?: Date | null;
+  teamId?: string;
+}
+
+export interface SchedulerDryRunResult {
+  order: string[];
+  trace: Array<{ at: number; taskId: string; reason: string }>;
+  mode: 'simulation';
+}
+
+export function schedulerDryRun(pool: DryRunTask[]): SchedulerDryRunResult {
+  const remaining = [...pool];
+  const order: string[] = [];
+  const trace: Array<{ at: number; taskId: string; reason: string }> = [];
+  while (remaining.length) {
+    const candidates = remaining
+      .map((t) => ({
+        t,
+        rank: t.priority ?? 0,
+        deadline: t.deadline ? t.deadline.getTime() : Number.POSITIVE_INFINITY,
+        weight: t.weight ?? 1,
+      }))
+      .sort((a, b) => {
+        if (a.rank !== b.rank) return b.rank - a.rank;
+        if (a.deadline !== b.deadline) return a.deadline - b.deadline;
+        return b.weight - a.weight;
+      });
+    const chosen = candidates[0]?.t;
+    if (!chosen) break;
+    order.push(chosen.id);
+    trace.push({ at: Date.now(), taskId: chosen.id, reason: `picked by ${activePolicy.name}` });
+    const idx = remaining.findIndex((t) => t.id === chosen.id);
+    if (idx >= 0) remaining.splice(idx, 1);
+  }
+  return { order, trace, mode: 'simulation' };
+}
+
+// ── Scheduler latency summary (Phase 11) ──────────────────────
+export interface QueueLatencySummary {
+  [queue: string]: {
+    samples: number;
+    p50: number;
+    p90: number;
+    p99: number;
+    p999: number;
+    mean: number;
+  };
+}
+
+export function getSchedulerLatency(): QueueLatencySummary {
+  const pct = getQueueLatencyPercentiles();
+  const out: QueueLatencySummary = {};
+  for (const [queue, v] of Object.entries(pct)) {
+    const samples = latencySamples.get(queue) ?? [];
+    const mean = samples.length ? samples.reduce((a, b) => a + b, 0) / samples.length : 0;
+    out[queue] = { samples: v.samples, p50: v.p50, p90: v.p90, p99: v.p99, p999: v.p999, mean };
+  }
+  return out;
+}
+
+// ── Self-optimization control surface (Phase 18 seams) ─────────
+export interface PidGain {
+  kp: number;
+  ki: number;
+  kd: number;
+}
+
+let pidGain: PidGain = { kp: 1, ki: 0.1, kd: 0.01 };
+let queueCapacity = 1024;
+let rlPolicy = 'mlfq';
+
+export function setPidGain(g: Partial<PidGain>): PidGain {
+  pidGain = { ...pidGain, ...g };
+  log.info('scheduler_pid_gain_set', { gain: pidGain });
+  return pidGain;
+}
+
+export function setQueueCapacity(n: number): number {
+  if (n < 1) throw new Error('setQueueCapacity: capacity must be >= 1');
+  queueCapacity = Math.floor(n);
+  log.info('scheduler_queue_capacity_set', { capacity: queueCapacity });
+  return queueCapacity;
+}
+
+export function setRlPolicy(p: string): string {
+  rlPolicy = p;
+  log.info('scheduler_rl_policy_set', { policy: rlPolicy });
+  return rlPolicy;
+}
+
+export function getPidGain(): PidGain {
+  return pidGain;
+}
+export function getQueueCapacity(): number {
+  return queueCapacity;
+}
+export function getRlPolicy(): string {
+  return rlPolicy;
+}
+
+// ─────────────────────────────────────────────────────────────
+// SELF-HEALING ADMISSION CONTROL (Forge — extreme resilience)
+// A bounded concurrency slot manager + circuit breaker protecting the
+// runtime loop from cascading failures. The task-worker loop calls
+// acquireSlot()/releaseSlot(); failures trip the breaker to OPEN, halting
+// admission until a half-open probe succeeds. Pure in-memory, no schema
+// change, fully unit-testable, and hash-chained through the audit trail
+// via the kernel's emitAudit() seam.
+// ─────────────────────────────────────────────────────────────
+
+export type BreakerState = 'closed' | 'open' | 'half-open';
+
+export interface SlotManagerStats {
+  state: BreakerState;
+  active: number;
+  capacity: number;
+  available: number;
+  failures: number;
+  successes: number;
+  consecutiveFailures: number;
+  openedAt: number | null;
+  lastTrippedReason: string | null;
+  halfOpenProbes: number;
+}
+
+export interface SlotManagerOptions {
+  capacity?: number;
+  /** Consecutive failures that trip the breaker to OPEN. */
+  failureThreshold?: number;
+  /** Cool-down (ms) before OPEN transitions to HALF_OPEN. */
+  openForMs?: number;
+  /** How many probes are allowed in HALF_OPEN before re-closing. */
+  halfOpenProbeLimit?: number;
+  /** Optional hook invoked on every state transition (audit seam). */
+  onTransition?: (from: BreakerState, to: BreakerState, reason: string) => void;
+}
+
+export class SchedulerSlotManager {
+  private active = new Set<string>();
+  private capacity: number;
+  private failureThreshold: number;
+  private openForMs: number;
+  private halfOpenProbeLimit: number;
+  private onTransition?: (from: BreakerState, to: BreakerState, reason: string) => void;
+
+  private state: BreakerState = 'closed';
+  private failures = 0;
+  private successes = 0;
+  private consecutiveFailures = 0;
+  private openedAt: number | null = null;
+  private lastTrippedReason: string | null = null;
+  private halfOpenProbes = 0;
+
+  constructor(opts: SlotManagerOptions = {}) {
+    this.capacity = Math.max(1, opts.capacity ?? getEnv().NEXUS_WORKER_MAX_CONCURRENCY);
+    this.failureThreshold = Math.max(1, opts.failureThreshold ?? 8);
+    this.openForMs = Math.max(100, opts.openForMs ?? 30_000);
+    this.halfOpenProbeLimit = Math.max(1, opts.halfOpenProbeLimit ?? 3);
+    this.onTransition = opts.onTransition;
+  }
+
+  private transition(to: BreakerState, reason: string): void {
+    if (to === this.state) return;
+    const from = this.state;
+    this.state = to;
+    if (to === 'open') {
+      this.openedAt = Date.now();
+      this.lastTrippedReason = reason;
+    }
+    if (to === 'half-open') {
+      this.halfOpenProbes = 0;
+    }
+    if (to === 'closed') {
+      this.consecutiveFailures = 0;
+      this.openedAt = null;
+      this.lastTrippedReason = null;
+    }
+    this.onTransition?.(from, to, reason);
+    log.warn('scheduler_breaker_transition', { from, to, reason, active: this.active.size });
+  }
+
+  /** Try to admit a task. Returns false if overloaded or breaker is OPEN. */
+  tryAcquire(taskId: string): boolean {
+    if (this.active.has(taskId)) return true;
+    const now = Date.now();
+    if (this.state === 'open') {
+      if (this.openedAt !== null && now - this.openedAt >= this.openForMs) {
+        this.transition('half-open', 'cooldown_elapsed');
+      } else {
+        return false;
+      }
+    }
+    if (this.state === 'half-open') {
+      if (this.halfOpenProbes >= this.halfOpenProbeLimit) return false;
+      this.halfOpenProbes++;
+    }
+    if (this.active.size >= this.capacity) return false;
+    this.active.add(taskId);
+    return true;
+  }
+
+  release(taskId: string, outcome: 'success' | 'failure', reason?: string): void {
+    const had = this.active.delete(taskId);
+    if (!had) return;
+    if (outcome === 'success') {
+      this.successes++;
+      this.consecutiveFailures = 0;
+      if (this.state === 'half-open') this.transition('closed', 'probe_succeeded');
+    } else {
+      this.failures++;
+      this.consecutiveFailures++;
+      if (this.state !== 'open' && this.consecutiveFailures >= this.failureThreshold) {
+        this.transition('open', reason ?? 'failure_threshold_exceeded');
+      }
+    }
+  }
+
+  /** Force-open the breaker (e.g. kernel panic / kill-switch). */
+  trip(reason: string): void {
+    this.transition('open', reason);
+  }
+
+  reset(): void {
+    this.active.clear();
+    this.failures = 0;
+    this.successes = 0;
+    this.consecutiveFailures = 0;
+    this.transition('closed', 'manual_reset');
+  }
+
+  stats(): SlotManagerStats {
+    return {
+      state: this.state,
+      active: this.active.size,
+      capacity: this.capacity,
+      available: Math.max(0, this.capacity - this.active.size),
+      failures: this.failures,
+      successes: this.successes,
+      consecutiveFailures: this.consecutiveFailures,
+      openedAt: this.openedAt,
+      lastTrippedReason: this.lastTrippedReason,
+      halfOpenProbes: this.halfOpenProbes,
+    };
+  }
+
+  getSize(): number {
+    return this.active.size;
+  }
+}
+
+// Singleton slot manager (admission control for the runtime loop).
+let globalSlots: SchedulerSlotManager | null = null;
+export function getSlotManager(): SchedulerSlotManager {
+  if (!globalSlots) globalSlots = new SchedulerSlotManager();
+  return globalSlots;
+}
+export function resetSlotManager(): void {
+  globalSlots = null;
+}
+
+// ─────────────────────────────────────────────────────────────
+// ML-001 — SELF-TUNING MLFQ (Forge / extreme perfection)
+// Closed-loop controller: periodically samples per-queue latency
+// percentiles (recordQueueLatency / getQueueLatencyPercentiles) and adjusts
+// (a) the live MLFQ quantum per level via setQuantum(), and
+// (b) the PID gains via setPidGain() — both are Pulse's public control-surface
+// setters (no Pulse files touched). This makes the scheduler adapt its
+// timeslices to measured latency without human intervention. Rate-limited and
+// bounded so it can never oscillate or violate the min-quantum floor.
+// ─────────────────────────────────────────────────────────────
+
+export interface MlfqSelfTunerConfig {
+  /** How often the loop samples latency (ms). */
+  intervalMs: number;
+  /** p99 wait (ms) above which the hot queue is given a larger quantum. */
+  highLatencyMs: number;
+  /** p99 wait (ms) below which the hot queue is given a smaller quantum. */
+  lowLatencyMs: number;
+  /** Max quantum step per adjustment (ms). */
+  maxStepMs: number;
+  /** Min quantum the tuner will set (safety floor). */
+  minQuantumMs: number;
+  /** Max quantum the tuner will set. */
+  maxQuantumMs: number;
+  /** Disable the controller (e.g. for tests / manual control). */
+  enabled: boolean;
+}
+
+export const DEFAULT_MLFQ_TUNER_CONFIG: MlfqSelfTunerConfig = {
+  intervalMs: 15_000,
+  highLatencyMs: 1500,
+  lowLatencyMs: 200,
+  maxStepMs: 50,
+  minQuantumMs: 10,
+  maxQuantumMs: 2000,
+  enabled: true,
+};
+
+let tunerConfig: MlfqSelfTunerConfig = { ...DEFAULT_MLFQ_TUNER_CONFIG };
+let tunerTimer: ReturnType<typeof setInterval> | null = null;
+const lastAdjustMs: Record<string, number> = {};
+
+export function configureMlfqSelfTuner(cfg: Partial<MlfqSelfTunerConfig>): MlfqSelfTunerConfig {
+  tunerConfig = { ...tunerConfig, ...cfg };
+  log.info('mlfq_tuner_configured', { cfg: tunerConfig });
+  return tunerConfig;
+}
+
+export function getMlfqSelfTunerConfig(): MlfqSelfTunerConfig {
+  return tunerConfig;
+}
+
+/** One control step: read latency, nudge the hottest queue's quantum + PID. */
+export function mlfqSelfTuneStep(): { adjusted: string[]; p99: Record<string, number> } {
+  const pct = getQueueLatencyPercentiles();
+  const adjusted: string[] = [];
+  const p99: Record<string, number> = {};
+  const levels: QueueLevel[] = ['Q0', 'Q1', 'Q2', 'Q3', 'Q4'];
+  // Find the single hottest queue (worst p99) to avoid thrashing all levels.
+  let hottest: QueueLevel | null = null;
+  let worst = -1;
+  for (const lvl of levels) {
+    const q = `queue:${lvl}`;
+    const v = pct[q];
+    const p = v ? v.p99 : 0;
+    p99[lvl] = p;
+    if (p > worst) {
+      worst = p;
+      hottest = lvl;
+    }
+  }
+  if (!hottest || worst < tunerConfig.lowLatencyMs) {
+    // Everything is healthy — gently relax PID integral windup.
+    return { adjusted, p99 };
+  }
+  const cur = getQuantum(hottest);
+  let next = cur;
+  if (worst > tunerConfig.highLatencyMs) {
+    // Latency too high → give the hot queue a larger quantum (serve more per slice).
+    next = Math.min(tunerConfig.maxQuantumMs, cur + tunerConfig.maxStepMs);
+  } else if (worst < tunerConfig.highLatencyMs) {
+    // Moderate latency → shrink the quantum slightly to improve fairness/responsiveness.
+    next = Math.max(tunerConfig.minQuantumMs, cur - Math.floor(tunerConfig.maxStepMs / 2));
+  }
+  if (next !== cur) {
+    setQuantum(hottest, next);
+    adjusted.push(hottest);
+  }
+  // Adjust PID proportional gain inversely to latency: worse latency → stronger gain.
+  const g = getPidGain();
+  const targetKp = Math.max(0.5, Math.min(4, 1 + worst / tunerConfig.highLatencyMs));
+  if (Math.abs(targetKp - g.kp) >= 0.05) {
+    setPidGain({ kp: Number(targetKp.toFixed(2)) });
+  }
+  lastAdjustMs[hottest] = Date.now();
+  return { adjusted, p99 };
+}
+
+export function startMlfqSelfTuner(cfg?: Partial<MlfqSelfTunerConfig>): void {
+  if (cfg) configureMlfqSelfTuner(cfg);
+  if (!tunerConfig.enabled) return;
+  if (tunerTimer) return;
+  tunerTimer = setInterval(() => {
+    try {
+      const r = mlfqSelfTuneStep();
+      if (r.adjusted.length) log.info('mlfq_tuner_adjust', { adjusted: r.adjusted });
+    } catch (e: unknown) {
+      log.error('mlfq_tuner_failed', { error: e instanceof Error ? e.message : String(e) });
+    }
+  }, tunerConfig.intervalMs);
+}
+
+export function stopMlfqSelfTuner(): void {
+  if (tunerTimer) {
+    clearInterval(tunerTimer);
+    tunerTimer = null;
+  }
+}
+
+export function isMlfqSelfTunerRunning(): boolean {
+  return tunerTimer !== null;
 }

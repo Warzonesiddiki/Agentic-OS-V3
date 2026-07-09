@@ -4,8 +4,8 @@
 > An operating system that makes AI agents smarter automatically — across sessions, across tools, across vendors.
 
 <p align="center">
-  <img src="https://img.shields.io/badge/status-production%20ready-2ea44f" alt="Production Ready">
-  <img src="https://img.shields.io/badge/typescript-5.9-3178c6" alt="TypeScript 5.9">
+  <img src="https://img.shields.io/badge/status-Phase%2011%2B%20in%20progress-orange" alt="Phase 11+ in progress">
+  <img src="https://img.shields.io/badge/typescript-5.8-3178c6" alt="TypeScript 5.8">
   <img src="https://img.shields.io/badge/node-%3E%3D20-339933" alt="Node >=20">
   <img src="https://img.shields.io/badge/postgresql-17-336791" alt="PostgreSQL 17">
   <img src="https://img.shields.io/badge/pgvector-0.8-4169e1" alt="pgvector 0.8">
@@ -49,12 +49,15 @@ NEXUS 2.0 is the **memory and coordination layer** that sits between AI agents (
 
 ### Two Deliverables
 
-This repository contains **two independent applications** that share domain logic but can be used separately:
+This is a **pnpm monorepo** with several cooperating parts (full map in `AGENTS.md`):
 
-| Deliverable           | Location              | Description                                                  |
-| --------------------- | --------------------- | ------------------------------------------------------------ |
-| **Browser Dashboard** | `src/` (React/Vite)   | Single-page agent dashboard with self-hosted SQLite (PGlite) |
-| **Backend Server**    | `server/` (Hono/Node) | REST API + MCP server + background worker with PostgreSQL    |
+| Part                  | Location                                | Description                                                                      |
+| --------------------- | --------------------------------------- | -------------------------------------------------------------------------------- |
+| **Browser Dashboard** | `src/` (React + Vite)                   | Single-page agent control plane (built to `dist/`, served by the server)         |
+| **Backend Server**    | `server/` (Hono/Node)                   | REST API + MCP server + background worker (PostgreSQL / SQLite)                  |
+| **Shared packages**   | `packages/` (sdk, a2a-server, devtools) | TS libraries consumed via tsconfig path aliases                                  |
+| **Rust crates**       | `crates/` (decoupled)                   | Provider / crypto / safety tooling — see `docs/adr/0007` (no runtime link to TS) |
+| **Desktop app**       | `nexus-tauri/` (Tauri)                  | Cross-platform native shell wrapping the server                                  |
 
 The browser dashboard runs entirely in-browser with an embedded PostgreSQL-like engine (PGlite). No server is required for basic use. The backend server adds persistent storage, multi-user auth, the Agentic OS kernel, and production-scale recall.
 
@@ -81,7 +84,7 @@ The browser dashboard runs entirely in-browser with an embedded PostgreSQL-like 
                               ┌─────────▼─────────┐
                               │   PostgreSQL 17    │
                               │   + pgvector 0.8   │
-                              │   (19 tables)      │
+                              │   (60+ tables)      │
                               └───────────────────┘
 ```
 
@@ -177,11 +180,11 @@ Fused scores are then blended with importance, recency, and feedback weights for
 ### Option 1: Browser Dashboard (No Server)
 
 ```bash
-# 1. Install dependencies
-npm install
+# 1. Install dependencies (pnpm workspace)
+pnpm install
 
-# 2. Start the dev server
-npm run dev
+# 2. Start the dev server (Vite, root)
+npx vite
 
 # 3. Open browser → http://localhost:5173
 ```
@@ -591,9 +594,10 @@ nexus-2.0/
 │   ├── drizzle/            # SQL migrations
 │   ├── tests/              # Test suite (Vitest)
 │   └── ...
-├── shared/
-│   └── types.ts            # Shared TypeScript types
-├── docs/                   # Documentation
+├── packages/               # Shared TS libraries (sdk, a2a-server, devtools)
+├── crates/                 # Rust workspace (decoupled — docs/adr/0007)
+├── nexus-tauri/            # Tauri desktop shell
+├── docs/                   # Documentation (ADRs in docs/adr/)
 ├── dist/                   # Built dashboard (served by backend)
 ├── docker-compose.yml      # Full-stack Docker deployment
 └── ...

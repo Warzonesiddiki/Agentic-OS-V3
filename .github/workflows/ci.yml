@@ -1,95 +1,171 @@
-# Nexus 2.0 Continuous Integration
+# Nexus 2.0 Continuous Integration — strict Perfection-Bar gate.
+#
+# Owner: Bastion (CODEOWNERS: .github/workflows/)
+# This workflow is the authoritative merge gate. It fails the build on ANY of:
+#   - ESLint errors (pnpm -r lint)
+#   - TypeScript errors, fresh compile (tsc --noEmit --incremental false)
+#   - Unit tests (vitest run)
+#   - Integration tests (needs Postgres + pgvector)
+#   - Production build (server tsc + dashboard vite build)
+#   - Rust check / clippy (deny warnings) / test
+#   - CODEOWNERS coverage for every changed file (collision-free guard)
+#
+# Concurrency cancels superseded runs on the same ref to save CI minutes.
 
 name: CI
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'master', 'feat/phases-11-20']
   pull_request:
-    branches: ['main']
+    branches: ['main', 'master']
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  lint-and-typecheck:
+  validate:
+    name: Lint / Typecheck / Test / Build (TS workspace)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: ESLint
-        run: cd server && npm run lint
+      - name: Rebuild native modules for runner Node (better-sqlite3 ABI)
+        run: pnpm rebuild better-sqlite3
 
-      - name: TypeScript typecheck
-        run: cd server && npm run typecheck
+      - name: Lint (workspace)
+        run: pnpm -r lint
 
-  unit-tests:
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+      - name: TypeScript typecheck (fresh, no incremental cache)
+        run: pnpm -r typecheck
 
       - name: Unit tests
-        run: cd server && npm test
+        run: pnpm -r test
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
+      - name: Build (server tsc + dashboard vite build)
+        run: pnpm -r build
+
+  server-validate:
+    name: Server validate (fresh tsc + tests + integration gate)
+    runs-on: ubuntu-latest
+    env:
+      # Integration tests need a reachable Postgres + pgvector instance.
+      DATABASE_URL: postgresql://nexus:nexus@localhost:5432/nexus_test
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: nexus
+          POSTGRES_PASSWORD: nexus
+          POSTGRES_DB: nexus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
         with:
-          name: coverage-unit
-          path: server/coverage/
+          version: 9
 
-  rust-check:
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Rebuild native modules for runner Node (better-sqlite3 ABI)
+        run: pnpm rebuild better-sqlite3
+
+      - name: Server validate (lint + fresh typecheck + unit + integration gate + build)
+        run: cd server && npm run validate
+
+  rust:
+    name: Rust (build / clippy / test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          cache: true
+          components: clippy
 
-      - name: Rust check
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Check
         run: cargo check --workspace
 
-      - name: Rust tests
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets -- -D warnings
+
+      - name: Test
         run: cargo test --workspace
 
-      - name: Rust clippy
-        run: cargo clippy --all-targets --workspace -- -D warnings
-
-  rust-release:
+  codeowners:
+    name: CODEOWNERS coverage (collision-free merge gate)
     runs-on: ubuntu-latest
-    needs: rust-check
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build release
-        run: cargo build --workspace --release
+      - name: Verify changed files have a CODEOWNERS rule
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            git fetch origin "${{ github.event.pull_request.base.ref }}"
+            changed=$(git diff --name-only "origin/${{ github.event.pull_request.base.ref }}"...HEAD)
+          else
+            base="${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}"
+            changed=$(git diff --name-only "$base" "${{ github.sha }}")
+          fi
+          if [ -z "${changed//[[:space:]]/}" ]; then
+            echo "OK: no changed files to check."
+            exit 0
+          fi
+          CHANGED="$changed" node -e '
+            const fs = require("fs");
+            const owners = fs.readFileSync("CODEOWNERS", "utf8")
+              .split("\n").map(function (l) { return l.trim(); })
+              .filter(function (l) { return l && !l.startsWith("#"); })
+              .map(function (l) { return l.split(/\s+/)[0]; });
+            function toRegex(p) {
+              var isDir = p.endsWith("/");
+              if (isDir) p = p.slice(0, -1);
+              var r = p.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+              r = r.replace(/\*\*/g, "§§").replace(/\*/g, "[^/]*").replace(/§§/g, ".*").replace(/\?/g, ".");
+              if (!r.includes("/")) r = "(^|/)" + r;
+              return new RegExp("^" + r + (isDir ? "(/.*)?") + "$");
+            }
+            var rules = owners.map(toRegex);
+            var files = (process.env.CHANGED || "").split("\n").filter(Boolean);
+            var uncovered = files.filter(function (f) { return !rules.some(function (re) { return re.test(f); }); });
+            if (uncovered.length) {
+              console.error("ERROR: changed files without a CODEOWNERS rule:");
+              uncovered.forEach(function (f) { console.error("  " + f); });
+              process.exit(1);
+            }
+            console.log("OK: all " + files.length + " changed files are covered by CODEOWNERS.");
+          '

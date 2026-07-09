@@ -1,0 +1,380 @@
+{
+  "__inputs": [],
+  "__requires": [],
+  "title": "NEXUS RED Metrics",
+  "uid": "nexus-red-metrics",
+  "version": 1,
+  "schemaVersion": 39,
+  "tags": ["nexus", "red", "prometheus"],
+  "timezone": "browser",
+  "editable": true,
+  "refresh": "10s",
+  "time": { "from": "now-15m", "to": "now" },
+  "timepicker": {},
+  "templating": { "list": [] },
+  "annotations": { "list": [] },
+  "panels": [
+    {
+      "id": 1,
+      "title": "HTTP Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "rate(nexus_http_requests_total[5m])",
+          "legendFormat": "{{method}} {{path}}",
+          "interval": "",
+          "intervalFactor": 2
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "HTTP Error Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(nexus_http_requests_total{status=~\"5..\"}[5m])) / sum(rate(nexus_http_requests_total[5m])) * 100",
+          "legendFormat": "5xx %"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "HTTP Latency (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(nexus_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(nexus_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(nexus_http_request_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "HTTP Status Codes",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(nexus_http_requests_total[5m])) by (status)",
+          "legendFormat": "{{status}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "LLM Request Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "rate(nexus_llm_duration_seconds_count[5m])",
+          "legendFormat": "{{model}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "LLM Error Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 5 },
+              { "color": "red", "value": 10 }
+            ]
+          },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(nexus_llm_duration_seconds_count{status=\"error\"}[5m])) / sum(rate(nexus_llm_duration_seconds_count[5m])) * 100",
+          "legendFormat": "error %"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "LLM Latency (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 8 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(nexus_llm_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(nexus_llm_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(nexus_llm_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p99"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "DB Query Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 0, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "qps",
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "rate(nexus_db_query_duration_seconds_count[5m])",
+          "legendFormat": "{{query}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "DB Latency (p50 / p95)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 6, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.1 },
+              { "color": "red", "value": 0.5 }
+            ]
+          },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(nexus_db_query_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p50"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(nexus_db_query_duration_seconds_bucket[5m])) by (le))",
+          "legendFormat": "p95"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "DB Slow Queries (>100ms)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 12, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "qps",
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "orange", "value": 0.5 },
+              { "color": "red", "value": 2 }
+            ]
+          },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        {
+          "expr": "rate(nexus_db_query_duration_seconds_bucket{le=\"0.1\"}[5m]) - rate(nexus_db_query_duration_seconds_bucket{le=\"0.05\"}[5m])",
+          "legendFormat": "100ms+"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Cache Hit / Miss Rate",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 6, "x": 18, "y": 16 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "thresholds": { "mode": "absolute", "steps": [{ "color": "green", "value": null }] },
+          "custom": { "showPoints": "never", "lineInterpolation": "smooth", "spanNulls": false }
+        }
+      },
+      "options": {
+        "legend": { "calcs": ["max", "mean"], "displayMode": "table", "placement": "bottom" },
+        "tooltip": { "mode": "multi" }
+      },
+      "targets": [
+        { "expr": "rate(nexus_cache_hits_total[5m])", "legendFormat": "hits" },
+        { "expr": "rate(nexus_cache_misses_total[5m])", "legendFormat": "misses" }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Cache Hit Ratio",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 24 },
+      "datasource": { "type": "prometheus", "uid": "PBFA97CFB590B2093" },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "orange", "value": 0.8 },
+              { "color": "green", "value": 0.9 }
+            ]
+          }
+        }
+      },
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
+        "textMode": "auto"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(nexus_cache_hits_total[5m])) / (sum(rate(nexus_cache_hits_total[5m])) + sum(rate(nexus_cache_misses_total[5m])))",
+          "legendFormat": "ratio"
+        }
+      ]
+    }
+  ]
+}

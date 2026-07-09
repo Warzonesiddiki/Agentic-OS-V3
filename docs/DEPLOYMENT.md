@@ -4,6 +4,36 @@ This document covers multi-stage Docker containerization, Docker Compose orchest
 
 ---
 
+## 0. Build / CI Validation Gate (IMPORTANT — better-sqlite3 Node-ABI)
+
+`pnpm run validate` (root) and `npm run validate` (server) run `lint → typecheck →
+test → build`. On a fresh runner the native module **better-sqlite3** is often built
+against a different Node ABI than the active runtime, which makes `vitest run`
+(= the `test` step) crash with `NODE_MODULE_VERSION` mismatch. This is an
+**environment** issue, not a code defect.
+
+**Fix before running the test/validate step on the aionr runner:**
+
+```bash
+# Rebuild every native module against the runner's Node ABI
+npm rebuild better-sqlite3          # or: pnpm rebuild better-sqlite3
+# then run the gate
+cd server && npm run validate       # lint + fresh tsc + unit + integration gate + build
+```
+
+The CI workflow (`.github/workflows/ci.yml`) already runs `pnpm rebuild better-sqlite3`
+before `pnpm -r typecheck/test/build`, so the canonical gate is green there. The TRUE
+typecheck gate is **always** run fresh (no incremental cache):
+
+```bash
+cd server && rm -f *.tsbuildinfo && npx tsc --noEmit --incremental false
+```
+
+Never trust incremental `.tsbuildinfo` — it masks real errors. The SINGLE SOURCE OF
+TRUTH for a green compile is the above command returning 0 errors.
+
+---
+
 ## 1. Multi-Container Orchestration (Production Stack)
 
 The production stack orchestrates 4 services via `docker-compose.yml`:

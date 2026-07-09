@@ -1,5 +1,6 @@
 # Stage 1: Build stage
 FROM node:20-alpine AS build
+RUN corepack enable
 WORKDIR /app
 
 # Install native compilation build dependencies if needed

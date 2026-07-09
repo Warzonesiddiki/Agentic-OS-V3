@@ -96,7 +96,8 @@ kernelRouter.post('/api/kernel/barrier/:name/wait', async (c) => {
     }),
     await safeJson(c)
   );
-  await barrierWait(name, body.timeoutMs, body.memberId, body.total);
+  // body.total is optional (zod .optional()); barrierWait treats undefined as 0, so defaulting here is safe.
+  await barrierWait(name, body.timeoutMs ?? 30000, body.memberId, body.total ?? 0);
   return c.json(ok({ released: true, name }, c.get('requestId') ?? ''));
 });
 
@@ -109,7 +110,7 @@ kernelRouter.get('/api/kernel/cgroups', async (c) => {
   await requireScope(c, 'memory:read');
   const { db, agents } = await import('../db/client.js');
   const rows = await db.select().from(agents);
-  const groups = rows.map((a) => ({
+  const groups = rows.map((a: typeof agents.$inferSelect) => ({
     id: a.id,
     name: a.name,
     ring: a.ring,
@@ -146,9 +147,7 @@ kernelRouter.post('/api/kernel/:id/lifecycle-hooks', async (c) => {
 kernelRouter.get('/api/kernel/gang/:taskId', async (c) => {
   await requireScope(c, 'memory:read');
   const taskId = c.req.param('taskId');
-  return c.json(
-    ok({ primary: taskId, members: getGangMembers(taskId) }, c.get('requestId') ?? '')
-  );
+  return c.json(ok({ primary: taskId, members: getGangMembers(taskId) }, c.get('requestId') ?? ''));
 });
 
 kernelRouter.get('/api/scheduler/latency', async (c) => {

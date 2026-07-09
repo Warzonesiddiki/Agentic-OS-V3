@@ -652,35 +652,72 @@ export function agentToTool(agentId: string, name?: string, description?: string
       const goal = String(input.goal ?? '');
       const context = (input.context ?? {}) as Record<string, unknown>;
       const actor = ctx.actor;
+      const maxRetries = 2;
+      let attempts = 0;
+      const start = Date.now();
 
-      try {
-        const result = await runAgent({
-          agentId,
-          goal,
-          context: { parentAgentId: ctx.parentAgentId, ...context },
-          maxIterations: 10,
-          actor,
-        });
+      const classifyRetryable = (err: unknown): boolean => {
+        const msg = err instanceof Error ? err.message : String(err);
+        return /timeout|ETIMEDOUT|ECONNRESET|ENOTFOUND|5\d\d|fetch failed/i.test(msg);
+      };
+      const backoff = (a: number): number => {
+        const exp = 200 * Math.pow(2, Math.max(0, a - 1));
+        const jitter = exp * 0.25 * (Math.random() * 2 - 1);
+        return Math.max(50, Math.round(exp + jitter));
+      };
 
-        return {
-          ok: result.ok,
-          output: result.ok
-            ? {
-                answer: result.answer,
-                steps: result.steps,
-                iterations: result.iterations,
-                tokensUsed: result.tokensUsed,
-              }
-            : { error: result.error, partialAnswer: result.answer },
-          error: result.ok ? undefined : result.error,
-        };
-      } catch (e) {
-        return {
-          ok: false,
-          output: null,
-          error: e instanceof Error ? e.message : String(e),
-        };
+      while (attempts <= maxRetries) {
+        attempts += 1;
+        try {
+          const result = await runAgent({
+            agentId,
+            goal,
+            context: { parentAgentId: ctx.parentAgentId, ...context },
+            maxIterations: 10,
+            actor,
+          });
+          const m = toolMetrics.get(agentId) ?? { calls: 0, failures: 0, totalMs: 0 };
+          m.calls += 1;
+          m.totalMs += Date.now() - start;
+          // Business-level failure (result.ok === false) counts as a failure so
+          // ML-001 dispatch-bias reflects reliability, not just thrown errors.
+          if (!result.ok) {
+            m.failures += 1;
+            m.lastError = result.error;
+          }
+          toolMetrics.set(agentId, m);
+          return {
+            ok: result.ok,
+            output: result.ok
+              ? {
+                  answer: result.answer,
+                  steps: result.steps,
+                  iterations: result.iterations,
+                  tokensUsed: result.tokensUsed,
+                }
+              : { error: result.error, partialAnswer: result.answer },
+            error: result.ok ? undefined : result.error,
+          };
+        } catch (e) {
+          if (attempts <= maxRetries && classifyRetryable(e)) {
+            log.warn('agent.tool.retry', { agentId, attempt: attempts, err: String(e) });
+            await new Promise((r) => setTimeout(r, backoff(attempts)));
+            continue;
+          }
+          const m = toolMetrics.get(agentId) ?? { calls: 0, failures: 0, totalMs: 0 };
+          m.calls += 1;
+          m.failures += 1;
+          m.totalMs += Date.now() - start;
+          m.lastError = e instanceof Error ? e.message : String(e);
+          toolMetrics.set(agentId, m);
+          return {
+            ok: false,
+            output: null,
+            error: e instanceof Error ? e.message : String(e),
+          };
+        }
       }
+      return { ok: false, output: null, error: 'agent_tool_exhausted_retries:' + agentId };
     },
   };
 
@@ -690,6 +727,30 @@ export function agentToTool(agentId: string, name?: string, description?: string
 
 export function getToolRegistry(): Map<string, AgentTool> {
   return new Map(toolRegistry);
+}
+
+/** Per-tool runtime metrics — read-only source for ML-001 dispatch bias. */
+export interface ToolMetrics {
+  calls: number;
+  failures: number;
+  totalMs: number;
+  lastError?: string;
+}
+const toolMetrics = new Map<string, ToolMetrics>();
+
+/** Register an arbitrary callable tool (not just an agent wrapper). */
+export function registerTool(tool: AgentTool): void {
+  toolRegistry.set(tool.id, tool);
+  if (!toolMetrics.has(tool.id)) {
+    toolMetrics.set(tool.id, { calls: 0, failures: 0, totalMs: 0 });
+  }
+}
+
+/** ML-001 source: per-tool success/latency metrics for dispatch bias. */
+export function getToolMetrics(): Record<string, ToolMetrics> {
+  const out: Record<string, ToolMetrics> = {};
+  for (const [id, m] of toolMetrics) out[id] = { ...m };
+  return out;
 }
 
 /* ─── Utilities ──────────────────────────────────────────────────────────── */
@@ -721,4 +782,44 @@ export function deleteDAG(id: string): boolean {
 export function resetDAGRegistry(): void {
   dagRegistry.clear();
   toolRegistry.clear();
+  toolMetrics.clear();
+}
+
+/**
+ * ML-001 — self-optimization of agent/tool selection.
+ *
+ * Given candidate agent ids, bias dispatch toward the most reliable
+ * (highest success-rate, then lowest mean latency) using the runtime
+ * metrics recorded by agentToTool.execute (ML-002). Pure, deterministic,
+ * no external deps — consumes only the in-module toolMetrics map.
+ *
+ * Returns the winning agentId, or the first candidate if no metrics
+ * exist yet (cold start). Returns null for an empty candidate set.
+ */
+export function selectBestAgent(candidates: string[]): string | null {
+  if (!candidates.length) return null;
+  if (candidates.length === 1) return candidates[0]!;
+
+  const metrics = getToolMetrics();
+  const score = (id: string): number => {
+    const m = metrics[id];
+    if (!m || m.calls === 0) return 0;
+    const successRate = (m.calls - m.failures) / m.calls;
+    const meanMs = m.totalMs / m.calls;
+    // higher successRate is better; lower meanMs is better.
+    // normalize latency to [0,1] with a 30s ceiling, then combine.
+    const latencyScore = Math.max(0, 1 - meanMs / 30000);
+    return successRate * 0.7 + latencyScore * 0.3;
+  };
+
+  let best = candidates[0]!;
+  let bestScore = score(best);
+  for (const id of candidates.slice(1)) {
+    const s = score(id);
+    if (s > bestScore) {
+      bestScore = s;
+      best = id;
+    }
+  }
+  return best;
 }

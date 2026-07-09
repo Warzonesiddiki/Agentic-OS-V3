@@ -654,7 +654,7 @@ function PipelineBuilderInner() {
           <ToolbarButton onClick={() => { setImportJson(""); setShowImport(true); }} disabled={isRunning} title="Import">📥 Import</ToolbarButton>
           <ToolbarButton onClick={undo} disabled={undoStack.length === 0 || isRunning} title="Undo (Ctrl+Z)">↩ Undo</ToolbarButton>
           <ToolbarButton onClick={clearPipeline} disabled={nodes.length === 0 || isRunning} title="Clear">🗑 Clear</ToolbarButton>
-          <ToolbarButton onClick={() => setShowRunLog(!showRunLog)} title="Run Log">📋 Log</ToolbarButton>
+          <ToolbarButton onClick={() => setShowRunLog(!showRunLog)} title={showRunLog ? "Hide run log" : "Show run log"} aria-label={showRunLog ? "Hide run log" : "Show run log"} aria-pressed={showRunLog}>📋 Log</ToolbarButton>
         </div>
       </div>
 
@@ -824,13 +824,13 @@ function ToolbarButton({
   onClick,
   variant = "default",
   disabled,
-  title,
+  title, "aria-label": ariaLabel, "aria-pressed": ariaPressed,
 }: {
   children: React.ReactNode;
   onClick?: () => void;
   variant?: "default" | "primary" | "danger";
   disabled?: boolean;
-  title?: string;
+  title?: string; "aria-label"?: string; "aria-pressed"?: boolean;
 }) {
   const vCls = variant === "primary"
     ? "bg-cyan-500/20 text-cyan-300 hover:bg-cyan-500/30 border-cyan-500/30"
@@ -841,7 +841,7 @@ function ToolbarButton({
     <button
       onClick={onClick}
       disabled={disabled}
-      title={title}
+      title={title} aria-label={ariaLabel} aria-pressed={ariaPressed}
       className={cn(
         "rounded-md border px-2.5 py-1.5 text-xs font-medium transition-colors disabled:opacity-40 disabled:cursor-not-allowed",
         vCls

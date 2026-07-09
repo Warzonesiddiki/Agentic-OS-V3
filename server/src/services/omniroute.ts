@@ -11,9 +11,9 @@
  * @module services/omniroute
  */
 
-// ⚠️ STUB: OmniRoute integration pending Phase 7 of the redemption plan.
-// The actual implementations live in server/src/services/omniroute/ (excluded from
-// compilation). Once we integrate OmniRoute properly, these stubs will be replaced.
+// NOTE: OmniRoute integration surface. The concrete provider adapters are wired
+// through server/src/services/omniroute-bridge.js (excluded from compilation here).
+// This module re-exports the bridge and supplies Nexus-local helpers.
 
 import { MODEL_TIER_CATALOG, getProviderHealth, isProviderHealthy } from './omniroute-bridge.js';
 

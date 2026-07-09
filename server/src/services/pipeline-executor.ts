@@ -22,6 +22,7 @@ import { pipelines, pipelineRuns } from '../db/client.js';
 import { eq } from 'drizzle-orm';
 import { appendAudit } from '../lib/audit.js';
 import { log } from '../lib/logging.js';
+import { getToolRegistry, type AgentTool } from './agent-dag.js';
 
 /* ─── DAG types ──────────────────────────────────────────────────────────── */
 
@@ -61,7 +62,12 @@ export interface PipelineRunResult {
   durationMs: number;
   nodeResults: Record<
     string,
-    { status: 'ok' | 'failed' | 'skipped'; output: unknown; error?: string }
+    {
+      status: 'ok' | 'failed' | 'skipped';
+      output: unknown;
+      error?: string;
+      compensation?: unknown;
+    }
   >;
   error?: string;
 }
@@ -173,29 +179,78 @@ export async function runPipeline(req: PipelineRunRequest): Promise<PipelineRunR
 
   try {
     const waves = topoWaves(dag);
+    let aborted = false;
     for (const wave of waves) {
       await Promise.all(
         wave.map(async (nodeId) => {
           const node = dag.nodes.find((n) => n.id === nodeId)!;
-          // collect upstream outputs
           const upstream = dag.edges
             .filter((e) => e.to === nodeId)
             .map((e) => outputs.get(e.from))
             .filter((v) => v !== undefined);
-          try {
-            const out = await executeNode(node, upstream);
-            outputs.set(nodeId, out);
-            nodeResults[nodeId] = { status: 'ok', output: out };
-          } catch (e) {
-            nodeResults[nodeId] = {
-              status: 'failed',
-              output: null,
-              error: e instanceof Error ? e.message : String(e),
-            };
-            throw e;
+
+          // (Forge) Failure-isolation: a node may opt out of aborting the whole
+          // run via config.continueOnError, enabling partial-success DAGs.
+          const continueOnError = node.config.continueOnError === true;
+          const maxAttempts =
+            typeof node.config.retry === 'number' && node.config.retry > 0
+              ? Math.floor(node.config.retry)
+              : 1;
+
+          let attempt = 0;
+          let lastErr: unknown;
+          while (attempt < maxAttempts) {
+            attempt++;
+            try {
+              const out = await runNode(node, upstream);
+              outputs.set(nodeId, out);
+              return;
+            } catch (e) {
+              lastErr = e;
+              if (attempt < maxAttempts) {
+                log.warn('pipeline.node_retry', {
+                  nodeId,
+                  attempt,
+                  maxAttempts,
+                  error: e instanceof Error ? e.message : String(e),
+                });
+                await new Promise((r) => setTimeout(r, 50 * attempt));
+              }
+            }
+          }
+
+          const errMsg = lastErr instanceof Error ? lastErr.message : String(lastErr);
+          nodeResults[nodeId] = { status: 'failed', output: null, error: errMsg };
+
+          // (Forge) Saga compensation: if the failing node declares a compensator
+          // (a tool id via config.compensate / config.onError), run it to undo
+          // partial side-effects and record it in the audit trail.
+          const compensator = getNodeCompensator(node);
+          if (compensator) {
+            try {
+              const cResult = await runNode(compensator, upstream);
+              nodeResults[nodeId] = {
+                status: 'failed',
+                output: null,
+                error: errMsg,
+                compensation: cResult,
+              };
+              log.info('pipeline.node_compensated', { nodeId, result: cResult });
+            } catch (ce) {
+              log.error('pipeline.compensation_failed', {
+                nodeId,
+                error: ce instanceof Error ? ce.message : String(ce),
+              });
+            }
+          }
+
+          if (!continueOnError) {
+            aborted = true;
+            throw lastErr;
           }
         })
       );
+      if (aborted) break;
     }
   } catch (e) {
     runError = e instanceof Error ? e.message : String(e);
@@ -278,8 +333,17 @@ async function executeNode(node: PipelineNode, inputs: unknown[]): Promise<unkno
       return { text: resp.text, tokens: resp.totalTokens };
     }
     case 'tool.invoke': {
-      // Stub: real impl wires to the sandboxed tool registry; for now pass-through.
-      return { tool: String(node.config.tool ?? ''), inputs };
+      const toolId = String(node.config.tool ?? '');
+      const registry = getToolRegistry();
+      const tool: AgentTool | undefined = registry.get(toolId);
+      if (!tool) {
+        throw new Error(`tool_not_registered:${toolId}`);
+      }
+      const result = await tool.execute((inputs[0] ?? {}) as Record<string, unknown>, {
+        parentAgentId: '',
+        actor: 'pipeline',
+      });
+      return result;
     }
     case 'guardrail.check': {
       const pattern = String(node.config.pattern ?? '');
@@ -311,4 +375,41 @@ export async function listPipelineRuns(pipelineId: string, limit = 50) {
 
 export async function listPipelines() {
   return db.query.pipelines.findMany({});
+}
+
+/* ─── (Forge) Retry / saga-compensation helpers ───────────────────────────── */
+
+export function getNodeCompensator(node: PipelineNode): PipelineNode | null {
+  const compId = node.config.compensate ?? node.config.onError;
+  const isStr = typeof compId === 'string';
+  if (isStr === false) {
+    return null;
+  }
+  const s = compId as string;
+  if (s.length === 0) {
+    return null;
+  }
+  const specObj = node.config.compensateSpec;
+  const isObj = typeof specObj === 'object' && specObj !== null;
+  if (isObj) {
+    const spec = specObj as { type?: unknown; config?: unknown };
+    if (typeof spec.type === 'string') {
+      return {
+        id: node.id + '__comp',
+        type: spec.type as NodeType,
+        position: node.position,
+        config: (spec.config as Record<string, unknown>) ?? {},
+      };
+    }
+  }
+  return {
+    id: node.id + '__comp',
+    type: 'tool.invoke',
+    position: node.position,
+    config: { tool: s },
+  };
+}
+
+async function runNode(node: PipelineNode, inputs: unknown[]): Promise<unknown> {
+  return executeNode(node, inputs);
 }

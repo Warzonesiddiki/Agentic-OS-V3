@@ -16,6 +16,36 @@ import { sql, isNull } from 'drizzle-orm';
 
 const BATCH_SIZE = env.NEXUS_EMBEDDING_BATCH_SIZE;
 
+/* ─── Embedding cache + in-flight dedup (target #2: no redundant vector calls) ───
+ * Query embeddings are expensive (network + provider cost). We keep a bounded
+ * LRU of recent query vectors and collapse concurrent identical requests into a
+ * single provider call so the same query string never embeds twice. */
+const QUERY_CACHE_MAX: number = 4096;
+const queryCache = new Map<string, number[]>();
+const inflight = new Map<string, Promise<number[] | null>>();
+
+function cacheGet(key: string): number[] | undefined {
+  const v = queryCache.get(key);
+  if (v !== undefined) {
+    // LRU touch
+    queryCache.delete(key);
+    queryCache.set(key, v);
+  }
+  return v;
+}
+function cacheSet(key: string, val: number[]): void {
+  if (queryCache.size >= QUERY_CACHE_MAX) {
+    const oldest = queryCache.keys().next().value;
+    if (oldest !== undefined) queryCache.delete(oldest);
+  }
+  queryCache.set(key, val);
+}
+
+/** Number of cached query embeddings (diagnostics). */
+export function embeddingCacheSize(): number {
+  return queryCache.size;
+}
+
 export interface EmbeddingsReport {
   mode: 'semantic' | 'lexical';
   reason: string;
@@ -215,15 +245,52 @@ export async function embedQuery(query: string): Promise<number[] | null> {
   const e = getEnv();
   if (!llmConfigured() || !e.NEXUS_EMBEDDING_MODEL) return null;
 
-  try {
-    const embeddings = await embedBatch([query.slice(0, 8000)]);
-    return embeddings[0] ?? null;
-  } catch (e) {
-    // Log the failure so it's visible — embedding provider issues shouldn't be silent.
-    const { log } = await import('../lib/logging.js');
-    log.warn('embed_query_failed', { error: e instanceof Error ? e.message : String(e) });
-    return null;
+  const key = query.slice(0, 8000);
+  const cached = cacheGet(key);
+  if (cached) return cached;
+
+  // Collapse concurrent identical requests into a single provider call so the
+  // same query string never embeds twice.
+  const existing = inflight.get(key);
+  if (existing) return existing;
+
+  const p = (async (): Promise<number[] | null> => {
+    try {
+      const embeddings = await embedBatch([key]);
+      const emb = embeddings[0] ?? null;
+      if (emb) cacheSet(key, emb);
+      return emb;
+    } catch (err) {
+      const { log } = await import('../lib/logging.js');
+      log.warn('embed_query_failed', { error: err instanceof Error ? err.message : String(err) });
+      return null;
+    } finally {
+      inflight.delete(key);
+    }
+  })();
+
+  inflight.set(key, p);
+  return p;
+}
+
+/**
+ * Batch-embed an array of texts, de-duplicating identical inputs so redundant
+ * vector calls are avoided. Returns vectors aligned to the input order.
+ */
+export async function batchEmbedTexts(texts: string[]): Promise<(number[] | null)[]> {
+  if (texts.length === 0) return [];
+  const uniq = Array.from(new Set(texts.map((t) => t.slice(0, 8000))));
+  const vecs = new Map<string, number[] | null>();
+  for (let i = 0; i < uniq.length; i += BATCH_SIZE) {
+    const slice = uniq.slice(i, i + BATCH_SIZE);
+    try {
+      const out = await embedBatch(slice);
+      slice.forEach((s, idx) => vecs.set(s, out[idx] ?? null));
+    } catch {
+      slice.forEach((s) => vecs.set(s, null));
+    }
   }
+  return texts.map((t) => vecs.get(t.slice(0, 8000)) ?? null);
 }
 
 /** Returns whether embeddings are available (provider configured). */

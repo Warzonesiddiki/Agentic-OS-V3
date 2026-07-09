@@ -19,12 +19,10 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
-import { Mutex, MutexInterface } from 'async-mutex';
+import { Mutex } from 'async-mutex';
 import type { Database as SqliteDatabase } from 'better-sqlite3';
 import type { Sql } from 'postgres';
 import { sql } from 'drizzle-orm';
-import type { BetterSQLiteTransaction } from 'drizzle-orm/better-sqlite3';
-import type { PostgresJsTransaction } from 'drizzle-orm/postgres-js';
 import * as sqliteSchema from './schema-sqlite.js';
 import * as pgSchema from './schema.js';
 import { getEnv } from '../lib/env.js';
@@ -350,4 +348,33 @@ export const {
   pipelineRuns,
   ringPolicies,
   schedulerMetrics,
+  memoryClusters,
+  memoryClusterMembers,
+  sessionLinks,
+  memoryCausalEdges,
+  memoryAttachments,
+  memoryContradictions,
+  memoryEmotions,
+  tagTaxonomy,
+  memoryTags,
+  memoryTemplates,
+  agentMemoryQuotas,
+  memoryArchive,
+  memoryDiffMarkers,
+  memoryRehearsalLog,
+  selfOptParamVersions,
+  selfOptExperiments,
+  selfOptKnowledgeBus,
+  selfOptEvents,
+  orgs,
+  workspaces,
+  enterpriseUsers,
+  enterpriseApiKeys,
+  rbacRoles,
+  siemSinks,
+  tenantConfig,
+  invoices,
+  paymentMethods,
+  crossOrgShares,
+  onboardingState,
 } = isSqlite ? sqliteSchema : pgSchema;

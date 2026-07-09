@@ -4,6 +4,7 @@
  */
 import { dismissToast, getToasts, subscribeToasts, type ToastTone } from "../lib/toast";
 import { cn } from "./ui";
+import { useSyncExternalStore } from "react";
 
 const TONE: Record<ToastTone, string> = {
   info: "border-cyan-500/30 bg-cyan-500/10 text-cyan-200",
@@ -12,14 +13,12 @@ const TONE: Record<ToastTone, string> = {
   danger: "border-rose-500/30 bg-rose-500/10 text-rose-200",
 };
 
-import { useSyncExternalStore } from "react";
-
 export function ToastHost() {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts, getToasts);
   if (!toasts.length) return null;
   return (
-    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center">
-      <div className="pointer-events-auto flex max-w-md flex-col gap-2 px-4">
+    <div className="pointer-events-none fixed inset-x-0 bottom-4 z-50 flex justify-center" role="region" aria-label="Notifications">
+      <div className="pointer-events-auto flex max-w-md flex-col gap-2 px-4" aria-live="polite" aria-relevant="additions">
         {toasts.map((t) => (
           <div
             key={t.id}
@@ -32,8 +31,8 @@ export function ToastHost() {
             <span className="flex-1">{t.message}</span>
             <button
               onClick={() => dismissToast(t.id)}
-              className="text-current opacity-60 hover:opacity-100"
-              aria-label="Dismiss"
+              className="rounded text-current opacity-60 hover:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
+              aria-label="Dismiss notification"
             >
               ✕
             </button>

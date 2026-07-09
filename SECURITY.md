@@ -36,3 +36,20 @@ Nexus Agentic OS implements defense-in-depth:
 3. Enable `NEXUS_RATE_LIMIT_PER_MINUTE` appropriate for your load
 4. Use HTTPS in production (configure reverse proxy)
 5. Restrict `NEXUS_ALLOWED_ORIGINS` to your actual domain
+
+## Recent Security Fixes (tracked in repo)
+
+- **Skill-compiler template-injection RCE (2026-07-09, Artisan)**: `server/src/services/skill-compiler.ts`
+  previously embedded untrusted `taskLabel` / `sampleOutputs` inside a generated JS block comment. A
+  crafted value containing `*/` / `/*` could break out of the comment and execute arbitrary code in the
+  generated skill module. Fixed with `sanitizeForComment()` (escapes `*/` → `* /`, `/*` → `/ *`, strips
+  newlines) applied to both embeddings. Verified: injected break-outs are neutralized and the generated
+  module parses as valid JS with no RCE path. See `ADR-0022` (Skill-Compiler Capability Model) for the
+  broader sandbox + capability-deny posture.
+
+## Third-Party Docs Disclaimer (NOT NEXUS)
+
+The directory `docs/omniroute/` is a **foreign product ("OmniRoute", diegosouzapw)** vendored into this
+repo — it is **not** part of NEXUS 2.0. Its security-circumvention files must not ship with NEXUS.
+Treat `docs/omniroute/**` as reference-only; do not rely on it for NEXUS behavior, and do not import its
+code into the NEXUS build. (See `AGENTS.md` "Things to avoid".)

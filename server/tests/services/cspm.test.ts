@@ -70,12 +70,11 @@ describe('assertCompliant', () => {
 
   it('throws CSPM_VIOLATION when a rule fails', () => {
     getEnvMock.mockReturnValue({ SAFETY_ENABLED: 'false' });
-    let code = '';
+    expect(() => assertCompliant()).toThrow(ApiError);
     try {
       assertCompliant();
     } catch (e) {
-      code = (e as ApiError).code;
+      expect((e as ApiError).code).toBe('CSPM_VIOLATION');
     }
-    expect(code).toBe('CSPM_VIOLATION');
   });
 });

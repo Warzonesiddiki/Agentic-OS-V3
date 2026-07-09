@@ -81,7 +81,15 @@ export type Scope =
   | 'federated:write'
   | 'federated:read'
   | 'pipeline:admin'
-  | 'pipeline:execute';
+  | 'pipeline:execute'
+  | 'marketplace:read'
+  | 'marketplace:write'
+  | 'marketplace:publish'
+  | 'marketplace:review'
+  | 'integrations:read'
+  | 'integrations:write'
+  | 'selfopt:read'
+  | 'selfopt:write';
 
 /** Scopes defined in this application — ideally this would live in a config table. */
 const ALL_SCOPES = [
@@ -113,10 +121,16 @@ const ALL_SCOPES = [
   'federated:read',
   'pipeline:admin',
   'pipeline:execute',
+  'marketplace:read',
+  'marketplace:write',
+  'marketplace:publish',
+  'marketplace:review',
+  'integrations:read',
+  'integrations:write',
 ] as const satisfies readonly Scope[];
 
 export function isValidScope(s: string): s is Scope {
-  return ALL_SCOPES.includes(s as Scope);
+  return ALL_SCOPES.includes(s as (typeof ALL_SCOPES)[number]);
 }
 
 export interface Principal {
@@ -308,7 +322,9 @@ export async function listPrincipals(
   const items = rows.map((r: any) => ({
     id: r.id,
     name: r.name,
-    scopes: (r.scopes ?? []).filter((s: string): s is Scope => ALL_SCOPES.includes(s as Scope)),
+    scopes: (r.scopes ?? []).filter((s: string): s is Scope =>
+      ALL_SCOPES.includes(s as (typeof ALL_SCOPES)[number])
+    ),
     status: r.status,
     createdAt: r.createdAt,
     lastUsedAt: r.lastUsedAt,

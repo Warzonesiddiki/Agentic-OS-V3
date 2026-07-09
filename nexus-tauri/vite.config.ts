@@ -1,32 +1,32 @@
-import { defineConfig } from "vite";
-import react from "@vitejs/plugin-react";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
 
-// process is a nodejs global
-const host = process.env.TAURI_DEV_HOST;
-
-// https://vite.dev/config/
+// Tauri expects a relative base and self-contained assets.
 export default defineConfig(async () => ({
   plugins: [react()],
-
-  // Vite options tailored for Tauri development and only applied in `tauri dev` or `tauri build`
-  //
-  // 1. prevent Vite from obscuring rust errors
-  clearScreen: false,
-  // 2. tauri expects a fixed port, fail if that port is not available
-  server: {
-    port: 1422,
-    strictPort: true,
-    host: host || false,
-    hmr: host
-      ? {
-          protocol: "ws",
-          host,
-          port: 1421,
-        }
-      : undefined,
-    watch: {
-      // 3. tell Vite to ignore watching `src-tauri`
-      ignored: ["**/src-tauri/**"],
+  // Relative base so the bundled app works from the Tauri custom protocol.
+  base: './',
+  build: {
+    target: 'es2020',
+    sourcemap: false,
+    minify: 'esbuild',
+    // Fail the build loudly on oversized chunks so lazy-loading stays effective.
+    chunkSizeWarningLimit: 900,
+    rollupOptions: {
+      output: {
+        // Split heavy, rarely-changing vendors into their own cacheable chunks.
+        manualChunks: {
+          react: ['react', 'react-dom'],
+          tauri: ['@tauri-apps/api', '@tauri-apps/plugin-opener'],
+        },
+      },
     },
   },
+  server: {
+    // Honour the port the Tauri dev harness expects.
+    strictPort: true,
+    port: 1420,
+  },
+  clearScreen: false,
+  envPrefix: ['VITE_', 'TAURI_'],
 }));

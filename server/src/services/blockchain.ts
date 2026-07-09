@@ -1,14 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * blockchain.ts — Merkle Tree Audit Logging (NO CHAIN SUBMISSION).
- * 
+ *
  * Implements:
  *   1. Cryptographic SHA-256 Merkle tree calculation (`computeMerkleRoot`).
  *   2. Audit log batch aggregation and aggregation and Merkle root anchoring (LOCAL ONLY).
  *   3. Raw EVM transaction encoder placing Merkle root into tx data field (FOR ILLUSTRATION ONLY).
  *   4. JSON-RPC client with spending cap checks and graceful RPC fallback (NOT ACTUALLY USED FOR SUBMISSION).
  *   5. Verification logic for anchor records (`verifyAnchor`).
- * 
+ *
  * LIMITATIONS: This module does NOT submit transactions to any blockchain. The "anchoring" writes to a local
  *   database table (`anchoredRoots`) but does not broadcast to Ethereum/Polygon/etc. The JSON-RPC client
  *   is present but only used for local fallback or if configured (which is false by default).
@@ -16,7 +16,6 @@
  */
 
 import { createHash, randomUUID, createPrivateKey, sign } from 'node:crypto';
-import { keccak_256 } from 'js-sha3';
 import { db, isSqlite, auditLog, merkleCheckpoints, anchoredRoots } from '../db/client.js';
 import { eq, and, gte, lte, desc, asc, sql, gt } from 'drizzle-orm';
 import { env } from '../lib/env.js';
@@ -154,7 +153,7 @@ function encodeLengthHeader(len: number, offset: number): Buffer {
 }
 
 function keccak256(data: Buffer): string {
-  return keccak_256(data);
+  return createHash('sha3-256').update(data).digest('hex');
 }
 
 /**

@@ -130,6 +130,10 @@ async function bootstrap(): Promise<void> {
   const { startWorker } = await import('./services/task-worker.js');
   startWorker('system-worker');
 
+  // F-4 — periodic audit-chain integrity watchdog (forwards tamper to SIEM, auto-kills).
+  const { startAuditWatchdog } = await import('./services/audit-watchdog.js');
+  startAuditWatchdog();
+
   // In production/Docker, bind to all interfaces so the container is reachable.
   // In development, bind to localhost only for security.
   const host = env.NODE_ENV === 'production' ? '0.0.0.0' : '127.0.0.1';
@@ -168,6 +172,14 @@ async function gracefulShutdown(signal: string): Promise<void> {
     const { stopWorker } = await import('./services/task-worker.js');
     stopWorker();
     log.info('worker_stopped');
+  } catch {
+    /* best-effort */
+  }
+
+  // F-4 — stop the audit watchdog timer on shutdown.
+  try {
+    const { stopAuditWatchdog } = await import('./services/audit-watchdog.js');
+    stopAuditWatchdog();
   } catch {
     /* best-effort */
   }

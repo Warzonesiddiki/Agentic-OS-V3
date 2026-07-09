@@ -1,0 +1,80 @@
+# Nexus 2.0 — Full Perfection-Bar validation gate.
+#
+# Owner: Bastion (CODEOWNERS: .github/workflows/)
+#
+# Runs the complete gate on every PR and push to main/master/feat branches:
+#   1. pnpm install + pnpm rebuild better-sqlite3 (native ABI)
+#   2. pnpm -r lint          (ESLint, 0 warnings/errors)
+#   3. pnpm -r typecheck     (tsc --noEmit, fresh, --incremental false)
+#   4. pnpm -r test          (vitest unit tests)
+#   5. pnpm -r build         (server tsc + dashboard vite build)
+#   6. Rust clippy (deny warnings) + cargo test --workspace
+#
+# This is the authoritative merge gate. It fails on ANY regression.
+
+name: Validate
+
+on:
+  push:
+    branches: ['main', 'master', 'feat/phases-11-20', 'feat/**']
+  pull_request:
+    branches: ['main', 'master']
+
+concurrency:
+  group: validate-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  typescript:
+    name: TS workspace — lint / typecheck / test / build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Rebuild native modules for runner Node (better-sqlite3 ABI)
+        run: pnpm rebuild better-sqlite3
+
+      - name: Lint (workspace, 0 problems)
+        run: pnpm -r lint
+
+      - name: TypeScript typecheck (fresh, no incremental cache)
+        run: pnpm -r typecheck
+
+      - name: Unit tests
+        run: pnpm -r test
+
+      - name: Build (server tsc + dashboard vite build)
+        run: pnpm -r build
+
+  rust:
+    name: Rust — clippy (deny warnings) + test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace

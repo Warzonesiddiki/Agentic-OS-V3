@@ -11,14 +11,27 @@
  */
 import { log } from '../lib/logging.js';
 import { onTaskQueued } from './task-notifier.js';
-import { pickNextTask, completeTask, failTask, updateAgentState, getAgent, preemptAgent, releaseRingBudget } from './kernel.js';
+import {
+  pickNextTask,
+  completeTask,
+  failTask,
+  updateAgentState,
+  getAgent,
+  preemptAgent,
+  releaseRingBudget,
+} from './kernel.js';
 import { withCircuitBreaker } from './operations-ext.js';
 import { env, llmConfigured } from '../lib/env.js';
 import { getMessageBus } from './message-bus.js';
 import { db } from '../db/client.js';
 import { agentTasks } from '../db/schema.js';
 import { eq, and } from 'drizzle-orm';
-import { startMlfqBooster, stopMlfqBooster, initializeSchedulingPolicy } from './scheduler.js';
+import {
+  startMlfqBooster,
+  stopMlfqBooster,
+  initializeSchedulingPolicy,
+  getSlotManager,
+} from './scheduler.js';
 
 // ── Configuration ─────────────────────────────────────────────
 
@@ -32,6 +45,7 @@ export interface WorkerOptions {
   staleTaskTimeoutMs: number;
   agentHeartbeatTimeoutMs: number;
   autoKillEnabled: boolean;
+  preemptionStuckMs: number;
 }
 
 const DEFAULT_OPTIONS: WorkerOptions = {
@@ -42,6 +56,7 @@ const DEFAULT_OPTIONS: WorkerOptions = {
   staleTaskTimeoutMs: env.NEXUS_WORKER_STALE_TASK_MS,
   agentHeartbeatTimeoutMs: env.NEXUS_WORKER_HEARTBEAT_MS,
   autoKillEnabled: env.NEXUS_WORKER_AUTO_KILL,
+  preemptionStuckMs: 30_000,
 };
 
 // ── State ─────────────────────────────────────────────────────
@@ -82,6 +97,29 @@ function recordHealth(success: boolean, _latency: number): void {
 
 export function configureWorker(opts: Partial<WorkerOptions>): void {
   options = { ...options, ...opts };
+}
+
+// ── (Forge) Pulse self-opt control-surface seam ───────────────────────────
+export function setConcurrency(v: number): void {
+  configureWorker({ maxConcurrency: v });
+}
+export function setWorkerConcurrency(v: number): void {
+  configureWorker({ maxConcurrency: v });
+}
+export function setMaintenance(v: number): void {
+  configureWorker({ maintenanceIntervalMs: v });
+}
+export function setStaleTask(v: number): void {
+  configureWorker({ staleTaskTimeoutMs: v });
+}
+export function setHeartbeat(v: number): void {
+  configureWorker({ agentHeartbeatTimeoutMs: v });
+}
+export function setWorkerTimeout(v: number): void {
+  configureWorker({ defaultTimeoutMs: v });
+}
+export function prewarmCache(_v: number): void {
+  log.info('worker_prewarm_cache_intent', { hint: _v });
 }
 
 export function workerStatus() {
@@ -199,7 +237,10 @@ async function runMaintenance(actor: string): Promise<void> {
             actor
           );
         } catch (e) {
-          log.error('worker_stale_quarantine_failed', { taskId: t.id, error: e instanceof Error ? e.message : String(e) });
+          log.error('worker_stale_quarantine_failed', {
+            taskId: t.id,
+            error: e instanceof Error ? e.message : String(e),
+          });
         }
       }
     }
@@ -247,7 +288,7 @@ async function runMaintenance(actor: string): Promise<void> {
   // 5. Shadow cognition daemon (P9) — runs every 10th maintenance cycle (~10 min at default settings)
   _shadowCycleCount++;
   if (_shadowCycleCount % 10 === 0) {
-    import('../services/health-monitor.js')
+    import('../services/shadow-daemon.js')
       .then((m) => m.runShadowCycle())
       .catch((e) => {
         log.error('shadow_cycle_failed', { error: e instanceof Error ? e.message : String(e) });
@@ -255,6 +296,23 @@ async function runMaintenance(actor: string): Promise<void> {
   }
 }
 
+// 6. (Forge) Self-healing leak reapers — under preemption storms / agent churn,
+//     stale preemptions and per-agent quota enforcers must be reaped so kernel
+//     state never leaks. This is the ML-002 meta-loop''s leak-isolating step.
+try {
+  const { reapStuckPreemptions } = await import('./preemption-leak-guard.js');
+  const reaped = reapStuckPreemptions(options.preemptionStuckMs ?? 30_000);
+  if (reaped.length) {
+    log.warn('worker_reaped_stuck_preemptions', { count: reaped.length, ids: reaped });
+  }
+  const { getQuotaRegistry } = await import('./resource-quota.js');
+  const swept = getQuotaRegistry().sweep();
+  if (swept.length) {
+    log.info('worker_quota_registry_swept', { count: swept.length });
+  }
+} catch (e) {
+  log.warn('worker_leak_reap_failed', { error: e instanceof Error ? e.message : String(e) });
+}
 // ── Main Tick ─────────────────────────────────────────────────
 
 async function tick(actor: string): Promise<void> {
@@ -272,6 +330,26 @@ async function tick(actor: string): Promise<void> {
     return;
   }
 
+  // (Forge) Self-healing admission control: gate execution behind the scheduler
+  // slot manager + circuit breaker. If the breaker is OPEN (cascading failures
+  // detected) or capacity is exhausted, return the task to the queue.
+  const slots = getSlotManager();
+  if (!slots.tryAcquire(task.id)) {
+    const stats = slots.stats();
+    if (stats.state === 'open') {
+      log.warn('worker_breaker_open', {
+        taskId: task.id,
+        reason: stats.lastTrippedReason,
+        consecutiveFailures: stats.consecutiveFailures,
+      });
+    }
+    await db
+      .update(agentTasks)
+      .set({ status: 'queued', startedAt: null })
+      .where(eq(agentTasks.id, task.id));
+    return;
+  }
+
   activeCount++;
   try {
     await executeTask(task, actor);
@@ -279,6 +357,9 @@ async function tick(actor: string): Promise<void> {
     log.error('worker_tick_error', { error: e instanceof Error ? e.message : String(e) });
   } finally {
     activeCount--;
+    // (Forge) release the admission slot so the breaker can self-heal
+    const okOutcome = workerHealth.score >= 0.3;
+    slots.release(task.id, okOutcome ? 'success' : 'failure', 'tick_completed');
   }
 }
 
@@ -310,7 +391,8 @@ async function executeTask(task: TaskRow, actor: string): Promise<void> {
   let preemptTimer: ReturnType<typeof setTimeout> | null = null;
   let preempted = false;
   // Preemptive tasks get a hard wall-clock quantum; cooperative tasks run to completion.
-  const quantum = mode === 'preemptive' ? task.quantumMs ?? agent?.timeoutMs ?? options.defaultTimeoutMs : 0;
+  const quantum =
+    mode === 'preemptive' ? (task.quantumMs ?? agent?.timeoutMs ?? options.defaultTimeoutMs) : 0;
 
   const runDispatch = async (): Promise<unknown> => {
     if (quantum > 0) {
@@ -618,4 +700,105 @@ async function handleWorkspaceSync(
   const { syncWorkspace } = await import('./file-watcher.js');
   const workspaceDir = (input?.workspaceDir as string) ?? process.cwd();
   return syncWorkspace(workspaceDir, actor);
+}
+
+// ── Cooperative Scheduling ───────────────────────────────────
+//
+// DB-free, unit-testable cooperative / preemptive scheduling primitives.
+// `runWithSchedulingMode` executes a unit of work under a chosen scheduling
+// mode; `cooperativeYield()` lets cooperative work voluntarily surrender the
+// CPU back to the scheduler. A module-level "active run" context lets a yield
+// issued inside `work` be observed by the surrounding `runWithSchedulingMode`
+// invocation.
+
+/**
+ * Error subclass raised/returned to represent a voluntary cooperative yield.
+ * Tests assert `new CooperativeYield() instanceof Error`.
+ */
+export class CooperativeYield extends Error {
+  constructor(message = 'cooperative yield') {
+    super(message);
+    this.name = 'CooperativeYield';
+  }
+}
+
+interface SchedulingRunContext {
+  yielded: boolean;
+}
+
+let _activeRunContext: SchedulingRunContext | null = null;
+
+/**
+ * Voluntarily yield the CPU back to the scheduler from within cooperative work.
+ * Marks the currently executing `runWithSchedulingMode` run as having yielded,
+ * and returns a `CooperativeYield` sentinel the caller may assert on.
+ */
+export function cooperativeYield(): CooperativeYield {
+  if (_activeRunContext) {
+    _activeRunContext.yielded = true;
+  }
+  return new CooperativeYield();
+}
+
+export interface SchedulingOptions {
+  mode: 'cooperative' | 'preemptive';
+  quantumMs: number;
+  work: (signal: AbortSignal) => Promise<unknown> | unknown;
+}
+
+export interface SchedulingResult {
+  aborted: boolean;
+  yielded: boolean;
+  result: unknown;
+}
+
+/**
+ * Run `work` under the given scheduling mode.
+ *
+ *  - 'cooperative': the work runs to completion; no hard quantum is enforced.
+ *    A `cooperativeYield()` call inside `work` is recorded as `yielded: true`.
+ *  - 'preemptive': a hard wall-clock quantum (`quantumMs`) aborts `work` via
+ *    the supplied `AbortSignal` when it elapses. If `work` throws an
+ *    `AbortError` because of that abort, it is swallowed and `aborted: true`
+ *    is reported. Any other error propagates.
+ */
+export async function runWithSchedulingMode(opts: SchedulingOptions): Promise<SchedulingResult> {
+  const { mode, quantumMs, work } = opts;
+  const controller = new AbortController();
+  const ctx: SchedulingRunContext = { yielded: false };
+
+  const prevContext = _activeRunContext;
+  _activeRunContext = ctx;
+
+  let aborted = false;
+  let result: unknown;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+
+  try {
+    if (mode === 'preemptive' && quantumMs > 0) {
+      timer = setTimeout(() => {
+        aborted = true;
+        controller.abort();
+      }, quantumMs);
+    }
+
+    try {
+      result = await work(controller.signal);
+    } catch (e) {
+      // Swallow only the abort that *we* triggered via the quantum timer.
+      if (aborted && e instanceof DOMException && e.name === 'AbortError') {
+        // expected preemption
+      } else {
+        throw e;
+      }
+    }
+  } finally {
+    if (timer) {
+      clearTimeout(timer);
+      timer = null;
+    }
+    _activeRunContext = prevContext;
+  }
+
+  return { aborted, yielded: ctx.yielded, result };
 }

@@ -1,5 +1,6 @@
 # dependencies
 node_modules/
+.pnpm-store/
 
 # build artifacts — NEVER commit
 dist/
@@ -8,12 +9,41 @@ out/
 coverage/
 *.tsbuildinfo
 *.tsbuildinfo.*
-server/dist/
 
-# Rust build artifacts
+# Local tooling / measurement artifacts (never commit)
+*.ps1
+*.err
+*.log
+*.tmp
+build_pid.txt
+nexus-port*.txt
+tsc_errors.txt
+s-*.txt
+tsc*.txt
+
+server/_probe*
+server/scripts/lint-tests.json
+server/scripts/measure-lint.cjs
+server/scripts/probe-markers.cjs
+server/scripts/lint-*.txt
+server/multi_out.txt
+server/eslint_*.txt
+
+# Databases (local runtime data — never commit)
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+agentic-os.db
+server/data/*.sqlite*
+
+# --- All Rust build output (never commit) ---
 target/
+target-*/
 **/target/
-nexus-tauri/src-tauri/target/
+**/target-*/
 
 # env / secrets — NEVER commit
 **/.env
@@ -26,7 +56,6 @@ nexus-tauri/src-tauri/target/
 .vscode/
 .idea/
 .claude/
-*.log
 *.swp
 *.swo
 *.bak
@@ -37,17 +66,7 @@ Thumbs.db
 nexus-tauri/src-tauri/resources/backend/
 
 # OS temp files & scratch
-nexus-port*.txt
-tsc_errors.txt
-
-# Databases
-*.db
-*.db-wal
-*.db-shm
-*.sqlite
-
-# Executables
-*.exe
+.server_tests_tmp
 
 # Python Cache
 *.pyc
@@ -59,15 +78,15 @@ __pycache__/
 .zai/
 .agentic-os-rules.md
 
-# Debug / temp scripts from clean-up
+# Debug / temp scripts from clean-up (never commit)
 _fix_*.py
 fix_*.py
 *_raw.txt
 compile_*.ps1
+_compile_parts.ps1
 errors.txt
 out.txt
 test.txt
-_compile_parts.ps1
 all_backtick_names.txt
 analyze_crates.py
 bootstrap-monorepo.sh
@@ -88,3 +107,20 @@ Dockerfile.frontend
 
 # Vendored third-party source — will be extracted in Phase 13 then removed
 /gemini-cli/
+.aider*
+
+# --- Stray debug/measurement artifacts from agents (never commit) ---
+server/__*.cjs
+server/__*.mjs
+server/__*.py
+server/_*.js
+server/_*.mjs
+server/_*.cjs
+server/_*.txt
+server/_*.py
+server/__gen_perf.py
+server/_verify_stub_loader.cjs
+server/__tsc_err.cjs
+server/tests/zz-debug.test.ts
+server/tests/services/probe.tmp.ts
+server/vitest.config.secd-audit.ts

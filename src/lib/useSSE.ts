@@ -5,30 +5,34 @@
  * an agent state change, task update, or approval request, all subscribed
  * components re-render instantly.
  */
-import { useSyncExternalStore, useMemo } from "react";
-import { subscribeSSE, getEvents, isConnected, connectSSE, disconnectSSE, type SSEEvent } from "./sse-client";
-import { useEffect } from "react";
-import { getRemote } from "./remote";
+import { useSyncExternalStore, useMemo } from 'react';
+import {
+  subscribeSSE,
+  getEvents,
+  getConnectionStatus,
+  connectSSE,
+  disconnectSSE,
+  type SSEEvent,
+  type ConnectionStatus,
+} from './sse-client';
+import { useEffect } from 'react';
+import { getRemote } from './remote';
 
-/** Hook that returns the latest SSE events and connection status. */
-export function useSSE(): { events: SSEEvent[]; connected: boolean } {
+/** Hook that returns the latest SSE events and live connection status. */
+export function useSSE(): { events: SSEEvent[]; status: ConnectionStatus; connected: boolean } {
   const events = useSyncExternalStore(subscribeSSE, getEvents, getEvents);
-  const connected = useSyncExternalStore(
-    (fn) => subscribeSSE(fn),
-    isConnected,
-    isConnected,
-  );
+  const status = useSyncExternalStore(subscribeSSE, getConnectionStatus, getConnectionStatus);
 
   // Auto-connect when remote is enabled
   useEffect(() => {
     const remote = getRemote();
     if (remote.enabled && remote.baseUrl && remote.apiKey) {
-      connectSSE(remote.baseUrl, remote.apiKey);
+      void connectSSE(remote.baseUrl, remote.apiKey);
     }
     return () => disconnectSSE();
   }, []);
 
-  return { events, connected };
+  return { events, status, connected: status.connected };
 }
 
 /** Hook that returns only the latest agent state changes. Memoized to avoid new object references on every render. */
@@ -37,7 +41,7 @@ export function useAgentStates(): Record<string, unknown> {
   return useMemo(() => {
     const states: Record<string, unknown> = {};
     for (const e of events) {
-      if (e.type === "agent.state" && e.data && typeof e.data === "object" && "id" in e.data) {
+      if (e.type === 'agent.state' && e.data && typeof e.data === 'object' && 'id' in e.data) {
         states[(e.data as { id: string }).id] = e.data;
       }
     }
@@ -48,5 +52,5 @@ export function useAgentStates(): Record<string, unknown> {
 /** Hook that returns pending approval requests. Memoized to avoid new array references on every render. */
 export function useApprovals(): SSEEvent[] {
   const { events } = useSSE();
-  return useMemo(() => events.filter((e) => e.type === "approval.requested"), [events]);
+  return useMemo(() => events.filter((e) => e.type === 'approval.requested'), [events]);
 }

@@ -1,0 +1,14 @@
+[package]
+name = "nexus-search"
+version = "0.1.0"
+edition = "2021"
+description = "NEXUS 2.0 high-performance search index (Phase 15.13). Minimal stub; full napi-rs bindings land with the performance rollout."
+license = "MIT"
+
+[dependencies]
+# napi-derive and napi are added when the Node bridge is generated.
+# tokio is pulled in by the parent workspace for async index maintenance.
+
+[lib]
+name = "nexus_search"
+path = "src/lib.rs"

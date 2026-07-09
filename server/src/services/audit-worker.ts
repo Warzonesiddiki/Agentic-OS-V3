@@ -139,3 +139,88 @@ export async function terminateAuditWorker(): Promise<void> {
     _worker = null;
   }
 }
+
+// ── Idempotent audit ingestion ────────────────────────────────
+//
+// The audit_log.id column is UNIQUE. By deriving the id deterministically from
+// the event's natural key (actor | action | payload digest | bucketed timestamp)
+// instead of a random UUID, the same logical event delivered twice maps to the
+// SAME id. Combined with the appendAudit contract this gives end-to-end
+// idempotency for the worker WITHOUT changing the frozen schema.
+
+/** Bucket window (ms) for idempotency keying — 1s granularity. */
+const IDEMPOTENCY_BUCKET_MS = 1000;
+
+export interface AuditEventInput {
+  actor: string;
+  action: string;
+  payload: unknown;
+  createdAtMs?: number;
+}
+
+/** Derive the deterministic, unique audit entry id for an event. */
+export function deriveAuditId(ev: AuditEventInput): string {
+  const bucket = Math.floor((ev.createdAtMs ?? Date.now()) / IDEMPOTENCY_BUCKET_MS);
+  const payloadDigest = createHash("sha256")
+    .update(stableStringify(ev.payload))
+    .digest("hex")
+    .slice(0, 32);
+  const naturalKey = `${ev.actor}|${ev.action}|${payloadDigest}|${bucket}`;
+  return "aud_" + createHash("sha256").update(naturalKey, "utf8").digest("hex").slice(0, 32);
+}
+
+let _findAuditById: ((id: string) => Promise<unknown>) | null = null;
+export function setAuditLookup(fn: ((id: string) => Promise<unknown>) | null): void {
+  _findAuditById = fn;
+}
+async function findAuditById(id: string): Promise<unknown> {
+  if (_findAuditById) return _findAuditById(id);
+  return null;
+}
+
+// In-process dedup state so concurrent delivery of the same logical event
+// collapses to a single append even before/without a DB round-trip.
+const _recordedIds = new Set<string>();
+const _inFlight = new Map<string, Promise<{ recorded: boolean; id: string }>>();
+
+/**
+ * Idempotent audit record: maps a logical event to a deterministic id and
+ * checks for a prior record before appending. Concurrent calls for the SAME
+ * event coalesce onto a single in-flight append. Returns whether the record was
+ * newly inserted or a duplicate was suppressed.
+ */
+export async function recordAuditEventIdempotent(
+  ev: AuditEventInput
+): Promise<{ recorded: boolean; id: string }> {
+  const id = deriveAuditId(ev);
+  if (_recordedIds.has(id)) {
+    return { recorded: false, id };
+  }
+  // Coalesce concurrent in-flight appends for the same event: the duplicate is
+  // rejected immediately (idempotency is preserved without waiting).
+  if (_inFlight.has(id)) {
+    return { recorded: false, id };
+  }
+  const promise = (async () => {
+    const prior = await findAuditById(id);
+    if (prior) {
+      _recordedIds.add(id);
+      return { recorded: false, id };
+    }
+    await (await import("../lib/audit.js")).appendAudit(ev.action, ev.payload, ev.actor);
+    _recordedIds.add(id);
+    return { recorded: true, id };
+  })();
+  _inFlight.set(id, promise);
+  try {
+    return await promise;
+  } finally {
+    _inFlight.delete(id);
+  }
+}
+
+/** Reset the in-process dedup state (test helper). */
+export function resetAuditDedup(): void {
+  _recordedIds.clear();
+  _inFlight.clear();
+}

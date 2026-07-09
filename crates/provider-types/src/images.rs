@@ -58,7 +58,29 @@ pub fn detect_image_path(text: &str) -> Option<Cow<'_, str>> {
                 floor += 1;
             }
             if let Some(window) = text.get(floor..end) {
+                // On Windows a path can also be `\`-separated or begin with a
+                // drive letter (`C:\`). Collect every candidate start index.
+                let mut starts: Vec<usize> = Vec::new();
                 for (rel, _) in window.match_indices('/') {
+                    starts.push(rel);
+                }
+                for (rel, _) in window.match_indices('\\') {
+                    starts.push(rel);
+                }
+                let wbytes = window.as_bytes();
+                for rel in 0..wbytes.len() {
+                    if (wbytes[rel] as char).is_ascii_alphabetic()
+                        && rel + 1 < wbytes.len()
+                        && wbytes[rel + 1] == b':'
+                    {
+                        let after = window.get(rel + 2..).and_then(|s| s.chars().next());
+                        if matches!(after, Some('/') | Some('\\')) {
+                            starts.push(rel);
+                        }
+                    }
+                }
+
+                for rel in starts {
                     let start = floor + rel;
                     let preceded_by_boundary = text
                         .get(..start)
@@ -127,6 +149,17 @@ fn image_path_candidate(candidate: &str) -> Option<Cow<'_, str>> {
         return Some(Cow::Borrowed(candidate));
     }
 
+    // On Unix, undo common shell-escape sequences so `file\ name.png` resolves
+    // to the real file. Windows paths use `\` as a separator and carry no such
+    // escapes, so this step is skipped there.
+    #[cfg(not(windows))]
+    {
+        let unescaped = unescape_shell(candidate);
+        if unescaped.as_str() != candidate && is_existing_image_path(&unescaped) {
+            return Some(unescaped);
+        }
+    }
+
     let cleaned = clean_path(candidate);
     if cleaned.as_ref() != candidate && is_existing_image_path(cleaned.as_ref()) {
         return Some(cleaned);
@@ -135,9 +168,28 @@ fn image_path_candidate(candidate: &str) -> Option<Cow<'_, str>> {
     None
 }
 
+#[cfg(not(windows))]
+fn unescape_shell(s: &str) -> Cow<'_, str> {
+    if !s.contains('\\') {
+        return Cow::Borrowed(s);
+    }
+    let mut out = String::with_capacity(s.len());
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if bytes[i] == b'\\' && i + 1 < bytes.len() {
+            out.push(bytes[i + 1] as char);
+            i += 2;
+        } else {
+            out.push(bytes[i] as char);
+            i += 1;
+        }
+    }
+    Cow::Owned(out)
+}
 fn is_existing_image_path(candidate: &str) -> bool {
     let path = Path::new(candidate);
-    path.is_absolute() && path.is_file() && is_image_file(path)
+    path.is_file() && is_image_file(path)
 }
 
 /// Case-insensitive ASCII substring search returning a byte index into
@@ -321,6 +373,9 @@ mod tests {
 
     #[test]
     fn test_detect_image_path_with_shell_escaped_metacharacters() {
+        if cfg!(windows) {
+            return;
+        }
         let temp_dir = tempfile::tempdir().unwrap();
         let png_data = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
         let png_path = temp_dir
@@ -345,6 +400,9 @@ mod tests {
 
     #[test]
     fn test_detect_image_path_prefers_existing_literal_backslash_path() {
+        if cfg!(windows) {
+            return;
+        }
         let temp_dir = tempfile::tempdir().unwrap();
         let png_data = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
         let png_path = temp_dir.path().join("literal\\&name.png");

@@ -1,0 +1,16 @@
+{
+  "tools": [
+    {
+      "name": "cargo-test-win",
+      "description": "Custom Cargo test runner that excludes UAC-blocked installer binaries on Windows host environments.",
+      "command": "cargo test --workspace --exclude agentic-os-installer",
+      "synthesized_at": "2026-07-05T12:28:00Z"
+    },
+    {
+      "name": "sandbox-exploit-verifier",
+      "description": "Script checking worker boot scripts for global namespace process and require leakage.",
+      "command": "npx tsx server/tests/sandbox_exploit_test.ts",
+      "synthesized_at": "2026-07-05T12:26:00Z"
+    }
+  ]
+}

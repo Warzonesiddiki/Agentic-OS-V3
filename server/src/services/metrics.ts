@@ -120,6 +120,32 @@ export const blockchainRpcFailuresTotal = new promClient.Counter({
   registers: [getRegistry()],
 });
 
+export const agentSpawnsTotal = new promClient.Counter({
+  name: 'nexus_agent_spawns_total',
+  help: 'Total number of agents spawned',
+  registers: [getRegistry()],
+});
+
+export const agentTerminationsTotal = new promClient.Counter({
+  name: 'nexus_agent_terminations_total',
+  help: 'Total number of agents terminated',
+  registers: [getRegistry()],
+});
+
+export const memoryWritesTotal = new promClient.Counter({
+  name: 'nexus_memory_writes_total',
+  help: 'Total number of memory writes',
+  labelNames: ['kind', 'source'],
+  registers: [getRegistry()],
+});
+
+export const skillCompilationsTotal = new promClient.Counter({
+  name: 'nexus_skill_compilations_total',
+  help: 'Total number of skill template compilations',
+  labelNames: ['result'],
+  registers: [getRegistry()],
+});
+
 export function normalizeMetricPath(path: string): string {
   return path
     .replace(/\/api\/v1\/memories\/[^/]+/g, '/api/v1/memories/:id')
@@ -138,4 +164,100 @@ export function metricsContentType(): string {
 
 export async function metricsOutput(): Promise<string> {
   return getRegistry().metrics();
+}
+
+/**
+ * recordExport — the observability seam used by self-optimization (Pulse) and any
+ * subsystem that needs to push an ad-hoc, named numeric sample into the same
+ * prom-client registry the rest of the server scrapes.
+ *
+ * Implementation is leak-free: each unique `name` is backed by exactly ONE
+ * prom-client metric, created lazily and cached in `_exportMetrics`. Label
+ * names are normalized and bound once at creation time, so repeated calls with
+ * the same name update the existing metric instead of allocating new ones.
+ * Cardinality is bounded by the number of distinct metric names (not values),
+ * and label values are never used as label names.
+ */
+interface ExportedMetric {
+  name: string;
+  metric: promClient.Gauge<string>;
+  labelNames: string[];
+  /** Cached normalized-label -> original-key map (built once at creation). */
+  labelKeyMap: Map<string, string>;
+}
+
+const _exportMetrics = new Map<string, ExportedMetric>();
+const MAX_EXPORT_METRICS = 256;
+
+function normalizeLabelName(key: string): string {
+  return key
+    .replace(/[^a-zA-Z0-9_]/g, '_')
+    .replace(/^_+|_+$/g, '')
+    .toLowerCase();
+}
+
+/** Build a normalized-label -> original-key map once (hot-path avoids re-scanning). */
+function buildLabelKeyMap(labels: Record<string, string>): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const k of Object.keys(labels)) {
+    const nk = normalizeLabelName(k);
+    if (nk.length > 0) m.set(nk, k);
+  }
+  return m;
+}
+
+export function recordExport(name: string, value: number, labels?: Record<string, string>): void {
+  if (!Number.isFinite(value)) return;
+  const safeName = name.replace(/[^a-zA-Z0-9_:]/g, '_').replace(/^_+|_+$/g, '');
+  if (!safeName) return;
+
+  let entry = _exportMetrics.get(safeName);
+  if (!entry) {
+    if (_exportMetrics.size >= MAX_EXPORT_METRICS) {
+      // Bound memory: refuse to allocate beyond the cap rather than leak.
+      return;
+    }
+    const labelNames: string[] = [];
+    const labelKeyMap = labels ? buildLabelKeyMap(labels) : new Map();
+    for (const nk of labelKeyMap.keys()) {
+      if (labelNames.length < 16) labelNames.push(nk);
+    }
+    const metric = new promClient.Gauge({
+      name: `nexus_export_${safeName}`,
+      help: `Exported metric: ${safeName}`,
+      labelNames,
+      registers: [getRegistry()],
+    });
+    entry = { name: `nexus_export_${safeName}`, metric, labelNames, labelKeyMap };
+    _exportMetrics.set(safeName, entry);
+  }
+
+  if (entry.labelNames.length > 0 && labels) {
+    // Reuse the cached labelKeyMap — no per-call re-normalization or find scan.
+    const labelValues: Record<string, string> = {};
+    for (const ln of entry.labelNames) {
+      const original = entry.labelKeyMap.get(ln);
+      labelValues[ln] = original ? String(labels[original]) : '';
+    }
+    entry.metric.set(labelValues, value);
+  } else {
+    entry.metric.set(value);
+  }
+}
+
+/** Snapshot of currently exported metric names (for diagnostics / control-plane). */
+export function listExportedMetrics(): string[] {
+  return Array.from(_exportMetrics.keys());
+}
+
+/** Reset all ad-hoc exported metrics (test isolation / ops hygiene). Bounded map. */
+export function resetExportMetrics(): void {
+  for (const { name } of _exportMetrics.values()) {
+    try {
+      getRegistry().removeSingleMetric(name);
+    } catch {
+      // metric may already be gone; ignore
+    }
+  }
+  _exportMetrics.clear();
 }

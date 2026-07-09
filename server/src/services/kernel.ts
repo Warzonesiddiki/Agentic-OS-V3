@@ -15,10 +15,20 @@ import { agents, agentTasks, ringPolicies, auditLog } from '../db/client.js';
 import { appendAudit } from '../lib/audit.js';
 import { getEnv } from '../lib/env.js';
 import { logToolReceipt } from './audit-engine.js';
+import { log } from '../lib/logging.js';
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql, desc, asc, in, count } from 'drizzle-orm';
+import { and, eq, sql, desc, asc, inArray, count } from 'drizzle-orm';
 import { getMessageBus } from './message-bus.js';
-import { pickByPolicy, recordQueueLatency, checkDeadlineAdmission, type QueuedTask } from './scheduler.js';
+import {
+  pickByPolicy,
+  recordQueueLatency,
+  checkDeadlineAdmission,
+  riskLevelForTask,
+  applyMlfqAgingPass,
+  getSlotManager,
+  type QueuedTask,
+} from './scheduler.js';
+import { patchModule } from './kernel-hotpatch.js';
 
 // ── Agent Registry ────────────────────────────────────────────
 
@@ -99,7 +109,9 @@ export async function spawnAgent(input: SpawnAgentInput, actor: string) {
   try {
     const { agentSpawnsTotal } = await import('./metrics.js');
     agentSpawnsTotal.inc();
-  } catch {}
+  } catch {
+    // metrics import is best-effort; ignore failure
+  }
 
   await appendAudit(
     'agent.spawned',
@@ -114,12 +126,12 @@ export async function spawnAgent(input: SpawnAgentInput, actor: string) {
     actor
   );
 
-  getMessageBus().publish(
-    'agent.spawned',
-    'kernel',
-    id,
-    { agentId: id, name: input.name, kind: input.kind ?? 'sub-agent', ring }
-  );
+  getMessageBus().publish('agent.spawned', 'kernel', id, {
+    agentId: id,
+    name: input.name,
+    kind: input.kind ?? 'sub-agent',
+    ring,
+  });
 
   publishKernelEvent('agent.spawned', { agentId: id, name: input.name, ring });
 
@@ -175,6 +187,15 @@ export async function quarantineAgent(id: string, reason: string, actor: string)
     .where(eq(agents.id, id));
 
   await appendAudit('agent.quarantined', { agentId: id, reason }, actor);
+}
+
+/**
+ * (Forge) Hot-patch seam for Pulse's self-opt auto-tuner. Delegates to the
+ * HotPatchRegistry (kernel-hotpatch.ts) without exposing its internals. Pulse's
+ * adapters import this to live-swap a module implementation at runtime.
+ */
+export function hotpatchModule(module: string, impl: unknown): void {
+  patchModule(module, impl as never);
 }
 
 /**
@@ -235,7 +256,9 @@ export async function terminateAgent(id: string, reason: string, actor: string) 
     try {
       const { agentTerminationsTotal } = await import('./metrics.js');
       agentTerminationsTotal.inc();
-    } catch {}
+    } catch {
+      // metrics import is best-effort; ignore failure
+    }
     await appendAudit('agent.terminated', { agentId: id, reason }, actor);
   }
   return updated;
@@ -390,7 +413,10 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
     return task;
   }
 
-  const depthRow = await db.select({ n: count() }).from(agentTasks).where(eq(agentTasks.status, 'queued'));
+  const depthRow = await db
+    .select({ n: count() })
+    .from(agentTasks)
+    .where(eq(agentTasks.status, 'queued'));
   const depth = depthRow[0]?.n ?? 0;
   const highWatermark = getEnv().NEXUS_SCHEDULER_BACKPRESSURE_DEPTH;
   if (depth > highWatermark) {
@@ -431,7 +457,11 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
       input: input.input ?? {},
       idempotencyKey: input.idempotencyKey ?? null,
       traceId: input.traceId ?? null,
-      deadline: input.deadline ? (input.deadline instanceof Date ? input.deadline : new Date(input.deadline)) : null,
+      deadline: input.deadline
+        ? input.deadline instanceof Date
+          ? input.deadline
+          : new Date(input.deadline)
+        : null,
       quantumMs: input.quantumMs ?? null,
       estimatedDurationMs: input.estimatedDurationMs ?? null,
       gangId: input.gangId ?? null,
@@ -453,12 +483,12 @@ export async function enqueueTask(input: EnqueueTaskInput, actor: string) {
     actor
   );
 
-  getMessageBus().publish(
-    'task.enqueued',
-    'kernel',
-    input.agentId,
-    { taskId: task.id, agentId: input.agentId, label: input.label, queue }
-  );
+  getMessageBus().publish('task.enqueued', 'kernel', input.agentId, {
+    taskId: task.id,
+    agentId: input.agentId,
+    label: input.label,
+    queue,
+  });
 
   publishKernelEvent('task.enqueued', { taskId: task.id, agentId: input.agentId, queue });
 
@@ -482,7 +512,7 @@ export async function pickNextTask(): Promise<typeof agentTasks.$inferSelect | n
   if (!queued.length) return null;
 
   const now = Date.now();
-  const pool: QueuedTask[] = queued.map((t) => ({
+  const pool: QueuedTask[] = queued.map((t: typeof agentTasks.$inferSelect) => ({
     id: t.id,
     agentId: t.agentId,
     queue: t.queue,
@@ -492,14 +522,39 @@ export async function pickNextTask(): Promise<typeof agentTasks.$inferSelect | n
     kind: t.kind,
     estimatedDurationMs: t.estimatedDurationMs,
     gangId: t.gangId,
+    // (Forge) Risk signal — derived deterministically from the task kind + queue
+    // so the scheduler's tiebreaker can prefer safety-critical / high-risk work when
+    // policy order ties. This closes the previously-discarded `risk` channel.
+    risk: riskLevelForTask(t.kind, t.queue),
   }));
 
+  // Safety ordering: when the active policy yields a *tie* (equal queue + age for
+  // MLFQ, equal deadline for EDF, equal priority for FairShare), prefer the higher
+  // risk task. We pre-sort a stable risk rank so pickByPolicy's secondary comparator
+  // (createdAt) is only used after risk is considered.
+  pool.sort((a, b) => (b.risk ?? 0) - (a.risk ?? 0));
+
+  // (Forge) Live pre-pick MLFQ aging pass — exercises enqueue/promote/demote at
+  // dispatch. Promotes aged tasks one level toward Q0 and persists the change back
+  // to the task's durable `queue` column so starvation-promotion survives across
+  // dispatch calls (the in-memory pool is rebuilt from the DB each call).
+  const aged = applyMlfqAgingPass(pool, now);
+  if (aged.length) {
+    mlfqPromotionCount += aged.length;
+    for (const c of aged) {
+      await db.update(agentTasks).set({ queue: c.to }).where(eq(agentTasks.id, c.id));
+    }
+    log.info('mlfq_aging_pass', { promoted: aged.length });
+  }
+
   // Resolve agent rings in a single batched query for ring-budget gating.
-  const agentIds = Array.from(new Set(queued.map((t) => t.agentId)));
-  const ringRows = await db
+  const agentIds = Array.from(
+    new Set(queued.map((t: typeof agentTasks.$inferSelect) => t.agentId))
+  );
+  const ringRows = (await db
     .select({ id: agents.id, ring: agents.ring })
     .from(agents)
-    .where(in(agents.id, agentIds));
+    .where(inArray(agents.id, agentIds as string[]))) as Array<{ id: string; ring: number }>;
   const ringMap = new Map(ringRows.map((r) => [r.id, r.ring] as const));
 
   while (pool.length) {
@@ -516,12 +571,40 @@ export async function pickNextTask(): Promise<typeof agentTasks.$inferSelect | n
 
     // Gang scheduling: co-claim all queued members of the same gang (all-or-nothing).
     if (pick.gangId) {
+      // (Forge) `pick` already owns 1 ring budget (acquired above). Acquire the
+      // *additional* budgets for the other gang members, then atomically co-claim.
+      // On any refusal, release exactly what was acquired (no over/under-release).
       const members = await db
         .update(agentTasks)
         .set({ status: 'running', startedAt: new Date() })
         .where(and(eq(agentTasks.gangId, pick.gangId), eq(agentTasks.status, 'queued')))
         .returning({ id: agentTasks.id });
-      gangMembers.set(pick.id, members.map((m) => m.id));
+      const ids = (members as Array<{ id: string }>).map((m) => m.id);
+      if (!ids.includes(pick.id)) ids.push(pick.id);
+      gangMembers.set(pick.id, ids);
+      const owner0 = await db.query.agents.findFirst({ where: eq(agents.id, pick.agentId ?? '') });
+      const ring = owner0?.ring ?? 2;
+      // Pick already holds 1 budget; acquire (ids.length - 1) more for the rest.
+      let acquiredExtra = 0;
+      const others = ids.filter((id) => id !== pick.id);
+      let rollBack = false;
+      for (const _id of others) {
+        if (!acquireRingBudget(ring)) {
+          rollBack = true;
+          break;
+        }
+        acquiredExtra++;
+      }
+      if (rollBack) {
+        for (let i = 0; i < acquiredExtra; i++) releaseRingBudget(ring);
+        // release pick's own budget too
+        releaseRingBudget(ring);
+        await db
+          .update(agentTasks)
+          .set({ status: 'queued', startedAt: null })
+          .where(inArray(agentTasks.id, ids));
+        return null;
+      }
       const [claimed] = await db.select().from(agentTasks).where(eq(agentTasks.id, pick.id));
       return claimed ?? null;
     }
@@ -532,6 +615,17 @@ export async function pickNextTask(): Promise<typeof agentTasks.$inferSelect | n
       .where(and(eq(agentTasks.id, pick.id), eq(agentTasks.status, 'queued')))
       .returning();
     return claimed ?? null;
+  }
+  // (Forge) Self-heal: if we drained the entire pool without admitting any task
+  // (every candidate's ring budget was exhausted), trip the admission breaker so
+  // the runtime loop stops hammering a saturated kernel and lets in-flight work
+  // drain. The breaker half-opens automatically on cool-down.
+  if (pool.length === 0 && queued.length > 0) {
+    const slots = getSlotManager();
+    if (slots.stats().state === 'closed') {
+      slots.trip('ring_budget_exhausted');
+      log.warn('kernel_ring_budget_exhausted', { pending: queued.length });
+    }
   }
   return null;
 }
@@ -795,7 +889,26 @@ export type KernelEventType =
   | 'task.failed'
   | 'agent.spawned'
   | 'agent.preempted'
-  | 'ring.budget_exceeded';
+  | 'ring.budget_exceeded'
+  | 'ring.changed'
+  | 'kernel.panic'
+  | 'deadlock.detected'
+  | 'deadlock.resolved';
+
+export const KERNEL_EVENTS = {
+  TASK_ENQUEUED: 'task.enqueued',
+  TASK_COMPLETED: 'task.completed',
+  TASK_FAILED: 'task.failed',
+  AGENT_SPAWNED: 'agent.spawned',
+  AGENT_PREEMPTED: 'agent.preempted',
+  RING_BUDGET_EXCEEDED: 'ring.budget_exceeded',
+  RING_CHANGED: 'ring.changed',
+  PANIC: 'kernel.panic',
+  DEADLOCK_DETECTED: 'deadlock.detected',
+  DEADLOCK_RESOLVED: 'deadlock.resolved',
+} as const;
+
+export type KernelEventName = keyof typeof KERNEL_EVENTS;
 
 export type KernelEventCallback = (payload: Record<string, unknown>) => void;
 
@@ -844,9 +957,25 @@ export function getKernelEventHistory(): Array<{
   return [...kernelEventHistory];
 }
 
+// ── Cross-module event subscribers (Phase 11 integration wiring) ──
+// Break deadlocks by preempting the agents involved in a detected cycle.
+subscribeKernelEvent('deadlock.detected', (payload) => {
+  const agentsInvolved = Array.isArray(payload.agents) ? (payload.agents as string[]) : [];
+  for (const agentId of agentsInvolved) {
+    try {
+      void preemptAgent(agentId);
+    } catch {
+      /* preemption best-effort */
+    }
+  }
+});
+
 // ── Typed scheduling errors ──────────────────────────────────
 export class BackpressureError extends Error {
-  constructor(public readonly queueDepth: number, public readonly highWatermark: number) {
+  constructor(
+    public readonly queueDepth: number,
+    public readonly highWatermark: number
+  ) {
     super(`Backpressure: queue depth ${queueDepth} exceeds high watermark ${highWatermark}`);
     this.name = 'BackpressureError';
     Object.setPrototypeOf(this, BackpressureError.prototype);
@@ -1014,15 +1143,27 @@ export function acquireRingBudget(ring: number, tokens = 0): boolean {
   const u = touchRing(ring);
   const now = Date.now();
   if (policy.maxConcurrency > 0 && u.concurrency >= policy.maxConcurrency) {
-    publishKernelEvent('ring.budget_exceeded', { ring, reason: 'concurrency', snapshot: ringBudgetStatus(ring) });
+    publishKernelEvent('ring.budget_exceeded', {
+      ring,
+      reason: 'concurrency',
+      snapshot: ringBudgetStatus(ring),
+    });
     return false;
   }
   if (policy.maxTokensPerMin > 0 && rollWindow(u.tokens, now) + tokens > policy.maxTokensPerMin) {
-    publishKernelEvent('ring.budget_exceeded', { ring, reason: 'tokens', snapshot: ringBudgetStatus(ring) });
+    publishKernelEvent('ring.budget_exceeded', {
+      ring,
+      reason: 'tokens',
+      snapshot: ringBudgetStatus(ring),
+    });
     return false;
   }
   if (policy.maxApiCallsPerMin > 0 && rollWindow(u.apiCalls, now) + 1 > policy.maxApiCallsPerMin) {
-    publishKernelEvent('ring.budget_exceeded', { ring, reason: 'api_calls', snapshot: ringBudgetStatus(ring) });
+    publishKernelEvent('ring.budget_exceeded', {
+      ring,
+      reason: 'api_calls',
+      snapshot: ringBudgetStatus(ring),
+    });
     return false;
   }
   u.concurrency += 1;
@@ -1052,7 +1193,11 @@ export function inheritPriority(
   holderAgentId: string,
   resource: string
 ): void {
-  const res = heldResources.get(resource) ?? { resource, holderPriority: waiterPriority, waiters: [] };
+  const res = heldResources.get(resource) ?? {
+    resource,
+    holderPriority: waiterPriority,
+    waiters: [],
+  };
   res.holderPriority = Math.max(res.holderPriority, waiterPriority);
   res.waiters.push({ agentId: waiterAgentId, priority: waiterPriority });
   heldResources.set(resource, res);
@@ -1070,7 +1215,11 @@ export function effectivePriority(agentId: string, basePriority: number): number
   return inheritedPriority.get(agentId) ?? basePriority;
 }
 
-export function getHeldResources(): Array<{ resource: string; holderPriority: number; waiters: number }> {
+export function getHeldResources(): Array<{
+  resource: string;
+  holderPriority: number;
+  waiters: number;
+}> {
   return Array.from(heldResources.values()).map((r) => ({
     resource: r.resource,
     holderPriority: r.holderPriority,
@@ -1126,9 +1275,18 @@ export async function exportKernelStateMachine(): Promise<{
   mermaid: string;
   agents: Array<{ id: string; name: string; status: string; ring: number }>;
 }> {
-  const rows = await db.select().from(agents);
+  const rows = (await db.select().from(agents)) as Array<typeof agents.$inferSelect>;
   const lines: string[] = ['stateDiagram-v2'];
-  const validStates = ['idle', 'thinking', 'executing_tool', 'errored', 'quarantined', 'paused', 'completed', 'terminated'];
+  const validStates = [
+    'idle',
+    'thinking',
+    'executing_tool',
+    'errored',
+    'quarantined',
+    'paused',
+    'completed',
+    'terminated',
+  ];
   for (const a of rows) {
     const safeId = `A_${a.id.replace(/[^a-zA-Z0-9_]/g, '_')}`;
     lines.push(`  ${safeId} : ${a.name} [ring ${a.ring}]`);
@@ -1165,7 +1323,12 @@ interface Barrier {
 
 const barriers = new Map<string, Barrier>();
 
-export function barrierWait(name: string, timeoutMs: number, memberId: string, total?: number): Promise<void> {
+export function barrierWait(
+  name: string,
+  timeoutMs: number,
+  memberId: string,
+  total?: number
+): Promise<void> {
   let b = barriers.get(name);
   if (!b) {
     b = { name, total: total ?? 0, arrived: new Set(), resolve: () => {} };
@@ -1189,7 +1352,9 @@ export function barrierWait(name: string, timeoutMs: number, memberId: string, t
   return released;
 }
 
-export function barrierStatus(name: string): { name: string; arrived: number; total: number } | null {
+export function barrierStatus(
+  name: string
+): { name: string; arrived: number; total: number } | null {
   const b = barriers.get(name);
   if (!b) return null;
   return { name: b.name, arrived: b.arrived.size, total: b.total };
@@ -1239,4 +1404,53 @@ export function getGangMembers(primaryTaskId: string): string[] {
 
 export function clearGangMembers(primaryTaskId: string): void {
   gangMembers.delete(primaryTaskId);
+}
+
+// (Forge) Monotonic count of MLFQ starvation-promotions applied at dispatch by
+// the live aging pass (applyMlfqAgingPass). Observable via getMlfqPromotionCount
+// and surfaced in kernel introspection so operators can see the scheduler's
+// promotion machinery is actually being exercised.
+let mlfqPromotionCount = 0;
+
+export function getMlfqPromotionCount(): number {
+  return mlfqPromotionCount;
+}
+
+export function resetMlfqPromotionCount(): void {
+  mlfqPromotionCount = 0;
+}
+
+// ── Agent lifecycle seams (Phase 11 core + Phase 13/18 interfaces) ───────────
+/**
+ * Spawn a new agent in the kernel. Returns the created agent id. This is the
+ * stable entry point Phase 13 (orchestration) wires its spawn calls through.
+ * Separated from the cron scheduler so orchestration can create agents without
+ * going through the cron path. (NOTE: spawnAgent/quarantineAgent already exist
+ * earlier in this module with the full privilege-escalation + audit contract;
+ * this seam block only adds the watchdog policy surface.)
+ */
+
+// ── Watchdog policy (Phase 18.5 self-heal seam) ──────────────────────────────
+export interface WatchdogPolicy {
+  maxConsecutiveFailures: number;
+  restartBudget: number;
+  backoffMs: number;
+  panicOnExhaustion: boolean;
+}
+
+let watchdogPolicy: WatchdogPolicy = {
+  maxConsecutiveFailures: 5,
+  restartBudget: 3,
+  backoffMs: 1000,
+  panicOnExhaustion: false,
+};
+
+export function setWatchdogPolicy(patch: Partial<WatchdogPolicy>): WatchdogPolicy {
+  watchdogPolicy = { ...watchdogPolicy, ...patch };
+  log.info('watchdog_policy_set', { policy: watchdogPolicy });
+  return watchdogPolicy;
+}
+
+export function getWatchdogPolicy(): WatchdogPolicy {
+  return watchdogPolicy;
 }

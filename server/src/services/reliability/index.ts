@@ -1,0 +1,38 @@
+/** Barrel for Phase 20 production reliability & chaos engineering modules. */
+export * from './slo.js';
+export * from './burn-rate.js';
+export * from './chaos.js';
+export * from './failover-drill.js';
+export * from './backup-validator.js';
+export * from './circuit-breaker-registry.js';
+export * from './tenant-bulkhead.js';
+export * from './degraded-mode.js';
+export * from './canary-orchestrator.js';
+export { completeStep } from './incident-runbook.js';
+export { open as openPostMortems } from './post-mortem.js';
+export * from './latency-budget.js';
+export * from './dependency-health.js';
+export * from './capacity-planner.js';
+export * from './load-shedder.js';
+export * from './migration-rollback.js';
+export * from './self-healing.js';
+export * from './resilience-scheduler.js';
+export * from './failure-injection.js';
+export { purgeExpired as quarantinePurgeExpired } from './quarantine.js';
+export * from './slo-dashboard.js';
+export * from './fmea-exporter.js';
+export * from './reliability-scorecard.js';
+// Phase 20 gap
+export * from './gap/sev-framework.js';
+export * from './gap/oncall.js';
+export * from './gap/triage-roles.js';
+export * from './gap/comms-templates.js';
+export * from './gap/sla-breach-notify.js';
+export * from './gap/break-glass.js';
+export * from './gap/chaos-schedule.js';
+export * from './gap/network-partition.js';
+export * from './gap/game-day.js';
+export * from './gap/chaos-dashboard.js';
+export * from './gap/cert-watch.js';
+export * from './gap/cascade-analysis.js';
+export * from './gap/incident-metrics.js';

@@ -29,7 +29,7 @@ export class AcpClient {
   private apiKey: string;
 
   constructor(baseUrl: string, apiKey: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, '');
+    this.baseUrl = baseUrl.replace(/\/+$/, '');
     this.apiKey = apiKey;
   }
 

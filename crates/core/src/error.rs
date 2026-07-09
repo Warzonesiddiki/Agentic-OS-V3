@@ -32,6 +32,9 @@ pub enum AgenticError {
     #[error("Skill error: {0}")]
     Skill(String),
 
+    #[error("Kernel error: {0}")]
+    Kernel(String),
+
     #[error("Sandbox violation: {0}")]
     SandboxViolation(String),
 
@@ -43,4 +46,33 @@ pub enum AgenticError {
 
     #[error("{0}")]
     Other(String),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_error_display_config() {
+        let err = AgenticError::Config("bad".to_string());
+        assert_eq!(err.to_string(), "Configuration error: bad");
+    }
+
+    #[test]
+    fn test_error_display_provider() {
+        let err = AgenticError::Provider("down".to_string());
+        assert_eq!(err.to_string(), "Provider error: down");
+    }
+
+    #[test]
+    fn test_error_display_sandbox_violation() {
+        let err = AgenticError::SandboxViolation("escaped".to_string());
+        assert_eq!(err.to_string(), "Sandbox violation: escaped");
+    }
+
+    #[test]
+    fn test_error_display_kernel() {
+        let err = AgenticError::Kernel("panic".to_string());
+        assert_eq!(err.to_string(), "Kernel error: panic");
+    }
 }

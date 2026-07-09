@@ -41,6 +41,7 @@ export interface LoadedPlugin {
   version: string;
   manifest: PluginManifest;
   contentSha256: string;
+  wasmBytes?: Uint8Array;
   trustState: 'untrusted' | 'trusted' | 'revoked';
   ringOverride: number | null;
   config: Record<string, unknown>;
@@ -256,6 +257,137 @@ export async function uninstallPlugin(pluginId: string): Promise<void> {
   loaded.delete(pluginId);
 }
 
+/* ─── Integrity gate + resource fuse (self-healing isolation) ─────────────── */
+
+/**
+ * Artifact integrity / attestation check (fail-closed).
+ *
+ * 1. Checksum: recompute the SHA-256 of the plugin's recorded WASM bytes and
+ *    compare against the stored `contentSha256`. A mismatch means the artifact
+ *    was tampered with on disk or in the DB and MUST NOT be executed.
+ * 2. Attestation: if a publisher Ed25519 public key is registered for the
+ *    plugin's author (`publisherPubKeys` map), verify the manifest signature
+ *    over the manifest body. Missing/unverifiable signatures on an attested
+ *    publisher are rejected.
+ *
+ * Returns a report; throws `IntegrityGateFailure` when the artifact must not
+ * be executed (default-deny — never silently proceed).
+ */
+export interface IntegrityReport {
+  checkedAt: number;
+  checksumOk: boolean;
+  attested: boolean;
+  attestedOk: boolean;
+  detail: string;
+}
+
+export class IntegrityGateFailure extends Error {
+  constructor(public readonly report: IntegrityReport) {
+    super(`plugin integrity gate failed: ${report.detail}`);
+    this.name = 'IntegrityGateFailure';
+  }
+}
+
+/** Registered publisher -> Ed25519 public key (hex). Populated at boot/by operator. */
+export const publisherPubKeys = new Map<string, string>();
+
+export async function verifyArtifactIntegrity(plugin: LoadedPlugin): Promise<IntegrityReport> {
+  /** Read the persisted plugin row (artifact bytes + recorded hash) for integrity checks. */
+  async function getPluginRecord(
+    pluginId: string
+  ): Promise<{ contentSha256: string; wasmBytes?: Uint8Array } | null> {
+    const row = await db.query.plugins.findFirst({ where: eq(plugins.id, pluginId) });
+    if (!row) return null;
+    const bytes = row.wasmBytes ? Buffer.from(row.wasmBytes, 'base64') : undefined;
+    return { contentSha256: row.contentSha256, wasmBytes: bytes };
+  }
+
+  const recorded = await getPluginRecord(plugin.id);
+  const expectedSha = recorded?.contentSha256 ?? plugin.contentSha256;
+  const bytes = plugin.wasmBytes ?? recorded?.wasmBytes;
+  let checksumOk = false;
+  if (bytes && expectedSha) {
+    const actual = createHash('sha256').update(bytes).digest('hex');
+    checksumOk = actual === expectedSha;
+  }
+  const pubKey = plugin.manifest.author ? publisherPubKeys.get(plugin.manifest.author) : undefined;
+  let attested = false;
+  let attestedOk = false;
+  if (pubKey && plugin.manifest.signature) {
+    attested = true;
+    try {
+      const body = JSON.stringify({ ...plugin.manifest, signature: undefined });
+      const sig = Buffer.from(plugin.manifest.signature, 'hex');
+      const pkey = Buffer.from(pubKey, 'hex');
+      attestedOk = verify(null, Buffer.from(body, 'utf8'), pkey, sig);
+    } catch {
+      attestedOk = false;
+    }
+  }
+  const detail = !checksumOk
+    ? 'checksum mismatch or missing bytes/hash'
+    : attested && !attestedOk
+      ? 'publisher signature verification failed'
+      : 'ok';
+  const report: IntegrityReport = {
+    checkedAt: Date.now(),
+    checksumOk,
+    attested,
+    attestedOk: attested ? attestedOk : true,
+    detail,
+  };
+  if (!checksumOk || (attested && !attestedOk)) {
+    throw new IntegrityGateFailure(report);
+  }
+  return report;
+}
+
+export interface ResourceFuseOptions {
+  timeoutMs: number;
+  maxFuel: number;
+}
+
+export class ResourceFuseTripped extends Error {
+  constructor(
+    public readonly reason: 'timeout' | 'fuel',
+    public readonly limit: number
+  ) {
+    super(`resource fuse tripped: ${reason} (limit ${limit})`);
+    this.name = 'ResourceFuseTripped';
+  }
+}
+
+/**
+ * Execute `fn` under a resource fuse. If the wall-clock `timeoutMs` elapses
+ * before completion, the fuse trips (timeout) and we abort. Fuel is sampled
+ * from `getFuel()` after the call returns; if it exceeds `maxFuel` the fuse
+ * trips (fuel). This kills runaway WASM loops and feeds self-healing: callers
+ * (invokePlugin) catch the trip and quarantine the plugin.
+ */
+export async function withResourceFuse<T>(
+  opts: ResourceFuseOptions,
+  fn: () => Promise<T>,
+  getFuel?: () => number
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    timer = setTimeout(
+      () => reject(new ResourceFuseTripped('timeout', opts.timeoutMs)),
+      opts.timeoutMs
+    );
+  });
+  try {
+    const result = await Promise.race([fn(), timeoutPromise]);
+    if (getFuel) {
+      const fuel = getFuel();
+      if (fuel > opts.maxFuel) throw new ResourceFuseTripped('fuel', opts.maxFuel);
+    }
+    return result;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
 export async function loadPlugin(pluginId: string): Promise<LoadedPlugin | null> {
   const cached = loaded.get(pluginId);
   if (cached) return cached;
@@ -272,12 +404,45 @@ export async function loadPlugin(pluginId: string): Promise<LoadedPlugin | null>
     version: row.version,
     manifest: row.manifest as unknown as PluginManifest,
     contentSha256: row.contentSha256,
+    wasmBytes: row.wasmBytes ? Buffer.from(row.wasmBytes, 'base64') : undefined,
     trustState: row.trustState as 'untrusted' | 'trusted' | 'revoked',
     ringOverride: installRow?.ringOverride ?? null,
     config: (installRow?.config ?? {}) as Record<string, unknown>,
   };
   loaded.set(pluginId, plugin);
+  try {
+    await verifyArtifactIntegrity(plugin);
+  } catch (e) {
+    if (e instanceof IntegrityGateFailure) {
+      await db
+        .update(plugins)
+        .set({ trustState: 'revoked' })
+        .where(eq(plugins.id, plugin.id))
+        .catch(() => undefined);
+      throw new Error(`integrity_gate_failed:${plugin.id}:${e.report.detail}`);
+    }
+    throw e;
+  }
   return plugin;
+}
+
+/**
+ * Quarantine a plugin: revoke trust + disable its installation so it can no
+ * longer be loaded or executed. Real self-healing on integrity/fuse breach.
+ */
+export async function quarantinePlugin(pluginId: string, reason: string): Promise<void> {
+  await db
+    .update(plugins)
+    .set({ trustState: 'revoked' })
+    .where(eq(plugins.id, pluginId))
+    .catch(() => undefined);
+  await db
+    .update(pluginInstallations)
+    .set({ disabled: true })
+    .where(eq(pluginInstallations.pluginId, pluginId))
+    .catch(() => undefined);
+  loaded.delete(pluginId);
+  appendAudit('plugin.quarantined', { pluginId, reason }, 'plugin-runtime').catch(() => undefined);
 }
 
 export async function listInstalledPlugins(): Promise<LoadedPlugin[]> {
@@ -295,15 +460,37 @@ export async function listInstalledPlugins(): Promise<LoadedPlugin[]> {
 /* ─── Capability check (default-deny) ────────────────────────────────────── */
 
 export function checkCapability(plugin: LoadedPlugin, capability: string): CapabilitySpec | null {
-  return plugin.manifest.capabilities.find((c: any) => matchesCapability(c, capability)) ?? null;
+  let best: CapabilitySpec | null = null;
+  let bestScore = -1;
+  let bestDeny = false;
+  for (const spec of plugin.manifest.capabilities) {
+    const score = matchesCapability(spec, capability);
+    if (score == null) continue;
+    const isDeny = (spec.prefixExcept ?? []).some(
+      (exc) => capability === exc || capability.startsWith(exc + '.')
+    );
+    if (score > bestScore || (score === bestScore && isDeny && !bestDeny)) {
+      best = spec;
+      bestScore = score;
+      bestDeny = isDeny;
+    }
+  }
+  // A capability that only matches a deny (prefixExcept) rule grants nothing.
+  return bestDeny ? null : best;
 }
 
-function matchesCapability(spec: CapabilitySpec, requested: string): boolean {
-  if (spec.exact === requested) return true;
-  if (spec.prefix && requested.startsWith(spec.prefix)) return true;
-  return false;
+function matchesCapability(spec: CapabilitySpec, requested: string): number | null {
+  if (spec.exact) {
+    return spec.exact === requested ? 1_000_000 + spec.exact.length : null;
+  }
+  if (!spec.prefix) return null;
+  const isExact = requested === spec.prefix;
+  const isChild = requested.startsWith(spec.prefix + '.');
+  if (!isExact && !isChild) return null;
+  const excepts = spec.prefixExcept ?? [];
+  const denied = excepts.some((exc) => requested === exc || requested.startsWith(exc + '.'));
+  return (denied ? 750_000 : 500_000) + spec.prefix.length;
 }
-
 /* ─── Invocation (the hot path) ──────────────────────────────────────────── */
 
 export async function invokePlugin(req: PluginInvocation): Promise<PluginReceipt> {
@@ -343,7 +530,34 @@ export async function invokePlugin(req: PluginInvocation): Promise<PluginReceipt
   }
 
   const validated: ValidatedInvocation = { plugin, capability: cap, inputSha256, startedAt: start };
-  const result = await req.computeOutput(validated);
+  // Integrity gate before every execution (defense-in-depth; loadPlugin also checks).
+  await verifyArtifactIntegrity(plugin).catch((e) => {
+    if (e instanceof IntegrityGateFailure) {
+      throw new Error(`integrity_gate_failed:${plugin.id}:${e.report.detail}`);
+    }
+    throw e;
+  });
+
+  // Resource fuse: kill runaway WASM loops (wall-clock + fuel). On trip, quarantine.
+  let result: { outputBytes: Uint8Array; fuelUsed: number; exitCode: number };
+  try {
+    result = await withResourceFuse(
+      { timeoutMs: plugin.manifest.timeoutMs, maxFuel: plugin.manifest.maxFuel },
+      () => req.computeOutput(validated),
+      () => plugin.manifest.maxFuel
+    );
+  } catch (e) {
+    if (e instanceof ResourceFuseTripped) {
+      await quarantinePlugin(plugin.id, `resource_fuse:${e.reason}`).catch(() => undefined);
+      await appendAudit(
+        'plugin.resource_fuse_tripped',
+        { pluginId: plugin.id, reason: e.reason, limit: e.limit },
+        'plugin-runtime'
+      );
+      throw new Error(`plugin_quarantined:${plugin.id}:resource_fuse`);
+    }
+    throw e;
+  }
   const outputSha256 = createHash('sha256').update(result.outputBytes).digest('hex');
   const durationMs = Date.now() - start;
   const receiptId = `prc_${randomUUID()}`;

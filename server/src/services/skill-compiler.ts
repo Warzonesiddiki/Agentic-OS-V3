@@ -19,9 +19,15 @@ import { appendAudit } from '../lib/audit.js';
 import { eq, desc, and, gte } from 'drizzle-orm';
 import { randomUUID, createHash } from 'node:crypto';
 import { env } from '../lib/env.js';
+import { runInNewContext, type Context } from 'node:vm';
+import { checkCapability, type LoadedPlugin } from './wasm-plugin-runtime.js';
+import type { CapabilitySpec } from './plugin-manifest.js';
 
-const COMPILATION_THRESHOLD = env.NEXUS_COMPILATION_THRESHOLD;
-const EVAL_MATCH_THRESHOLD = env.NEXUS_EVAL_MATCH_THRESHOLD;
+const COMPILATION_THRESHOLD = Number(env.NEXUS_COMPILATION_THRESHOLD) || 5;
+const EVAL_MATCH_THRESHOLD = (() => {
+  const r = Number(env.NEXUS_EVAL_MATCH_THRESHOLD);
+  return Number.isFinite(r) && r > 0 ? r : 1.0;
+})();
 
 // ── Pattern Detection ─────────────────────────────────────────
 
@@ -78,8 +84,8 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
     if (tasks.length < COMPILATION_THRESHOLD) continue;
 
     // Extract input/output shapes from samples
-    const sampleInputs = tasks.slice(0, 10).map((t: any) => t.input);
-    const sampleOutputs = tasks.slice(0, 10).map((t: any) => t.output);
+    const sampleInputs = tasks.slice(0, 10).map((t: (typeof recentTasks)[number]) => t.input);
+    const sampleOutputs = tasks.slice(0, 10).map((t: (typeof recentTasks)[number]) => t.output);
 
     // Check if outputs are structurally similar (deterministic transformation)
     const inputShape = extractShape(sampleInputs[0]);
@@ -96,11 +102,11 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
       .where(and(eq(agentTasks.label, tasks[0]!.label), eq(agentTasks.status, 'succeeded')))
       .limit(tasks.length);
 
-    const totalTokens = tokenUsages.reduce((sum: number, t: any) => {
+    const totalTokens = tokenUsages.reduce((sum: number, t: (typeof tokenUsages)[number]) => {
       const usage = t.tokenUsage as { total?: number } | null;
       return sum + (usage?.total ?? 0);
     }, 0);
-    const totalLatency = tokenUsages.reduce((sum: number, t: any) => sum + t.latencyMs, 0);
+    const totalLatency = tokenUsages.reduce((sum: number, t: (typeof tokenUsages)[number]) => sum + t.latencyMs, 0);
 
     patterns.push({
       signature: createHash('sha256').update(normalizedLabel).digest('hex').slice(0, 16),
@@ -194,7 +200,7 @@ export function generateScript(pattern: DetectedPattern): GeneratedScript {
   // Generate a transformation function based on the observed mapping
   const code = `/**
  * Auto-compiled by NEXUS Neural Skill Compiler
- * Pattern: ${pattern.taskLabel}
+ * Pattern: ${sanitizeForComment(pattern.taskLabel)}
  * Detected: ${pattern.occurrences} repetitions
  * Avg tokens/call: ${pattern.avgTokensPerCall}
  * Avg latency: ${pattern.avgLatencyMs}ms
@@ -207,21 +213,21 @@ export function generateScript(pattern: DetectedPattern): GeneratedScript {
  */
 function compiledTask(input) {
   // Extract input fields
-  ${inputKeys.map((k: any) => `const ${k.replace(/[^a-zA-Z0-9_]/g, '_')} = input["${k}"];`).join('\n  ')}
+  ${inputKeys.map((k: string) => `const ${k.replace(/[^a-zA-Z0-9_]/g, '_')} = input["${k}"];`).join('\n  ')}
 
   // Deterministic transformation (extracted from pattern analysis)
   // NOTE: This is a structural mapping. If the task involves complex
   // reasoning that varies per input, this compiled function should be
   // deprecated and the LLM call restored.
   const output = {
-    ${outputKeys.map((k: any) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(',\n    ')}
+    ${outputKeys.map((k: string) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(',\n    ')}
   };
 
   return output;
 }
 
 // Self-test: verify against historical samples
-const testResults = ${JSON.stringify(pattern.sampleOutputs.slice(0, 3), null, 2)};
+const testResults = ${sanitizeForComment(JSON.stringify((pattern.sampleOutputs || []).slice(0, 3), null, 2))};
 
 module.exports = { compiledTask, testResults };
 `;
@@ -252,12 +258,12 @@ function inferOutputExpression(
 
   // Check if the output values are constant across all samples
   const outputValues = pattern.sampleOutputs
-    .map((o: any) => (o as Record<string, unknown>)?.[outputKey])
-    .filter((v: any) => v !== undefined);
+    .map((o: unknown) => (o as Record<string, unknown>)?.[outputKey])
+    .filter((v: unknown) => v !== undefined);
 
   if (outputValues.length >= 2) {
     const allSame = outputValues.every(
-      (v: any) => JSON.stringify(v) === JSON.stringify(outputValues[0])
+      (v: unknown) => JSON.stringify(v) === JSON.stringify(outputValues[0])
     );
     if (allSame) {
       return JSON.stringify(outputValues[0]);
@@ -294,7 +300,7 @@ export async function evaluateScript(
   const total = Math.min(pattern.sampleInputs.length, pattern.sampleOutputs.length);
 
   for (let i = 0; i < total; i++) {
-    const expected = pattern.sampleOutputs[i];
+    const expected = (pattern.sampleOutputs || [])[i];
     try {
       // Evaluate via sandbox (Docker if available, in-process fallback)
       const { executeSandboxed } = await import('./sandbox.js');
@@ -343,6 +349,81 @@ export interface CompilationResult {
     tokensSaved?: number;
   }>;
 }
+// ── Sandbox dry-run: capability validation (fail-closed) ─────────────────
+
+/** Thrown when a compiled skill attempts a capability it is not granted. */
+export class SkillCapabilityViolation extends Error {
+  constructor(
+    public readonly capability: string,
+    public readonly declared: string[]
+  ) {
+    super(
+      `skill capability violation: ${capability} not in declared spec [${declared.join(', ')}]`
+    );
+    this.name = 'SkillCapabilityViolation';
+  }
+}
+
+/** Default capability vocabulary a compiled skill is allowed to declare. */
+export const SKILL_ALLOWED_CAPABILITIES = [
+  'skill.invoke',
+  'skill.invoke.',
+  'memory.read',
+  'memory.write',
+  'recall.query',
+  'recall.write',
+];
+
+/**
+ * Fail-closed validation: every capability a skill attempts must be granted
+ * by its declared spec. `declared` is the allow-list the skill published;
+ * `attempted` are the capability strings the dry-run observed it request.
+ * Throws SkillCapabilityViolation on the first disallowed attempt.
+ */
+export function validateSkillCapabilities(declared: string[], attempted: string[]): void {
+  const specs: CapabilitySpec[] = declared.map((d) =>
+    d.endsWith('.') ? { prefix: d } : { exact: d }
+  );
+  const fakePlugin = { manifest: { capabilities: specs } } as unknown as LoadedPlugin;
+  for (const cap of attempted) {
+    if (checkCapability(fakePlugin, cap) == null) {
+      throw new SkillCapabilityViolation(cap, declared);
+    }
+  }
+}
+
+/**
+ * Execute a compiled skill in an isolated vm context and capture the
+ * capabilities it requests via requestCapability(...). Returns the observed
+ * capability strings. This is the sandbox dry-run gate run BEFORE publish/
+ * activation so a skill that reaches for undeclared powers fails closed.
+ */
+export function dryRunSkill(code: string, sampleInputs: unknown[]): string[] {
+  const attempted = new Set<string>();
+  const sandbox: Record<string, unknown> = {
+    requestCapability: (cap: string) => {
+      attempted.add(cap);
+      return true;
+    },
+    console: { log: () => undefined, error: () => undefined, warn: () => undefined },
+    Math,
+    JSON,
+    Date,
+    String,
+    Number,
+    Array,
+    Object,
+  };
+  for (const input of sampleInputs.slice(0, 3)) {
+    const ctx = { ...sandbox, input } as unknown as Context;
+    try {
+      runInNewContext(`(function(){ ${code} })()`, ctx, { timeout: 2000 });
+    } catch {
+      /* Execution errors are surfaced by the eval harness; we only track caps. */
+    }
+  }
+  return [...attempted];
+}
 
 /**
  * Run the full Neural Skill Compilation pipeline:
@@ -382,11 +463,26 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
     compiled++;
 
     // Evaluate against historical data
+
+    // Sandbox dry-run gate (fail-closed): execute the compiled skill in an
+    // isolated vm and capture the capabilities it requests. Validate every
+    // requested capability against the skill's declared allow-list. A disallowed
+    // attempt → mark eval_failed and do NOT activate (default-deny).
+    const attempted = dryRunSkill(script.code, pattern.sampleInputs ?? []);
+    let capabilityOk = true;
+    let capabilityError = '';
+    try {
+      validateSkillCapabilities(SKILL_ALLOWED_CAPABILITIES, attempted);
+    } catch (ce) {
+      capabilityOk = false;
+      capabilityError = ce instanceof Error ? ce.message : String(ce);
+    }
+
     const evalResult = await evaluateScript(script, pattern);
 
     // Store the script (regardless of eval result — for tracking)
     const scriptId = `cmp_${randomUUID()}`;
-    const status = evalResult.passed ? 'active' : 'eval_failed';
+    const status = evalResult.passed && capabilityOk ? 'active' : 'eval_failed';
 
     await db
       .insert(compiledScripts)
@@ -412,7 +508,7 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
       })
       .onConflictDoNothing({ target: compiledScripts.patternSignature });
 
-    if (evalResult.passed) {
+    if (evalResult.passed && capabilityOk) {
       activated++;
       results.push({
         pattern: pattern.signature,
@@ -441,6 +537,11 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
         occurrences: pattern.occurrences,
         status: 'eval_failed',
       });
+      await appendAudit(
+        'skill.capability_violation',
+        { scriptId, pattern: pattern.signature, reason: capabilityError, actor },
+        actor
+      );
     }
   }
 

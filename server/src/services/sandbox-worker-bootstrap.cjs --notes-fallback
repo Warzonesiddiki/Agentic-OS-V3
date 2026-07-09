@@ -1,0 +1,11 @@
+[turn 2 2026-07-05T12:00:00Z]
+Completed Phase 1 (Perimeter HTTP Middleware) fixes successfully. Defined proxy.ts middleware stack, UUID helper, security-headers generator, payloadLimit prevent DoS. Proceeding Phase 2: Database Schema Parity.
+
+[turn 4 2026-07-05T12:05:00Z]
+Phase 2 started: schema parity review done all 30 tables. TypeScript errors llm-gateway-v2.ts (awaitchargeBudget, hardKill return type)mcp-registry.ts (delay→jitter)partially fixed during Phase 1 tail cleanup. Residual syntax error llm-gateway-v2.ts due duplicate block copy-paste drift during edit. Next step: clean duplicated chargeBudget block remnants run`npx tsc --noEmit -p tsconfig.json`verify clean compile.
+
+[turn 6 2026-07-05T12:20:00Z]
+CRITICAL INCIDENT: Accidentally`write`tool llm-gateway-v2.ts (replacing entire 335-line file with a ~13-line stub)after iterative`edit`calls failed due whitespace/CRLF mismatch. file lost all provider adapters, circuit breakers, routing logic, streaming gateway, provider registry causing cascade failures across 12+ importing files. Recovery plan:`git restore server/src/services/llm-gateway-v2.ts`then re-apply only targeted fixes, then re-run typecheck.
+
+[turn 8 2026-07-05T12:35:00Z]
+Fixed database schema imports in client.ts to resolve namespace resolution issues. Successfully debugged and patched sandbox worker bootstrap uncaught error throwing, introducing graceful process exit on shutdown and named function parsing.

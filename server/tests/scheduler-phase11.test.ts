@@ -84,13 +84,14 @@ describe('Phase 11 Scheduling Policies', () => {
   });
 
   it('Latency percentiles — records and reports samples', async () => {
-    const { recordQueueLatency, getQueueLatencyPercentiles } = await import('../src/services/scheduler.js');
+    const { recordQueueLatency, getQueueLatencyPercentiles } =
+      await import('../src/services/scheduler.js');
     recordQueueLatency('Q1', 100);
     recordQueueLatency('Q1', 200);
     recordQueueLatency('Q1', 300);
     const p = getQueueLatencyPercentiles();
-    expect(p.Q1.samples).toBe(3);
-    expect(p.Q1.p50).toBeGreaterThan(0);
+    expect(p.Q1!.samples).toBe(3);
+    expect(p.Q1!.p50).toBeGreaterThan(0);
   });
 
   it('pickByPolicy default policy — Q0 picked first', async () => {

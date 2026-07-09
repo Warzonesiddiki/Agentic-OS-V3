@@ -154,7 +154,7 @@ function acquireWorker(): PoolEntry | null {
   return null;
 }
 
-function releaseWorker(id: string): void {}
+function releaseWorker(_id: string): void {}
 
 // ── Execution ─────────────────────────────────────────────────
 

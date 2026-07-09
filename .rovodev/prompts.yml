@@ -1,0 +1,127 @@
+prompts:
+  - name: bmad-agent-bmad-master
+    description: bmad-agent-bmad-master - bmad-master agent
+    content_file: workflows/bmad-agent-bmad-master.md
+  - name: bmad-agent-bmm-analyst
+    description: bmad-agent-bmm-analyst - analyst agent
+    content_file: workflows/bmad-agent-bmm-analyst.md
+  - name: bmad-agent-bmm-architect
+    description: bmad-agent-bmm-architect - architect agent
+    content_file: workflows/bmad-agent-bmm-architect.md
+  - name: bmad-agent-bmm-dev
+    description: bmad-agent-bmm-dev - dev agent
+    content_file: workflows/bmad-agent-bmm-dev.md
+  - name: bmad-agent-bmm-pm
+    description: bmad-agent-bmm-pm - pm agent
+    content_file: workflows/bmad-agent-bmm-pm.md
+  - name: bmad-agent-bmm-qa
+    description: bmad-agent-bmm-qa - qa agent
+    content_file: workflows/bmad-agent-bmm-qa.md
+  - name: bmad-agent-bmm-quick-flow-solo-dev
+    description: bmad-agent-bmm-quick-flow-solo-dev - quick-flow-solo-dev agent
+    content_file: workflows/bmad-agent-bmm-quick-flow-solo-dev.md
+  - name: bmad-agent-bmm-sm
+    description: bmad-agent-bmm-sm - sm agent
+    content_file: workflows/bmad-agent-bmm-sm.md
+  - name: bmad-agent-bmm-tech-writer
+    description: bmad-agent-bmm-tech-writer - tech-writer agent
+    content_file: workflows/bmad-agent-bmm-tech-writer.md
+  - name: bmad-agent-bmm-ux-designer
+    description: bmad-agent-bmm-ux-designer - ux-designer agent
+    content_file: workflows/bmad-agent-bmm-ux-designer.md
+  - name: bmad-brainstorming
+    description: bmad-brainstorming - Facilitate interactive brainstorming sessions using diverse creative techniques and ideation methods. Use when the user says help me brainstorm or help me ideate.
+    content_file: workflows/bmad-brainstorming.md
+  - name: bmad-party-mode
+    description: bmad-party-mode - Orchestrates group discussions between all installed BMAD agents, enabling natural multi-agent conversations. Use when user requests party mode.
+    content_file: workflows/bmad-party-mode.md
+  - name: bmad-bmm-create-product-brief
+    description: bmad-bmm-create-product-brief - Create product brief through collaborative discovery. Use when the user says "lets create a product brief" or "help me create a project brief"
+    content_file: workflows/bmad-bmm-create-product-brief.md
+  - name: bmad-bmm-domain-research
+    description: bmad-bmm-domain-research - Conduct domain and industry research. Use when the user says "lets create a research report on [domain or industry]"
+    content_file: workflows/bmad-bmm-domain-research.md
+  - name: bmad-bmm-market-research
+    description: bmad-bmm-market-research - Conduct market research on competition and customers. Use when the user says "create a market research report about [business idea]".
+    content_file: workflows/bmad-bmm-market-research.md
+  - name: bmad-bmm-technical-research
+    description: bmad-bmm-technical-research - Conduct technical research on technologies and architecture. Use when the user says "create a technical research report on [topic]".
+    content_file: workflows/bmad-bmm-technical-research.md
+  - name: bmad-bmm-create-prd
+    description: bmad-bmm-create-prd - Create a PRD from scratch. Use when the user says "lets create a product requirements document" or "I want to create a new PRD"
+    content_file: workflows/bmad-bmm-create-prd.md
+  - name: bmad-bmm-edit-prd
+    description: bmad-bmm-edit-prd - Edit an existing PRD. Use when the user says "edit this PRD".
+    content_file: workflows/bmad-bmm-edit-prd.md
+  - name: bmad-bmm-validate-prd
+    description: bmad-bmm-validate-prd - Validate a PRD against standards. Use when the user says "validate this PRD" or "run PRD validation"
+    content_file: workflows/bmad-bmm-validate-prd.md
+  - name: bmad-bmm-create-ux-design
+    description: bmad-bmm-create-ux-design - Plan UX patterns and design specifications. Use when the user says "lets create UX design" or "create UX specifications" or "help me plan the UX"
+    content_file: workflows/bmad-bmm-create-ux-design.md
+  - name: bmad-bmm-check-implementation-readiness
+    description: bmad-bmm-check-implementation-readiness - Validate PRD, UX, Architecture and Epics specs are complete. Use when the user says "check implementation readiness".
+    content_file: workflows/bmad-bmm-check-implementation-readiness.md
+  - name: bmad-bmm-create-architecture
+    description: bmad-bmm-create-architecture - Create architecture solution design decisions for AI agent consistency. Use when the user says "lets create architecture" or "create technical architecture" or "create a solution design"
+    content_file: workflows/bmad-bmm-create-architecture.md
+  - name: bmad-bmm-create-epics-and-stories
+    description: bmad-bmm-create-epics-and-stories - Break requirements into epics and user stories. Use when the user says "create the epics and stories list"
+    content_file: workflows/bmad-bmm-create-epics-and-stories.md
+  - name: bmad-bmm-code-review
+    description: bmad-bmm-code-review - Perform adversarial code review finding specific issues. Use when the user says "run code review" or "review this code"
+    content_file: workflows/bmad-bmm-code-review.md
+  - name: bmad-bmm-correct-course
+    description: bmad-bmm-correct-course - Manage significant changes during sprint execution. Use when the user says "correct course" or "propose sprint change"
+    content_file: workflows/bmad-bmm-correct-course.md
+  - name: bmad-bmm-create-story
+    description: bmad-bmm-create-story - Creates a dedicated story file with all the context the agent will need to implement it later. Use when the user says "create the next story" or "create story [story identifier]"
+    content_file: workflows/bmad-bmm-create-story.md
+  - name: bmad-bmm-dev-story
+    description: bmad-bmm-dev-story - Execute story implementation following a context filled story spec file. Use when the user says "dev this story [story file]" or "implement the next story in the sprint plan"
+    content_file: workflows/bmad-bmm-dev-story.md
+  - name: bmad-bmm-retrospective
+    description: bmad-bmm-retrospective - Post-epic review to extract lessons and assess success. Use when the user says "run a retrospective" or "lets retro the epic [epic]"
+    content_file: workflows/bmad-bmm-retrospective.md
+  - name: bmad-bmm-sprint-planning
+    description: bmad-bmm-sprint-planning - Generate sprint status tracking from epics. Use when the user says "run sprint planning" or "generate sprint plan"
+    content_file: workflows/bmad-bmm-sprint-planning.md
+  - name: bmad-bmm-sprint-status
+    description: bmad-bmm-sprint-status - Summarize sprint status and surface risks. Use when the user says "check sprint status" or "show sprint status"
+    content_file: workflows/bmad-bmm-sprint-status.md
+  - name: bmad-bmm-quick-dev
+    description: bmad-bmm-quick-dev - Implement a Quick Tech Spec for small changes or features. Use when the user provides a quick tech spec and says "implement this quick spec" or "proceed with implementation of [quick tech spec]"
+    content_file: workflows/bmad-bmm-quick-dev.md
+  - name: bmad-bmm-quick-spec
+    description: bmad-bmm-quick-spec - Very quick process to create implementation-ready quick specs for small changes or features. Use when the user says "create a quick spec" or "generate a quick tech spec"
+    content_file: workflows/bmad-bmm-quick-spec.md
+  - name: bmad-bmm-document-project
+    description: bmad-bmm-document-project - Document brownfield projects for AI context. Use when the user says "document this project" or "generate project docs"
+    content_file: workflows/bmad-bmm-document-project.md
+  - name: bmad-bmm-generate-project-context
+    description: bmad-bmm-generate-project-context - Create project-context.md with AI rules. Use when the user says "generate project context" or "create project context"
+    content_file: workflows/bmad-bmm-generate-project-context.md
+  - name: bmad-bmm-qa-generate-e2e-tests
+    description: bmad-bmm-qa-generate-e2e-tests - Generate end to end automated tests for existing features. Use when the user says "create qa automated tests for [feature]"
+    content_file: workflows/bmad-bmm-qa-generate-e2e-tests.md
+  - name: bmad-editorial-review-prose
+    description: bmad-editorial-review-prose - Clinical copy-editor that reviews text for communication issues. Use when user says review for prose or improve the prose
+    content_file: workflows/bmad-editorial-review-prose.md
+  - name: bmad-editorial-review-structure
+    description: bmad-editorial-review-structure - Structural editor that proposes cuts, reorganization, and simplification while preserving comprehension. Use when user requests structural review or editorial review of structure
+    content_file: workflows/bmad-editorial-review-structure.md
+  - name: bmad-help
+    description: bmad-help - Analyzes what is done and the users query and offers advice on what to do next. Use if user says what should I do next or what do I do now
+    content_file: workflows/bmad-help.md
+  - name: bmad-index-docs
+    description: bmad-index-docs - Generates or updates an index.md to reference all docs in the folder. Use if user requests to create or update an index of all files in a specific folder
+    content_file: workflows/bmad-index-docs.md
+  - name: bmad-review-adversarial-general
+    description: bmad-review-adversarial-general - Perform a Cynical Review and produce a findings report. Use when the user requests a critical review of something
+    content_file: workflows/bmad-review-adversarial-general.md
+  - name: bmad-review-edge-case-hunter
+    description: bmad-review-edge-case-hunter - Walk every branching path and boundary condition in content, report only unhandled edge cases. Orthogonal to adversarial review - method-driven not attitude-driven.
+    content_file: workflows/bmad-review-edge-case-hunter.md
+  - name: bmad-shard-doc
+    description: bmad-shard-doc - Splits large markdown documents into smaller, organized files based on level 2 (default) sections. Use if the user says perform shard document
+    content_file: workflows/bmad-shard-doc.md

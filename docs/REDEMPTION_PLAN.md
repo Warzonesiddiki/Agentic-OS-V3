@@ -1,6 +1,6 @@
-# AGENTIC OS V4: ZERO-COMPROMISE REDEMPTION & ENGINEERING ROADMAP
+# NEXUS 2.0 / AGENTIC OS V3: ZERO-COMPROMISE REDEMPTION & ENGINEERING ROADMAP
 
-**Document Version:** 4.1.0  
+**Document Version:** 3.1.0  
 **Status:** Active Master Engineering Blueprint with Perfection Guidelines  
 **Target:** Open-Source Release on GitHub (Production Quality, Zero Faked Features, Zero Compromises)
 

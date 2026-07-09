@@ -9,6 +9,13 @@ members = [
     "crates/providers",
     "crates/tools",
     "crates/observability",
+    "crates/nexus-search",
+    "crates/nexus-cli",
+]
+# The Tauri desktop shell is a standalone, decoupled system (see ADR-0007) —
+exclude it from the Rust crates workspace so it builds independently.
+exclude = [
+    "nexus-tauri/src-tauri",
 ]
 resolver = "3"
 
