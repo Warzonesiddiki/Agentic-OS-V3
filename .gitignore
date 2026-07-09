@@ -122,3 +122,13 @@ server/tests/zz-debug.test.ts
 server/tests/services/probe.tmp.ts
 server/vitest.config.secd-audit.ts
 server/_probe*
+
+# --- Any remaining agent-generated debug/perf scripts ---
+server/__gen_perf.py
+server/_verify_stub_loader.cjs
+server/**/__*.py
+server/**/_*.cjs
+server/**/_*.mjs
+*.log
+*.tmp
+.server_tests_tmp

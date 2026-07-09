@@ -40,6 +40,7 @@ import { listContradictions, contradictionsAmong } from '../src/services/memory-
 // ─── Mocked DB-backed collaborators (import for spy targets) ───────────────
 import * as dbClient from '../src/db/client.js';
 import * as contradictionModule from '../src/services/memory-contradiction.js';
+import { memories as memoriesTable } from '../src/db/schema.js';
 
 vi.mock('../src/db/client.js', () => ({
   db: {
@@ -69,14 +70,15 @@ vi.mock('../src/services/embeddings.js', () => ({
 }));
 
 function mockLocalRows(rows: any[]) {
-  const chain: any = {
-    from: () => chain,
-    where: () => chain,
-    orderBy: () => chain,
-    limit: () => Promise.resolve(rows),
-    then: (_resolve?: any, _reject?: any) => Promise.resolve(rows).then(_resolve, _reject),
-  };
-  (dbClient.db.select as any).mockImplementation(() => chain);
+  const chainFor = (table: any): any => ({
+    from: (_t: any) => chainFor(table),
+    where: () => chainFor(table),
+    orderBy: () => chainFor(table),
+    limit: () => Promise.resolve(table === memoriesTable ? rows : []),
+    then: (_resolve?: any, _reject?: any) =>
+      Promise.resolve(table === memoriesTable ? rows : []).then(_resolve, _reject),
+  });
+  (dbClient.db.select as any).mockImplementation(() => chainFor(memoriesTable));
 }
 
 /* ════════════════════════════════════════════════════════════════════════

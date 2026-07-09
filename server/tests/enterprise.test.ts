@@ -226,10 +226,11 @@ function makeFakeDb() {
 // --- mock the DB + audit/forward side-effects BEFORE importing the service ---
 const fakeDb = makeFakeDb();
 vi.mock('../db/client.js', () => ({ db: fakeDb }));
-vi.mock('../lib/audit.js', () => ({ appendAudit: vi.fn(async () => ({})) }));
+vi.mock('../lib/audit.js', () => ({ auditLog: vi.fn(async () => ({})) }));
 vi.mock('../services/security/index.js', () => ({ forward: vi.fn(async () => ({})) }));
 
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import {
   orgs,
   workspaces,
@@ -252,13 +253,28 @@ function resetStore() {
   fakeDb._store.clear();
 }
 function seedOrg(id: string, name = 'Acme') {
-  return fakeDb.insert(orgs).values({ id, name, plan: 'enterprise', createdAt: Date.now() }).returning();
+  return fakeDb
+    .insert(orgs)
+    .values({ id, name, slug: id, parentId: null, plan: 'enterprise', seats: 10, createdAt: new Date().toISOString() })
+    .returning();
 }
-function seedUser(orgId: string, id: string, roles: string[] = ['member'], email = `${id}@acme.test`) {
-  return fakeDb.insert(enterpriseUsers).values({ id, orgId, email, name: id, roles, status: 'active', createdAt: Date.now() }).returning();
+function seedUser(orgId: string, id: string, roles: string[] = [], status = 'active') {
+  return fakeDb
+    .insert(enterpriseUsers)
+    .values({ id, orgId, email: `${id}@acme.test`, name: id, roles, status, mfaEnabled: false, lastLoginAt: null, createdAt: new Date().toISOString() })
+    .returning();
 }
 function seedRole(orgId: string, id: string, name: string, permissions: string[]) {
-  return fakeDb.insert(rbacRoles).values({ id, orgId, name, permissions, createdAt: Date.now() }).returning();
+  return fakeDb
+    .insert(rbacRoles)
+    .values({ id, orgId, name, isCustom: true, permissions, createdAt: new Date().toISOString() })
+    .returning();
+}
+function seedTenantConfig(orgId: string, extra: Record<string, unknown> = {}) {
+  return fakeDb
+    .insert(tenantConfig)
+    .values({ orgId, ssoEnabled: false, ssoIdpInitiated: false, ssoEntityId: '', ssoAcsUrl: '', ssoSsoUrl: '', ssoCert: '', ssoJitProvisioning: false, ssoDomainRestriction: [], auditRetentionDays: 90, memoryRetentionDays: 30, backupPitr: false, cmkEnabled: false, cmkKeyId: null, themePrimary: '', themeLogoUrl: '', themeBrandName: '', budgetAlertPct: 80, ssoProvider: '', updatedAt: new Date().toISOString(), ...extra })
+    .returning();
 }
 
 beforeEach(() => {
@@ -274,10 +290,10 @@ describe('EnterpriseService — multi-tenant isolation & RBAC', () => {
     await seedOrg('o1');
     await seedOrg('o2');
     await seedRole('o1', 'r1', 'admin', ['memories:read', 'memories:write']);
-    await seedUser('o1', 'u1', ['r1']);
+    await seedUser('o1', 'u1', []);
     await seedUser('o2', 'u2', []);
 
-    const usersO1 = await es.listEnterpriseUsers('o1');
+    const usersO1 = await es.listUsers('o1');
     expect(usersO1.map((u: any) => u.id)).toContain('u1');
     expect(usersO1.map((u: any) => u.id)).not.toContain('u2');
 
@@ -287,39 +303,51 @@ describe('EnterpriseService — multi-tenant isolation & RBAC', () => {
     expect(rolesO2.map((r: any) => r.id)).not.toContain('r1');
   });
 
-  it('getEnterpriseUser only returns a user when it belongs to the requested org', async () => {
-    await seedOrg('o1');
-    await seedUser('o1', 'u1');
-    const got = await es.getEnterpriseUser('o1', 'u1');
-    expect(got?.id).toBe('u1');
-    const cross = await es.getEnterpriseUser('oX', 'u1');
-    expect(cross).toBeUndefined();
-  });
-
-  it('assignRoleToUser / removeRole updates user roles with org gating', async () => {
+  it('assignRole merges the role name into the user and is org-gated', async () => {
     await seedOrg('o1');
     await seedRole('o1', 'r1', 'admin', ['memories:read']);
     await seedUser('o1', 'u1', []);
-    await es.assignRoleToUser('o1', 'u1', 'r1');
-    const after = await es.getEnterpriseUser('o1', 'u1');
-    expect(after?.roles).toContain('r1');
-    await es.removeRoleFromUser('o1', 'u1', 'r1');
-    const after2 = await es.getEnterpriseUser('o1', 'u1');
-    expect(after2?.roles).not.toContain('r1');
+    await es.assignRole('o1', 'u1', 'r1');
+    const after = await es.listUsers('o1');
+    const u = after.find((x: any) => x.id === 'u1');
+    expect(u.roles).toContain('admin');
+
+    // a role from a different org cannot be assigned (ROLE_NOT_FOUND)
+    await seedOrg('o2');
+    await seedRole('o2', 'r2', 'viewer', []); // r2 lives in o2
+    await expect(es.assignRole('o1', 'u1', 'r2')).rejects.toThrow(/ROLE_NOT_FOUND/);
   });
 
-  it('creating a user in a non-existent org throws (tenant guard)', async () => {
-    await expect(es.createEnterpriseUser('ghost', { email: 'x@y.z', name: 'X', roles: [] })).rejects.toThrow();
+  it('getOrg throws for an unknown org (tenant guard)', async () => {
+    await expect(es.getOrg('ghost')).rejects.toThrow(/ORG_NOT_FOUND/);
+  });
+
+  it('updateUser is scoped to the org', async () => {
+    await seedOrg('o1');
+    await seedUser('o1', 'u1', []);
+    const updated = await es.updateUser('o1', 'u1', { name: 'Renamed' });
+    expect(updated.name).toBe('Renamed');
+  });
+
+  it('deleteUser removes only the target org user', async () => {
+    await seedOrg('o1');
+    await seedOrg('o2');
+    await seedUser('o1', 'u1', []);
+    await seedUser('o2', 'u2', []);
+    await es.deleteUser('o1', 'u1');
+    const remaining = await es.listUsers('o1');
+    expect(remaining.map((u: any) => u.id)).not.toContain('u1');
+    const o2 = await es.listUsers('o2');
+    expect(o2.map((u: any) => u.id)).toContain('u2');
   });
 
   it('API key lifecycle is scoped per org', async () => {
     await seedOrg('o1');
-    const created = await es.createApiKey('o1', { name: 'k', scopes: ['memories:read'], createdBy: 'u1' });
-    expect(created.keyHash).toBeDefined();
+    const created = await es.createApiKey('o1', { label: 'k', tier: 'business', scopes: ['memories:read'] });
+    expect(created.prefix).toBeDefined();
+    expect(created.secret).toBeDefined();
     const listed = await es.listApiKeys('o1');
     expect(listed.length).toBe(1);
-    const token = await es.revealApiKey('o1', created.id);
-    expect(token).toBeDefined();
     await es.revokeApiKey('o1', created.id);
     const after = await es.listApiKeys('o1');
     expect(after[0].status).toBe('revoked');
@@ -329,75 +357,71 @@ describe('EnterpriseService — multi-tenant isolation & RBAC', () => {
 describe('EnterpriseService — OIDC / SAML stub validation', () => {
   beforeEach(async () => {
     await seedOrg('o1');
+    await seedTenantConfig('o1');
   });
 
-  it('configures and retrieves an OIDC IdP', async () => {
-    const cfg = await es.configureSso('o1', {
-      kind: 'oidc',
-      issuer: 'https://idp.acme.test',
-      clientId: 'cid',
-      clientSecret: 'csecret',
-    });
-    expect(cfg.id).toBeDefined();
-    const got = await es.getSsoConfig('o1', cfg.id);
-    expect(got?.kind).toBe('oidc');
-    expect(got?.issuer).toBe('https://idp.acme.test');
-  });
-
-  it('configures and retrieves a SAML IdP', async () => {
-    const cfg = await es.configureSso('o1', {
-      kind: 'saml',
-      issuer: 'https://idp.acme.test',
-      ssoUrl: 'https://sso.acme.test',
+  it('upsertSso configures and getSso retrieves an OIDC IdP', async () => {
+    await es.upsertSso('o1', 'oidc', {
+      enabled: true,
+      ssoUrl: 'https://idp.acme.test/authorize',
       entityId: 'acme-entity',
-      x509: 'CERT',
+      cert: 'CERT',
+    });
+    const cfg = await es.getSso('o1', 'oidc');
+    expect(cfg.provider).toBe('oidc');
+    expect(cfg.enabled).toBe(true);
+    expect(cfg.ssoUrl).toBe('https://idp.acme.test/authorize');
+  });
+
+  it('upsertSso configures a SAML IdP', async () => {
+    await es.upsertSso('o1', 'saml', {
+      enabled: true,
+      ssoUrl: 'https://idp.acme.test/sso',
+      entityId: 'acme-entity',
+      cert: 'CERT',
       acsUrl: 'https://acs.acme.test',
     });
-    const got = await es.getSsoConfig('o1', cfg.id);
-    expect(got?.kind).toBe('saml');
+    const cfg = await es.getSso('o1', 'saml');
+    expect(cfg.provider).toBe('saml');
+    expect(cfg.ssoUrl).toBe('https://idp.acme.test/sso');
+    expect(cfg.acsUrl).toBe('https://acs.acme.test');
   });
 
-  it('exchangeOidcCodeStub returns a token-bearing result for a valid IdP', async () => {
-    const cfg = await es.configureSso('o1', { kind: 'oidc', issuer: 'https://idp.acme.test', clientId: 'cid', clientSecret: 'csecret' });
-    const r = await es.exchangeOidcCodeStub('o1', cfg.id, 'code-123');
-    expect(r.accessToken).toBeDefined();
-    expect(r.email).toMatch(/@/);
+  it('startSsoLogin returns a redirect URL when SSO is enabled', async () => {
+    await es.upsertSso('o1', 'oidc', { enabled: true, ssoUrl: 'https://idp.acme.test/authorize', entityId: 'e', cert: 'C', acsUrl: 'https://acs.acme.test' });
+    const r = await es.startSsoLogin('o1', 'oidc');
+    expect(r.redirectUrl).toContain('https://idp.acme.test/authorize');
   });
 
-  it('exchangeSamlResponseStub derives the email from NameID', async () => {
-    const cfg = await es.configureSso('o1', { kind: 'saml', issuer: 'https://idp.acme.test', ssoUrl: 'https://sso.acme.test', entityId: 'e', x509: 'CERT', acsUrl: 'https://acs.acme.test' });
-    const r = await es.exchangeSamlResponseStub('o1', cfg.id, 'alice@corp.test', '<saml/>');
-    expect(r.email).toBe('alice@corp.test');
-  });
-
-  it('exchangeSamlResponseStub throws when NameID is missing', async () => {
-    const cfg = await es.configureSso('o1', { kind: 'saml', issuer: 'https://idp.acme.test', ssoUrl: 'https://sso.acme.test', entityId: 'e', x509: 'CERT', acsUrl: 'https://acs.acme.test' });
-    await expect(es.exchangeSamlResponseStub('o1', cfg.id, '', '<saml/>')).rejects.toThrow(/NameID/);
+  it('startSsoLogin throws when SSO is disabled (stub guard)', async () => {
+    await expect(es.startSsoLogin('o1', 'oidc')).rejects.toThrow(/SSO_DISABLED/);
   });
 });
 
 describe('EnterpriseService — billing & usage', () => {
   beforeEach(async () => {
     await seedOrg('o1');
-    await fakeDb.insert(tenantConfig).values({ orgId: 'o1', key: 'billing', value: { seats: 10, pricePerSeatCents: 1000 }, updatedAt: Date.now() }).returning();
+    await seedTenantConfig('o1', { budgetAlertPct: 80 });
+    await seedUser('o1', 'u1', [], 'active');
   });
 
-  it('getSubscriptionCost computes seats * pricePerSeat', async () => {
-    const cost = await es.getSubscriptionCost('o1');
-    expect(cost).toBe(10 * 1000);
+  it('getBilling aggregates seat usage, plan and cost from invoices', async () => {
+    // one void + one real invoice ($5.00)
+    await fakeDb.insert(invoices).values({ id: 'inv_1', orgId: 'o1', amountUsd: 500, currency: 'usd', status: 'paid', periodStart: new Date().toISOString(), periodEnd: new Date().toISOString() }).returning();
+    await fakeDb.insert(invoices).values({ id: 'inv_2', orgId: 'o1', amountUsd: 999, currency: 'usd', status: 'void', periodStart: new Date().toISOString(), periodEnd: new Date().toISOString() }).returning();
+    const b = await es.getBilling('o1');
+    expect(b.plan).toBe('enterprise');
+    expect(b.seatUsage).toBe(1);
+    expect(b.currentPeriodCostUsd).toBeCloseTo(5.0, 5);
+    expect(b.budgetAlertPct).toBe(80);
   });
 
-  it('records usage events against an org', async () => {
-    await es.recordUsage('o1', 'api_call', 5);
-    const usage = await es.getUsage('o1', Date.now() - 1000, Date.now() + 1000);
-    expect(usage.length).toBeGreaterThanOrEqual(1);
-  });
-
-  it('creates an invoice under an org', async () => {
-    const inv = await es.createInvoice('o1', { amountCents: 5000, currency: 'usd', periodStart: Date.now() - 1000, periodEnd: Date.now() });
-    expect(inv.id).toBeDefined();
-    const list = await es.listInvoices('o1');
-    expect(list.some((i: any) => i.id === inv.id)).toBe(true);
+  it('getUsage queries the audit_log (sql-chunk where) without throwing', async () => {
+    // seed a couple of audit_log rows (service queries `sql\`audit_log\``)
+    await fakeDb.insert({ name: 'audit_log' }).values({ id: 'a1', org_id: 'o1', ts: new Date().toISOString(), action: 'llm.request', meta: { tokens: 10, model: 'm1' } }).returning();
+    const u = await es.getUsage('o1', '7d');
+    expect(u.orgId).toBe('o1');
+    expect(Array.isArray(u.series)).toBe(true);
   });
 });
 
@@ -408,7 +432,7 @@ describe('EnterpriseService — SIEM sinks & onboarding (config isolation)', () 
   });
 
   it('registers a SIEM sink scoped to its org', async () => {
-    const sink = await es.registerSiemSink('o1', { type: 'datadog', endpoint: 'https://dd.test', token: 't' });
+    const sink = await es.createSiemSink('o1', { kind: 'datadog', endpoint: 'https://dd.test', enabled: true });
     expect(sink.id).toBeDefined();
     const sinksO1 = await es.listSiemSinks('o1');
     expect(sinksO1.length).toBe(1);
@@ -416,11 +440,17 @@ describe('EnterpriseService — SIEM sinks & onboarding (config isolation)', () 
     expect(sinksO2.length).toBe(0);
   });
 
-  it('onboarding state is isolated per org', async () => {
-    await es.updateOnboarding('o1', { step: 'sso', completed: false });
-    const o1 = await es.getOnboarding('o1');
-    expect(o1?.step).toBe('sso');
-    const o2 = await es.getOnboarding('o2');
-    expect(o2).toBeUndefined();
+  it('completeOnboarding records steps per org (isolation)', async () => {
+    await es.completeOnboarding('o1', 'sso');
+    await es.completeOnboarding('o1', 'rbac');
+    const st1 = await fakeDb.select().from(onboardingState).where(eq(onboardingState.orgId, 'o1'));
+    expect((st1[0].completedSteps as string[]).sort()).toEqual(['rbac', 'sso']);
+    const st2 = await fakeDb.select().from(onboardingState).where(eq(onboardingState.orgId, 'o2'));
+    expect(st2.length).toBe(0);
   });
 });
+
+// small helper to read onboardingState without importing drizzle `eq` here
+function eqOnboarding(orgId: string) {
+  return { queryChunks: [{ value: [''] }, { name: 'orgId' }, { value: [' = '] }, orgId, { value: [''] }] };
+}

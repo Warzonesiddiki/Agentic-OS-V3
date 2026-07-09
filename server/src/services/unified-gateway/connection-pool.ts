@@ -1,9 +1,9 @@
 /**
- * connection-pool.ts — bounded connection reuse + backpressure for LLM calls.
+ * connection-pool.ts - bounded connection reuse + backpressure for LLM calls.
  *
  * Two concerns addressed here (both requested in the PerfC perf workstream):
  *
- *  1. Connection reuse — a shared semaphore bounds the number of concurrent
+ *  1. Connection reuse - a shared semaphore bounds the number of concurrent
  *     outbound connections to LLM providers. Because the Node global `fetch`
  *     already keeps an internal keep-alive pool, funnelling every call through a
  *     single acquire/release path maximizes connection reuse (hot connections
@@ -12,7 +12,7 @@
  *     an explicit keep-alive `Agent` dispatcher; otherwise the module degrades
  *     gracefully to the default global pool.
  *
- *  2. Backpressure — callers `acquire()` a slot; if the pool is full the call
+ *  2. Backpressure - callers `acquire()` a slot; if the pool is full the call
  *     blocks (awaits) instead of opening a new socket. This applies upstream
  *     pressure and prevents the runtime from overwhelming providers (or the
  *     local file descriptor limit). The same primitive is reused by the agent
@@ -26,13 +26,14 @@ let dispatcherError = false;
 
 function debugLog(_msg: string, _ctx?: Record<string, unknown>): void {
   if (process.env.NEXUS_DEBUG) {
+    // eslint-disable-next-line no-console
     console.debug(`[conn-pool] ${_msg}`, _ctx ?? '');
   }
 }
 
 /**
  * Lazily resolve an explicit keep-alive dispatcher. Returns null when undici is
- * not available — callers then use the default global pool which still keeps
+ * not available - callers then use the default global pool which still keeps
  * connections alive.
  */
 export async function getSharedDispatcher(): Promise<Dispatcher | null> {

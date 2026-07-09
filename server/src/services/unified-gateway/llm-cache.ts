@@ -1,5 +1,5 @@
 /**
- * llm-cache.ts — response cache for identical LLM prompts.
+ * llm-cache.ts - response cache for identical LLM prompts.
  *
  * Caches model responses keyed by (provider, model, messages, temperature,
  * maxTokens, topP, stop). By default it only caches deterministic requests
@@ -17,6 +17,7 @@ import { LRUCache } from '../../lib/lru-cache.js';
 /** Debug-only logging (no-op unless NEXUS_DEBUG is set). */
 function debugLog(_msg: string, _ctx?: Record<string, unknown>): void {
   if (process.env.NEXUS_DEBUG) {
+    // eslint-disable-next-line no-console
     console.debug(`[llm-cache] ${_msg}`, _ctx ?? '');
   }
 }

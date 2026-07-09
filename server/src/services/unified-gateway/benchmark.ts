@@ -1,5 +1,5 @@
 /**
- * benchmark.ts — micro-benchmark for the LLM perf workstream.
+ * benchmark.ts - micro-benchmark for the LLM perf workstream.
  *
  * Measures the impact of response caching on repeated identical prompts and the
  * overhead/throughput of the bounded connection pool + backpressure. Run via:
@@ -40,7 +40,6 @@ export async function runCacheBenchmark(iterations = 200): Promise<BenchResult> 
     maxTokens: 16,
   };
 
-  // Warm miss path.
   await cache.getOrCompute(req, async () => {
     await sleep(fakeProviderLatencyMs());
     return { content: '4', model: req.model, promptTokens: 3, completionTokens: 1, cachedAt: Date.now() };
@@ -88,19 +87,20 @@ export async function runAllBenchmarks(): Promise<BenchResult[]> {
   return [cache, pool];
 }
 
-// Allow running directly: `tsx benchmark.ts`
 const isMain = typeof process !== 'undefined' && process.argv[1]?.includes('benchmark.ts');
 if (isMain) {
   runAllBenchmarks()
     .then((results) => {
       for (const r of results) {
+        // eslint-disable-next-line no-console
         console.log(
           `${r.name}: ${r.iterations} ops in ${r.totalMs}ms (${r.perOpMs.toFixed(3)}ms/op)` +
-            (r.speedup ? ` speedup≈${r.speedup.toFixed(1)}x` : '')
+            (r.speedup ? ` speedup~${r.speedup.toFixed(1)}x` : '')
         );
       }
     })
     .catch((e) => {
+      // eslint-disable-next-line no-console
       console.error(e);
       process.exit(1);
     });

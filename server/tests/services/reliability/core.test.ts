@@ -1,15 +1,16 @@
 /**
  * Unit tests for Sentinel's reliability namespace — core modules (batch 2).
- * Pure/in-memory modules; db/audit/siem mocked where imported. No FROZEN files touched.
+ * Pure/in-memory modules; db/audit/siem/permissions mocked where imported. No FROZEN files touched.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 vi.mock('../../../src/db/client.js', () => ({
   db: {
-    insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn(() => Promise.resolve([{ id: 'x' }])) })) })),
-    select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => Promise.resolve([])) })) })),
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({ returning: vi.fn(() => Promise.resolve([{ id: 'x' }])) })),
+    })),
     update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve({})) })) })),
-    query: { guardrails: { findMany: vi.fn(() => Promise.resolve([])) } },
+    delete: vi.fn(() => ({ where: vi.fn(() => Promise.resolve({})) })),
   },
 }));
 vi.mock('../../../src/lib/audit.js', () => ({
@@ -19,42 +20,38 @@ vi.mock('../../../src/lib/audit.js', () => ({
 vi.mock('../../../src/services/siem-forwarder.js', () => ({
   forward: vi.fn(() => Promise.resolve({ ok: true })),
 }));
+vi.mock('../../../src/services/agent-permissions.js', () => ({
+  revokeAll: vi.fn(),
+  grant: vi.fn(),
+}));
+vi.mock('../../../src/services/session-recorder.js', () => ({
+  record: vi.fn(() => Promise.resolve()),
+}));
 vi.mock('../../../src/lib/env.js', () => ({ env: { VAULT_DIR: '/tmp' } }));
 
 import { burnRate, fastBurn, slowBurn } from '../../../src/services/reliability/burn-rate.js';
 import { admit, reject, tenantBulkheads } from '../../../src/services/reliability/tenant-bulkhead.js';
 import { LatencyBudget, enforceLatencyBudget } from '../../../src/services/reliability/latency-budget.js';
-import { runFailoverDrill, drills } from '../../../src/services/reliability/failover-drill.js';
-import { validateBackup, backups } from '../../../src/services/reliability/backup-validator.js';
-import { promoteCanary, canaries } from '../../../src/services/reliability/canary-orchestrator.js';
+import { startDrill, lastDrillFor } from '../../../src/services/reliability/failover-drill.js';
+import { validateBackup } from '../../../src/services/reliability/backup-validator.js';
+import { startCanary, evaluatePromotion, active } from '../../../src/services/reliability/canary-orchestrator.js';
 import { recommendCapacity, plans } from '../../../src/services/reliability/capacity-planner.js';
 import { ChaosExperiment, runChaos, experiments } from '../../../src/services/reliability/chaos.js';
-import { heal, attempts } from '../../../src/services/reliability/self-healing.js';
+import { heal } from '../../../src/services/reliability/self-healing.js';
 import { healthOf, dependencies } from '../../../src/services/reliability/dependency-health.js';
-import { planRollback, rollbacks } from '../../../src/services/reliability/migration-rollback.js';
-import { buildPostMortem, incidents } from '../../../src/services/reliability/post-mortem.js';
-import { triggerRunbook, runbooks } from '../../../src/services/reliability/incident-runbook.js';
-import { exportFmea, fmecas } from '../../../src/services/reliability/fmea-exporter.js';
-import { renderSloDashboard, dashboards } from '../../../src/services/reliability/slo-dashboard.js';
-import { scoreReliability, scorecards } from '../../../src/services/reliability/reliability-scorecard.js';
-import { quarantineAgent, releaseQuarantine, listQuarantined } from '../../../src/services/reliability/quarantine.js';
+import { planRollback, list as listRollbacks } from '../../../src/services/reliability/migration-rollback.js';
+import { create as createPM, open as openPM } from '../../../src/services/reliability/post-mortem.js';
+import { createRunbook, isComplete, listRunbooks } from '../../../src/services/reliability/incident-runbook.js';
+import { computeRpn, exportJson, topRisks } from '../../../src/services/reliability/fmea-exporter.js';
+import { buildDashboard } from '../../../src/services/reliability/slo-dashboard.js';
+import { computeScorecard } from '../../../src/services/reliability/reliability-scorecard.js';
+import { quarantineAgent, releaseQuarantine, activeQuarantines, purgeExpired } from '../../../src/services/reliability/quarantine.js';
 
 beforeEach(() => {
-  // reset in-memory registries between tests where possible
   tenantBulkheads.clear();
-  drills.length = 0;
-  backups.length = 0;
-  canaries.length = 0;
   plans.length = 0;
   experiments.length = 0;
-  attempts.length = 0;
   dependencies.length = 0;
-  rollbacks.length = 0;
-  incidents.length = 0;
-  runbooks.length = 0;
-  fmecas.length = 0;
-  dashboards.length = 0;
-  scorecards.length = 0;
 });
 
 describe('burn-rate', () => {
@@ -95,26 +92,31 @@ describe('latency-budget', () => {
 });
 
 describe('failover-drill', () => {
-  it('records a drill with status', async () => {
-    const d = await runFailoverDrill('dc-a' as any);
-    expect(d.status).toBeDefined();
-    expect(drills.length).toBeGreaterThanOrEqual(1);
+  it('starts a drill and records it', async () => {
+    const d = await startDrill('dc-a' as any);
+    expect(d.id).toBeDefined();
+    expect(lastDrillFor('dc-a')).toBeDefined();
   });
 });
 
 describe('backup-validator', () => {
-  it('validates a backup entry', async () => {
-    const v = await validateBackup({ id: 'b1', sizeBytes: 100, checksum: 'c', ageHours: 1 } as any);
+  it('validates a backup manifest', async () => {
+    const manifest = { id: 'b1', sizeBytes: 100, checksum: 'c', ageHours: 1 } as any;
+    const v = await validateBackup(manifest, Buffer.from('data'));
     expect(v.ok).toBeDefined();
-    expect(backups.length).toBeGreaterThanOrEqual(1);
   });
 });
 
 describe('canary-orchestrator', () => {
-  it('promotes a canary after success', async () => {
-    const c = await promoteCanary({ name: 'svc', successRate: 0.99 } as any);
-    expect(c.promoted).toBe(true);
-    expect(canaries.length).toBeGreaterThanOrEqual(1);
+  it('starts a canary and lists it active', async () => {
+    const c = await startCanary('v2', ['smoke'] as any);
+    expect(c.id).toBeDefined();
+    expect(active().length).toBeGreaterThanOrEqual(1);
+  });
+  it('evaluates promotion against an SLO', async () => {
+    const c = await startCanary('v3', ['smoke'] as any);
+    const r = await evaluatePromotion(c.id, { objective: 0.99 } as any);
+    expect(['promote', 'hold', 'rollback']).toContain(r.action);
   });
 });
 
@@ -136,10 +138,9 @@ describe('chaos', () => {
 });
 
 describe('self-healing', () => {
-  it('attempts a heal action', async () => {
-    const a = await heal({ kind: 'restart', target: 'svc' } as any);
+  it('attempts a heal action for a breaker', async () => {
+    const a = await heal('svc-breaker');
     expect(a.id).toBeDefined();
-    expect(attempts.length).toBeGreaterThanOrEqual(1);
   });
 });
 
@@ -152,64 +153,80 @@ describe('dependency-health', () => {
 });
 
 describe('migration-rollback', () => {
-  it('plans a rollback', () => {
-    const r = planRollback('mig-1' as any);
+  it('plans a rollback and lists it', () => {
+    const r = planRollback('mig-1');
     expect(r.id).toBeDefined();
-    expect(rollbacks.length).toBeGreaterThanOrEqual(1);
+    expect(listRollbacks().length).toBeGreaterThanOrEqual(1);
   });
 });
 
 describe('post-mortem', () => {
-  it('builds a post-mortem', () => {
-    const p = buildPostMortem({ incidentId: 'inc-1', summary: 'oops' } as any);
-    expect(p.incidentId).toBe('inc-1');
-    expect(incidents.length).toBeGreaterThanOrEqual(1);
+  it('creates and opens a post-mortem', () => {
+    const p = createPM('inc-1', 'oops');
+    expect(p.id).toBeDefined();
+    expect(openPM().some((x) => x.id === p.id)).toBe(true);
   });
 });
 
 describe('incident-runbook', () => {
-  it('triggers a runbook', () => {
-    const r = triggerRunbook({ name: 'db-down', steps: [] } as any);
+  it('creates a runbook and checks completion', () => {
+    const r = createRunbook({ name: 'db-down', steps: ['a', 'b'] } as any);
     expect(r.id).toBeDefined();
-    expect(runbooks.length).toBeGreaterThanOrEqual(1);
+    expect(isComplete(r.id)).toBe(false);
+    expect(listRunbooks().length).toBeGreaterThanOrEqual(1);
   });
 });
 
 describe('fmea-exporter', () => {
-  it('exports an FMEA record', () => {
-    const f = exportFmea({ component: 'auth', failure: 'timeout', severity: 3 } as any);
-    expect(f.component).toBe('auth');
-    expect(fmecas.length).toBeGreaterThanOrEqual(1);
+  it('computes RPN', () => {
+    expect(computeRpn(3, 4, 5)).toBe(60);
+  });
+  it('exports JSON', () => {
+    const rows = [{ component: 'auth', failure: 'timeout', severity: 3, occurrence: 4, detection: 5 }] as any;
+    const j = exportJson(rows);
+    expect(j).toContain('auth');
+  });
+  it('ranks top risks by RPN', () => {
+    const rows = [
+      { component: 'a', failure: 'x', severity: 3, occurrence: 4, detection: 5 },
+      { component: 'b', failure: 'y', severity: 9, occurrence: 9, detection: 9 },
+    ] as any;
+    const top = topRisks(rows, 1);
+    expect(top[0].component).toBe('b');
   });
 });
 
 describe('slo-dashboard', () => {
-  it('renders a dashboard', () => {
-    const d = renderSloDashboard({ title: 'API', objectives: [] } as any);
-    expect(d.title).toBe('API');
-    expect(dashboards.length).toBeGreaterThanOrEqual(1);
+  it('builds a dashboard from SLOs', () => {
+    const d = buildDashboard([{ id: 'api', objective: 0.99, total: 1000, bad: 5, windowDays: 28, name: 'API' }] as any);
+    expect(d.slots.length).toBeGreaterThanOrEqual(1);
   });
 });
 
 describe('reliability-scorecard', () => {
-  it('scores reliability', () => {
-    const s = scoreReliability({ availability: 0.999, mttrMinutes: 10 } as any);
-    expect(s.score).toBeGreaterThanOrEqual(0);
-    expect(scorecards.length).toBeGreaterThanOrEqual(1);
+  it('computes a scorecard from SLOs', () => {
+    const s = computeScorecard([{ objective: 0.99, total: 1000, bad: 5, windowDays: 28, name: 'API' }] as any);
+    expect(s.overall).toBeGreaterThanOrEqual(0);
+    expect(s.overall).toBeLessThanOrEqual(1);
   });
 });
 
 describe('quarantine', () => {
-  it('quarantines an agent and lists it', async () => {
-    const q = await quarantineAgent('agent-x', 'flapping', 60000);
+  it('quarantines an agent and lists it active', async () => {
+    const q = await quarantineAgent('agent-x', 'flapping', 60000, 'sentinel');
     expect(q.request.status).toBe('active');
-    const list = await listQuarantined();
-    expect(list.length).toBeGreaterThanOrEqual(1);
+    expect(activeQuarantines().some((x) => x.id === 'agent-x')).toBe(true);
   });
 
   it('releases a quarantined agent', async () => {
-    await quarantineAgent('agent-y', 'cpu', 60000);
-    const r = await releaseQuarantine('agent-y');
+    await quarantineAgent('agent-y', 'cpu', 60000, 'sentinel');
+    const r = await releaseQuarantine('agent-y', 'sentinel');
     expect(r.released).toBe(true);
+  });
+
+  it('purges expired quarantines', async () => {
+    await quarantineAgent('agent-z', 'cpu', 1, 'sentinel');
+    const n = purgeExpired(Date.now() + 10_000);
+    expect(n).toBeGreaterThanOrEqual(1);
   });
 });

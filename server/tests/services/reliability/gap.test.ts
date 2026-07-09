@@ -7,8 +7,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 vi.mock('../../../src/db/client.js', () => ({
   db: {
     insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn(() => Promise.resolve([{ id: 'x' }])) })) })),
-    select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => Promise.resolve([])) })) })),
     update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve({})) })) })),
+    delete: vi.fn(() => ({ where: vi.fn(() => Promise.resolve({})) })),
   },
 }));
 vi.mock('../../../src/lib/audit.js', () => ({
@@ -20,24 +20,29 @@ vi.mock('../../../src/services/siem-forwarder.js', () => ({
 }));
 vi.mock('../../../src/lib/env.js', () => ({ env: { VAULT_DIR: '/tmp' } }));
 
-import { sevOf, SEV } from '../../../src/services/reliability/gap/sev-framework.js';
+import { SEVERITIES, slaFor, isResponseOverdue } from '../../../src/services/reliability/gap/sev-framework.js';
 import { setRotation, currentFor, escalate } from '../../../src/services/reliability/gap/oncall.js';
 import { render } from '../../../src/services/reliability/gap/comms-templates.js';
 import { activate, isActive, consume, purgeExpired } from '../../../src/services/reliability/gap/break-glass.js';
 
 beforeEach(() => {
-  // clear module registries by re-importing fresh is not trivial; tests are order-independent enough
+  // rotations and break-glass sessions are module-level; tests are order-independent enough
 });
 
 describe('sev-framework', () => {
-  it('maps severities to ordered ranks', () => {
-    expect(SEV.SEVERITY_RANK[SEV.SevLevel.CRITICAL]).toBeGreaterThan(
-      SEV.SEVERITY_RANK[SEV.SevLevel.LOW],
-    );
+  it('defines an ordered severity set', () => {
+    expect(SEVERITIES).toContain('critical');
+    expect(SEVERITIES).toContain('low');
   });
-  it('returns a severity for an incident', () => {
-    const s = sevOf({ impact: 'total', customerFacing: true } as any);
-    expect(s).toBeDefined();
+  it('maps a severity to an SLA window', () => {
+    const sla = slaFor('critical');
+    expect(sla).toHaveProperty('responseMins');
+    expect(sla).toHaveProperty('resolveMins');
+  });
+  it('detects an overdue response', () => {
+    const sla = slaFor('critical');
+    const opened = Date.now() - (sla.responseMins + 10) * 60_000;
+    expect(isResponseOverdue({ severity: 'critical', openedAt: opened, firstResponseAt: undefined } as any)).toBe(true);
   });
 });
 

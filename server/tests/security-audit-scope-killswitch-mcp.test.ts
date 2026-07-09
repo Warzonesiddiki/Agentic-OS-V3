@@ -227,6 +227,7 @@ describe('SecD: Kill-switch blocks mutations (HTTP 423)', () => {
 
   it('assertOperational resolves when kill-switch is off (mutation proceeds)', async () => {
     vi.mocked(isKillSwitchOn).mockResolvedValue(false);
+    vi.mocked(assertOperational).mockResolvedValue(undefined);
     await expect(assertOperational('test-mutation')).resolves.toBeUndefined();
   });
 

@@ -1,0 +1,49 @@
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+[1m[46m RUN [49m[22m [36mv3.2.6 [39m[90mC:/Users/Tahir/OneDrive/Desktop/nexus-20-ai-agent-os (7)/Agentic OS V3/server[39m
+
+[90mstdout[2m | tests/memory-recall-eval.test.ts
+[22m[39m◇ injected env (0) from .env // tip: ⌘ custom filepath { path: '/custom/path/.env' }
+
+[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[31mx[39m[33m[39m[31mx[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/memory-recall-eval.test.ts > budget packing (top-N fits token budget) > never exceeds the token budget and reports truncated count
+AssertionError: expected [] to include 'm1'
+ ❯ tests/memory-recall-eval.test.ts:304:17
+    302|     expect(result.returned.length).toBeLessThanOrEqual(2);
+    303|     const ids = result.returned.map((r) => r.id);
+    304|     expect(ids).toContain('m1');
+       |                 ^
+    305|     expect(ids).toContain('m2');
+    306|     expect(result.truncated).toBeGreaterThan(0);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+ FAIL  tests/memory-recall-eval.test.ts > budget packing (top-N fits token budget) > fits the whole set when budget is large
+AssertionError: expected 300 to be 100 // Object.is equality
+
+- Expected
++ Received
+
+- 100
++ 300
+
+ ❯ tests/memory-recall-eval.test.ts:323:31
+    321|     expect(result.truncated).toBe(0);
+    322|     expect(result.returned.length).toBe(2);
+    323|     expect(result.tokensUsed).toBe(100);
+       |                               ^
+    324|   });
+    325| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m26 passed[39m[22m[90m (28)[39m
+[2m   Start at [22m 22:52:38
+[2m   Duration [22m 65.47s[2m (transform 19.51s, setup 0ms, collect 45.98s, tests 1.48s, environment 0ms, prepare 6.14s)[22m
+

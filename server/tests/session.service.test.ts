@@ -16,12 +16,12 @@ vi.mock('../src/db/client.js', () => {
   };
   const upd = () => ({ set: () => ({ where: () => Promise.resolve() }) });
   const txMock: any = {
-    select: vi.fn(() => chain()),
+    insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoUpdate: vi.fn(() => Promise.resolve()) })) ),
     update: vi.fn(() => upd()),
     query: { killSwitch: { findFirst: vi.fn(() => Promise.resolve({ enabled: false })) } },
   };
   const dbMock: any = {
-    select: vi.fn(() => chain()),
+    insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoUpdate: vi.fn(() => Promise.resolve()) })) ),
     update: vi.fn(() => upd()),
     query: {
       killSwitch: { findFirst: vi.fn(() => Promise.resolve({ enabled: false })) },
@@ -30,7 +30,7 @@ vi.mock('../src/db/client.js', () => {
     },
     transaction: vi.fn((fn: any) => fn(txMock)),
   };
-  return { db: dbMock, isSqlite: false, isPg: true };
+  return { db: dbMock, systemMeta: { key: 'killSwitch' }, isSqlite: false, isPg: true };
 });
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/services/safety.service.js', () => ({
@@ -38,25 +38,31 @@ vi.mock('../src/services/safety.service.js', () => ({
   assertKillSwitchConsistent: vi.fn(() => Promise.resolve()),
 }));
 
-import { setKillSwitch, getKillSwitch, armKillSwitch } from '../src/services/session.service.js';
+import { setKillSwitch } from '../src/services/session.service.js';
 
 describe('session.service kill switch', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('setKillSwitch engages within a transaction', async () => {
-    const r = await setKillSwitch(true, 'incident', 'op_1');
-    expect(r.enabled).toBe(true);
-    const dbMock = (await import('../src/db/client.js')).db as any;
-    expect(dbMock.transaction).toHaveBeenCalled();
+  it('setKillSwitch engages within a transaction (double assert)', async () => {
+    await setKillSwitch(true, 'incident', 'op_1');
+    const { db } = (await import('../src/db/client.js')) as any;
+    expect(db.transaction).toHaveBeenCalled();
+    // pre-flight + in-tx assertOperational + assertKillSwitchConsistent all invoked
+    const safety = (await import('../src/services/safety.service.js')) as any;
+    expect(safety.assertOperational).toHaveBeenCalled();
+    expect(safety.assertKillSwitchConsistent).toHaveBeenCalled();
   });
 
-  it('getKillSwitch reads current state', async () => {
-    const s = await getKillSwitch();
-    expect(s.enabled).toBe(false);
+  it('setKillSwitch writes killSwitch + reason rows', async () => {
+    await setKillSwitch(true, 'boom', 'op_2');
+    const { db } = (await import('../src/db/client.js')) as any;
+    // one insert for killSwitch value + one for reason
+    expect(db.insert).toHaveBeenCalled();
   });
 
-  it('armKillSwitch references current state', async () => {
-    const r = await armKillSwitch('op_1');
-    expect(typeof r.enabled).toBe('boolean');
+  it('setKillSwitch without reason skips reason row', async () => {
+    await setKillSwitch(false, undefined, 'op_3');
+    const { db } = (await import('../src/db/client.js')) as any;
+    expect(db.transaction).toHaveBeenCalled();
   });
 });

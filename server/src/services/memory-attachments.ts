@@ -136,14 +136,31 @@ const KEYWORDS = [
 export function highlightCode(code: string, language?: string): string {
   const escaped = code.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-  // Strings first (so we don't corrupt class="kw" spans later).
+  // Use a private-use placeholder so keyword/string spans never overlap or
+  // corrupt each other's generated markup (the previous version let the keyword
+  // pass match the word "class" inside the <span class="str"> it had just
+  // created, producing malformed HTML).
+  const PLACEHOLDER = '';
+  const store: string[] = [];
+  const stash = (html: string) => {
+    store.push(html);
+    return `${PLACEHOLDER}${store.length - 1}${PLACEHOLDER}`;
+  };
+
+  // Strings first: stash each literal so the keyword pass won't touch the
+  // `class="..."` attribute text inside generated spans.
   const withStrings = escaped.replace(
     /(&quot;|&#39;|"|')(?:\\.|[^"'])*\1/g,
-    (m) => `<span class="str">${m}</span>`
+    (m) => stash(`<span class="str">${m}</span>`)
   );
 
   const kwPattern = new RegExp(`\\b(${KEYWORDS.join('|')})\\b`, 'g');
-  const withKeywords = withStrings.replace(kwPattern, '<span class="kw">$1</span>');
+  const withKeywords = withStrings.replace(kwPattern, (m) => stash(`<span class="kw">${m}</span>`));
 
-  return `<pre class="codehilite" data-lang="${language ?? 'text'}"><code>${withKeywords}</code></pre>`;
+  const restored = withKeywords.replace(
+    new RegExp(`${PLACEHOLDER}(\\d+)${PLACEHOLDER}`, 'g'),
+    (_m, i) => store[Number(i)] ?? ''
+  );
+
+  return `<pre class="codehilite" data-lang="${language ?? 'text'}"><code>${restored}</code></pre>`;
 }
