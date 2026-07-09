@@ -12,6 +12,8 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
+    "verify:readiness": "tsx src/scripts/verify-system-readiness.ts",
+    "profile:perf": "tsx src/scripts/profile-system-performance.ts",
     "lint": "eslint \"src/**/*.ts\" \"tests/**/*.ts\"",
     "test": "vitest run",
     "test:watch": "vitest",
