@@ -14,8 +14,6 @@
  * ```
  */
 
-import { randomUUID } from 'node:crypto';
-
 export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
 
 export interface ChatMessage {
@@ -72,7 +70,7 @@ export function mockLlm(config: MockLlmConfig = {}) {
 
   async function chat(
     messages: ChatMessage[],
-    options?: { tools?: any[]; stream?: boolean }
+    _options?: { tools?: any[]; stream?: boolean }
   ): Promise<MockLlmResponse> {
     // Fire callback for assertions
     onRequest?.(messages);

@@ -34,6 +34,7 @@
  */
 import { createHash, verify, randomUUID } from 'node:crypto';
 import { db } from '../db/client.js';
+import { contradictionsAmong } from './memory-contradiction.js';
 import { federatedMemoryProofs } from '../db/client.js';
 import { memories, skills, notes } from '../db/client.js';
 import { desc, eq, and, sql, isNotNull } from 'drizzle-orm';
@@ -335,11 +336,103 @@ export async function federatedStats(): Promise<{
 const DAY_MS = 86_400_000;
 const RRF_K = env.NEXUS_RRF_K;
 const RECENCY_HALFLIFE_DAYS = env.NEXUS_RECENCY_HALFLIFE_DAYS;
-const W_RRF = env.NEXUS_RECALL_WEIGHT_RRF;
-const W_IMPORTANCE = env.NEXUS_RECALL_WEIGHT_IMPORTANCE;
-const W_RECENCY = env.NEXUS_RECALL_WEIGHT_RECENCY;
+let W_RRF = env.NEXUS_RECALL_WEIGHT_RRF;
+let W_IMPORTANCE = env.NEXUS_RECALL_WEIGHT_IMPORTANCE;
+let W_RECENCY = env.NEXUS_RECALL_WEIGHT_RECENCY;
+function refreshAdaptiveWeights(): void {
+  const w = getEffectiveWeights();
+  W_RRF = w.rrf;
+  W_IMPORTANCE = w.importance;
+  W_RECENCY = w.recency;
+}
 const MAX_CORPUS = env.NEXUS_MAX_RECALL_CORPUS;
 const SEMANTIC_THRESHOLD = env.NEXUS_SEMANTIC_THRESHOLD;
+
+/* ─── ML-003: meta-learning — feed recall feedback back into weighting ─── */
+interface RecallFeedbackEntry {
+  queryHash: string;
+  memoryId: string;
+  relevant: boolean;
+  ts: number;
+}
+const recallFeedbackLog: RecallFeedbackEntry[] = [];
+const MAX_FEEDBACK_ENTRIES = 5000;
+
+interface AdaptiveWeights {
+  rrf: number;
+  importance: number;
+  recency: number;
+}
+
+function hashQuery(q: string): string {
+  let h = 0x811c9dc5;
+  const s = q.toLowerCase().trim();
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16);
+}
+
+export function recordRecallFeedback(query: string, memoryId: string, relevant: boolean): void {
+  recallFeedbackLog.push({ queryHash: hashQuery(query), memoryId, relevant, ts: Date.now() });
+  if (recallFeedbackLog.length > MAX_FEEDBACK_ENTRIES) {
+    recallFeedbackLog.splice(0, recallFeedbackLog.length - MAX_FEEDBACK_ENTRIES);
+  }
+}
+
+export function getAdaptiveWeights(): AdaptiveWeights {
+  if (recallFeedbackLog.length < 8) return { rrf: 1, importance: 1, recency: 1 };
+  let rrfRel = 0,
+    rrfIrr = 0,
+    impRel = 0,
+    impIrr = 0,
+    recRel = 0,
+    recIrr = 0,
+    nRel = 0,
+    nIrr = 0;
+  const now = Date.now();
+  for (const e of recallFeedbackLog) {
+    const ageWeight = Math.exp(-(now - e.ts) / (1000 * 60 * 60 * 24 * 7));
+    if (e.relevant) {
+      nRel++;
+      rrfRel += ageWeight;
+      impRel += ageWeight;
+      recRel += ageWeight;
+    } else {
+      nIrr++;
+      rrfIrr += ageWeight;
+      impIrr += ageWeight;
+      recIrr += ageWeight;
+    }
+  }
+  const avg = (a: number, n: number) => (n > 0 ? a / n : 0);
+  const clampMult = (m: number) => Math.min(1.5, Math.max(0.5, m));
+  return {
+    rrf: clampMult(1 + 0.08 * (avg(rrfRel, nRel) - avg(rrfIrr, nIrr))),
+    importance: clampMult(1 + 0.08 * (avg(impRel, nRel) - avg(impIrr, nIrr))),
+    recency: clampMult(1 + 0.08 * (avg(recRel, nRel) - avg(recIrr, nIrr))),
+  };
+}
+
+export function getEffectiveWeights(): AdaptiveWeights {
+  const m = getAdaptiveWeights();
+  return {
+    rrf: W_RRF * m.rrf,
+    importance: W_IMPORTANCE * m.importance,
+    recency: W_RECENCY * m.recency,
+  };
+}
+
+export function getRecallFeedbackStats(): { total: number; relevant: number; irrelevant: number } {
+  let relevant = 0;
+  for (const e of recallFeedbackLog) if (e.relevant) relevant++;
+  return {
+    total: recallFeedbackLog.length,
+    relevant,
+    irrelevant: recallFeedbackLog.length - relevant,
+  };
+}
 
 /* ─── Phase 4b: Types ──────────────────────────────────────────────────── */
 
@@ -617,6 +710,7 @@ export class FederatedRecall {
    * Returns scored, deduped, budget-packed results.
    */
   async search(query: RecallQuery): Promise<RecallResult> {
+    refreshAdaptiveWeights();
     const useSemantic = embeddingsAvailable();
     const actor = query.actor;
     const budget = query.budget;
@@ -657,6 +751,7 @@ export class FederatedRecall {
       actor
     );
 
+    const contradictionEdges = await contradictionsAmong(packed.map((p) => p.id));
     return {
       query: query.text,
       returned: packed,
@@ -665,6 +760,11 @@ export class FederatedRecall {
       truncated,
       mode,
       federatedContribution: all.length > 0 ? federatedResults.length / all.length : 0,
+      contradictionEdges: contradictionEdges.map((e) => ({
+        memoryA: e.memoryA,
+        memoryB: e.memoryB,
+        classification: e.classification,
+      })),
       nextCursor: packed.length > 0 ? packed[packed.length - 1]?.score : undefined,
     };
   }

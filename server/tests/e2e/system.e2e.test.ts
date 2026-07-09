@@ -24,8 +24,6 @@ import { mcpRegistry } from '../../src/services/mcp-registry.js';
 import { getMessageBus } from '../../src/services/message-bus.js';
 import { resetDesktopActuator, getDesktopActuator } from '../../src/services/desktop-actuator.js';
 import { computeMerkleRoot } from '../../src/services/blockchain.js';
-import { runPipeline } from '../../src/services/pipeline-executor.js';
-
 // Setup Mock LLM responses to simulate LLM Gateways and OmniRoute
 vi.mock('../../src/services/llm.js', () => ({
   callLLM: vi.fn().mockResolvedValue({
@@ -50,7 +48,6 @@ describe('NEXUS 2.0 — End-to-End System Integration & Validation Suite', () =>
 
   // E2E Test Scenario 1: Agent lifecycle, memory creation, and hybrid recall.
   it('E2E Scenario 1: Agent Goal -> LLM Reasoning -> Memory Store -> Hybrid Recall', async () => {
-    const agentId = `agent-${randomUUID()}`;
     const memoryId = `mem-${randomUUID()}`;
 
     // 1. Simulate inserting memory context
@@ -147,7 +144,7 @@ describe('NEXUS 2.0 — End-to-End System Integration & Validation Suite', () =>
 
   // E2E Test Scenario 7: Heavy concurrent requests & db mutex serialization.
   it('E2E Scenario 7: Heavy parallel writing -> Mutex locks -> 0 database locks', async () => {
-    const bus = getMessageBus();
+    const _bus = getMessageBus();
     const ops: Promise<void>[] = [];
 
     for (let i = 0; i < 20; i++) {

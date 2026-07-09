@@ -1,0 +1,26 @@
+# Prometheus scrape config for NEXUS server
+# Loaded by docker-compose.monitoring.yml — mounted into prometheus container.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'nexus'
+
+scrape_configs:
+  - job_name: 'nexus-server'
+    metrics_path: /metrics
+    scheme: http
+    static_configs:
+      - targets:
+          # When running alongside the stack: docker compose -f docker-compose.yml -f docker-compose.monitoring.yml up
+          - 'server:9900'
+          # When running standalone on Docker Desktop (Windows/Mac) — uses host network
+          - 'host.docker.internal:9900'
+        labels:
+          service: 'nexus-server'
+          env: 'production'
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets:
+          - 'localhost:9090'

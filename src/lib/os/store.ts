@@ -4,13 +4,20 @@
  * publishes to React, and enforces bounded growth. Reads the brain engine
  * for unified memory where needed.
  */
-import { now, rid } from "../core";
-import { getState as getBrain } from "../engine";
+import { now, rid } from '../core';
+import { getState as getBrain } from '../engine';
 import type {
-  AgentRecord, BusMessage, MemoryCard, OSState, Saga, Task, VfsDir, VfsFile,
-} from "./types";
+  AgentRecord,
+  BusMessage,
+  MemoryCard,
+  OSState,
+  Saga,
+  Task,
+  VfsDir,
+  VfsFile,
+} from './types';
 
-const KEY = "nexus.os.v2";
+const KEY = 'nexus.os.v2';
 const MAX_TASKS = 200;
 const MAX_BUS = 200;
 const MAX_BUS_DEAD_LETTER = 100;
@@ -20,24 +27,38 @@ const MAX_SNAPSHOTS = 80;
 const MAX_DREAM = 30;
 
 function file(name: string, content: string, sensitive = false): VfsFile {
-  return { type: "file", name, content, mtime: now(), sensitive };
+  return { type: 'file', name, content, mtime: now(), sensitive };
 }
 function dir(name: string, children: Record<string, VfsDir | VfsFile> = {}): VfsDir {
-  return { type: "dir", name, children: children as Record<string, never> as VfsDir["children"] };
+  return { type: 'dir', name, children: children as Record<string, never> as VfsDir['children'] };
 }
 
 function seedVfs(): VfsDir {
   return {
-    type: "dir",
-    name: "/",
+    type: 'dir',
+    name: '/',
     children: {
-      project: dir("project", {
-        "package.json": file("package.json", JSON.stringify({ name: "demo-app", scripts: { build: "vite build", typecheck: "tsc --noEmit" } }, null, 2)),
-        "AGENTS.md": file("AGENTS.md", "# Agent Conventions\nAlways run typecheck before build.\nNever commit .env."),
-        ".env": file(".env", "DATABASE_URL=postgresql://user:secret@db/app\nNEXUS_API_KEY=nx_live_secret_value", true),
+      project: dir('project', {
+        'package.json': file(
+          'package.json',
+          JSON.stringify(
+            { name: 'demo-app', scripts: { build: 'vite build', typecheck: 'tsc --noEmit' } },
+            null,
+            2
+          )
+        ),
+        'AGENTS.md': file(
+          'AGENTS.md',
+          '# Agent Conventions\nAlways run typecheck before build.\nNever commit .env.'
+        ),
+        '.env': file(
+          '.env',
+          'DATABASE_URL=postgresql://user:secret@db/app\nNEXUS_API_KEY=nx_live_secret_value',
+          true
+        ),
       }),
-      "src": dir("src", {
-        "app.tsx": file("app.tsx", "export default function App(){return <div/>}"),
+      src: dir('src', {
+        'app.tsx': file('app.tsx', 'export default function App(){return <div/>}'),
       }),
     },
   };
@@ -45,13 +66,15 @@ function seedVfs(): VfsDir {
 
 function seedCards(): MemoryCard[] {
   const t = now();
-  const mk = (partial: Partial<MemoryCard> & Pick<MemoryCard, "type" | "title" | "summary">): MemoryCard => ({
-    id: rid("card"),
+  const mk = (
+    partial: Partial<MemoryCard> & Pick<MemoryCard, 'type' | 'title' | 'summary'>
+  ): MemoryCard => ({
+    id: rid('card'),
     body: partial.summary,
     entities: [],
     evidence: [],
     confidence: 0.6,
-    stability: "draft",
+    stability: 'draft',
     importance: 0.5,
     accessCount: 0,
     successCount: 0,
@@ -64,18 +87,72 @@ function seedCards(): MemoryCard[] {
     ...partial,
   });
   return [
-    mk({ type: "coding_convention", title: "Run typecheck before build", summary: "npm run typecheck must pass before npm run build.", confidence: 0.9, stability: "confirmed", importance: 0.8, evidence: [{ source: "tool", command: "npm run build", exitCode: 1, timestamp: t - 86400000 }] }),
-    mk({ type: "known_pitfall", title: "Build fails without DATABASE_URL", summary: "The build step validates env and fails if DATABASE_URL is unset.", confidence: 0.85, stability: "confirmed", importance: 0.75, entities: ["build", "env"] }),
-    mk({ type: "user_preference", title: "Prefer strict TypeScript, no any", summary: "Operator prefers strict types and typed domain models.", confidence: 0.95, stability: "confirmed", importance: 0.9, evidence: [{ source: "user", quote: "no any unless justified", timestamp: t - 86400000 * 2 }] }),
-    mk({ type: "command_recipe", title: "Validate then build", summary: "Sequence: npm run typecheck && npm run build.", confidence: 0.7, stability: "draft", importance: 0.6 }),
+    mk({
+      type: 'coding_convention',
+      title: 'Run typecheck before build',
+      summary: 'npm run typecheck must pass before npm run build.',
+      confidence: 0.9,
+      stability: 'confirmed',
+      importance: 0.8,
+      evidence: [
+        { source: 'tool', command: 'npm run build', exitCode: 1, timestamp: t - 86400000 },
+      ],
+    }),
+    mk({
+      type: 'known_pitfall',
+      title: 'Build fails without DATABASE_URL',
+      summary: 'The build step validates env and fails if DATABASE_URL is unset.',
+      confidence: 0.85,
+      stability: 'confirmed',
+      importance: 0.75,
+      entities: ['build', 'env'],
+    }),
+    mk({
+      type: 'user_preference',
+      title: 'Prefer strict TypeScript, no any',
+      summary: 'Operator prefers strict types and typed domain models.',
+      confidence: 0.95,
+      stability: 'confirmed',
+      importance: 0.9,
+      evidence: [{ source: 'user', quote: 'no any unless justified', timestamp: t - 86400000 * 2 }],
+    }),
+    mk({
+      type: 'command_recipe',
+      title: 'Validate then build',
+      summary: 'Sequence: npm run typecheck && npm run build.',
+      confidence: 0.7,
+      stability: 'draft',
+      importance: 0.6,
+    }),
   ];
 }
 
 function seedAgents(): AgentRecord[] {
   const t = now();
   return [
-    { id: rid("agt"), name: "claude-local", kind: "claude-code", ring: 1, scopes: ["memory:read", "memory:write", "tool:invoke", "task:spawn"], status: "active", cwd: "/project", lastHeartbeatAt: t, metadata: {}, createdAt: t },
-    { id: rid("agt"), name: "codex-local", kind: "codex", ring: 1, scopes: ["memory:read", "memory:write", "tool:invoke"], status: "idle", lastHeartbeatAt: null, metadata: {}, createdAt: t },
+    {
+      id: rid('agt'),
+      name: 'claude-local',
+      kind: 'claude-code',
+      ring: 1,
+      scopes: ['memory:read', 'memory:write', 'tool:invoke', 'task:spawn'],
+      status: 'active',
+      cwd: '/project',
+      lastHeartbeatAt: t,
+      metadata: {},
+      createdAt: t,
+    },
+    {
+      id: rid('agt'),
+      name: 'codex-local',
+      kind: 'codex',
+      ring: 1,
+      scopes: ['memory:read', 'memory:write', 'tool:invoke'],
+      status: 'idle',
+      lastHeartbeatAt: null,
+      metadata: {},
+      createdAt: t,
+    },
   ];
 }
 
@@ -98,13 +175,55 @@ function seed(): OSState {
     observations: [],
     dreamLog: [],
     connectors: [],
-    metrics: { syscallCount: 0, toolInvocations: 0, policyDenials: 0, approvalCount: 0, recallLatencyMs: 0, taskSucceeded: 0, taskFailed: 0, sagaFailures: 0, auditAppendFailures: 0 },
-    meta: { bootTime: String(now()), dreamLock: "0" },
+    metrics: {
+      syscallCount: 0,
+      toolInvocations: 0,
+      policyDenials: 0,
+      approvalCount: 0,
+      recallLatencyMs: 0,
+      taskSucceeded: 0,
+      taskFailed: 0,
+      sagaFailures: 0,
+      auditAppendFailures: 0,
+    },
+    meta: { bootTime: String(now()), dreamLock: '0' },
+    scheduler: { policy: 'mlfq' },
   };
 }
 
 function empty(): OSState {
-  return { agents: [], cards: [], edges: [], tasks: [], sagas: [], approvals: [], bus: [], subscriptions: [], deadLetterBus: [], vfs: { type: "dir", name: "/", children: {} }, vfsSnapshots: [], snapshots: [], handoffs: [], sessions: [], observations: [], dreamLog: [], connectors: [], metrics: { syscallCount: 0, toolInvocations: 0, policyDenials: 0, approvalCount: 0, recallLatencyMs: 0, taskSucceeded: 0, taskFailed: 0, sagaFailures: 0, auditAppendFailures: 0 }, meta: {} };
+  return {
+    agents: [],
+    cards: [],
+    edges: [],
+    tasks: [],
+    sagas: [],
+    approvals: [],
+    bus: [],
+    subscriptions: [],
+    deadLetterBus: [],
+    vfs: { type: 'dir', name: '/', children: {} },
+    vfsSnapshots: [],
+    snapshots: [],
+    handoffs: [],
+    sessions: [],
+    observations: [],
+    dreamLog: [],
+    connectors: [],
+    metrics: {
+      syscallCount: 0,
+      toolInvocations: 0,
+      policyDenials: 0,
+      approvalCount: 0,
+      recallLatencyMs: 0,
+      taskSucceeded: 0,
+      taskFailed: 0,
+      sagaFailures: 0,
+      auditAppendFailures: 0,
+    },
+    meta: {},
+    scheduler: { policy: 'mlfq' },
+  };
 }
 
 function load(): OSState {
@@ -122,11 +241,24 @@ function load(): OSState {
 function prune(s: OSState): OSState {
   const tasks = s.tasks.length > MAX_TASKS ? s.tasks.slice(s.tasks.length - MAX_TASKS) : s.tasks;
   const bus = s.bus.length > MAX_BUS ? s.bus.slice(s.bus.length - MAX_BUS) : s.bus;
-  const subscriptions = s.subscriptions.length > MAX_SUBSCRIPTIONS ? s.subscriptions.slice(0, MAX_SUBSCRIPTIONS) : s.subscriptions;
-  const deadLetterBus = s.deadLetterBus.length > MAX_BUS_DEAD_LETTER ? s.deadLetterBus.slice(s.deadLetterBus.length - MAX_BUS_DEAD_LETTER) : s.deadLetterBus;
-  const observations = s.observations.length > MAX_OBS ? s.observations.slice(s.observations.length - MAX_OBS) : s.observations;
-  const snapshots = s.snapshots.length > MAX_SNAPSHOTS ? s.snapshots.slice(s.snapshots.length - MAX_SNAPSHOTS) : s.snapshots;
-  const dreamLog = s.dreamLog.length > MAX_DREAM ? s.dreamLog.slice(s.dreamLog.length - MAX_DREAM) : s.dreamLog;
+  const subscriptions =
+    s.subscriptions.length > MAX_SUBSCRIPTIONS
+      ? s.subscriptions.slice(0, MAX_SUBSCRIPTIONS)
+      : s.subscriptions;
+  const deadLetterBus =
+    s.deadLetterBus.length > MAX_BUS_DEAD_LETTER
+      ? s.deadLetterBus.slice(s.deadLetterBus.length - MAX_BUS_DEAD_LETTER)
+      : s.deadLetterBus;
+  const observations =
+    s.observations.length > MAX_OBS
+      ? s.observations.slice(s.observations.length - MAX_OBS)
+      : s.observations;
+  const snapshots =
+    s.snapshots.length > MAX_SNAPSHOTS
+      ? s.snapshots.slice(s.snapshots.length - MAX_SNAPSHOTS)
+      : s.snapshots;
+  const dreamLog =
+    s.dreamLog.length > MAX_DREAM ? s.dreamLog.slice(s.dreamLog.length - MAX_DREAM) : s.dreamLog;
   return { ...s, tasks, bus, subscriptions, deadLetterBus, observations, snapshots, dreamLog };
 }
 
@@ -143,7 +275,10 @@ function persist() {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn("[NEXUS OS] Failed to persist state to localStorage:", e instanceof Error ? e.message : String(e));
+    console.warn(
+      '[NEXUS OS] Failed to persist state to localStorage:',
+      e instanceof Error ? e.message : String(e)
+    );
   }
 }
 function emit() {
@@ -181,20 +316,20 @@ export function resetOS(): void {
 }
 
 export interface OSExport {
-  format: "nexus-os";
+  format: 'nexus-os';
   version: number;
   exportedAt: number;
-  cards: OSState["cards"];
-  edges: OSState["edges"];
-  agents: OSState["agents"];
-  handoffs: OSState["handoffs"];
+  cards: OSState['cards'];
+  edges: OSState['edges'];
+  agents: OSState['agents'];
+  handoffs: OSState['handoffs'];
 }
 
 /** Export the OS graph (cards/edges/agents/handoffs) for backup completeness. */
 export function exportOS(): OSExport {
   const s = state;
   return {
-    format: "nexus-os",
+    format: 'nexus-os',
     version: 1,
     exportedAt: now(),
     cards: s.cards,
@@ -206,9 +341,9 @@ export function exportOS(): OSExport {
 
 /** Import an OS export, merging with dedup by card id. */
 export function importOS(raw: unknown): { cards: number; agents: number } {
-  if (!raw || typeof raw !== "object") return { cards: 0, agents: 0 };
+  if (!raw || typeof raw !== 'object') return { cards: 0, agents: 0 };
   const data = raw as Partial<OSExport>;
-  if (data.format !== "nexus-os") return { cards: 0, agents: 0 };
+  if (data.format !== 'nexus-os') return { cards: 0, agents: 0 };
   const s = state;
   const cardIds = new Set(s.cards.map((c) => c.id));
   const newCards = (data.cards ?? []).filter((c) => !cardIds.has(c.id));
@@ -239,14 +374,16 @@ let osSyncTimer: ReturnType<typeof setInterval> | null = null;
  * Merges into local OS store state. No-op if remote is not enabled.
  */
 async function syncOSFromRemote(): Promise<void> {
-  let mod: typeof import("../remote");
+  let mod: typeof import('../remote');
   try {
-    mod = await import("../remote");
-  } catch { return; }
+    mod = await import('../remote');
+  } catch {
+    return;
+  }
   if (!mod.remoteEnabled()) return;
 
   try {
-    const agentsRes = await mod.remote.listAgents() as { items: AgentRecord[] };
+    const agentsRes = (await mod.remote.listAgents()) as { items: AgentRecord[] };
     if (agentsRes?.items) {
       const merged = [...state.agents];
       for (const sa of agentsRes.items) {
@@ -261,8 +398,10 @@ async function syncOSFromRemote(): Promise<void> {
   }
 
   try {
-    const tasksRes = await mod.remote.schedulerStatus() as {
-      queueDepth?: number; workerRunning?: boolean;
+    const tasksRes = (await mod.remote.schedulerStatus()) as {
+      queueDepth?: number;
+      workerRunning?: boolean;
+      policy?: string;
     };
     if (tasksRes) {
       // Update scheduler metadata via the metrics block
@@ -272,7 +411,67 @@ async function syncOSFromRemote(): Promise<void> {
           ...state.metrics,
           taskSucceeded: tasksRes.queueDepth ?? state.metrics.taskSucceeded,
         },
+        // Surface the live scheduling policy name if the backend reported one
+        scheduler: tasksRes.policy
+          ? { ...state.scheduler, policy: tasksRes.policy as typeof state.scheduler.policy }
+          : state.scheduler,
       });
+    }
+  } catch {
+    // non-critical
+  }
+
+  // Pull live ring budget + kernel policy so the control-plane reflects the
+  // real backend when remote mode is enabled (Phase 5 wiring to backend).
+  try {
+    const kernel = (await mod.remote.kernelState()) as {
+      policy?: string;
+      rings?: Array<{ id: number; budget?: { cpu?: number; mem?: number } }>;
+    } | null;
+    if (kernel) {
+      commitOS({
+        ...state,
+        scheduler: kernel.policy
+          ? { ...state.scheduler, policy: kernel.policy as typeof state.scheduler.policy }
+          : state.scheduler,
+      });
+    }
+  } catch {
+    // non-critical — kernel route may not be mounted in every deployment
+  }
+
+  try {
+    const approvalsRes = await mod.remote.v3.call<{
+      items?: Array<{
+        id: string;
+        status: string;
+        riskLevel?: string;
+        action?: string;
+        summary?: string;
+      }>;
+    }>('/api/v1/approvals');
+    const items = approvalsRes?.ok ? (approvalsRes.data?.items ?? []) : undefined;
+    if (items && Array.isArray(items)) {
+      // Merge remote approvals (id-keyed) into local OS approvals.
+      const merged = [...state.approvals];
+      for (const ra of items) {
+        const idx = merged.findIndex((a) => a.id === ra.id);
+        const rec = {
+          id: ra.id,
+          status: (ra.status === 'approved'
+            ? 'approved'
+            : ra.status === 'denied'
+              ? 'denied'
+              : 'pending') as 'pending' | 'approved' | 'denied',
+          riskLevel: (ra.riskLevel as 'high' | 'medium' | 'low') ?? 'low',
+          action: ra.action ?? 'unknown',
+          summary: ra.summary ?? '',
+          createdAt: Date.now(),
+        };
+        if (idx >= 0) merged[idx] = rec;
+        else merged.push(rec);
+      }
+      commitOS({ ...state, approvals: merged });
     }
   } catch {
     // non-critical
@@ -286,9 +485,13 @@ async function syncOSFromRemote(): Promise<void> {
 export function startOSRemoteSync(): void {
   if (osSyncTimer) return;
   // Lazy-check remote
-  import("../remote").then((mod) => {
-    if (!mod.remoteEnabled()) return;
-    syncOSFromRemote();
-    osSyncTimer = setInterval(() => { syncOSFromRemote(); }, 60_000);
-  }).catch(() => {});
+  import('../remote')
+    .then((mod) => {
+      if (!mod.remoteEnabled()) return;
+      syncOSFromRemote();
+      osSyncTimer = setInterval(() => {
+        syncOSFromRemote();
+      }, 60_000);
+    })
+    .catch(() => {});
 }

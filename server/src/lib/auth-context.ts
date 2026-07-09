@@ -3,6 +3,7 @@
  */
 import type { Context } from 'hono';
 import { authenticate, type Principal, type Scope } from './security.js';
+export type { Scope } from './security.js';
 import { db } from '../db/client.js';
 import { err } from './envelope.js';
 import { ApiError } from './errors.js';

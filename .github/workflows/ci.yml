@@ -1,92 +1,75 @@
-# Nexus 2.0 Continuous Integration
+# Nexus 2.0 Continuous Integration — strict Perfection-Bar gate.
+#
+# Owner: Bastion (CODEOWNERS: .github/workflows/)
+# This workflow is the authoritative merge gate. It fails the build on ANY of:
+#   - ESLint errors (pnpm -r lint)
+#   - TypeScript errors, fresh compile (tsc --noEmit --incremental false)
+#   - Unit tests (vitest run)
+#   - Integration tests (needs Postgres + pgvector)
+#   - Production build (server tsc + dashboard vite build)
+#   - Rust check / clippy (deny warnings) / test
+#   - CODEOWNERS coverage for every changed file (collision-free guard)
+#
+# Concurrency cancels superseded runs on the same ref to save CI minutes.
 
 name: CI
 
 on:
   push:
-    branches: ['main']
+    branches: ['main', 'master', 'feat/phases-11-20']
   pull_request:
-    branches: ['main']
+    branches: ['main', 'master']
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
-  lint-and-typecheck:
+  validate:
+    name: Lint / Typecheck / Test / Build (TS workspace)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'pnpm'
+          cache: pnpm
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Rebuild native modules for runner Node (better-sqlite3 ABI)
+        run: pnpm rebuild better-sqlite3
 
       - name: Lint (workspace)
         run: pnpm -r lint
 
-      - name: TypeScript typecheck (workspace)
+      - name: TypeScript typecheck (fresh, no incremental cache)
         run: pnpm -r typecheck
 
-  frontend-build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-      - name: Build dashboard (Vite)
-        run: npx vite build
-
-  unit-tests:
-    runs-on: ubuntu-latest
-    needs: lint-and-typecheck
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
       - name: Unit tests
-        run: cd server && npm test
+        run: pnpm -r test
 
-      - name: Upload coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-unit
-          path: server/coverage/
+      - name: Build (server tsc + dashboard vite build)
+        run: pnpm -r build
 
-  integration-tests:
+  server-validate:
+    name: Server validate (fresh tsc + tests + integration gate)
     runs-on: ubuntu-latest
-    needs: lint-and-typecheck
+    env:
+      # Integration tests need a reachable Postgres + pgvector instance.
+      DATABASE_URL: postgresql://nexus:nexus@localhost:5432/nexus_test
     services:
       postgres:
-        image: postgres:16-alpine
+        image: pgvector/pgvector:pg16
         env:
           POSTGRES_USER: nexus
           POSTGRES_PASSWORD: nexus
@@ -98,121 +81,56 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    env:
-      DATABASE_URL: postgresql://nexus:nexus@localhost:5432/nexus_test
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v3
-        with:
-          version: 9
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'pnpm'
-
-      - name: Install dependencies
-        run: pnpm install --frozen-lockfile
-
-      - name: Run integration tests (with Postgres)
-        run: cd server && npm run test:integration
-
-  rust-check:
-    runs-on: ubuntu-latest
-    # Best-effort until crates/nexus-search (Phase 15.13 napi-rs search) lands.
-    # Once that crate exists, remove `continue-on-error` so the Rust gate is strict.
-    continue-on-error: true
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          cache: true
-
-      - name: Rust check
-        continue-on-error: true
-        run: cargo check --workspace
-
-      - name: Rust tests
-        continue-on-error: true
-        run: cargo test --workspace
-
-      - name: Rust clippy
-        continue-on-error: true
-        run: cargo clippy --all-targets --workspace -- -D warnings
-
-  rust-release:
-    runs-on: ubuntu-latest
-    needs: rust-check
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Build release
-        run: cargo build --workspace --release
-name: CI
-
-on:
-  push:
-    branches: ["main", "master", "feat/phases-11-20"]
-  pull_request:
-
-concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
-
-permissions:
-  contents: read
-
-jobs:
-  validate:
-    name: Lint / Typecheck / Test / Build
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
         with:
           version: 9
+
       - uses: actions/setup-node@v4
         with:
           node-version: 20
           cache: pnpm
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
       - name: Rebuild native modules for runner Node (better-sqlite3 ABI)
         run: pnpm rebuild better-sqlite3
-      - name: Validate (lint + typecheck + test + build)
-        run: pnpm run validate
+
+      - name: Server validate (lint + fresh typecheck + unit + integration gate + build)
+        run: cd server && npm run validate
 
   rust:
     name: Rust (build / clippy / test)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: clippy
+
       - uses: Swatinem/rust-cache@v2
+
       - name: Check
         run: cargo check --workspace
+
       - name: Clippy (deny warnings)
         run: cargo clippy --all-targets -- -D warnings
+
       - name: Test
         run: cargo test --workspace
 
   codeowners:
-    name: CODEOWNERS coverage (merge gate)
+    name: CODEOWNERS coverage (collision-free merge gate)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+
       - name: Verify changed files have a CODEOWNERS rule
         run: |
           set -euo pipefail
@@ -222,6 +140,10 @@ jobs:
           else
             base="${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}"
             changed=$(git diff --name-only "$base" "${{ github.sha }}")
+          fi
+          if [ -z "${changed//[[:space:]]/}" ]; then
+            echo "OK: no changed files to check."
+            exit 0
           fi
           CHANGED="$changed" node -e '
             const fs = require("fs");

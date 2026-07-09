@@ -1,4 +1,4 @@
-# Agentic OS V4 Architecture
+# NEXUS 2.0 / Agentic OS V3 Architecture
 
 ## Directory Structure
 

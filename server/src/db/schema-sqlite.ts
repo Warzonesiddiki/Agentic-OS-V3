@@ -22,6 +22,246 @@ import { sql } from 'drizzle-orm';
  */
 const embeddingCol = () => text('embedding');
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Phase 12 — Advanced Memory Systems support tables
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Topic clusters produced by HDBSCAN + LLM clustering (12.3). */
+export const memoryClusters = sqliteTable(
+  'memory_clusters',
+  {
+    id: text('id').primaryKey(),
+    projectId: text('project_id'),
+    label: text('label').notNull(),
+    centroidEmbedding: text('centroid_embedding').notNull().default('{}'),
+    singletonRatio: real('singleton_ratio').notNull().default(0),
+    size: integer('size').notNull().default(0),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ sizeIdx: index('mem_cluster_size_idx').on(t.size) })
+);
+
+/** Membership of memories within a cluster (12.3, 12.29). */
+export const memoryClusterMembers = sqliteTable(
+  'memory_cluster_members',
+  {
+    clusterId: text('cluster_id')
+      .notNull()
+      .references(() => memoryClusters.id, { onDelete: 'cascade' }),
+    memoryId: text('memory_id').notNull(),
+  },
+  (t) => ({
+    pk: uniqueIndex('mem_cluster_members_pk').on(t.clusterId, t.memoryId),
+    memIdx: index('mem_cluster_members_mem_idx').on(t.memoryId),
+  })
+);
+
+/** Cross-session linkage edges used by the stitcher (12.4). */
+export const sessionLinks = sqliteTable(
+  'session_links',
+  {
+    fromSession: text('from_session').notNull(),
+    toSession: text('to_session').notNull(),
+    strength: real('strength').notNull().default(1),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    pk: uniqueIndex('session_links_pk').on(t.fromSession, t.toSession),
+  })
+);
+
+/** Temporal causal chains between memories (12.13). */
+export const memoryCausalEdges = sqliteTable(
+  'memory_causal_edges',
+  {
+    id: text('id').primaryKey(),
+    fromMemoryId: text('from_memory_id').notNull(),
+    toMemoryId: text('to_memory_id').notNull(),
+    relation: text('relation').notNull(),
+    confidence: real('confidence').notNull().default(1),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    fromIdx: index('mem_causal_from_idx').on(t.fromMemoryId),
+    toIdx: index('mem_causal_to_idx').on(t.toMemoryId),
+  })
+);
+
+/** Detected contradictions between memories (12.6). */
+export const memoryContradictions = sqliteTable(
+  'memory_contradictions',
+  {
+    id: text('id').primaryKey(),
+    memoryA: text('memory_a').notNull(),
+    memoryB: text('memory_b').notNull(),
+    relation: text('relation').notNull(),
+    resolutionOf: text('resolution_of'),
+    resolved: integer('resolved', { mode: 'boolean' }).notNull().default(false),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ resolvedIdx: index('mem_contradiction_resolved_idx').on(t.resolved) })
+);
+
+/** Emotional / mood tagging of memories (12.11). */
+export const memoryEmotions = sqliteTable(
+  'memory_emotions',
+  {
+    id: text('id').primaryKey(),
+    memoryId: text('memory_id').notNull(),
+    mood: text('mood').notNull(),
+    valence: real('valence').notNull().default(0),
+    arousal: real('arousal').notNull().default(0),
+    model: text('model'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ memIdx: index('mem_emotion_mem_idx').on(t.memoryId) })
+);
+
+/** Tag taxonomy (12.30). */
+export const tagTaxonomy = sqliteTable(
+  'tag_taxonomy',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    parent: text('parent'),
+    parentId: text('parent_id'),
+    kind: text('kind').notNull().default('user'),
+  },
+  (t) => ({ nameIdx: index('tag_taxonomy_name_idx').on(t.name) })
+);
+
+/** Memory → tag taxonomy associations (12.30). */
+export const memoryTags = sqliteTable(
+  'memory_tags',
+  {
+    memoryId: text('memory_id').notNull(),
+    tagId: text('tag_id').notNull(),
+  },
+  (t) => ({
+    pk: uniqueIndex('memory_tags_pk').on(t.memoryId, t.tagId),
+    tagIdx: index('memory_tags_tag_idx').on(t.tagId),
+  })
+);
+
+/** Memory templates (12.33). */
+export const memoryTemplates = sqliteTable('memory_templates', {
+  id: text('id').primaryKey(),
+  name: text('name').notNull().unique(),
+  spec: text('spec').notNull().default('{}'),
+  createdAt: text('created_at')
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+});
+
+/** Diff-sync markers for multi-brain export (12.22). */
+export const memoryDiffMarkers = sqliteTable(
+  'memory_diff_markers',
+  {
+    id: text('id').primaryKey(),
+    memoryId: text('memory_id').notNull(),
+    peerId: text('peer_id').notNull(),
+    hash: text('hash').notNull(),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ peerIdx: index('mem_diff_peer_idx').on(t.peerId) })
+);
+
+/** SM-2 rehearsal log for spaced repetition (12.9). */
+export const memoryRehearsalLog = sqliteTable(
+  'memory_rehearsal_log',
+  {
+    id: text('id').primaryKey(),
+    memoryId: text('memory_id').notNull(),
+    projectId: text('project_id'),
+    reviewedAt: text('reviewed_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    grade: real('grade').notNull(),
+    intervalDays: real('interval_days').notNull().default(1),
+  },
+  (t) => ({ memIdx: index('mem_rehearsal_mem_idx').on(t.memoryId) })
+);
+
+/** Multi-modal attachments store (12.14). */
+export const memoryAttachments = sqliteTable(
+  'memory_attachments',
+  {
+    id: text('id').primaryKey(),
+    memoryId: text('memory_id').notNull(),
+    kind: text('kind').notNull().default('file'),
+    fileName: text('file_name').notNull().default(''),
+    mimeType: text('mime_type').notNull().default('application/octet-stream'),
+    sizeBytes: integer('size_bytes').notNull().default(0),
+    content: text('content').notNull().default(''),
+    thumbnail: text('thumbnail'),
+    highlighted: text('highlighted'),
+    language: text('language'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ memIdx: index('mem_attach_memory_idx').on(t.memoryId) })
+);
+
+/** Cold-storage tier archive (12.26). */
+export const memoryArchive = sqliteTable(
+  'memory_archive',
+  {
+    id: text('id').primaryKey(),
+    originalId: text('original_id').notNull(),
+    kind: text('kind').notNull().default('fact'),
+    title: text('title').notNull(),
+    content: text('content').notNull(),
+    tags: text('tags').notNull().default('[]'),
+    importance: real('importance').notNull().default(0.1),
+    source: text('source').notNull().default('archived'),
+    projectId: text('project_id'),
+    tokenCost: integer('token_cost').notNull().default(0),
+    archivedAt: text('archived_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    reason: text('reason'),
+  },
+  (t) => ({ originalIdx: index('mem_archive_original_idx').on(t.originalId) })
+);
+
+/** Per-agent / per-project memory quotas (12.25). */
+export const agentMemoryQuotas = sqliteTable(
+  'agent_memory_quotas',
+  {
+    agentId: text('agent_id').primaryKey(),
+    maxCount: integer('max_count').notNull().default(1000),
+    maxTokens: integer('max_tokens').notNull().default(1000000),
+    usedCount: integer('used_count').notNull().default(0),
+    usedTokens: integer('used_tokens').notNull().default(0),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ agentIdx: index('agent_mem_quota_agent_idx').on(t.agentId) })
+);
+
 export const memories = sqliteTable(
   'memories',
   {
@@ -42,6 +282,17 @@ export const memories = sqliteTable(
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
     lastRecalledAt: text('last_recalled_at'),
+    language: text('language'),
+    privacyZone: text('privacy_zone'),
+    confidence: real('confidence'),
+    version: integer('version'),
+    tier: text('tier').notNull().default('stm'),
+    deletedAt: text('deleted_at'),
+    supersededBy: text('superseded_by'),
+    decayHalflifeHours: real('decay_halflife_hours').notNull().default(168),
+    rehearsalCount: integer('rehearsal_count').notNull().default(0),
+    nextReviewAt: text('next_review_at'),
+    clusterId: text('cluster_id').references(() => memoryClusters.id, { onDelete: 'set null' }),
     embedding: embeddingCol(),
   },
   (t) => ({
@@ -215,6 +466,7 @@ export const feedback = sqliteTable(
   'feedback',
   {
     id: text('id').primaryKey(),
+    projectId: text('project_id'),
     query: text('query').notNull(),
     itemId: text('item_id').notNull(),
     itemType: text('item_type').notNull(),
@@ -261,7 +513,9 @@ export const trajectoryLogs = sqliteTable(
   {
     id: text('id').primaryKey(),
     auditSequence: integer('audit_sequence').notNull(),
-    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
     model: text('model').notNull(),
     promptSent: text('prompt_sent').notNull(),
     responseReceived: text('response_received').notNull().default(''),
@@ -282,7 +536,9 @@ export const toolReceipts = sqliteTable(
   {
     id: text('id').primaryKey(),
     auditSequence: integer('audit_sequence').notNull(),
-    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
     tool: text('tool').notNull(),
     target: text('target'),
     preHash: text('pre_hash'),
@@ -338,7 +594,9 @@ export const agentTasks = sqliteTable(
   'agent_tasks',
   {
     id: text('id').primaryKey(),
-    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
     label: text('label').notNull(),
     kind: text('kind').notNull().default('interactive'),
     queue: text('queue').notNull().default('Q1'),
@@ -367,8 +625,14 @@ export const agentTasks = sqliteTable(
     statusIdx: index('task_status_idx').on(t.status),
     queueIdx: index('task_queue_idx').on(t.queue),
     idemUnique: uniqueIndex('task_idem_unique').on(t.idempotencyKey),
-    statusPriorityQueueIdx: index('agent_tasks_status_priority_queue_idx').on(t.status, t.priority, t.queue),
-    queuedPriorityCreatedIdx: index('agent_tasks_queued_priority_created_idx').on(t.priority, t.createdAt).where(sql`status = 'queued'`),
+    statusPriorityQueueIdx: index('agent_tasks_status_priority_queue_idx').on(
+      t.status,
+      t.priority,
+      t.queue
+    ),
+    queuedPriorityCreatedIdx: index('agent_tasks_queued_priority_created_idx')
+      .on(t.priority, t.createdAt)
+      .where(sql`status = 'queued'`),
     agentStatusIdx: index('agent_tasks_agent_status_idx').on(t.agentId, t.status),
   })
 );
@@ -381,7 +645,9 @@ export const ringPolicies = sqliteTable(
     maxConcurrency: integer('max_concurrency').notNull().default(0),
     maxTokensPerMin: integer('max_tokens_per_min').notNull().default(0),
     maxApiCallsPerMin: integer('max_api_calls_per_min').notNull().default(0),
-    updatedAt: text('updated_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => ({
     ringIdx: index('ring_policy_ring_idx').on(t.ring),
@@ -400,7 +666,9 @@ export const schedulerMetrics = sqliteTable(
     sampleCount: integer('sample_count').notNull().default(0),
     windowStart: text('window_start').notNull(),
     windowEnd: text('window_end').notNull(),
-    computedAt: text('computed_at').notNull().default(sql`(CURRENT_TIMESTAMP)`),
+    computedAt: text('computed_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => ({
     queueIdx: index('scheduler_metrics_queue_idx').on(t.queue),
@@ -427,7 +695,9 @@ export const cronJobs = sqliteTable(
   (t) => ({
     enabledIdx: index('cron_enabled_idx').on(t.enabled),
     nextRunIdx: index('cron_nextrun_idx').on(t.nextRunAt),
-    enabledNextRunIdx: index('cron_jobs_enabled_next_run_idx').on(t.nextRunAt).where(sql`enabled = 1`),
+    enabledNextRunIdx: index('cron_jobs_enabled_next_run_idx')
+      .on(t.nextRunAt)
+      .where(sql`enabled = 1`),
   })
 );
 
@@ -466,7 +736,9 @@ export const sandboxExecutions = sqliteTable(
   'sandbox_executions',
   {
     id: text('id').primaryKey(),
-    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
     type: text('type').notNull().default('docker'),
     code: text('code').notNull(),
     language: text('language').notNull().default('javascript'),
@@ -490,7 +762,9 @@ export const stateSnapshots = sqliteTable(
   {
     id: text('id').primaryKey(),
     sagaId: text('saga_id').notNull(),
-    agentId: text('agent_id').notNull().references(() => agents.id, { onDelete: 'cascade' }),
+    agentId: text('agent_id')
+      .notNull()
+      .references(() => agents.id, { onDelete: 'cascade' }),
     stepIndex: integer('step_index').notNull(),
     stepName: text('step_name').notNull(),
     context: text('context').notNull().default('{}'),
@@ -789,3 +1063,526 @@ export const pipelineRuns = sqliteTable(
     pipelineStatusIdx: index('pipeline_runs_pipeline_status_idx').on(t.pipelineId, t.status),
   })
 );
+
+/* ─── PHASE 19 — Ecosystem & Marketplace ─────────────────────────���───── */
+
+export const marketplacePlugins = sqliteTable(
+  'marketplace_plugins',
+  {
+    id: text('id').primaryKey(),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    authorId: text('author_id').notNull(),
+    authorName: text('author_name').notNull().default(''),
+    category: text('category').notNull().default('general'),
+    kind: text('kind').notNull().default('plugin'), // plugin | agent | memory | widget | tool | integration
+    license: text('license').notNull().default('MIT'),
+    homepage: text('homepage'),
+    repository: text('repository'),
+    latestVersion: text('latest_version'),
+    latestVersionId: text('latest_version_id'),
+    avgRating: real('avg_rating').notNull().default(0),
+    ratingCount: integer('rating_count').notNull().default(0),
+    installCount: integer('install_count').notNull().default(0),
+    status: text('status').notNull().default('draft'), // draft | published | deprecated | quarantined
+    verified: integer('verified', { mode: 'boolean' }).notNull().default(false),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    slugIdx: uniqueIndex('mp_slug_idx').on(t.slug),
+    authorIdx: index('mp_author_idx').on(t.authorId),
+    categoryIdx: index('mp_category_idx').on(t.category),
+    statusIdx: index('mp_status_idx').on(t.status),
+    kindIdx: index('mp_kind_idx').on(t.kind),
+  })
+);
+
+export const marketplaceVersions = sqliteTable(
+  'marketplace_versions',
+  {
+    id: text('id').primaryKey(),
+    pluginId: text('plugin_id')
+      .notNull()
+      .references(() => marketplacePlugins.id, { onDelete: 'cascade' }),
+    version: text('version').notNull(), // semver
+    manifest: text('manifest').notNull().default('{}'), // JSON
+    artifactSha256: text('artifact_sha256').notNull(),
+    artifactSize: integer('artifact_size').notNull().default(0),
+    artifactStorageKey: text('artifact_storage_key').notNull(),
+    wasmEntry: text('wasm_entry'), // path to .wasm entry inside bundle
+    minEngineVersion: text('min_engine_version'),
+    changelog: text('changelog').notNull().default(''),
+    signature: text('signature'), // base64 ed25519 over artifactSha256
+    signerPubkey: text('signer_pubkey'),
+    fuelLimit: integer('fuel_limit').notNull().default(1_000_000_000),
+    sandboxProfile: text('sandbox_profile').notNull().default('default'),
+    status: text('status').notNull().default('pending'), // pending | approved | rejected
+    securityReviewId: text('security_review_id'),
+    publishedAt: text('published_at'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    pluginVersionIdx: uniqueIndex('mv_plugin_version_idx').on(t.pluginId, t.version),
+    statusIdx: index('mv_status_idx').on(t.status),
+    publishedIdx: index('mv_published_idx').on(t.publishedAt),
+  })
+);
+
+export const pluginReviews = sqliteTable(
+  'plugin_reviews',
+  {
+    id: text('id').primaryKey(),
+    pluginId: text('plugin_id')
+      .notNull()
+      .references(() => marketplacePlugins.id, { onDelete: 'cascade' }),
+    versionId: text('version_id').references(() => marketplaceVersions.id, {
+      onDelete: 'set null',
+    }),
+    authorId: text('author_id').notNull(),
+    authorName: text('author_name').notNull().default(''),
+    rating: integer('rating').notNull(), // 1..5
+    title: text('title').notNull().default(''),
+    body: text('body').notNull().default(''),
+    helpfulCount: integer('helpful_count').notNull().default(0),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    pluginIdx: index('pr_plugin_idx').on(t.pluginId),
+    ratingIdx: index('pr_rating_idx').on(t.rating),
+  })
+);
+
+export const pluginDependencies = sqliteTable(
+  'plugin_dependencies',
+  {
+    id: text('id').primaryKey(),
+    pluginId: text('plugin_id')
+      .notNull()
+      .references(() => marketplacePlugins.id, { onDelete: 'cascade' }),
+    versionId: text('version_id')
+      .notNull()
+      .references(() => marketplaceVersions.id, { onDelete: 'cascade' }),
+    depSlug: text('dep_slug').notNull(),
+    depVersionRange: text('dep_version_range').notNull().default('*'),
+    kind: text('kind').notNull().default('runtime'), // runtime | peer | dev
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    versionIdx: index('pd_version_idx').on(t.versionId),
+    depIdx: index('pd_dep_idx').on(t.depSlug),
+  })
+);
+
+export const pluginInstalls = sqliteTable(
+  'plugin_installs',
+  {
+    id: text('id').primaryKey(),
+    pluginId: text('plugin_id')
+      .notNull()
+      .references(() => marketplacePlugins.id, { onDelete: 'cascade' }),
+    versionId: text('version_id')
+      .notNull()
+      .references(() => marketplaceVersions.id, { onDelete: 'cascade' }),
+    tenantId: text('tenant_id').notNull().default('default'),
+    installedBy: text('installed_by').notNull(),
+    installPath: text('install_path'),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    pluginIdx: index('pin_plugin_idx').on(t.pluginId),
+    tenantIdx: index('pin_tenant_idx').on(t.tenantId),
+    uniqueIdx: uniqueIndex('pin_plugin_tenant_idx').on(t.pluginId, t.tenantId),
+  })
+);
+
+export const pluginSecurityReviews = sqliteTable(
+  'plugin_security_reviews',
+  {
+    id: text('id').primaryKey(),
+    versionId: text('version_id')
+      .notNull()
+      .references(() => marketplaceVersions.id, { onDelete: 'cascade' }),
+    reviewerId: text('reviewer_id'),
+    state: text('state').notNull().default('queued'), // queued | scanning | approved | rejected
+    score: integer('score'), // 0..100
+    findings: text('findings').notNull().default('[]'), // JSON array
+    scannedWith: text('scanned_with').notNull().default('static-sandbox'),
+    reviewedAt: text('reviewed_at'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    versionIdx: index('psr_version_idx').on(t.versionId),
+    stateIdx: index('psr_state_idx').on(t.state),
+  })
+);
+
+export const marketplaceIntegrations = sqliteTable(
+  'marketplace_integrations',
+  {
+    id: text('id').primaryKey(),
+    slug: text('slug').notNull().unique(),
+    name: text('name').notNull(),
+    description: text('description').notNull().default(''),
+    providerKind: text('provider_kind').notNull(), // webhook | oauth | api-key | mcp
+    configSchema: text('config_schema').notNull().default('{}'), // JSON schema
+    authorId: text('author_id').notNull(),
+    verified: integer('verified', { mode: 'boolean' }).notNull().default(false),
+    status: text('status').notNull().default('published'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    slugIdx: uniqueIndex('mi_slug_idx').on(t.slug),
+    kindIdx: index('mi_kind_idx').on(t.providerKind),
+  })
+);
+
+export const pluginSigningKeys = sqliteTable(
+  'plugin_signing_keys',
+  {
+    id: text('id').primaryKey(),
+    authorId: text('author_id').notNull(),
+    pubkey: text('pubkey').notNull(), // base64 ed25519 public key
+    label: text('label').notNull().default('default'),
+    revoked: integer('revoked', { mode: 'boolean' }).notNull().default(false),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    authorIdx: index('psk_author_idx').on(t.authorId),
+  })
+);
+
+/* ─── PHASE 18 — AI-Native Self-Optimization (safe-exploration control surface) ───
+ * Mirror of selfOptParamVersions / selfOptExperiments / selfOptKnowledgeBus /
+ * selfOptEvents in schema.ts. Append-only + immutable. See
+ * docs/self-optimization-control-surface.md.
+ */
+
+export const selfOptParamVersions = sqliteTable(
+  'self_opt_param_versions',
+  {
+    id: text('id').primaryKey(),
+    tunerId: text('tuner_id').notNull(),
+    ownerAgent: text('owner_agent').notNull(),
+    targetInterface: text('target_interface').notNull(),
+    experimentId: text('experiment_id'),
+    parentId: text('parent_id'),
+    beforeJson: text('before_json', { mode: 'json' }).notNull().default({}),
+    afterJson: text('after_json', { mode: 'json' }).notNull().default({}),
+    status: text('status').notNull().default('shadow'),
+    proposedBy: text('proposed_by').notNull().default('pulse'),
+    pValue: real('p_value'),
+    metricDelta: real('metric_delta'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    promotedAt: text('promoted_at'),
+  },
+  (t) => ({
+    tunerIdx: index('sopv_tuner_idx').on(t.tunerId),
+    statusIdx: index('sopv_status_idx').on(t.status),
+    ownerIdx: index('sopv_owner_idx').on(t.ownerAgent),
+    parentIdx: index('sopv_parent_idx').on(t.parentId),
+    expIdx: index('sopv_exp_idx').on(t.experimentId),
+  })
+);
+
+export const selfOptExperiments = sqliteTable(
+  'self_opt_experiments',
+  {
+    id: text('id').primaryKey(),
+    tunerId: text('tuner_id').notNull(),
+    hypothesis: text('hypothesis').notNull(),
+    metric: text('metric').notNull(),
+    variantA: text('variant_a', { mode: 'json' }).notNull().default({}),
+    variantB: text('variant_b', { mode: 'json' }).notNull().default({}),
+    minSampleSize: integer('min_sample_size').notNull().default(2000),
+    alpha: real('alpha').notNull().default(0.05),
+    status: text('status').notNull().default('running'),
+    winner: text('winner'),
+    pValue: real('p_value'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    finishedAt: text('finished_at'),
+  },
+  (t) => ({
+    tunerIdx: index('soe_tuner_idx').on(t.tunerId),
+    statusIdx: index('soe_status_idx').on(t.status),
+  })
+);
+
+export const selfOptKnowledgeBus = sqliteTable(
+  'self_opt_knowledge_bus',
+  {
+    id: text('id').primaryKey(),
+    tunerId: text('tuner_id').notNull(),
+    ownerAgent: text('owner_agent').notNull(),
+    targetInterface: text('target_interface').notNull(),
+    configJson: text('config_json', { mode: 'json' }).notNull().default({}),
+    score: real('score').notNull().default(0),
+    scope: text('scope').notNull().default('local'),
+    publishedBy: text('published_by').notNull().default('pulse'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    tunerIdx: index('sokb_tuner_idx').on(t.tunerId),
+    ownerIdx: index('sokb_owner_idx').on(t.ownerAgent),
+    scopeIdx: index('sokb_scope_idx').on(t.scope),
+    scoreIdx: index('sokb_score_idx').on(t.score),
+  })
+);
+
+export const selfOptEvents = sqliteTable(
+  'self_opt_events',
+  {
+    id: text('id').primaryKey(),
+    kind: text('kind').notNull(),
+    tunerId: text('tuner_id'),
+    ownerAgent: text('owner_agent'),
+    actor: text('actor').notNull().default('pulse'),
+    detailJson: text('detail_json', { mode: 'json' }).notNull().default({}),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    kindIdx: index('soe_event_kind_idx').on(t.kind),
+    tunerIdx: index('soe_event_tuner_idx').on(t.tunerId),
+    createdIdx: index('soe_event_created_idx').on(t.createdAt),
+  })
+);
+
+/* ── PHASE 17 — Enterprise Features (SQLite mirror of schema.ts) ── */
+
+export const orgs = sqliteTable(
+  'orgs',
+  {
+    id: text('id').primaryKey(),
+    name: text('name').notNull(),
+    slug: text('slug').notNull().unique(),
+    parentId: text('parent_id'),
+    plan: text('plan').notNull().default('free'),
+    seats: integer('seats').notNull().default(5),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ parentIdx: index('org_parent_idx').on(t.parentId) })
+);
+
+export const workspaces = sqliteTable(
+  'workspaces',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    region: text('region').notNull().default('us-east-1'),
+    dataResidency: text('data_residency').notNull().default('us'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ orgIdx: index('ws_org_idx').on(t.orgId) })
+);
+
+export const enterpriseUsers = sqliteTable(
+  'enterprise_users',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    email: text('email').notNull(),
+    name: text('name').notNull(),
+    roles: text('roles', { mode: 'json' }).notNull().default([]),
+    status: text('status').notNull().default('active'),
+    mfaEnabled: integer('mfa_enabled', { mode: 'boolean' }).notNull().default(false),
+    lastLoginAt: text('last_login_at'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    orgIdx: index('entu_org_idx').on(t.orgId),
+    emailIdx: uniqueIndex('entu_org_email_unique').on(t.orgId, t.email),
+  })
+);
+
+export const enterpriseApiKeys = sqliteTable(
+  'enterprise_api_keys',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    label: text('label').notNull(),
+    prefix: text('prefix').notNull(),
+    keyHash: text('key_hash').notNull().unique(),
+    tier: text('tier').notNull().default('free'),
+    scopes: text('scopes', { mode: 'json' }).notNull().default([]),
+    rateLimitRpm: integer('rate_limit_rpm').notNull().default(60),
+    lastUsedAt: text('last_used_at'),
+    expiresAt: text('expires_at'),
+    status: text('status').notNull().default('active'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ orgIdx: index('ekey_org_idx').on(t.orgId) })
+);
+
+export const rbacRoles = sqliteTable(
+  'rbac_roles',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    name: text('name').notNull(),
+    isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(true),
+    permissions: text('permissions', { mode: 'json' }).notNull().default([]),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ orgIdx: uniqueIndex('rbac_org_name_unique').on(t.orgId, t.name) })
+);
+
+export const siemSinks = sqliteTable(
+  'siem_sinks',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull().default('webhook'),
+    endpoint: text('endpoint').notNull(),
+    enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ orgIdx: index('siem_org_idx').on(t.orgId) })
+);
+
+export const tenantConfig = sqliteTable('tenant_config', {
+  orgId: text('org_id')
+    .primaryKey()
+    .references(() => orgs.id, { onDelete: 'cascade' }),
+  ssoProvider: text('sso_provider').notNull().default('none'),
+  ssoEnabled: integer('sso_enabled', { mode: 'boolean' }).notNull().default(false),
+  ssoIdpInitiated: integer('sso_idp_initiated', { mode: 'boolean' }).notNull().default(false),
+  ssoEntityId: text('sso_entity_id').notNull().default(''),
+  ssoAcsUrl: text('sso_acs_url').notNull().default(''),
+  ssoSsoUrl: text('sso_sso_url').notNull().default(''),
+  ssoCert: text('sso_cert').notNull().default(''),
+  ssoJitProvisioning: integer('sso_jit_provisioning', { mode: 'boolean' }).notNull().default(false),
+  ssoDomainRestriction: text('sso_domain_restriction', { mode: 'json' }).notNull().default([]),
+  auditRetentionDays: integer('audit_retention_days').notNull().default(365),
+  memoryRetentionDays: integer('memory_retention_days').notNull().default(365),
+  backupPitr: integer('backup_pitr', { mode: 'boolean' }).notNull().default(false),
+  cmkEnabled: integer('cmk_enabled', { mode: 'boolean' }).notNull().default(false),
+  cmkKeyId: text('cmk_key_id'),
+  themePrimary: text('theme_primary').notNull().default('#06b6d4'),
+  themeLogoUrl: text('theme_logo_url').notNull().default(''),
+  themeBrandName: text('theme_brand_name').notNull().default('NEXUS'),
+  budgetAlertPct: integer('budget_alert_pct').notNull().default(80),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+});
+
+export const invoices = sqliteTable(
+  'invoices',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    period: text('period').notNull(),
+    amountUsd: integer('amount_usd').notNull().default(0),
+    status: text('status').notNull().default('open'),
+    pdfUrl: text('pdf_url').notNull().default(''),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ orgIdx: index('inv_org_idx').on(t.orgId) })
+);
+
+export const paymentMethods = sqliteTable(
+  'payment_methods',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id')
+      .notNull()
+      .references(() => orgs.id, { onDelete: 'cascade' }),
+    brand: text('brand').notNull().default(''),
+    last4: text('last4').notNull().default(''),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ orgIdx: index('pm_org_idx').on(t.orgId) })
+);
+
+export const crossOrgShares = sqliteTable(
+  'cross_org_shares',
+  {
+    id: text('id').primaryKey(),
+    orgId: text('org_id').notNull(),
+    targetOrgId: text('target_org_id').notNull(),
+    resource: text('resource').notNull(),
+    resourceId: text('resource_id').notNull(),
+    role: text('role').notNull().default('viewer'),
+    createdAt: text('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({ orgIdx: index('cos_org_idx').on(t.orgId) })
+);
+
+export const onboardingState = sqliteTable('onboarding_state', {
+  orgId: text('org_id').primaryKey(),
+  completedSteps: text('completed_steps', { mode: 'json' }).notNull().default([]),
+  updatedAt: text('updated_at')
+    .notNull()
+    .default(sql`(CURRENT_TIMESTAMP)`),
+});

@@ -7,15 +7,15 @@
 export type Ring = 0 | 1 | 2 | 3 | 4;
 
 export const RING_NAMES: Record<Ring, string> = {
-  0: "kernel",
-  1: "trusted-cli",
-  2: "mcp-agent",
-  3: "remote-client",
-  4: "quarantined",
+  0: 'kernel',
+  1: 'trusted-cli',
+  2: 'mcp-agent',
+  3: 'remote-client',
+  4: 'quarantined',
 };
 
-export type ToolProvider = "mcp" | "cli" | "http" | "builtin";
-export type RiskLevel = "safe" | "read" | "write" | "destructive" | "network" | "privileged";
+export type ToolProvider = 'mcp' | 'cli' | 'http' | 'builtin';
+export type RiskLevel = 'safe' | 'read' | 'write' | 'destructive' | 'network' | 'privileged';
 
 export interface ToolSpec {
   name: string;
@@ -33,33 +33,44 @@ export interface ToolSpec {
 /* Typed memory graph */
 
 export type MemoryType =
-  | "user_preference"
-  | "project_fact"
-  | "architecture_decision"
-  | "coding_convention"
-  | "known_pitfall"
-  | "debugging_lesson"
-  | "command_recipe"
-  | "api_contract"
-  | "dependency_note"
-  | "security_rule"
-  | "handoff"
-  | "task_state"
-  | "skill"
-  | "external_resource"
-  | "agent_state";
+  | 'user_preference'
+  | 'project_fact'
+  | 'architecture_decision'
+  | 'coding_convention'
+  | 'known_pitfall'
+  | 'debugging_lesson'
+  | 'command_recipe'
+  | 'api_contract'
+  | 'dependency_note'
+  | 'security_rule'
+  | 'handoff'
+  | 'task_state'
+  | 'skill'
+  | 'external_resource'
+  | 'agent_state';
 
 export const MEMORY_TYPES: MemoryType[] = [
-  "user_preference", "project_fact", "architecture_decision", "coding_convention",
-  "known_pitfall", "debugging_lesson", "command_recipe", "api_contract",
-  "dependency_note", "security_rule", "handoff", "task_state", "skill", "external_resource",
-  "agent_state",
+  'user_preference',
+  'project_fact',
+  'architecture_decision',
+  'coding_convention',
+  'known_pitfall',
+  'debugging_lesson',
+  'command_recipe',
+  'api_contract',
+  'dependency_note',
+  'security_rule',
+  'handoff',
+  'task_state',
+  'skill',
+  'external_resource',
+  'agent_state',
 ];
 
-export type Stability = "draft" | "confirmed" | "deprecated" | "contradicted";
+export type Stability = 'draft' | 'confirmed' | 'deprecated' | 'contradicted';
 
 export interface Evidence {
-  source: "user" | "tool" | "test" | "commit" | "file" | "agent";
+  source: 'user' | 'tool' | 'test' | 'commit' | 'file' | 'agent';
   quote?: string;
   file?: string;
   command?: string;
@@ -89,8 +100,14 @@ export interface MemoryCard {
 }
 
 export type EdgeKind =
-  | "depends_on" | "contradicts" | "supersedes" | "supports"
-  | "related_to" | "caused_by" | "fixed_by" | "uses_skill";
+  | 'depends_on'
+  | 'contradicts'
+  | 'supersedes'
+  | 'supports'
+  | 'related_to'
+  | 'caused_by'
+  | 'fixed_by'
+  | 'uses_skill';
 
 export interface GraphEdge {
   id: string;
@@ -102,8 +119,9 @@ export interface GraphEdge {
 
 /* Agents */
 
-export type AgentKind = "claude-code" | "codex" | "gemini" | "opencode" | "cursor" | "cline" | "generic" | "interactive";
-export type AgentStatus = "active" | "idle" | "paused" | "quarantined" | "disabled" | "terminating";
+export type AgentKind =
+  'claude-code' | 'codex' | 'gemini' | 'opencode' | 'cursor' | 'cline' | 'generic' | 'interactive';
+export type AgentStatus = 'active' | 'idle' | 'paused' | 'quarantined' | 'disabled' | 'terminating';
 
 export interface AgentResources {
   cpu: number;
@@ -132,7 +150,7 @@ export interface AgentRecord {
   environment?: Record<string, string>;
   dependencies?: string[];
   version?: string;
-  lifecycles?: import("./agent-manifest").AgentLifecycle[];
+  lifecycles?: import('./agent-manifest').AgentLifecycle[];
   metadata: Record<string, string>;
   lastHeartbeatAt: number | null;
   heartbeat?: number;
@@ -146,9 +164,10 @@ export interface AgentRecord {
 
 /* Scheduler / tasks */
 
-export type QueueId = "Q0" | "Q1" | "Q2" | "Q3" | "Q4" | "default";
-export type TaskKind = "interactive" | "background" | "maintenance" | "safety" | "self_improvement";
-export type TaskStatus = "queued" | "running" | "succeeded" | "failed" | "cancelled" | "dead_letter";
+export type QueueId = 'Q0' | 'Q1' | 'Q2' | 'Q3' | 'Q4' | 'default';
+export type TaskKind = 'interactive' | 'background' | 'maintenance' | 'safety' | 'self_improvement';
+export type TaskStatus =
+  'queued' | 'running' | 'succeeded' | 'failed' | 'cancelled' | 'dead_letter';
 
 export interface Task {
   id: string;
@@ -173,13 +192,13 @@ export interface Task {
 
 /* Saga */
 
-export type SagaStatus = "pending" | "running" | "succeeded" | "failed" | "compensated";
+export type SagaStatus = 'pending' | 'running' | 'succeeded' | 'failed' | 'compensated';
 export interface SagaStep {
   id: string;
   name: string;
   action: string;
   compensate?: string;
-  status: "pending" | "running" | "succeeded" | "failed" | "compensated";
+  status: 'pending' | 'running' | 'succeeded' | 'failed' | 'compensated';
   result?: string;
 }
 export interface Saga {
@@ -194,7 +213,7 @@ export interface Saga {
 
 /* Approvals */
 
-export type ApprovalStatus = "pending" | "approved" | "denied" | "expired";
+export type ApprovalStatus = 'pending' | 'approved' | 'denied' | 'expired';
 export interface Approval {
   id: string;
   agentId: string;
@@ -210,7 +229,7 @@ export interface Approval {
 
 /* Message bus */
 
-export type MessageKind = "event" | "command" | "query" | "response";
+export type MessageKind = 'event' | 'command' | 'query' | 'response';
 
 export interface BusMessage {
   id: string;
@@ -263,14 +282,14 @@ export interface RpcResponse {
 /* VFS */
 
 export interface VfsFile {
-  type: "file";
+  type: 'file';
   name: string;
   content: string;
   mtime: number;
   sensitive: boolean;
 }
 export interface VfsDir {
-  type: "dir";
+  type: 'dir';
   name: string;
   children: Record<string, VfsNode>;
 }
@@ -310,7 +329,7 @@ export interface CommandObservation {
   stderrSummary: string;
   filesChanged: string[];
   testsRun: number;
-  result: "success" | "failure";
+  result: 'success' | 'failure';
   lesson?: string;
   createdAt: number;
 }
@@ -349,7 +368,7 @@ export interface SessionRecord {
 
 /* Diagnostics */
 
-export type CheckLevel = "ok" | "warn" | "broken";
+export type CheckLevel = 'ok' | 'warn' | 'broken';
 export interface DoctorCheck {
   id: string;
   name: string;
@@ -358,7 +377,7 @@ export interface DoctorCheck {
 }
 export interface DriftResult {
   area: string;
-  severity: "info" | "warn" | "critical";
+  severity: 'info' | 'warn' | 'critical';
   expected: string;
   actual: string;
   recommendation: string;
@@ -405,10 +424,16 @@ export interface Metrics {
 
 /* LLM Scheduler types (Phase 4c) */
 
-export type SchedulerPriority = "interactive" | "background" | "maintenance";
+export type SchedulerPriority = 'interactive' | 'background' | 'maintenance';
 export type TaskCategory =
-  | "chat" | "reasoning" | "extraction" | "embedding"
-  | "vision" | "code" | "distillation" | "tool_call";
+  | 'chat'
+  | 'reasoning'
+  | 'extraction'
+  | 'embedding'
+  | 'vision'
+  | 'code'
+  | 'distillation'
+  | 'tool_call';
 
 export interface RateLimitConfig {
   rpm: number;
@@ -468,7 +493,7 @@ export interface ScheduledRequest {
   prompt: string;
   maxTokens: number;
   temperature: number;
-  status: "queued" | "running" | "completed" | "failed" | "timed_out" | "cancelled";
+  status: 'queued' | 'running' | 'completed' | 'failed' | 'timed_out' | 'cancelled';
   queuedAt: number;
   startedAt?: number;
   finishedAt?: number;
@@ -503,17 +528,19 @@ export interface OSState {
   meta: Record<string, string>;
   // Phase 3.3: MCP Server Registry
   mcpServers?: MCPServerState[];
+  // Phase 5: live kernel scheduler policy (mirrors the real backend when remote)
+  scheduler: { policy: string };
 }
 
 // ── Phase 3.3: MCP Server Registry Types ────────────────────────────
 
-export type MCPTransport = "stdio" | "http-sse" | "streamable-http";
+export type MCPTransport = 'stdio' | 'http-sse' | 'streamable-http';
 
 export interface MCPServerState {
   id: string;
   name: string;
   transport: MCPTransport;
-  status: "disconnected" | "connecting" | "connected" | "error";
+  status: 'disconnected' | 'connecting' | 'connected' | 'error';
   toolCount: number;
   error?: string;
   lastConnected?: number;
@@ -538,6 +565,6 @@ export interface MCPPolicyEntry {
 }
 
 export interface MCPPolicyConfig {
-  defaultPolicy: "allow" | "deny";
+  defaultPolicy: 'allow' | 'deny';
   overrides: MCPPolicyEntry[];
 }

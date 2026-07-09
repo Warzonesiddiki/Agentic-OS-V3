@@ -29,7 +29,13 @@ import {
   feedbackInput,
 } from './lib/schemas.js';
 import { isKillSwitchOn } from './services/safety.service.js';
-import { createMemory, updateMemory, deleteMemory, checkpoint, captureSession } from './services/memory.service.js';
+import {
+  createMemory,
+  updateMemory,
+  deleteMemory,
+  checkpoint,
+  captureSession,
+} from './services/memory.service.js';
 import { createSkill, updateSkill, deleteSkill, recordOutcome } from './services/skill.service.js';
 import { transferProject } from './services/project.service.js';
 import { recordFeedback } from './services/feedback.service.js';
@@ -53,6 +59,18 @@ import { v3upgrade } from './routes/v3-upgrade.js';
 import { agentLifecycle } from './routes/agent-lifecycle.js';
 import { kernelRouter } from './routes/kernel.js';
 import { a2aRouter } from './routes/a2a.js';
+import { marketplace } from './routes/marketplace-routes.js';
+import { selfOptRouter } from './routes/self-opt.js';
+import { perfRoute } from './routes/perf.js';
+import { enterpriseRouter } from './routes/enterprise.js';
+import { kernelIntrospectRouter } from './routes/kernel-introspect.js';
+import { memoryGraph } from './routes/memory-graph.js';
+import { memoryHealth } from './routes/memory-health.js';
+import { memoryNlQuery } from './routes/memory-nl-query.js';
+import { router as memoryBatchRouter } from './routes/memory-batch.js';
+import { router as memorySearchSuggestRouter } from './routes/memory-search-suggest.js';
+import { memoryDedup } from './routes/memory-dedup.js';
+import { memoryContradiction } from './routes/memory-contradiction.js';
 
 export const api = new Hono<NexusEnv>();
 
@@ -68,6 +86,31 @@ api.route('/', kernelRouter);
 api.route('/', a2aRouter);
 api.route('/', auditRouter);
 api.route('/', analyticsRouter);
+// Phase 19 — Ecosystem & Marketplace
+api.route('/marketplace', marketplace);
+// Phase 17 — Enterprise Features (OIDC/SAML, RBAC, multi-tenant, billing)
+api.route('/enterprise', enterpriseRouter);
+
+// Phase 11/12 — Kernel introspection + Advanced Memory System routes
+api.route('/', kernelIntrospectRouter);
+api.route('/', memoryGraph);
+api.route('/', memoryHealth);
+api.route('/', memoryNlQuery);
+api.route('/', memoryBatchRouter);
+api.route('/', memorySearchSuggestRouter);
+api.route('/api/memories', memoryDedup);
+api.route('/api/memories', memoryContradiction);
+
+// Phase 18 — AI-Native Self-Optimization (safe-exploration control surface)
+api.route('/', selfOptRouter);
+// Phase 15 — Performance & Scalability (stateless pool, replica router, cache)
+api.route('/perf', perfRoute);
+// Start the safe-exploration tick (idempotent; defaults to dry-run / advisory).
+void import('./services/self-opt/bootstrap.js').then((m) => m.startSelfOptTick());
+// Start the safe-exploration tick (idempotent; defaults to dry-run / advisory).
+void import('./services/self-opt/bootstrap.js').then((m) => m.startSelfOptTick());
+// Start the safe-exploration tick (idempotent; defaults to dry-run / advisory).
+void import('./services/self-opt/bootstrap.js').then((m) => m.startSelfOptTick());
 
 import { getDesktopActuatorSync } from './services/desktop-actuator.js';
 
@@ -460,10 +503,7 @@ api.post('/api/v1/feedback', async (c) => {
 
 api.get('/api/v1/health/detailed', async (c) => {
   await requireScope(c, 'memory:read');
-  const [dbOk, pgvector] = await Promise.all([
-    dbReachable(),
-    isPgvectorInstalled(),
-  ]);
+  const [dbOk, pgvector] = await Promise.all([dbReachable(), isPgvectorInstalled()]);
   // Replaced verifyAuditChain call with fallback/mock or database check since we don't have verifyAuditChain imported here anymore.
   // Wait, let's keep it simple or fetch count
   const count = sql<number>`count(*)::int`;

@@ -1,22 +1,35 @@
-# Nexus 2.0 Deploy — tag-triggered GHCR push + SSH rollout
+# Nexus 2.0 Deploy — build hardened standalone image, smoke-test, publish to GHCR.
+#
+# Owner: Bastion (CODEOWNERS: .github/workflows/)
+# Triggers:
+#   - push of a semver tag (v*)  -> full build + push (release)
+#   - push to main/master        -> build + smoke test only (verify)
+#   - workflow_dispatch          -> manual build (no push unless REGISTRY_URL set)
+#
+# The standalone image (Dockerfile.standalone) bundles the compiled server,
+# the built dashboard, nginx, and the entrypoint supervisor into one artifact.
+# A post-build health smoke test guarantees the artifact boots before we push.
 
 name: Deploy
 
 on:
   push:
     tags: ['v*']
+    branches: ['main', 'master']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
 
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-and-deploy:
+  docker:
+    name: Build, smoke-test & publish NEXUS standalone image
     runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-
     steps:
       - uses: actions/checkout@v4
 
@@ -24,6 +37,7 @@ jobs:
         uses: docker/setup-buildx-action@v3
 
       - name: Log in to GHCR
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || secrets.REGISTRY_URL != '' }}
         uses: docker/login-action@v3
         with:
           registry: ${{ env.REGISTRY }}
@@ -39,79 +53,44 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
+            type=ref,event=branch
 
-      - name: Build and push
+      - name: Build standalone image
         uses: docker/build-push-action@v6
         with:
-          context: server
-          file: server/Dockerfile
+          context: .
+          file: Dockerfile.standalone
+          push: false
+          load: true
+          tags: nexus-standalone:${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test (health endpoint)
+        run: |
+          set -e
+          docker run -d --name nexus-smoke -p 9900:9900 \
+            -e NODE_ENV=production \
+            -e NEXUS_LLM_PROVIDER=noop \
+            nexus-standalone:${{ github.sha }}
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:9900/api/v1/health; then
+              echo "HEALTH_OK"
+              break
+            fi
+            sleep 3
+          done
+          # Fail the build if the health endpoint never responded.
+          curl -fs http://localhost:9900/api/v1/health >/dev/null
+          docker rm -f nexus-smoke
+
+      - name: Push image to GHCR (release tags only)
+        if: ${{ startsWith(github.ref, 'refs/tags/v') }}
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.standalone
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      - name: Deploy via SSH
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.DEPLOY_HOST }}
-          port: ${{ secrets.DEPLOY_PORT || '22' }}
-          username: ${{ secrets.DEPLOY_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          script: |
-            set -e
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ${{ env.REGISTRY }} -u ${{ github.actor }} --password-stdin
-            IMAGE="${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }}"
-            docker pull "$IMAGE"
-            docker stop nexus-server || true
-            docker rm nexus-server || true
-            docker run -d \
-              --name nexus-server \
-              --restart unless-stopped \
-              -p 9900:9900 \
-              -v nexus-data:/app/data \
-              -e NODE_ENV=production \
-              -e DATABASE_URL="${{ secrets.DEPLOY_DATABASE_URL }}" \
-              "$IMAGE"
-            docker image prune -f
-name: Deploy
-
-on:
-  push:
-    branches: ["main", "master"]
-  workflow_dispatch:
-
-permissions:
-  contents: read
-
-jobs:
-  docker:
-    name: Build & publish NEXUS image
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: docker/setup-buildx-action@v3
-      - name: Log in to container registry
-        if: ${{ secrets.REGISTRY_URL != '' }}
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ secrets.REGISTRY_URL }}
-          username: ${{ secrets.REGISTRY_USERNAME }}
-          password: ${{ secrets.REGISTRY_PASSWORD }}
-      - name: Build standalone image
-        run: docker build -f Dockerfile.standalone -t nexus-standalone:${{ github.sha }} .
-      - name: Smoke test (health endpoint)
-        run: |
-          docker run -d --name nexus-smoke -p 9900:9900 nexus-standalone:${{ github.sha }}
-          for i in $(seq 1 20); do
-            if curl -fs http://localhost:9900/api/v1/health; then break; fi
-            sleep 3
-          done
-          docker rm -f nexus-smoke
-      - name: Push image
-        if: ${{ secrets.REGISTRY_URL != '' }}
-        run: |
-          docker tag nexus-standalone:${{ github.sha }} ${{ secrets.REGISTRY_URL }}/nexus-standalone:${{ github.sha }}
-          docker tag nexus-standalone:${{ github.sha }} ${{ secrets.REGISTRY_URL }}/nexus-standalone:latest
-          docker push ${{ secrets.REGISTRY_URL }}/nexus-standalone:${{ github.sha }}
-          docker push ${{ secrets.REGISTRY_URL }}/nexus-standalone:latest

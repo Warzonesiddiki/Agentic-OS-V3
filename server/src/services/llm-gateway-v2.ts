@@ -374,9 +374,9 @@ export async function chargeBudget(
     where: eq(llmTokenBudgets.sessionId, sessionId),
   });
   if (!row) {
-    // No budget set → create a default 100k budget
-    await setBudget({ sessionId, budget: 100_000 });
-    return { allowed: true, remaining: 100_000 };
+    // No budget set → create a default budget (honors self-optimization override)
+    await setBudget({ sessionId, budget: SELF_OPT.tokenBudget.defaultBudget ?? 100_000 });
+    return { allowed: true, remaining: SELF_OPT.tokenBudget.defaultBudget ?? 100_000 };
   }
   if (row.hardKill) return { allowed: false, reason: row.reason ?? 'hard_kill', remaining: 0 };
   if (row.expiresAt && row.expiresAt.getTime() < Date.now())
@@ -429,7 +429,12 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
   if (preCheck.remaining < estTokens * 1.2) {
     await appendAudit(
       'llm.budget_denied',
-      { sessionId: call.sessionId, reason: 'insufficient_remaining', estTokens, remaining: preCheck.remaining },
+      {
+        sessionId: call.sessionId,
+        reason: 'insufficient_remaining',
+        estTokens,
+        remaining: preCheck.remaining,
+      },
       'llm-gateway'
     );
     throw new Error('budget_denied:insufficient_remaining');
@@ -612,5 +617,56 @@ export async function streamLLMGateway(call: GatewayCall): Promise<ReadableStrea
   return streamPortkeyBridge(call.request, {
     provider,
     apiKey: picked?.apiKey,
+  });
+}
+
+/**
+ * SELF-OPTIMIZATION CONTROL SURFACE (Phase 18 thin adapters) - Pulse.
+ * Three thin mutation hooks steering the gateway; they only mutate SELF_OPT
+ * and never touch routing/circuit/provider internals. Signatures are the
+ * canonical contract in server/docs/self-optimization-control-surface.md.
+ */
+interface TokenBudgetPartial {
+  defaultBudget?: number;
+  perRequestCap?: number;
+}
+interface PromptVariant {
+  id: string;
+  description?: string;
+  systemSuffix?: string;
+}
+interface BatchingPolicy {
+  enabled: boolean;
+  maxBatchSize?: number;
+  windowMs?: number;
+}
+const SELF_OPT = {
+  promptVariant: undefined as PromptVariant | undefined,
+  batchingPolicy: { enabled: false } as BatchingPolicy,
+  tokenBudget: {
+    defaultBudget: undefined as number | undefined,
+    perRequestCap: undefined as number | undefined,
+  },
+};
+export function setPromptVariant(v: PromptVariant): void {
+  SELF_OPT.promptVariant = v;
+  log.info('self_opt.prompt_variant_set', { id: v.id });
+}
+export function setBatchingPolicy(p: BatchingPolicy): void {
+  SELF_OPT.batchingPolicy = p;
+  log.info('self_opt.batching_policy_set', {
+    enabled: p.enabled,
+    maxBatchSize: p.maxBatchSize,
+    windowMs: p.windowMs,
+  });
+}
+export function setTokenBudget(partial: TokenBudgetPartial): void {
+  if (partial.defaultBudget !== undefined)
+    SELF_OPT.tokenBudget.defaultBudget = partial.defaultBudget;
+  if (partial.perRequestCap !== undefined)
+    SELF_OPT.tokenBudget.perRequestCap = partial.perRequestCap;
+  log.info('self_opt.token_budget_set', {
+    defaultBudget: SELF_OPT.tokenBudget.defaultBudget,
+    perRequestCap: SELF_OPT.tokenBudget.perRequestCap,
   });
 }

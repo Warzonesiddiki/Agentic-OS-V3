@@ -19,9 +19,15 @@ import { appendAudit } from '../lib/audit.js';
 import { eq, desc, and, gte } from 'drizzle-orm';
 import { randomUUID, createHash } from 'node:crypto';
 import { env } from '../lib/env.js';
+import { runInNewContext, type Context } from 'node:vm';
+import { checkCapability, type LoadedPlugin } from './wasm-plugin-runtime.js';
+import type { CapabilitySpec } from './plugin-manifest.js';
 
-const COMPILATION_THRESHOLD = env.NEXUS_COMPILATION_THRESHOLD;
-const EVAL_MATCH_THRESHOLD = env.NEXUS_EVAL_MATCH_THRESHOLD;
+const COMPILATION_THRESHOLD = Number(env.NEXUS_COMPILATION_THRESHOLD) || 5;
+const EVAL_MATCH_THRESHOLD = (() => {
+  const r = Number(env.NEXUS_EVAL_MATCH_THRESHOLD);
+  return Number.isFinite(r) && r > 0 ? r : 1.0;
+})();
 
 // ── Pattern Detection ─────────────────────────────────────────
 
@@ -343,6 +349,81 @@ export interface CompilationResult {
     tokensSaved?: number;
   }>;
 }
+// ── Sandbox dry-run: capability validation (fail-closed) ─────────────────
+
+/** Thrown when a compiled skill attempts a capability it is not granted. */
+export class SkillCapabilityViolation extends Error {
+  constructor(
+    public readonly capability: string,
+    public readonly declared: string[]
+  ) {
+    super(
+      `skill capability violation: ${capability} not in declared spec [${declared.join(', ')}]`
+    );
+    this.name = 'SkillCapabilityViolation';
+  }
+}
+
+/** Default capability vocabulary a compiled skill is allowed to declare. */
+export const SKILL_ALLOWED_CAPABILITIES = [
+  'skill.invoke',
+  'skill.invoke.',
+  'memory.read',
+  'memory.write',
+  'recall.query',
+  'recall.write',
+];
+
+/**
+ * Fail-closed validation: every capability a skill attempts must be granted
+ * by its declared spec. `declared` is the allow-list the skill published;
+ * `attempted` are the capability strings the dry-run observed it request.
+ * Throws SkillCapabilityViolation on the first disallowed attempt.
+ */
+export function validateSkillCapabilities(declared: string[], attempted: string[]): void {
+  const specs: CapabilitySpec[] = declared.map((d) =>
+    d.endsWith('.') ? { prefix: d } : { exact: d }
+  );
+  const fakePlugin = { manifest: { capabilities: specs } } as unknown as LoadedPlugin;
+  for (const cap of attempted) {
+    if (checkCapability(fakePlugin, cap) == null) {
+      throw new SkillCapabilityViolation(cap, declared);
+    }
+  }
+}
+
+/**
+ * Execute a compiled skill in an isolated vm context and capture the
+ * capabilities it requests via requestCapability(...). Returns the observed
+ * capability strings. This is the sandbox dry-run gate run BEFORE publish/
+ * activation so a skill that reaches for undeclared powers fails closed.
+ */
+export function dryRunSkill(code: string, sampleInputs: unknown[]): string[] {
+  const attempted = new Set<string>();
+  const sandbox: Record<string, unknown> = {
+    requestCapability: (cap: string) => {
+      attempted.add(cap);
+      return true;
+    },
+    console: { log: () => undefined, error: () => undefined, warn: () => undefined },
+    Math,
+    JSON,
+    Date,
+    String,
+    Number,
+    Array,
+    Object,
+  };
+  for (const input of sampleInputs.slice(0, 3)) {
+    const ctx = { ...sandbox, input } as unknown as Context;
+    try {
+      runInNewContext(`(function(){ ${code} })()`, ctx, { timeout: 2000 });
+    } catch {
+      /* Execution errors are surfaced by the eval harness; we only track caps. */
+    }
+  }
+  return [...attempted];
+}
 
 /**
  * Run the full Neural Skill Compilation pipeline:
@@ -382,11 +463,26 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
     compiled++;
 
     // Evaluate against historical data
+
+    // Sandbox dry-run gate (fail-closed): execute the compiled skill in an
+    // isolated vm and capture the capabilities it requests. Validate every
+    // requested capability against the skill's declared allow-list. A disallowed
+    // attempt → mark eval_failed and do NOT activate (default-deny).
+    const attempted = dryRunSkill(script.code, pattern.sampleInputs ?? []);
+    let capabilityOk = true;
+    let capabilityError = '';
+    try {
+      validateSkillCapabilities(SKILL_ALLOWED_CAPABILITIES, attempted);
+    } catch (ce) {
+      capabilityOk = false;
+      capabilityError = ce instanceof Error ? ce.message : String(ce);
+    }
+
     const evalResult = await evaluateScript(script, pattern);
 
     // Store the script (regardless of eval result — for tracking)
     const scriptId = `cmp_${randomUUID()}`;
-    const status = evalResult.passed ? 'active' : 'eval_failed';
+    const status = evalResult.passed && capabilityOk ? 'active' : 'eval_failed';
 
     await db
       .insert(compiledScripts)
@@ -412,7 +508,7 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
       })
       .onConflictDoNothing({ target: compiledScripts.patternSignature });
 
-    if (evalResult.passed) {
+    if (evalResult.passed && capabilityOk) {
       activated++;
       results.push({
         pattern: pattern.signature,

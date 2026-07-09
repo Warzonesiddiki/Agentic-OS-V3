@@ -1,9 +1,9 @@
-import { useSyncExternalStore } from "react";
-import { getState, subscribe, resetBrain, wipeBrain, getPersistenceStatus } from "./lib/engine";
-import { getConfig, getLocalKey, subscribeConfig } from "./lib/config";
-import * as ops from "./lib/operations";
-import { ambient, recall as doRecall } from "./lib/recall";
-import { getRemote, remote, remoteEnabled, subscribeRemote, autoDetect } from "./lib/remote";
+import { useSyncExternalStore } from 'react';
+import { getState, subscribe, resetBrain, wipeBrain, getPersistenceStatus } from './lib/engine';
+import { getConfig, getLocalKey, subscribeConfig } from './lib/config';
+import * as ops from './lib/operations';
+import { ambient, recall as doRecall } from './lib/recall';
+import { getRemote, remote, remoteEnabled, subscribeRemote, autoDetect } from './lib/remote';
 import {
   addVaultFile,
   compressBrain,
@@ -13,11 +13,17 @@ import {
   rebuildEmbeddings,
   verifyAudit,
   writeBack,
-} from "./lib/brain";
-import { handle } from "./lib/api";
-import type { CaptureInput, CheckpointInput, MemoryInput, SkillInput, TransferInput } from "./lib/types";
+} from './lib/brain';
+import { handle } from './lib/api';
+import type {
+  CaptureInput,
+  CheckpointInput,
+  MemoryInput,
+  SkillInput,
+  TransferInput,
+} from './lib/types';
 
-const ACTOR = "local-operator";
+const ACTOR = 'local-operator';
 let syncTimer: ReturnType<typeof setInterval> | null = null;
 let lastSyncAt = 0;
 const SYNC_STALE_MS = 10_000;
@@ -42,7 +48,9 @@ export const LOCAL_KEY = getLocalKey();
  */
 function route<T>(local: () => T, remoteFn: () => Promise<unknown>): T {
   if (remoteEnabled()) {
-    remoteFn().then(() => syncFromRemote()).catch(() => {});
+    remoteFn()
+      .then(() => syncFromRemote())
+      .catch(() => {});
     return local();
   }
   return local();
@@ -58,10 +66,12 @@ export async function startRemoteSync(): Promise<void> {
   await autoDetect();
   if (!remoteEnabled()) return;
   syncFromRemote(); // immediate sync on init
-  syncTimer = setInterval(() => { if (remoteEnabled()) syncFromRemote(); }, 30_000);
+  syncTimer = setInterval(() => {
+    if (remoteEnabled()) syncFromRemote();
+  }, 30_000);
   // Also sync when the user returns to the tab
-  document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible" && remoteEnabled()) syncFromRemote();
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && remoteEnabled()) syncFromRemote();
   });
 }
 
@@ -72,18 +82,56 @@ export async function startRemoteSync(): Promise<void> {
  */
 export async function syncFromRemote(): Promise<void> {
   if (!remoteEnabled()) return;
-  const { getState, commit } = await import("./lib/engine");
+  const { getState, commit } = await import('./lib/engine');
   try {
-    interface ListResponse { total: number; items: unknown[] }
+    interface ListResponse {
+      total: number;
+      items: unknown[];
+    }
     const [memRes, sklRes] = await Promise.all([
       remote.listMemories() as Promise<ListResponse>,
       remote.listSkills() as Promise<ListResponse>,
     ]);
     commit({
       ...getState(),
-      memories: memRes.items as import("./lib/types").Memory[],
-      skills: sklRes.items as import("./lib/types").Skill[],
+      memories: memRes.items as import('./lib/types').Memory[],
+      skills: sklRes.items as import('./lib/types').Skill[],
     });
+    // Phase 17.10 — overlay real backend audit log entries so the Audit
+    // dashboard reflects the append-only ledger when remote mode is on.
+    try {
+      const logs = (await remote.auditLogs()) as Array<{
+        id?: string;
+        sequence?: number;
+        actor?: string;
+        action?: string;
+        payload?: unknown;
+        prevHash?: string;
+        entryHash?: string;
+        timestamp?: number;
+      }>;
+      if (Array.isArray(logs) && logs.length) {
+        const mapped = logs.map((l) => ({
+          id: l.id ?? `aud-${l.sequence ?? Math.random()}`,
+          sequence: typeof l.sequence === 'number' ? l.sequence : 0,
+          actor: l.actor ?? 'system',
+          action: l.action ?? 'unknown',
+          payload: l.payload ?? null,
+          prevHash: l.prevHash ?? '',
+          entryHash: l.entryHash ?? '',
+          createdAt: typeof l.timestamp === 'number' ? l.timestamp : Date.now(),
+        }));
+        const merged = [...getState().audit];
+        for (const m of mapped) {
+          const idx = merged.findIndex((a) => a.id === m.id);
+          if (idx >= 0) merged[idx] = m;
+          else merged.push(m);
+        }
+        commit({ ...getState(), audit: merged });
+      }
+    } catch {
+      // non-critical
+    }
     lastSyncAt = Date.now();
   } catch {
     // Remote unreachable — keep local state
@@ -101,59 +149,128 @@ export const nexus = {
   actor: ACTOR,
   getPersistenceStatus,
   createMemory: (i: MemoryInput) =>
-    route(() => ops.createMemory(i, ACTOR), () => remote.createMemory(i)),
+    route(
+      () => ops.createMemory(i, ACTOR),
+      () => remote.createMemory(i)
+    ),
   updateMemory: (id: string, p: Partial<MemoryInput>) =>
-    route(() => ops.updateMemory(id, p, ACTOR), () => remote.updateMemory(id, p as Record<string, unknown>)),
+    route(
+      () => ops.updateMemory(id, p, ACTOR),
+      () => remote.updateMemory(id, p as Record<string, unknown>)
+    ),
   deleteMemory: (id: string) =>
-    route(() => ops.deleteMemory(id, ACTOR), () => remote.deleteMemory(id)),
+    route(
+      () => ops.deleteMemory(id, ACTOR),
+      () => remote.deleteMemory(id)
+    ),
   createSkill: (i: SkillInput) =>
-    route(() => ops.createSkill(i, ACTOR), () => remote.createSkill(i)),
+    route(
+      () => ops.createSkill(i, ACTOR),
+      () => remote.createSkill(i)
+    ),
   updateSkill: (id: string, p: Partial<SkillInput>) =>
-    route(() => ops.updateSkill(id, p, ACTOR), () => remote.updateSkill(id, p as Record<string, unknown>)),
+    route(
+      () => ops.updateSkill(id, p, ACTOR),
+      () => remote.updateSkill(id, p as Record<string, unknown>)
+    ),
   deleteSkill: (id: string) =>
-    route(() => ops.deleteSkill(id, ACTOR), () => remote.deleteSkill(id)),
-  recordOutcome: (id: string, o: "success" | "failure") =>
-    route(() => ops.recordSkillOutcome(id, o, ACTOR), () => remote.recordOutcome(id, o)),
+    route(
+      () => ops.deleteSkill(id, ACTOR),
+      () => remote.deleteSkill(id)
+    ),
+  recordOutcome: (id: string, o: 'success' | 'failure') =>
+    route(
+      () => ops.recordSkillOutcome(id, o, ACTOR),
+      () => remote.recordOutcome(id, o)
+    ),
   capture: (i: CaptureInput) =>
-    route(() => ops.captureSession(i, ACTOR), () => remote.capture(i.transcript, i.projectName)),
+    route(
+      () => ops.captureSession(i, ACTOR),
+      () => remote.capture(i.transcript, i.projectName)
+    ),
   checkpoint: (i: CheckpointInput) =>
-    route(() => ops.checkpoint(i, ACTOR), () => remote.checkpoint(i.label, i.context, i.projectName)),
+    route(
+      () => ops.checkpoint(i, ACTOR),
+      () => remote.checkpoint(i.label, i.context, i.projectName)
+    ),
   transfer: (i: TransferInput) =>
-    route(() => ops.transferProject(i, ACTOR), () => remote.transfer(i)),
+    route(
+      () => ops.transferProject(i, ACTOR),
+      () => remote.transfer(i)
+    ),
   recall: (q: string, b: number) => {
     syncIfStale();
-    return route(() => doRecall(q, b, ACTOR), () => remote.recall(q, b));
+    return route(
+      () => doRecall(q, b, ACTOR),
+      () => remote.recall(q, b)
+    );
   },
-  feedback: (q: string, itemId: string, t: "memory" | "skill" | "note", h: boolean) =>
-    route(() => ops.recordFeedback(q, itemId, t, h, ACTOR), () => remote.feedback(q, itemId, t, h)),
+  feedback: (q: string, itemId: string, t: 'memory' | 'skill' | 'note', h: boolean) =>
+    route(
+      () => ops.recordFeedback(q, itemId, t, h, ACTOR),
+      () => remote.feedback(q, itemId, t, h)
+    ),
   killSwitch: (enabled: boolean, reason?: string) =>
-    route(() => ops.tripKillSwitch(enabled, reason, ACTOR), () => remote.killSwitch(enabled, reason)),
+    route(
+      () => ops.tripKillSwitch(enabled, reason, ACTOR),
+      () => remote.killSwitch(enabled, reason)
+    ),
   heartbeat: () =>
-    route(() => ops.heartbeat(), () => remote.heartbeat()),
+    route(
+      () => ops.heartbeat(),
+      () => remote.heartbeat()
+    ),
   addVaultFile: (p: string, c: string) =>
-    route(() => addVaultFile(p, c, ACTOR), () => remote.syncVault()),
+    route(
+      () => addVaultFile(p, c, ACTOR),
+      () => remote.syncVault()
+    ),
   indexVault: () =>
-    route(() => indexVault(ACTOR), () => remote.syncVault()),
+    route(
+      () => indexVault(ACTOR),
+      () => remote.syncVault()
+    ),
   writeBack: (id: string, path?: string) =>
-    route(() => writeBack(id, path, ACTOR), () => remote.syncVault()),
+    route(
+      () => writeBack(id, path, ACTOR),
+      () => remote.syncVault()
+    ),
   ambient: () => {
     syncIfStale();
     return ambient();
   },
   exportBrain: () => {
     syncIfStale();
-    return route(() => exportBrain(), () => remote.exportBrain());
+    return route(
+      () => exportBrain(),
+      () => remote.exportBrain()
+    );
   },
   importBrain: (data: unknown) =>
-    route(() => importBrain(data, ACTOR), () => remote.importBrain(data)),
+    route(
+      () => importBrain(data, ACTOR),
+      () => remote.importBrain(data)
+    ),
   compressBrain: () =>
-    route(() => compressBrain(ACTOR), () => remote.compressBrain()),
+    route(
+      () => compressBrain(ACTOR),
+      () => remote.compressBrain()
+    ),
   verifyAudit: () => {
     syncIfStale();
-    return route(() => verifyAudit(), () => remote.verifyAudit().then((r) => ({ valid: r.valid, entries: r.verifiedEntries, brokenAt: null, total: 0 })));
+    return route(
+      () => verifyAudit(),
+      () =>
+        remote
+          .verifyAudit()
+          .then((r) => ({ valid: r.valid, entries: r.verifiedEntries, brokenAt: null, total: 0 }))
+    );
   },
   rebuildEmbeddings: () =>
-    route(() => rebuildEmbeddings(), () => remote.rebuildEmbeddings()),
+    route(
+      () => rebuildEmbeddings(),
+      () => remote.rebuildEmbeddings()
+    ),
   reset: resetBrain,
   wipe: wipeBrain,
   // Security lab utilities (pure)
@@ -165,4 +282,4 @@ export const nexus = {
 };
 
 export { handle };
-export type { ApiRequest, ApiResponse } from "./lib/api";
+export type { ApiRequest, ApiResponse } from './lib/api';

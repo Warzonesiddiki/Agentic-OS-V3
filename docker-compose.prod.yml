@@ -1,0 +1,61 @@
+# ── Production override ──────────────────────────────────────────────
+# Apply on top of docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d
+#
+# TLS certs: place cert.pem + key.pem in ./certs/ or see ./certs/README.md.
+# ─────────────────────────────────────────────────────────────────────
+
+version: '3.8'
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: '10m'
+    max-file: '3'
+
+services:
+  # ── Base-service overrides (adds json-file logging) ────────────────
+  postgres:
+    logging: *default-logging
+
+  redis:
+    logging: *default-logging
+
+  server:
+    logging: *default-logging
+
+  frontend:
+    logging: *default-logging
+    ports: [] # proxy handles external ingress
+
+  # ── TLS-terminating reverse proxy ──────────────────────────────────
+  proxy:
+    image: nginx:1.27-alpine
+    container_name: nexus-proxy
+    restart: always
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./nginx.prod.conf:/etc/nginx/nginx.conf:ro
+      - ./certs:/etc/nginx/ssl:ro
+    depends_on:
+      server:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    logging: *default-logging
+    healthcheck:
+      test: ['CMD', 'nginx', '-t']
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+        reservations:
+          cpus: '0.1'
+          memory: 64M

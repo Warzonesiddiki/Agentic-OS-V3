@@ -1,7 +1,7 @@
 /**
  * Unit & Integration tests for Blockchain Anchor & SHA-256 Merkle Verification (Phase 14).
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 
 vi.hoisted(() => {
   process.env.DATABASE_URL ??= 'postgres://p:pass@localhost:5432/nexus_test';

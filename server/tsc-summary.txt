@@ -1,0 +1,47 @@
+
+Count Name
+----- ----
+  107 src/routes/enterprise.ts
+   10 src/services/enterprise.service.ts
+    8 src/services/memory-consolidation.ts
+    7 src/services/memory-multimodal.ts
+    7 src/services/supply-chain.ts
+    6 src/services/self-opt/guardrail-guard.ts
+    6 src/services/marketplace.service.ts
+    5 src/services/memory-contradiction.ts
+    5 src/services/memory-graph-browser.ts
+    4 src/services/memory-trainer.ts
+    4 src/services/memory-cluster.ts
+    4 src/services/self-opt/tuners.ts
+    4 src/services/self-opt/bootstrap.ts
+    3 src/services/reliability/index.ts
+    3 src/services/memory-export-v3.ts
+    3 src/services/self-opt/gap-items.ts
+    3 src/services/self-opt/controller.ts
+    3 src/services/memory-tag-taxonomy.ts
+    3 src/services/reliability/failover-drill.ts
+    3 src/services/reliability/chaos.ts
+    2 src/services/reliability/circuit-breaker-registry.ts
+    2 src/services/session-recorder.ts
+    2 src/services/reliability/migration-rollback.ts
+    1 src/services/reliability/slo.ts
+    1 src/services/self-opt/adapters.ts
+    1 src/services/reliability/post-mortem.ts
+    1 src/services/reliability/self-healing.ts
+    1 src/services/reliability/tenant-bulkhead.ts
+    1 src/services/reliability/gap/break-glass.ts
+    1 src/services/reliability/latency-budget.ts
+    1 src/services/reliability/incident-runbook.ts
+    1 src/services/reliability/degraded-mode.ts
+    1 src/services/siem-forwarder.ts
+    1 src/services/reliability/canary-orchestrator.ts
+    1 src/services/reliability/backup-validator.ts
+    1 src/services/memory-privacy-zones.ts
+    1 src/routes/marketplace-routes.ts
+    1 src/services/memory-fragmentation.ts
+    1 src/services/audit-analytics.ts
+    1 src/services/memory-causal-chains.ts
+    1 src/services/reliability/load-shedder.ts
+    1 src/services/memory-batch.ts
+
+
