@@ -169,7 +169,7 @@ export class MemoryThresholdCalibrator extends BaseTuner {
       after: { weightRrf: Number(next.toFixed(3)), ndcg10: Number((ndcg + 0.02).toFixed(3)) },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'NDCG@10 below target; Nelder-Mead simplex steps RRF weight to maximize recall quality.',
       expectedEffect: 'NDCG@10 improvement, bounded by miss-rate budget.',
@@ -183,7 +183,7 @@ export class PromptABEngine extends BaseTuner {
   readonly id = '18.3' as const;
   readonly name = 'Prompt A/B Engine';
   readonly ownerAgent = 'atlas' as const;
-  async propose(t: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
+  async propose(_t: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
     if (t.prompt.impressions < 2000) return null; // need minimum sample
     return {
       targetInterface: this.adapter.targetInterface,
@@ -195,7 +195,7 @@ export class PromptABEngine extends BaseTuner {
       },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Thompson-sampling selected variant B; LLM-as-judge favors B on accept_rate and task_success.',
       expectedEffect: 'Auto-promote on binomial z-test p<0.05 with ≥2000 impressions/arm.',
@@ -217,7 +217,7 @@ export class LatencyFailoverTuner extends BaseTuner {
       after: { p99Ms: Number((t.provider.p99Ms * 0.9).toFixed(1)), errorRate: t.provider.errorRate },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'P99 latency/error elevated; contextual bandit re-weights provider failover scores.',
       expectedEffect: 'Keep provider.p99_ms within SLO; global circuit breaker overrides.',
@@ -239,7 +239,7 @@ export class AgentWatchdogTuner extends BaseTuner {
       after: { oomCount: t.agent.oomCount, healMs: Number((t.agent.healMs * 0.8).toFixed(0)) },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'OOM count elevated; tighten watchdog heal timeout + state recovery from agent_snapshots.',
       expectedEffect: 'Fewer restarts; respects error-rate/P99 circuit-breaker bounds.',
@@ -261,7 +261,7 @@ export class QueueAutoScalerTuner extends BaseTuner {
       after: { queueDepth: t.scheduler.queueDepth, desiredCapacity: Math.ceil(t.scheduler.queueDepth * 1.2) },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Queue depth high; EWMA + forecast drives desired capacity up within budget.',
       expectedEffect: 'Lower queue.wait_ms; bounded by token budget + circuit breaker.',
@@ -283,7 +283,7 @@ export class PredictiveCacheWarmer extends BaseTuner {
       after: { warmHitRate: Number((t.cache.warmHitRate + 0.05).toFixed(3)) },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Warm hit-rate low; demand forecast + EWMA pick top-K keys to prewarm.',
       expectedEffect: 'Higher cache hit-rate within warm_budget_keys cap.',
@@ -309,7 +309,7 @@ export class BehavioralAnomalyQuarantine extends BaseTuner {
       after: { mahalanobisDist: dist, action: 'quarantine_1_cycle' },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Agent feature vector exceeds Mahalanobis threshold vs cohort → quarantine 1 cycle.',
       expectedEffect: 'Shadow-only first; hard mode via behavioral_anomaly_qb config.',
@@ -323,7 +323,7 @@ export class SemanticBatchingTuner extends BaseTuner {
   readonly id = '18.12' as const;
   readonly name = 'Semantic LLM Batching';
   readonly ownerAgent = 'atlas' as const;
-  async propose(t: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
+  async propose(_t: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
     return {
       targetInterface: this.adapter.targetInterface,
       ownerAgent: this.ownerAgent,
@@ -331,7 +331,7 @@ export class SemanticBatchingTuner extends BaseTuner {
       after: { semanticThreshold: 0.78 },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Cosine-cluster batching; lower threshold to lift batch hit-rate without P99 regression.',
       expectedEffect: 'Higher batch.hit_rate; rejects if batch.p99_ms regresses >5%.',
@@ -353,7 +353,7 @@ export class IndexAdvisor extends BaseTuner {
       after: { missRate: Number((t.recall.missRate - 0.03).toFixed(3)), maxCorpus: 12000 },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Workload-shape heuristic + what-if cost suggests raising corpus/index cap.',
       expectedEffect: 'Lower recall miss-rate; dry-run first, auto-apply in shadow window.',
@@ -376,7 +376,7 @@ export class DemandForecaster extends BaseTuner {
       after: { forecastHorizon: 3, forecastPeak: Math.max(...fc) },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Additive seasonal decomposition forecasts queue/provider load for downstream scalers.',
       expectedEffect: 'Feeds 18.7 + 18.8; no direct state writes.',
@@ -401,7 +401,7 @@ export class RRFOnlineOptimizer extends BaseTuner {
       },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Gaussian-Process Bayesian optimization over signal weights; objective = NDCG@10.',
       expectedEffect: 'Higher NDCG@10; global CB bounds, rollback on regression.',
@@ -422,7 +422,7 @@ export class TokenBudgetRecycler extends BaseTuner {
       after: { recycleTarget: 'low_priority', tokenCostUsd: t.billing.tokenCostUsd },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'PID on token cost keeps under budget; surplus near month-end recycles to low-priority.',
       expectedEffect: 'Hold under budget; L0/L1 hard kill-switch.',
@@ -444,7 +444,7 @@ export class SemanticResponseCache extends BaseTuner {
       after: { missRate: Number((t.cache.missRate - 0.04).toFixed(3)), semanticThreshold: 0.82 },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Raise semantic admit threshold to lift hit-rate while holding miss budget.',
       expectedEffect: 'Higher cache.hit_rate; global CB on miss-rate regression.',
@@ -466,7 +466,7 @@ export class GuardrailCalibrator extends BaseTuner {
       after: { violationRate: Number((t.guardrail.violationRate * 0.9).toFixed(4)) },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Bayesian opt maximizes judge F1 subject to violation-rate ceiling + fairness.',
       expectedEffect: 'Fewer false positives; L4 fairness guard + global CB bounds.',
@@ -480,7 +480,7 @@ export class SkillCompilationAdvisor extends BaseTuner {
   readonly id = '18.19' as const;
   readonly name = 'Skill-Compilation Advisor';
   readonly ownerAgent = 'artisan' as const;
-  async propose(t: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
+  async propose(_t: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
     return {
       targetInterface: this.adapter.targetInterface,
       ownerAgent: this.ownerAgent,
@@ -488,7 +488,7 @@ export class SkillCompilationAdvisor extends BaseTuner {
       after: { compilationThreshold: 4, suggestion: 'inline_hot_path' },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Cost model suggests inlining hot skill path; advisory PR opened for human review.',
       expectedEffect: 'No auto-apply to prod without approval (advisory by design).',
@@ -509,7 +509,7 @@ export class RLSchedulingPolicy extends BaseTuner {
       after: { policy: 'mlfq', waitMs: Number((t.scheduler.queueWaitMs * 0.95).toFixed(1)) },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'PPO actor-critic (offline train / online infer) minimizes wait_ms·α + reject·β.',
       expectedEffect: 'Downstream of 18.1/18.7; L2 CB + L3 versioning + L6 satisfaction gate.',
