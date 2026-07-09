@@ -269,6 +269,9 @@ packages/sdk/src/webhooks.ts              @aeon
 
 # 18 Lorekeeper - Docs, ADRs, Plans & Personas
 docs/                                     @lorekeeper
+docs/DEPLOYMENT.md                        @bastion
+docs/PRODUCTION_CHECKLIST.md              @bastion
+docs/DR_RUNBOOK.md                        @bastion
 README*                                   @lorekeeper
 CHANGELOG.md                              @lorekeeper
 CONTRIBUTING.md                           @lorekeeper
@@ -301,8 +304,9 @@ eslint.config.mjs                         @bastion
 server/package.json                       @bastion
 package.json                              @bastion
 server/src/routes/v3-upgrade.ts           @bastion
-scripts/verify-system-readiness.ts        @bastion
-scripts/profile-system-performance.ts     @bastion
+server/src/scripts/                       @bastion
+server/src/scripts/verify-system-readiness.ts @bastion
+server/src/scripts/profile-system-performance.ts @bastion
 docs/DEPLOYMENT.md                        @bastion
 docs/PRODUCTION_CHECKLIST.md              @bastion
 docs/DR_RUNBOOK.md                        @bastion
