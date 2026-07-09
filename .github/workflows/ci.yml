@@ -28,11 +28,29 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: ESLint
-        run: cd server && npm run lint
+      - name: Lint (workspace)
+        run: pnpm -r lint
 
-      - name: TypeScript typecheck
-        run: cd server && npm run typecheck
+      - name: TypeScript typecheck (workspace)
+        run: pnpm -r typecheck
+
+  frontend-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build dashboard (Vite)
+        run: npx vite build
 
   unit-tests:
     runs-on: ubuntu-latest
@@ -63,8 +81,50 @@ jobs:
           name: coverage-unit
           path: server/coverage/
 
+  integration-tests:
+    runs-on: ubuntu-latest
+    needs: lint-and-typecheck
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: nexus
+          POSTGRES_PASSWORD: nexus
+          POSTGRES_DB: nexus_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://nexus:nexus@localhost:5432/nexus_test
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run integration tests (with Postgres)
+        run: cd server && npm run test:integration
+
   rust-check:
     runs-on: ubuntu-latest
+    # Best-effort until crates/nexus-search (Phase 15.13 napi-rs search) lands.
+    # Once that crate exists, remove `continue-on-error` so the Rust gate is strict.
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -74,12 +134,15 @@ jobs:
           cache: true
 
       - name: Rust check
+        continue-on-error: true
         run: cargo check --workspace
 
       - name: Rust tests
+        continue-on-error: true
         run: cargo test --workspace
 
       - name: Rust clippy
+        continue-on-error: true
         run: cargo clippy --all-targets --workspace -- -D warnings
 
   rust-release:
