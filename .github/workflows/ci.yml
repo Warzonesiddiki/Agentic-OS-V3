@@ -156,3 +156,94 @@ jobs:
 
       - name: Build release
         run: cargo build --workspace --release
+name: CI
+
+on:
+  push:
+    branches: ["main", "master", "feat/phases-11-20"]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Lint / Typecheck / Test / Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Rebuild native modules for runner Node (better-sqlite3 ABI)
+        run: pnpm rebuild better-sqlite3
+      - name: Validate (lint + typecheck + test + build)
+        run: pnpm run validate
+
+  rust:
+    name: Rust (build / clippy / test)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Check
+        run: cargo check --workspace
+      - name: Clippy (deny warnings)
+        run: cargo clippy --all-targets -- -D warnings
+      - name: Test
+        run: cargo test --workspace
+
+  codeowners:
+    name: CODEOWNERS coverage (merge gate)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify changed files have a CODEOWNERS rule
+        run: |
+          set -euo pipefail
+          if [ -n "${{ github.event.pull_request.number }}" ]; then
+            git fetch origin "${{ github.event.pull_request.base.ref }}"
+            changed=$(git diff --name-only "origin/${{ github.event.pull_request.base.ref }}"...HEAD)
+          else
+            base="${{ github.event.pull_request.base.sha || github.event.before || 'HEAD~1' }}"
+            changed=$(git diff --name-only "$base" "${{ github.sha }}")
+          fi
+          CHANGED="$changed" node -e '
+            const fs = require("fs");
+            const owners = fs.readFileSync("CODEOWNERS", "utf8")
+              .split("\n").map(function (l) { return l.trim(); })
+              .filter(function (l) { return l && !l.startsWith("#"); })
+              .map(function (l) { return l.split(/\s+/)[0]; });
+            function toRegex(p) {
+              var isDir = p.endsWith("/");
+              if (isDir) p = p.slice(0, -1);
+              var r = p.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+              r = r.replace(/\*\*/g, "§§").replace(/\*/g, "[^/]*").replace(/§§/g, ".*").replace(/\?/g, ".");
+              if (!r.includes("/")) r = "(^|/)" + r;
+              return new RegExp("^" + r + (isDir ? "(/.*)?") + "$");
+            }
+            var rules = owners.map(toRegex);
+            var files = (process.env.CHANGED || "").split("\n").filter(Boolean);
+            var uncovered = files.filter(function (f) { return !rules.some(function (re) { return re.test(f); }); });
+            if (uncovered.length) {
+              console.error("ERROR: changed files without a CODEOWNERS rule:");
+              uncovered.forEach(function (f) { console.error("  " + f); });
+              process.exit(1);
+            }
+            console.log("OK: all " + files.length + " changed files are covered by CODEOWNERS.");
+          '
