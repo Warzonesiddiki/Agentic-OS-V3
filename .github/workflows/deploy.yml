@@ -74,3 +74,44 @@ jobs:
               -e DATABASE_URL="${{ secrets.DEPLOY_DATABASE_URL }}" \
               "$IMAGE"
             docker image prune -f
+name: Deploy
+
+on:
+  push:
+    branches: ["main", "master"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  docker:
+    name: Build & publish NEXUS image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - name: Log in to container registry
+        if: ${{ secrets.REGISTRY_URL != '' }}
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.REGISTRY_URL }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - name: Build standalone image
+        run: docker build -f Dockerfile.standalone -t nexus-standalone:${{ github.sha }} .
+      - name: Smoke test (health endpoint)
+        run: |
+          docker run -d --name nexus-smoke -p 9900:9900 nexus-standalone:${{ github.sha }}
+          for i in $(seq 1 20); do
+            if curl -fs http://localhost:9900/api/v1/health; then break; fi
+            sleep 3
+          done
+          docker rm -f nexus-smoke
+      - name: Push image
+        if: ${{ secrets.REGISTRY_URL != '' }}
+        run: |
+          docker tag nexus-standalone:${{ github.sha }} ${{ secrets.REGISTRY_URL }}/nexus-standalone:${{ github.sha }}
+          docker tag nexus-standalone:${{ github.sha }} ${{ secrets.REGISTRY_URL }}/nexus-standalone:latest
+          docker push ${{ secrets.REGISTRY_URL }}/nexus-standalone:${{ github.sha }}
+          docker push ${{ secrets.REGISTRY_URL }}/nexus-standalone:latest
