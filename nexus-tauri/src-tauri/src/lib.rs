@@ -1,6 +1,5 @@
 use std::fs;
 use std::process::Command;
-use std::path::PathBuf;
 use tauri::Manager;
 
 mod commands;

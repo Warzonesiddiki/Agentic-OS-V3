@@ -36,6 +36,10 @@ fn default_cache_size() -> usize {
     64
 }
 
+fn default_rescan_interval() -> u64 {
+    30
+}
+
 impl Default for SkillManagerConfig {
     fn default() -> Self {
         Self {

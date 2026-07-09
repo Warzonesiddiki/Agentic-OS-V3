@@ -36,9 +36,15 @@ vi.mock('../src/db/client.js', () => ({
 vi.mock('../src/lib/audit.js', () => ({
   appendAudit: vi.fn(() => Promise.resolve()),
 }));
-vi.mock('../src/lib/guards.js', () => ({
-  safeVaultPath: vi.fn((p: string, _root: string) => ({ ok: true, resolved: `/tmp/vault/${p.replace(/^\/+/, '')}` })),
-}));
+vi.mock('../src/lib/guards.js', () => {
+  const path = require('node:path');
+  return {
+    safeVaultPath: (p: string, root: string) => ({
+      ok: true,
+      resolved: path.resolve(root, p.replace(/^\/+/, '')),
+    }),
+  };
+});
 vi.mock('../src/lib/env.js', () => ({
   env: { NEXUS_OBSIDIAN_VAULT: '/tmp/vault' },
 }));
@@ -98,9 +104,8 @@ describe('syncVault', () => {
 
 describe('writeBack', () => {
   it('writes a note with audit trail', async () => {
-    const entry = { id: 'n1', title: 'T', body: 'B', tags: ['x'] };
-    const result = await writeBack(entry as any, 'tester');
+    const result = await writeBack('m1', undefined, 'tester');
     expect(result).toBeDefined();
-    expect(mockUpdate).toHaveBeenCalled();
+    expect(result.path).toContain('.md');
   });
 });

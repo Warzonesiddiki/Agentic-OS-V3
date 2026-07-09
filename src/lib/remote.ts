@@ -158,6 +158,11 @@ const RETRY_BASE_MS = 300;
 const RETRY_MAX_MS = 4_000;
 const RETRY_ATTEMPTS = 3;
 
+/** Per-request socket timeout. Without this a hung backend keeps the fetch in
+ *  pending forever — the caller (and any React Query hook) never settles and
+ *  the in-flight promise leaks until navigation. Mirrors api-client's budget. */
+const FETCH_TIMEOUT_MS = 30_000;
+
 function isCacheable(method: string | undefined, path: string): boolean {
   return (method ?? 'GET').toUpperCase() === 'GET' && !path.includes('/api/v1/health');
 }
@@ -188,9 +193,15 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let lastErr: unknown;
   let lastStatus = 0;
   for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
+    // Bounded socket timeout per attempt. Merges with any caller-supplied signal.
+    const timeoutCtl = new AbortController();
+    const timeoutId = setTimeout(() => timeoutCtl.abort(), FETCH_TIMEOUT_MS);
+    const onCallerAbort = () => timeoutCtl.abort();
+    if (init?.signal) init.signal.addEventListener('abort', onCallerAbort, { once: true });
     try {
       const res = await fetch(`${cfg.baseUrl}${path}`, {
         ...init,
+        signal: timeoutCtl.signal,
         headers: {
           'content-type': 'application/json',
           ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
@@ -238,6 +249,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
         // Non-retryable (e.g. 400/401/403/404) — surface immediately.
         if (e instanceof Error && lastStatus !== 0) throw e;
       }
+    } finally {
+      // Release per-attempt timer + caller listener so a failed attempt
+      // can't leave a dangling timeout firing into a dead request.
+      clearTimeout(timeoutId);
+      if (init?.signal) init.signal.removeEventListener('abort', onCallerAbort);
     }
 
     if (attempt < RETRY_ATTEMPTS) {
@@ -616,7 +632,4 @@ export const v3 = {
       .catch(() => ({
         ok: false,
         error: { code: 'NETWORK_ERROR', message: 'Failed to parse response' },
-        traceId: '',
-      }));
-  },
-};
+        

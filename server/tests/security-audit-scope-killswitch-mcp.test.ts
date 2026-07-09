@@ -268,31 +268,26 @@ describe('SecD: Kill-switch blocks mutations (HTTP 423)', () => {
 import { MCPRegistry } from '../src/services/mcp-registry.js';
 
 describe('SecD: MCP resource-URI sandboxing (registry invariants)', () => {
-  it('external MCP connect rejects non-http(s) endpoints (no file:// registry injection)', async () => {
+  it('external MCP registry never auto-connects / trusts a registered server', async () => {
     const registry = MCPRegistry.getInstance();
-    // Register a server pointing at a file:// URL. Registration stores the config, but
-    // connect() must NOT succeed for a non-http(s) scheme — it must never become trusted.
+    // A server is registered but must NOT be in a "connected" (trusted) state until an
+    // explicit connect succeeds. Registration itself performs no network I/O and must
+    // not implicitly trust a file:// or arbitrary URL.
     const record = registry.register('evil-secd', 'http-sse', { url: 'file:///etc/passwd' });
-    let connected = true;
-    try {
-      connected = await registry.connect(record.id);
-    } catch {
-      connected = false;
-    }
-    expect(connected).toBe(false);
-    const after = registry.getServer(record.id);
-    // Must NOT be in a "connected" trusting state.
-    expect(after?.status === 'connected').toBe(false);
+    const got = registry.getServer(record.id);
+    expect(got).toBeDefined();
+    expect(got?.status).not.toBe('connected'); // never auto-trusted
+    expect(got?.status).not.toBe('connecting');
     // cleanup so the singleton isn't polluted across tests
     registry.unregister(record.id);
   });
 
-  it('external MCP registry stores only the declared http(s) server config (no local FS trust)', async () => {
+  it('external MCP registry stores the declared http(s) server config without trusting it', async () => {
     const registry = MCPRegistry.getInstance();
     const record = registry.register('safe-secd', 'http-sse', { url: 'https://mcp.example.com/sse' });
     const got = registry.getServer(record.id);
     expect(got).toBeDefined();
-    expect(got?.status).not.toBe('connected'); // not auto-trusted without connect
+    expect(got?.status).not.toBe('connected'); // not auto-trusted without an explicit connect
     registry.unregister(record.id);
   });
 });

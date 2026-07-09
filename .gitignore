@@ -132,3 +132,7 @@ server/**/_*.mjs
 *.log
 *.tmp
 .server_tests_tmp
+
+server/tsc_err.txt
+server/tsc_errors2.txt
+server/_verify_stub_loader.cjs

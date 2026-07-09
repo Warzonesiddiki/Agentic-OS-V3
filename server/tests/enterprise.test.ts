@@ -105,7 +105,15 @@ function evalNode(node: any, row: any): boolean {
 function makeFakeDb() {
   const store = new Map<string, any[]>();
   function tblName(t: any): string {
-    return t && t.name ? t.name : String(t);
+    if (t && t.name) return t.name;
+    if (t && t.queryChunks) {
+      const text = t.queryChunks.map((c: any) => (typeof c === 'string' ? c : c && c.value ? c.value.join('') : '')).join('');
+      const dot = text.match(/([a-zA-Z_][a-zA-Z0-9_]*)\.[a-zA-Z_][a-zA-Z0-9_]*/);
+      if (dot) return dot[1];
+      const first = text.match(/[a-zA-Z_][a-zA-Z0-9_]*/);
+      return first ? first[0] : String(t);
+    }
+    return String(t);
   }
   function ensure(t: any): any[] {
     const n = tblName(t);
@@ -133,6 +141,9 @@ function makeFakeDb() {
         } else if (c && c.name) {
           orderCol = c.name;
         }
+        return api;
+      },
+      limit() {
         return api;
       },
       then(resolve: any) {
