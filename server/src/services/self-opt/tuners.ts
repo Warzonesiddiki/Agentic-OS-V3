@@ -145,7 +145,7 @@ export class SchedulerPidTuner extends BaseTuner {
       },
     };
   }
-  explain(d: TunerDeltaInput) {
+  explain(_d: TunerDeltaInput) {
     return {
       reason: 'Queue wait/reject elevated; Bayesian EI suggests raising kp, nudging ki up, kd down to damp oscillation.',
       expectedEffect: 'Lower queue wait_ms and reject_rate within ±25% safe box.',
