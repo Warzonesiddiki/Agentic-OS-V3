@@ -97,5 +97,73 @@ describe('consensus', () => {
       expect(r.confidence).toBe(0);
       expect(r.tie).toBe(false);
     });
+
+    it('survives a network partition: split votes below threshold escalate', () => {
+      // 3 nodes for X, 3 nodes for Y → each camp = 3/6 = 0.5 < 2/3 → unsafe split.
+      const votes: Vote[] = [
+        { agentId: 'a', value: 'X' },
+        { agentId: 'b', value: 'X' },
+        { agentId: 'c', value: 'X' },
+        { agentId: 'd', value: 'Y' },
+        { agentId: 'e', value: 'Y' },
+        { agentId: 'f', value: 'Y' },
+      ];
+      const r = tallyBFT(votes);
+      expect(r.winner).toBeUndefined();
+      expect(r.tie).toBe(true);
+      expect(r.confidence).toBeCloseTo(0.5);
+    });
+
+    it('tolerates up to f byzantine faults: 2f+1 honest still reach threshold', () => {
+      // 7 voters, 2 byzantine (EVIL), 5 honest (GOOD) → GOOD = 5/7 ≈ 0.714 > 2/3.
+      const votes: Vote[] = [
+        { agentId: 'f1', value: 'EVIL' },
+        { agentId: 'f2', value: 'EVIL' },
+        { agentId: 'h1', value: 'GOOD' },
+        { agentId: 'h2', value: 'GOOD' },
+        { agentId: 'h3', value: 'GOOD' },
+        { agentId: 'h4', value: 'GOOD' },
+        { agentId: 'h5', value: 'GOOD' },
+      ];
+      const r = tallyBFT(votes);
+      expect(r.winner).toBe('GOOD');
+      expect(r.tie).toBe(false);
+      expect(r.confidence).toBeCloseTo(5 / 7);
+    });
+
+    it('exactly at threshold boundary wins (strict >), one tick below escalates', () => {
+      const win = tallyBFT(
+        [
+          { agentId: 'a', value: 'X' },
+          { agentId: 'b', value: 'X' },
+          { agentId: 'c', value: 'Y' },
+        ],
+        { threshold: 0.5 }
+      );
+      expect(win.winner).toBe('X');
+      expect(win.tie).toBe(false);
+
+      const boundary = tallyBFT(
+        [
+          { agentId: 'a', value: 'X' },
+          { agentId: 'b', value: 'Y' },
+        ],
+        { threshold: 0.5 }
+      );
+      expect(boundary.winner).toBeUndefined();
+      expect(boundary.tie).toBe(true);
+    });
+
+    it('object values are deep-compared (no false split)', () => {
+      const votes: Vote[] = [
+        { agentId: 'a', value: { plan: 'p', n: 1 } },
+        { agentId: 'b', value: { plan: 'p', n: 1 } },
+        { agentId: 'c', value: { plan: 'p', n: 1 } },
+        { agentId: 'd', value: { plan: 'p', n: 2 } },
+      ];
+      const r = tallyBFT(votes);
+      expect(r.winner).toEqual({ plan: 'p', n: 1 });
+      expect(r.confidence).toBeCloseTo(3 / 4);
+    });
   });
 });

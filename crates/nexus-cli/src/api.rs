@@ -3,8 +3,6 @@
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
 
-use crate::api::PluginKind;
-
 #[derive(Debug, Deserialize)]
 pub struct Plugin {
   pub id: String,
@@ -33,6 +31,20 @@ pub enum PluginKind {
   Integration,
 }
 
+impl std::fmt::Display for PluginKind {
+  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    let s = match self {
+      PluginKind::Plugin => "plugin",
+      PluginKind::Agent => "agent",
+      PluginKind::Memory => "memory",
+      PluginKind::Widget => "widget",
+      PluginKind::Tool => "tool",
+      PluginKind::Integration => "integration",
+    };
+    f.write_str(s)
+  }
+}
+
 #[derive(Debug, Deserialize)]
 pub struct Agent {
   pub id: String,
@@ -56,7 +68,7 @@ struct ApiError {
   message: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Default, Deserialize)]
 struct Page<T> {
   items: Vec<T>,
   #[serde(default)]
@@ -81,7 +93,7 @@ impl Client {
     }
   }
 
-  async fn get_json<T: for<'de> Deserialize<'de>>(&self, path: &str) -> Result<T> {
+  async fn get_json<T: for<'de> Deserialize<'de> + Default>(&self, path: &str) -> Result<T> {
     let url = format!("{}{}", self.base, path);
     let res = self.auth(self.http.get(&url)).send().await?;
     let status = res.status();

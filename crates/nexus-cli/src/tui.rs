@@ -1,6 +1,7 @@
 //! Interactive Terminal UI (ratatui + crossterm).
 
 use anyhow::Result;
+use std::io;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::CrosstermBackend, Terminal};
 use std::time::Duration;

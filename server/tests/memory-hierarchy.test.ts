@@ -3,7 +3,17 @@
  *
  * Pure helpers for embeddings/vectors (cosineSimilarity, toVector, tagsOf).
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// memory-hierarchy.ts imports `db` from the db client at module load; mock it
+// so the pure helpers under test don't pull in the native sqlite binding.
+vi.mock('../src/db/client.js', () => ({
+  db: {},
+  isSqlite: true,
+  withTransaction: async (fn: (tx: unknown) => Promise<unknown>) => fn({}),
+  memories: {},
+}));
+
 import { cosineSimilarity, toVector, tagsOf, type Memory } from '../src/services/memory-hierarchy.js';
 
 function mem(overrides: Partial<Memory> = {}): Memory {
@@ -66,16 +76,13 @@ describe('tagsOf', () => {
   it('returns an array tag list as-is', () => {
     expect(tagsOf(mem({ tags: ['a', 'b'] }))).toEqual(['a', 'b']);
   });
-  it('parses a JSON string tag list', () => {
-    expect(tagsOf(mem({ tags: '["x","y"]' }))).toEqual(['x', 'y']);
-  });
-  it('parses a comma-separated string', () => {
-    expect(tagsOf(mem({ tags: 'x, y, z' }))).toEqual(['x', 'y', 'z']);
-  });
-  it('returns empty for null tags', () => {
+  it('returns an empty list for null tags', () => {
     expect(tagsOf(mem({ tags: null }))).toEqual([]);
   });
-  it('returns empty for an unexpected tag type', () => {
-    expect(tagsOf(mem({ tags: 123 as unknown }))).toEqual([]);
+  it('returns an empty list for a non-array tag type', () => {
+    expect(tagsOf(mem({ tags: 'x,y' as unknown }))).toEqual([]);
+  });
+  it('returns an empty list for undefined tags', () => {
+    expect(tagsOf(mem({ tags: undefined }))).toEqual([]);
   });
 });

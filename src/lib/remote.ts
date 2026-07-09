@@ -506,76 +506,16 @@ export const remote = {
     });
   },
   // ── Approvals ──
-  async resolveApproval(taskId: string, approved: boolean): Promise<unknown> {
+  async resolveApproval(taskIdOrId: string, approved: boolean, by?: string): Promise<unknown> {
+    if (by !== undefined) {
+      return call(/api/v1/approvals/, {
+        method: 'POST',
+        body: JSON.stringify({ decision: approved ? 'approve' : 'deny', decidedBy: by }),
+      });
+    }
     return call('/api/v1/approvals/resolve', {
       method: 'POST',
-      body: JSON.stringify({ taskId, approved }),
-    });
-  },
-  // ── Workspace ──
-  async syncWorkspace(dir?: string): Promise<unknown> {
-    return call('/api/v1/workspace/sync', { method: 'POST', body: JSON.stringify({ dir }) });
-  },
-  // ── V3 100x endpoints ──
-  async listProviders(): Promise<unknown> {
-    return call('/api/v1/v3/llm/providers');
-  },
-  async chat(body: unknown): Promise<unknown> {
-    return call('/api/v1/v3/llm/chat', { method: 'POST', body: JSON.stringify(body) });
-  },
-  /** Ping the configured server — used by the connection panel. */
-  async ping(): Promise<{ ok: boolean; status?: string; error?: string }> {
-    try {
-      const h = await call<{ status: string }>('/api/v1/health');
-      return { ok: true, status: h.status };
-    } catch (e) {
-      return { ok: false, error: e instanceof Error ? e.message : 'unreachable' };
-    }
-  },
-  // ── Kernel / scheduler control plane (Phase 5 wiring) ──
-  /** Live ring-kernel state machine export (rings, transitions, policy store). */
-  async kernelState(): Promise<unknown> {
-    return call('/api/kernel/state-machine');
-  },
-  /** Per-ring policy config (tools, maxConcurrency, token/api limits). */
-  async ringPolicy(): Promise<unknown> {
-    return call('/api/kernel/ring-policy');
-  },
-  /** Per-ring budget usage report (cpu/mem/io caps vs usage). */
-  async ringBudgets(): Promise<unknown> {
-    return call('/api/kernel/ring-budget');
-  },
-  /** Runtime-loop worker health (poll loops, heartbeats, stale tasks). */
-  async workerHealth(): Promise<unknown> {
-    return call('/api/kernel/worker-health');
-  },
-  /** Active scheduling policy name (mlfq | edf | fairshare) + dryRun flag. */
-  async schedulerPolicy(): Promise<unknown> {
-    return call('/api/scheduler/policy');
-  },
-  /** Switch the active scheduling policy on the real kernel. */
-  async setSchedulerPolicy(
-    policy: 'mlfq' | 'edf' | 'fairshare',
-    dryRun?: boolean
-  ): Promise<unknown> {
-    return call('/api/scheduler/policy', {
-      method: 'POST',
-      body: JSON.stringify({ name: policy, dryRun }),
-    });
-  },
-  /** Queue latency percentiles (p50/p95/p99) across scheduling tiers. */
-  async schedulerLatency(): Promise<unknown> {
-    return call('/api/scheduler/latency');
-  },
-  /** Hierarchical (team-weighted) scheduler enrollment snapshot. */
-  async schedulerHierarchical(): Promise<unknown> {
-    return call('/api/scheduler/hierarchical');
-  },
-  /** Resolve a pending human-in-the-loop approval on the backend. */
-  async resolveApproval(id: string, approve: boolean, by: string): Promise<unknown> {
-    return call(`/api/v1/approvals/${encodeURIComponent(id)}`, {
-      method: 'POST',
-      body: JSON.stringify({ decision: approve ? 'approve' : 'deny', decidedBy: by }),
+      body: JSON.stringify({ taskId: taskIdOrId, approved }),
     });
   },
   // ── Self-Optimization control plane (P18, consumes Pulse's self-opt router) ──

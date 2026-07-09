@@ -43,8 +43,8 @@ export function KillSwitchBanner() {
       )}
       <button
         onClick={() => setVisible(false)}
-        className="rounded border border-rose-400/40 px-2 py-0.5 text-[11px] text-rose-200 hover:bg-rose-900/60"
-        aria-label="Dismiss"
+        className="rounded border border-rose-400/40 px-2 py-0.5 text-[11px] text-rose-200 hover:bg-rose-900/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-rose-300/70"
+        aria-label="Dismiss kill switch warning"
       >
         dismiss
       </button>

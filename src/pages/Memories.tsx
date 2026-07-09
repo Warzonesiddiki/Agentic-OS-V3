@@ -182,6 +182,7 @@ export default function Memories() {
           </Card>
         )}
       />
+      </SectionErrorBoundary>
 
       <Modal
         open={open}

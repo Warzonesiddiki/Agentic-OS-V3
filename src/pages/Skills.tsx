@@ -15,6 +15,7 @@ import {
 } from '../components/ui';
 import type { Skill, SkillInput } from '../lib/types';
 import { DataList } from '../components/DataList';
+import { SectionErrorBoundary } from '../components/SectionErrorBoundary';
 
 const empty: SkillInput = {
   name: '',
@@ -95,6 +96,7 @@ export default function Skills() {
         }
       />
 
+      <SectionErrorBoundary sectionName="Skills">
       <DataList
         items={s.skills}
         filteredItems={filtered}
@@ -181,6 +183,7 @@ export default function Skills() {
           </Card>
         )}
       />
+      </SectionErrorBoundary>
 
       <Modal
         open={open}

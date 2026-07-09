@@ -2,23 +2,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../src/services/kernel.js', () => ({ publishKernelEvent: vi.fn() }));
 vi.mock('../src/services/agent-runtime.js', () => ({ runAgent: vi.fn() }));
-vi.mock('../lib/audit.js', () => ({ appendAudit: vi.fn() }));
-vi.mock('../lib/logging.js', () => ({ log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
+vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn() }));
+vi.mock('../src/lib/logging.js', () => ({ log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));
+vi.mock('../src/lib/env.js', () => ({
+  env: { NODE_ENV: 'test' },
+  getEnv: () => ({ NODE_ENV: 'test' }),
+  resetEnv: () => {},
+}));
 vi.mock('../src/db/client.js', () => {
-  const chain = new Proxy(
+  const c = new Proxy(
     {},
     {
-      get: (_t, p) => (p === 'execute' || p === 'run' ? () => Promise.resolve([]) : () => chain),
+      get: (_t, p) =>
+        p === 'execute' || p === 'run'
+          ? () => Promise.resolve([])
+          : () => c,
     }
   );
-  const table = {};
-  return {
-    db: new Proxy({}, { get: () => () => chain }),
-    schema: { systemMeta: table, auditLog: table },
-    systemMeta: table,
-    auditLog: table,
-    isSqlite: true,
-  };
+  const t = {};
+  return { db: new Proxy({}, { get: () => () => c }), schema: { systemMeta: t, auditLog: t }, systemMeta: t, auditLog: t, isSqlite: true };
 });
 vi.mock('better-sqlite3', () => ({
   default: class {
@@ -52,13 +54,7 @@ describe('dag-executor — checkpoint/resume', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (runAgent as any).mockReset();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    (runAgent as any).mockResolvedValue({
-      ok: true,
-      answer: 'ok',
-      steps: [],
-      iterations: 1,
-      tokensUsed: 0,
-    });
+    (runAgent as any).mockResolvedValue({ ok: true, answer: 'ok', steps: [], iterations: 1, tokensUsed: 0 });
   });
 
   it('checkpoints every step so a resumed run skips completed steps', async () => {
@@ -85,16 +81,7 @@ describe('dag-executor — checkpoint/resume', () => {
 
     // Seed a checkpoint with only s1 completed; s2..s4 missing.
     store.save('plan-1', seededRunId, [
-      {
-        stepId: 's1',
-        ok: true,
-        output: { ok: true },
-        error: undefined,
-        retries: 0,
-        durationMs: 1,
-        startedAt: 0,
-        finishedAt: 1,
-      },
+      { stepId: 's1', ok: true, output: { ok: true }, error: undefined, durationMs: 1, startedAt: 0, finishedAt: 1 },
     ]);
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

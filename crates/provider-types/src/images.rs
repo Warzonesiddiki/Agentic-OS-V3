@@ -58,7 +58,29 @@ pub fn detect_image_path(text: &str) -> Option<Cow<'_, str>> {
                 floor += 1;
             }
             if let Some(window) = text.get(floor..end) {
+                // On Windows a path can also be `\`-separated or begin with a
+                // drive letter (`C:\`). Collect every candidate start index.
+                let mut starts: Vec<usize> = Vec::new();
                 for (rel, _) in window.match_indices('/') {
+                    starts.push(rel);
+                }
+                for (rel, _) in window.match_indices('\\') {
+                    starts.push(rel);
+                }
+                let wbytes = window.as_bytes();
+                for rel in 0..wbytes.len() {
+                    if (wbytes[rel] as char).is_ascii_alphabetic()
+                        && rel + 1 < wbytes.len()
+                        && wbytes[rel + 1] == b':'
+                    {
+                        let after = window.get(rel + 2..).and_then(|s| s.chars().next());
+                        if matches!(after, Some('/') | Some('\\')) {
+                            starts.push(rel);
+                        }
+                    }
+                }
+
+                for rel in starts {
                     let start = floor + rel;
                     let preceded_by_boundary = text
                         .get(..start)
@@ -137,7 +159,7 @@ fn image_path_candidate(candidate: &str) -> Option<Cow<'_, str>> {
 
 fn is_existing_image_path(candidate: &str) -> bool {
     let path = Path::new(candidate);
-    path.is_absolute() && path.is_file() && is_image_file(path)
+    path.is_file() && is_image_file(path)
 }
 
 /// Case-insensitive ASCII substring search returning a byte index into

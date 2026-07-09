@@ -1,137 +1,128 @@
 /**
  * Tests for server/src/services/memory-emotion.ts
  *
- * Pure emotion-scoring helpers for memories (no DB required).
+ * Phase 12 emotion-tagged memory support. `normalizeEmotionVector` is pure;
+ * `classifyMemoryEmotion`/`storeMemoryEmotion` are LLM/DB-backed and mocked.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// LLM + db are mocked so we can exercise classify/store without a provider.
+const stored: Array<Record<string, unknown>> = [];
+
+vi.mock('../src/db/client.js', () => ({
+  db: {
+    insert: (table: unknown) => ({
+      values: (row: Record<string, unknown>) => {
+        stored.push(row);
+        return Promise.resolve(undefined);
+      },
+    }),
+  },
+  isSqlite: true,
+}));
+
+vi.mock('../src/db/schema.js', () => ({
+  memoryEmotions: { _kind: 'table' },
+}));
+
+vi.mock('./llm-client.js', () => ({
+  callLLMStructuredWithTrajectory: (sys: string, content: string) => {
+    // deterministic classification based only on content length parity
+    const hot = content.includes('love') || content.includes('joy');
+    const bad = content.includes('fear') || content.includes('angry');
+    return Promise.resolve({
+      joy: hot ? 0.9 : 0.1,
+      surprise: 0.2,
+      fear: bad ? 0.8 : 0.1,
+      anger: bad ? 0.6 : 0.1,
+      sadness: 0.1,
+      disgust: 0.1,
+      trust: 0.5,
+      anticipation: 0.4,
+    });
+  },
+}));
+
 import {
-  computeEmotionScores,
-  blendEmotionWithImportance,
-  summarizeEmotion,
-  buildEmotionScorer,
-  isCalm,
-  normalizeEmotions,
-  EMOTION_DIMENSIONS,
+  EMOTIONS,
+  normalizeEmotionVector,
+  classifyMemoryEmotion,
+  storeMemoryEmotion,
   type EmotionVector,
 } from '../src/services/memory-emotion.js';
 
-const zeroVec: EmotionVector = { valence: 0, arousal: 0, dominance: 0, fear: 0, joy: 0, sadness: 0, anger: 0, surprise: 0 };
-
-describe('EMOTION_DIMENSIONS', () => {
-  it('enumerates the 8 canonical dimensions', () => {
-    expect(EMOTION_DIMENSIONS).toEqual([
-      'valence',
-      'arousal',
-      'dominance',
-      'fear',
+describe('EMOTIONS', () => {
+  it('lists the 8 canonical emotions', () => {
+    expect(EMOTIONS).toEqual([
       'joy',
-      'sadness',
-      'anger',
       'surprise',
+      'fear',
+      'anger',
+      'sadness',
+      'disgust',
+      'trust',
+      'anticipation',
     ]);
   });
 });
 
-describe('computeEmotionScores', () => {
-  it('returns a zero vector for empty content', () => {
-    expect(computeEmotionScores('')).toEqual(zeroVec);
+describe('normalizeEmotionVector', () => {
+  it('clamps each dimension into [0,1] and fills missing with 0', () => {
+    const v = normalizeEmotionVector({ joy: 5, fear: -2, trust: 0.4 });
+    expect(v.joy).toBe(1);
+    expect(v.fear).toBe(0);
+    expect(v.trust).toBe(0.4);
+    expect(v.sadness).toBe(0);
+    expect(v.anticipation).toBe(0);
   });
-  it('detects joy lexicon', () => {
-    const v = computeEmotionScores('we are happy and excited');
-    expect(v.joy).toBeGreaterThan(0);
-    expect(v.valence).toBeGreaterThan(0);
+  it('coerces non-numeric values to 0', () => {
+    const v = normalizeEmotionVector({ joy: 'high', anger: null });
+    expect(v.joy).toBe(0);
+    expect(v.anger).toBe(0);
   });
-  it('detects fear lexicon (negative valence)', () => {
-    const v = computeEmotionScores('a terrifying and anxious threat');
-    expect(v.fear).toBeGreaterThan(0);
-    expect(v.valence).toBeLessThan(0);
+  it('treats NaN/Infinity as 0', () => {
+    const v = normalizeEmotionVector({ joy: NaN, trust: Infinity });
+    expect(v.joy).toBe(0);
+    expect(v.trust).toBe(1);
   });
-  it('detects anger lexicon', () => {
-    const v = computeEmotionScores('an angry furious argument');
-    expect(v.anger).toBeGreaterThan(0);
-  });
-  it('detects sadness lexicon', () => {
-    const v = computeEmotionScores('a sad lonely grief');
-    expect(v.sadness).toBeGreaterThan(0);
-  });
-  it('detects surprise lexicon', () => {
-    const v = computeEmotionScores('a sudden surprise');
-    expect(v.surprise).toBeGreaterThan(0);
-  });
-  it('is case-insensitive', () => {
-    expect(computeEmotionScores('HAPPY').joy).toBeGreaterThan(0);
-  });
-  it('accumulates multiple matches', () => {
-    const v = computeEmotionScores('happy happy happy');
-    expect(v.joy).toBeGreaterThanOrEqual(3);
+  it('produces a complete vector across all 8 emotions', () => {
+    const v = normalizeEmotionVector({});
+    expect(Object.keys(v).sort()).toEqual([...EMOTIONS].sort());
   });
 });
 
-describe('blendEmotionWithImportance', () => {
-  it('keeps importance when emotion magnitude is zero', () => {
-    expect(blendEmotionWithImportance(0.7, zeroVec)).toBeCloseTo(0.7, 10);
+describe('classifyMemoryEmotion', () => {
+  it('returns a normalized vector from the LLM', async () => {
+    const v = await classifyMemoryEmotion('this is joyful and loving');
+    expect(v.joy).toBeGreaterThan(0.5);
+    expect(v.fear).toBeLessThan(0.5);
   });
-  it('boosts importance when a strong positive emotion is present', () => {
-    const v: EmotionVector = { ...zeroVec, joy: 0.9, valence: 0.9 };
-    expect(blendEmotionWithImportance(0.5, v)).toBeGreaterThan(0.5);
+  it('detects negative emotional content', async () => {
+    const v = await classifyMemoryEmotion('a fearful and angry scene');
+    expect(v.fear).toBeGreaterThan(0.5);
+    expect(v.anger).toBeGreaterThan(0.5);
   });
-  it('reduces importance for strong negative emotions', () => {
-    const v: EmotionVector = { ...zeroVec, fear: 0.9, valence: -0.9 };
-    expect(blendEmotionWithImportance(0.5, v)).toBeLessThan(0.5);
-  });
-  it('clamps result to [0,1]', () => {
-    const v: EmotionVector = { ...zeroVec, joy: 5 };
-    expect(blendEmotionWithImportance(0.99, v)).toBeLessThanOrEqual(1);
-  });
-});
-
-describe('summarizeEmotion', () => {
-  it('returns neutral for a zero vector', () => {
-    expect(summarizeEmotion(zeroVec)).toBe('neutral');
-  });
-  it('returns the dominant positive label', () => {
-    const v: EmotionVector = { ...zeroVec, joy: 0.8, valence: 0.5 };
-    expect(summarizeEmotion(v)).toBe('joy');
-  });
-  it('returns the dominant negative label', () => {
-    const v: EmotionVector = { ...zeroVec, anger: 0.8, valence: -0.5 };
-    expect(summarizeEmotion(v)).toBe('anger');
-  });
-  it('prefers a strong negative over weak positive', () => {
-    const v: EmotionVector = { ...zeroVec, joy: 0.2, fear: 0.9 };
-    expect(summarizeEmotion(v)).toBe('fear');
+  it('returns a fully-formed vector', async () => {
+    const v = await classifyMemoryEmotion('neutral memory');
+    expect(Object.keys(v).sort()).toEqual([...EMOTIONS].sort());
   });
 });
 
-describe('isCalm', () => {
-  it('is true for a calm vector', () => {
-    expect(isCalm(zeroVec)).toBe(true);
+describe('storeMemoryEmotion', () => {
+  it('classifies and persists an emotion row', async () => {
+    stored.length = 0;
+    const cls = await storeMemoryEmotion('mem-1', 'we felt joy');
+    expect(cls.memoryId).toBe('mem-1');
+    expect(cls.emotions.joy).toBeGreaterThan(0.5);
+    expect(stored).toHaveLength(1);
+    expect(stored[0].memoryId).toBe('mem-1');
+    expect(typeof stored[0].id).toBe('string');
   });
-  it('is false for high arousal', () => {
-    expect(isCalm({ ...zeroVec, arousal: 0.9 })).toBe(false);
-  });
-  it('is false for a strong emotion', () => {
-    expect(isCalm({ ...zeroVec, fear: 0.6 })).toBe(false);
-  });
-});
 
-describe('normalizeEmotions', () => {
-  it('returns a zero vector unchanged', () => {
-    expect(normalizeEmotions(zeroVec)).toEqual(zeroVec);
-  });
-  it('scales a vector so its max magnitude is 1', () => {
-    const v: EmotionVector = { ...zeroVec, joy: 2, anger: 0.5 };
-    const n = normalizeEmotions(v);
-    expect(Math.max(...Object.values(n))).toBeCloseTo(1, 10);
-  });
-});
-
-describe('buildEmotionScorer', () => {
-  it('returns a scorer whose importance matches blendEmotionWithImportance', () => {
-    const scorer = buildEmotionScorer();
-    const v: EmotionVector = { ...zeroVec, joy: 0.5 };
-    const direct = blendEmotionWithImportance(0.6, v);
-    const viaScorer = scorer(0.6, v);
-    expect(viaScorer).toBeCloseTo(direct, 10);
+  it('honors an explicit model override', async () => {
+    stored.length = 0;
+    const cls = await storeMemoryEmotion('mem-2', 'tense and fearful', { model: 'm-7' });
+    expect(cls.model).toBe('m-7');
+    expect(stored[0].model).toBe('m-7');
   });
 });

@@ -242,9 +242,15 @@ export function Shell({ children }: { children?: ReactNode }) {
 
   return (
     <div className="flex h-full flex-col">
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-[60] focus:rounded-lg focus:bg-cyan-500 focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-slate-950"
+      >
+        Skip to main content
+      </a>
       {warnPersistence && (
         <div className="flex items-center gap-2 border-b border-amber-500/30 bg-amber-500/10 px-4 py-1.5 text-[11px] text-amber-200">
-          <span>⚠</span>
+          <span aria-hidden="true">⚠</span>
           <span className="truncate">
             {ps.corruptionRecovered ? 'Recovered corrupted local cache — a backup was used. ' : ''}
             {!ps.lastWriteOk
@@ -277,7 +283,7 @@ export function Shell({ children }: { children?: ReactNode }) {
             </div>
           </div>
 
-          <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-2">
+          <nav className="flex-1 space-y-4 overflow-y-auto px-3 py-2" aria-label="Primary">
             {SECTIONS.map((section) => (
               <div key={section}>
                 <div className="px-3 pb-1 text-[10px] font-semibold uppercase tracking-wider text-slate-600">
@@ -291,8 +297,10 @@ export function Shell({ children }: { children?: ReactNode }) {
                       whileHover={{ x: 2 }}
                       whileTap={{ scale: 0.98 }}
                       layout
+                      aria-current={active === n.id ? 'page' : undefined}
+                      aria-label={n.label}
                       className={cn(
-                        'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors',
+                        'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70',
                         active === n.id
                           ? 'bg-cyan-500/10 text-cyan-300 ring-1 ring-cyan-500/30'
                           : 'text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'
@@ -342,7 +350,7 @@ export function Shell({ children }: { children?: ReactNode }) {
               {!offline && <Badge tone={streamBadge.tone}>● {streamBadge.label}</Badge>}
             </div>
           </div>
-          <main className="grid-bg flex-1 overflow-y-auto">
+          <main id="main-content" tabIndex={-1} className="grid-bg flex-1 overflow-y-auto">
             <div className="mx-auto max-w-6xl px-6 py-6">{children ?? <Outlet />}</div>
           </main>
         </div>

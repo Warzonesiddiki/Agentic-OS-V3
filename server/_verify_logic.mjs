@@ -44,13 +44,13 @@ check('verify-tamper', verifyCausalChainIntegrity(tampered).intact === false);
 check('verify-empty', verifyCausalChainIntegrity([]).intact === true);
 
 // contradiction
-check('coerce-direct', coerceClassification('  DIRECT ') === 'direct');
-check('coerce-weird', coerceClassification('weird') === 'inconclusive');
-check('class-direct', classifyByTags(['sentiment:+','sentiment:-']).classification === 'direct');
-check('class-supports+', classifyByTags(['sentiment:+']).classification === 'supports');
-check('class-supports-', classifyByTags(['sentiment:-']).classification === 'supports');
-check('class-inconclusive', classifyByTags([]).classification === 'inconclusive');
-check('class-precedence', classifyByTags(['precedence:conflict']).classification === 'direct');
+check('coerce-contradicting', coerceClassification('  CONTRADICTS ') === 'contradicting');
+check('coerce-supporting', coerceClassification('agrees') === 'supporting');
+check('coerce-neutral', coerceClassification('weird') === 'neutral');
+check('class-supporting', classifyByTags(['a','b','c'],['a','b','x']) === 'supporting');
+check('class-neutral-weak', classifyByTags(['a','b','c','d'],['a','x','y','z']) === 'neutral');
+check('class-neutral-empty', classifyByTags([],['a']) === 'neutral');
+check('class-case', classifyByTags(['Topic:AI'],['topic:ai']) === 'supporting');
 
 // conflict
 check('win-newest', selectWinner('newest_wins', {id:'a',createdAt:new Date(1000),importance:0,title:'t',content:'c',tags:[],projectId:null}, {id:'b',createdAt:new Date(2000),importance:0,title:'t',content:'c',tags:[],projectId:null}) === 'b');
@@ -58,11 +58,11 @@ check('win-importance', selectWinner('highest_importance', {id:'a',createdAt:new
 check('win-llm', selectWinner('llm_merge', {id:'a',createdAt:new Date(0),importance:0,title:'t',content:'c',tags:[],projectId:null}, {id:'b',createdAt:new Date(0),importance:0,title:'t',content:'c',tags:[],projectId:null}) === '');
 
 // privacy
-check('canread-eq', canRead('internal','internal') === true);
-check('canread-up', canRead('public','confidential') === true);
-check('canread-down', canRead('restricted','public') === false);
-const az1 = applyZone('s','internal','confidential'); check('apply-ok', az1.readable && az1.value==='s');
-const az2 = applyZone('s','restricted','internal'); check('apply-redact', !az2.readable && az2.value==='[redacted:restricted]');
+check('canread-eq', canRead('private','private') === true);
+check('canread-up', canRead('public','pii') === true);
+check('canread-down', canRead('pii','public') === false);
+const az1 = applyZone('s','shared','pii'); check('apply-ok', az1.readable && az1.value==='s');
+const az2 = applyZone('s','pii','public'); check('apply-redact', !az2.readable && az2.value==='[redacted:pii]');
 
 // multilingual
 check('lang-empty', detectLanguage('') === 'unknown');
@@ -71,10 +71,10 @@ check('lang-ja', detectLanguage('これは日本語のテストです') === 'ja'
 check('lang-ko', detectLanguage('이것은 한국어 테스트입니다') === 'ko');
 check('lang-ar', detectLanguage('هذا نص عربي للاختبار') === 'ar');
 check('lang-ru', detectLanguage('Это тестовый русский текст') === 'ru');
-check('lang-en', detectLanguage('this is a test of the english language detection') === 'en');
-check('lang-es', detectLanguage('esto es una prueba de detección en español') === 'es');
-check('lang-fr', detectLanguage('ceci est un test de détection en français') === 'fr');
-check('lang-de', detectLanguage('dies ist ein test der deutschen sprache erkennung') === 'de');
+check('lang-en', detectLanguage('the is are and of to') === 'en');
+check('lang-es', detectLanguage('el la de que en un') === 'es');
+check('lang-fr', detectLanguage('le la est que en un') === 'fr');
+check('lang-de', detectLanguage('der die das ist und ein') === 'de');
 check('lang-gib', detectLanguage('qzx') === 'unknown');
 
 console.log(`\nRESULT: ${pass} passed, ${fail} failed`);

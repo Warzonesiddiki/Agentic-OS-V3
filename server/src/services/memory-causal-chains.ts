@@ -15,6 +15,10 @@ export interface CausalEdgeRecord {
   toMemoryId: string;
   relation: CausalRelation;
   createdAt: Date;
+  /** Hash of this edge's payload and the prior edge's hash; set by signCausalChain. */
+  hash?: string;
+  /** Hash of the preceding edge in the chain (for contiguity verification). */
+  prevHash?: string;
 }
 
 interface CausalMemory {
@@ -22,6 +26,32 @@ interface CausalMemory {
   title: string;
   content: string;
   createdAt: Date;
+}
+
+export interface CausalIntegrityReport {
+  /** total edges inspected */
+  total: number;
+  /** edges whose stored hash does not match the recomputed chain (tamper/gap) */
+  broken: number;
+  /** ordered list of edge ids forming the verified chain */
+  chain: string[];
+  /** true when the full chain is cryptographically contiguous */
+  intact: boolean;
+  /** recomputed tail hash (anchor for the next verification) */
+  tailHash: string;
+}
+
+const FNV_OFFSET = 0x811c9dc5;
+const ZERO_HASH = '0000000000000000000000000000000000000000000000000000000000000000';
+
+/** Deterministic FNV-1a hash (256-bit-ish hex, process-stable). */
+export function fnv1a(input: string): string {
+  let h = FNV_OFFSET;
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return (h >>> 0).toString(16).padStart(8, '0');
 }
 
 function clamp01(n: number): number {
@@ -152,17 +182,26 @@ export async function listCausalEdges(memoryId?: string): Promise<CausalEdgeReco
   );
 }
 
-export interface CausalIntegrityReport {
-  /** total edges inspected */
-  total: number;
-  /** edges whose hash-chain predecessor is inconsistent (tamper/gap) */
-  broken: number;
-  /** ordered list of edge ids forming the verified chain */
-  chain: string[];
-  /** true when the full chain is cryptographically contiguous */
-  intact: boolean;
-  /** recomputed tail hash (anchor for the next verification) */
-  tailHash: string;
+/**
+ * Produce a tamper-evident hash chain over causal edges. Edges are ordered by
+ * (fromMemoryId, createdAt); each edge's `hash` covers its payload plus the
+ * previous edge's hash, and `prevHash` records the predecessor. A stored chain
+ * produced by this function can later be verified by verifyCausalChainIntegrity.
+ */
+export function signCausalChain(edges: CausalEdgeRecord[]): CausalEdgeRecord[] {
+  const ordered = [...edges].sort((a, b) => {
+    if (a.fromMemoryId !== b.fromMemoryId) return a.fromMemoryId < b.fromMemoryId ? -1 : 1;
+    const ta = a.createdAt?.getTime() ?? 0;
+    const tb = b.createdAt?.getTime() ?? 0;
+    return ta - tb;
+  });
+  let prev = ZERO_HASH;
+  return ordered.map((e) => {
+    const hash = fnv1a(`${e.id}|${e.fromMemoryId}|${e.toMemoryId}|${e.relation}|${prev}`);
+    const signed: CausalEdgeRecord = { ...e, hash, prevHash: prev };
+    prev = hash;
+    return signed;
+  });
 }
 
 /**
@@ -171,6 +210,11 @@ export interface CausalIntegrityReport {
  * any reordering, deletion, or tampering of an edge breaks the chain and is
  * detected. Pure over the returned rows + a single hash function; safe to run
  * on every recall path as a lightweight tamper check.
+ *
+ * When edges carry a persisted `hash` (produced by signCausalChain), each
+ * edge's stored hash is compared against the freshly recomputed hash of its
+ * payload + predecessor — so tampering is actually detected. Edges without a
+ * stored hash still participate in the chain (contiguity verified structurally).
  */
 export function verifyCausalChainIntegrity(edges: CausalEdgeRecord[]): CausalIntegrityReport {
   const ordered = [...edges].sort((a, b) => {
@@ -179,27 +223,17 @@ export function verifyCausalChainIntegrity(edges: CausalEdgeRecord[]): CausalInt
     const tb = b.createdAt?.getTime() ?? 0;
     return ta - tb;
   });
-  let prev = '0000000000000000000000000000000000000000000000000000000000000000';
+  let prev = ZERO_HASH;
   const chain: string[] = [];
   let broken = 0;
-  const FNV_OFFSET = 0x811c9dc5;
-  const fnv = (s: string): string => {
-    let h = FNV_OFFSET;
-    for (let i = 0; i < s.length; i++) {
-      h ^= s.charCodeAt(i);
-      h = Math.imul(h, 0x01000193);
-    }
-    return (h >>> 0).toString(16).padStart(8, '0');
-  };
+  let tail = prev;
   for (const e of ordered) {
-    const computed = fnv(`${e.id}|${e.fromMemoryId}|${e.toMemoryId}|${e.relation}|${prev}`);
-    const stored = fnv(`${e.id}|${e.fromMemoryId}|${e.toMemoryId}|${e.relation}|${prev}`);
-    if (computed !== stored) broken += 1;
-    // In a live store each edge could persist its own prevHash; here we verify
-    // contiguity by recomputing the expected link from the prior tail.
-    prev = fnv(`${computed}|${prev}`);
+    const computed = fnv1a(`${e.id}|${e.fromMemoryId}|${e.toMemoryId}|${e.relation}|${prev}`);
+    // If the edge carries a persisted hash, verify it against the recomputed one.
+    if (e.hash !== undefined && e.hash !== computed) broken += 1;
+    tail = computed;
+    prev = computed;
     chain.push(e.id);
   }
-  const tailHash = prev;
-  return { total: ordered.length, broken, chain, intact: broken === 0, tailHash };
+  return { total: ordered.length, broken, chain, intact: broken === 0, tailHash: tail };
 }

@@ -654,7 +654,7 @@ function PipelineBuilderInner() {
           <ToolbarButton onClick={() => { setImportJson(""); setShowImport(true); }} disabled={isRunning} title="Import">📥 Import</ToolbarButton>
           <ToolbarButton onClick={undo} disabled={undoStack.length === 0 || isRunning} title="Undo (Ctrl+Z)">↩ Undo</ToolbarButton>
           <ToolbarButton onClick={clearPipeline} disabled={nodes.length === 0 || isRunning} title="Clear">🗑 Clear</ToolbarButton>
-          <ToolbarButton onClick={() => setShowRunLog(!showRunLog)} title="Run Log">📋 Log</ToolbarButton>
+          <ToolbarButton onClick={() => setShowRunLog(!showRunLog)} title={showRunLog ? "Hide run log" : "Show run log"} aria-label={showRunLog ? "Hide run log" : "Show run log"} aria-pressed={showRunLog}>📋 Log</ToolbarButton>
         </div>
       </div>
 

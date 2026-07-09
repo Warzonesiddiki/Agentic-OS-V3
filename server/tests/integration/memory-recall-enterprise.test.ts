@@ -12,7 +12,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
 
 import { db } from '../../src/db/client.js';
-import { memories, projects, memoryContradictions, orgs, tenantConfig } from '../../src/db/schema-sqlite.js';
+import { memories, memoryContradictions, orgs, tenantConfig } from '../../src/db/schema-sqlite.js';
 import { ensureProject } from '../../src/services/project.service.js';
 import { createMemory } from '../../src/services/memory.service.js';
 import { recall } from '../../src/services/recall.js';
@@ -21,7 +21,7 @@ import { consolidateEpisodicToSemantic } from '../../src/services/consolidation.
 import { contradictionsAmong, detectContradictions } from '../../src/services/memory-contradiction.js';
 import { createOrg, getOrg } from '../../src/services/enterprise.service.js';
 import { setupIntegrationDb } from '../helpers/db-setup.js';
-import { and, eq, or } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 const ACTOR = 'int-test';
 
