@@ -16,6 +16,8 @@
  */
 
 import { env } from '../../lib/env.js';
+import { configureWorker } from '../task-worker.js';
+import { setSchedulingPolicy } from '../scheduler.js';
 import {
   type OwnerAgent,
   type TunerAdapter,
@@ -119,12 +121,18 @@ export const agentWatchdogAdapter: TunerAdapter = new EnvBackedAdapter(
 /* ─── 18.7 Queue auto-scaler (Forge) ─── */
 export const queueAutoScalerAdapter: TunerAdapter = new EnvBackedAdapter(
   'forge',
-  'scheduler.ts:setQueueCapacity',
+  'task-worker.ts:configureWorker',
   {
     maxConcurrent: 'NEXUS_SCHEDULER_MAX_CONCURRENT',
     backpressureDepth: 'NEXUS_SCHEDULER_BACKPRESSURE_DEPTH',
   },
-  () => false
+  () => true,
+  async (delta) => {
+    const capacity = Number(delta.desiredCapacity ?? delta.maxConcurrent ?? 0);
+    if (Number.isFinite(capacity) && capacity > 0) {
+      configureWorker({ maxConcurrency: Math.max(1, Math.min(50, Math.round(capacity))) });
+    }
+  }
 );
 
 /* ─── 18.8 Predictive cache warming (Mnemosyne) ─── */
@@ -216,9 +224,15 @@ export const skillCompilerAdapter: TunerAdapter = new EnvBackedAdapter(
 /* ─── 18.20 RL scheduling policy (Forge) ─── */
 export const rlSchedulingAdapter: TunerAdapter = new EnvBackedAdapter(
   'forge',
-  'scheduler.ts:setRlPolicy',
+  'scheduler.ts:setSchedulingPolicy',
   { policy: 'NEXUS_SCHEDULER_POLICY', mlfqBoostMs: 'NEXUS_MLFQ_BOOST_MS' } as Record<string, keyof typeof env>,
-  () => false
+  () => true,
+  async (delta) => {
+    const policy = String(delta.policy ?? 'mlfq');
+    if (policy === 'mlfq' || policy === 'edf' || policy === 'fairshare') {
+      setSchedulingPolicy(policy);
+    }
+  }
 );
 
 /** Lookup by tuner id — used by the registry. */
