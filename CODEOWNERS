@@ -1,0 +1,308 @@
+# ============================================================================
+# NEXUS 2.0 / Agentic OS V3 - CODEOWNERS (Fleet of 20 collision-free mapping)
+# Canonical source of truth for namespace ownership. Each glob is owned by
+# exactly one agent; GitHub blocks cross-namespace edits at review time.
+# Last synced with AGENTS.md (2026-07-09). GitHub uses LAST-MATCH-WINS.
+# ============================================================================
+
+# ---------------------------------------------------------------------------
+# FROZEN common infrastructure - LEADER-owned. DO NOT edit without sign-off.
+# server/src/index.ts app.ts proxy.ts routes.ts services.ts typings.d.ts
+# server/src/cli.ts setup.ts _probe_status.ts
+# server/src/db/{client,schema,schema-sqlite,dev-schema}.ts
+# server/src/lib/{envelope,errors,id,hono-env,env,guards,http,zvalidator,
+#                 schemas,strings,payload-limit,protocol-integration,logging,logger}.ts
+# src/skill-registry.ts
+# (No owner line -> defaults to LEADER.)
+# ---------------------------------------------------------------------------
+
+# 1 Forge - Kernel, Scheduler & Runtime Loop
+server/src/services/kernel*.ts              @forge
+server/src/services/scheduler.ts            @forge
+server/src/services/task-worker.ts          @forge
+server/src/services/task-notifier.ts        @forge
+server/src/services/message-bus.ts          @forge
+server/src/services/sse-bus.ts              @forge
+server/src/services/sse-bridge.ts           @forge
+server/src/services/sse.ts                  @forge
+server/src/services/pipeline-executor.ts    @forge
+server/src/services/resource-quota.ts       @forge
+server/src/services/preemption-leak-guard.ts @forge
+server/src/services/signal-hooks.ts         @forge
+server/src/routes/kernel.ts                 @forge
+server/src/routes/kernel-introspect.ts      @forge
+server/src/routes/sse.ts                    @forge
+
+# 2 Atlas - Orchestration, DAG & Agent Runtime
+server/src/services/orchestrator.ts         @atlas
+server/src/services/blackboard.ts           @atlas
+server/src/services/dag-executor.ts         @atlas
+server/src/services/planner.ts              @atlas
+server/src/services/agent-dag.ts            @atlas
+server/src/services/agent-runtime.ts        @atlas
+server/src/services/agent-loop.ts           @atlas
+server/src/services/agent-persistence.ts    @atlas
+server/src/services/agent-permissions.ts    @atlas
+server/src/services/consensus.ts            @atlas
+server/src/services/deadlock-detector.ts    @atlas
+server/src/services/workflow-dsl.ts         @atlas
+server/src/services/conditional-router.ts   @atlas
+server/src/services/merge-strategies.ts     @atlas
+server/src/services/specialization-registry.ts @atlas
+server/src/services/action-registry.ts      @atlas
+server/src/services/propagation.ts          @atlas
+server/src/services/graph-engine.ts         @atlas
+server/src/services/pipeline-io.ts          @atlas
+server/src/routes/agents.ts                 @atlas
+server/src/routes/agent-lifecycle.ts        @atlas
+server/src/routes/a2a.ts                    @atlas
+server/src/routes/automation.ts             @atlas
+packages/a2a-server/                        @atlas
+
+# 3 Mnemosyne - Memory Core & Recall
+server/src/services/memory-service.ts       @mnemosyne
+server/src/services/memory-search-suggest.ts @mnemosyne
+server/src/services/memory-search-explanation.ts @mnemosyne
+server/src/services/memory-nl-query.ts      @mnemosyne
+server/src/services/memory-graph-browser.ts @mnemosyne
+server/src/services/memory-attachments.ts   @mnemosyne
+server/src/services/memory-batch.ts         @mnemosyne
+server/src/services/memory-tag-taxonomy.ts  @mnemosyne
+server/src/services/memory-cluster.ts       @mnemosyne
+server/src/services/memory-clustering.ts    @mnemosyne
+server/src/services/memory-causal-chains.ts @mnemosyne
+server/src/services/memory-contradiction.ts @mnemosyne
+server/src/services/memory-conflict-resolver.ts @mnemosyne
+server/src/services/memory-provenance.ts    @mnemosyne
+server/src/services/memory-dedup.ts         @mnemosyne
+server/src/services/memory-privacy-zones.ts @mnemosyne
+server/src/services/memory-multilingual.ts  @mnemosyne
+server/src/services/memory-multimodal.ts    @mnemosyne
+server/src/services/recall.ts               @mnemosyne
+server/src/services/federated-recall.ts     @mnemosyne
+server/src/services/embeddings.ts           @mnemosyne
+server/src/routes/memory*.ts                @mnemosyne
+
+# 4 Lethe - Memory Lifecycle, Training & Maintenance
+server/src/services/memory-decay.ts         @lethe
+server/src/services/memory-forget.ts        @lethe
+server/src/services/memory-hierarchy.ts     @lethe
+server/src/services/memory-templates.ts     @lethe
+server/src/services/memory-quota.ts         @lethe
+server/src/services/memory-fragmentation.ts @lethe
+server/src/services/memory-cold-storage.ts  @lethe
+server/src/services/memory-backup.ts        @lethe
+server/src/services/memory-anomaly.ts       @lethe
+server/src/services/memory-stitcher.ts      @lethe
+server/src/services/memory-consolidation.ts @lethe
+server/src/services/memory-priming.ts       @lethe
+server/src/services/memory-rehearsal.ts     @lethe
+server/src/services/memory-emotion.ts       @lethe
+server/src/services/memory-export-v3.ts     @lethe
+server/src/services/memory-diff-sync.ts     @lethe
+server/src/services/memory-trainer.ts       @lethe
+server/src/services/consolidation.ts        @lethe
+server/src/services/consolidation-budget.ts @lethe
+server/src/services/dedup-engine.ts         @lethe
+
+# 5 Cerebrum - LLM Gateway & Inference
+server/src/services/llm.ts                  @cerebrum
+server/src/services/llm-scheduler.ts        @cerebrum
+server/src/services/llm-router.ts           @cerebrum
+server/src/services/llm-gateway-v2.ts       @cerebrum
+server/src/services/llm-client.ts           @cerebrum
+server/src/services/omniroute.ts            @cerebrum
+server/src/services/omniroute-bridge.ts     @cerebrum
+server/src/services/portkey-bridge.ts       @cerebrum
+server/src/services/brain.ts                @cerebrum
+server/src/services/vlm.ts                  @cerebrum
+server/src/services/providers/              @cerebrum
+server/src/services/unified-gateway/        @cerebrum
+
+# 6 Sentinel - Security Core, Crypto & Guardrails
+server/src/services/guardrails.ts           @sentinel
+server/src/services/guardrail-types.ts      @sentinel
+server/src/services/guardrail-registry.ts   @sentinel
+server/src/services/guardrail-patterns.ts   @sentinel
+server/src/services/safety.service.ts       @sentinel
+server/src/services/security-posture.ts     @sentinel
+server/src/services/runtime-security.ts     @sentinel
+server/src/services/network-policy.ts       @sentinel
+server/src/services/crypto-suite.ts         @sentinel
+server/src/services/db-encryption.ts        @sentinel
+server/src/services/memory-encryption.ts    @sentinel
+server/src/services/file-watcher.ts         @sentinel
+server/src/services/data-classification.ts  @sentinel
+server/src/services/dlp-scanner.ts          @sentinel
+server/src/services/secrets-scanner.ts      @sentinel
+server/src/services/secret-rotator.ts       @sentinel
+server/src/services/cert-manager.ts         @sentinel
+server/src/services/vault.ts                @sentinel
+server/src/services/rate-limit.service.ts   @sentinel
+server/src/lib/security.ts                  @sentinel
+server/src/lib/security-headers.ts          @sentinel
+server/src/lib/zero-trust.ts                @sentinel
+server/src/lib/mfa.ts                       @sentinel
+server/src/lib/geo-fence.ts                 @sentinel
+server/src/lib/jit-elevation.ts             @sentinel
+server/src/lib/time-gate.ts                 @sentinel
+server/src/lib/crypto-sign.ts               @sentinel
+server/src/lib/hsm-provider.ts              @sentinel
+server/src/lib/env-sanitizer.ts             @sentinel
+server/src/lib/container.ts                 @sentinel
+server/src/lib/tokens.ts                    @sentinel
+server/src/lib/auth-context.ts              @sentinel
+server/src/lib/verify.ts                    @sentinel
+server/src/lib/rate-limit.ts                @sentinel
+server/src/scripts/audit-keys-leakage.ts    @sentinel
+
+# 7 Aegis - Reliability, Resilience, Audit & Compliance
+server/src/services/audit-engine.ts         @aegis
+server/src/services/audit-worker.ts         @aegis
+server/src/services/audit-watchdog.ts       @aegis
+server/src/services/audit-analytics.ts      @aegis
+server/src/services/incident-response.ts    @aegis
+server/src/services/breach-notifier.ts      @aegis
+server/src/services/anomaly-detector.ts     @aegis
+server/src/services/ransomware-detector.ts  @aegis
+server/src/services/insider-threat.ts       @aegis
+server/src/services/compliance-reporter.ts  @aegis
+server/src/services/fairness-corrector.ts   @aegis
+server/src/services/evidence-collector.ts   @aegis
+server/src/services/cspm.ts                  @aegis
+server/src/services/supply-chain.ts         @aegis
+server/src/services/vendor-assessor.ts      @aegis
+server/src/services/vdp.ts                   @aegis
+server/src/services/siem-forwarder.ts       @aegis
+server/src/services/blockchain.ts           @aegis
+server/src/lib/audit.ts                     @aegis
+server/src/lib/auditing.ts                  @aegis
+server/src/routes/audit-routes.ts           @aegis
+
+# 8 Pulse - Self-Optimization & Improvement
+server/src/services/self-improvement-harness.ts @pulse
+server/src/services/ranking-trainer.ts     @pulse
+server/src/services/self-opt/              @pulse
+server/src/routes/self-opt.ts              @pulse
+
+# 9 Metron - Performance, Observability & Health
+server/src/services/metrics.ts             @metron
+server/src/services/metrics-validation.ts  @metron
+server/src/services/tracing.ts             @metron
+server/src/services/trace-exporter.ts      @metron
+server/src/services/span-context.ts        @metron
+server/src/services/overhead-accounting.ts @metron
+server/src/services/probe-harness.ts       @metron
+server/src/services/health-monitor.ts      @metron
+server/src/services/shadow-daemon.ts       @metron
+server/src/lib/metrics.ts                  @metron
+server/src/lib/otel.ts                     @metron
+server/src/lib/monitoring.ts               @metron
+server/src/lib/perf-cache.ts               @metron
+server/src/lib/lru-cache.ts                @metron
+server/src/routes/perf.ts                  @metron
+server/src/routes/analytics.ts             @metron
+
+# 10 Artisan - DevEx, SDK, Skills, Marketplace & Plugins
+server/src/services/marketplace.service.ts @artisan
+server/src/services/skill.service.ts       @artisan
+server/src/services/skill-compiler.ts      @artisan
+server/src/services/skill-template-engine.ts @artisan
+server/src/services/plugin-manifest.ts     @artisan
+server/src/services/session.service.ts     @artisan
+server/src/services/session-recorder.ts    @artisan
+server/src/services/feedback.service.ts    @artisan
+server/src/services/project.service.ts     @artisan
+server/src/services/workspace-sync.ts      @artisan
+server/src/services/sandbox.ts             @artisan
+server/src/services/sandbox-worker.ts      @artisan
+server/src/services/wasm-plugin-runtime.ts @artisan
+server/src/routes/marketplace-routes.ts    @artisan
+server/src/scripts/import-skills.ts        @artisan
+packages/sdk/                              @artisan
+packages/devtools/                         @artisan
+
+# 11 Helix - Enterprise, Org/Tenant & Federated Mesh
+server/src/services/enterprise.service.ts  @helix
+server/src/services/p2p-swarm.ts           @helix
+server/src/routes/enterprise.ts            @helix
+
+# 12 Prism - Primary Dashboard UI & State (src/lib EXCEPT os/ and mcp.ts)
+src/pages/                                 @prism
+src/components/                            @prism
+src/store.ts                              @prism
+src/lib/                                  @prism
+src/lib/vault.ts                          @prism
+
+# 13 Halcyon - OS Kernel Admin & Enterprise Admin Pages
+src/pages/os/                             @halcyon
+src/pages/admin/                          @halcyon
+src/osStore.ts                            @halcyon
+src/lib/os/                               @halcyon
+
+# 14 Ferric - Rust Core, Config, Provider-Types & Providers
+crates/core/                              @ferric
+crates/config/                            @ferric
+crates/provider-types/                    @ferric
+crates/providers/                         @ferric
+
+# 15 Rusty - Rust Tools, Safety, Installer, Observability, Search & CLI
+crates/tools/                             @rusty
+crates/safety/                            @rusty
+crates/installer/                         @rusty
+crates/observability/                     @rusty
+crates/nexus-search/                      @rusty
+crates/cli/                               @rusty
+crates/nexus-cli/                         @rusty
+
+# 16 Tess - Tauri Desktop Shell
+nexus-tauri/                              @tess
+
+# 17 Aeon - Protocols, MCP & External Connectors
+server/src/mcp.ts                         @aeon
+server/src/mcp-http.ts                    @aeon
+server/src/services/mcp-registry.ts       @aeon
+server/src/connectors/                    @aeon
+src/lib/mcp.ts                            @aeon
+packages/sdk/src/acp.ts                   @aeon
+packages/sdk/src/webhooks.ts              @aeon
+
+# 18 Lorekeeper - Docs, ADRs, Plans & Personas
+docs/                                     @lorekeeper
+README*                                   @lorekeeper
+CHANGELOG.md                              @lorekeeper
+CONTRIBUTING.md                           @lorekeeper
+SECURITY.md                               @lorekeeper
+MASTER_MISSION_BRIEF.md                   @lorekeeper
+PLAN.md                                   @lorekeeper
+REDEMPTION_PLAN.md                        @lorekeeper
+PHASES_11_30_MASTER_PLAN.md               @lorekeeper
+PHASES_11_30_GAP_UPDATE.md                @lorekeeper
+TASKBOARD.md                              @lorekeeper
+
+# 19 Quill - Quality, Testing & Merge Gate
+server/tests/                             @quill
+tests/                                    @quill
+server/src/tests/                         @quill
+server/vitest.config.ts                   @quill
+*.test.ts                                 @quill
+*.spec.ts                                 @quill
+
+# 20 Bastion - Build, CI/CD, Infra & Tooling Config
+Dockerfile*                               @bastion
+docker-compose*                           @bastion
+nginx*                                    @bastion
+entrypoint.sh                             @bastion
+.github/workflows/                        @bastion
+vite.config.ts                            @bastion
+vite.config.standalone.ts                 @bastion
+tsconfig*.json                            @bastion
+eslint.config.mjs                         @bastion
+server/package.json                       @bastion
+package.json                              @bastion
+server/src/routes/v3-upgrade.ts           @bastion
+scripts/verify-system-readiness.ts        @bastion
+scripts/profile-system-performance.ts     @bastion
+docs/DEPLOYMENT.md                        @bastion
+docs/PRODUCTION_CHECKLIST.md              @bastion
+docs/DR_RUNBOOK.md                        @bastion
