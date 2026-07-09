@@ -51,7 +51,7 @@ describe('manifest canonicalization + signature', () => {
   it('canonicalizeManifest is deterministic', () => {
     const m = EXAMPLE_MANIFEST as any;
     const a = canonicalizeManifest(m);
-    const b = canonicalizeManifest({ ...m, description: 'changed' });
+    const _b = canonicalizeManifest({ ...m, description: 'changed' });
     expect(JSON.parse(a)).toBeTypeOf('object');
     // re-canonicalizing the same input is stable
     expect(canonicalizeManifest(m)).toBe(a);

@@ -11,15 +11,15 @@ const returningChain = (rows: unknown[] = [{ id: 'prj_1' }]) => {
 };
 const txMock: any = {
   insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn(() => returningChain([{ id: 'prj_1' }])) })) })),
-  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) }) })),
+  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) })),
   query: {
     projects: { findFirst: vi.fn(() => Promise.resolve({ id: 'prj_1', ownerId: 'u1' })) },
     skills: { findFirst: vi.fn(() => Promise.resolve(null)) },
   },
 };
 const dbMock: any = {
-  insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => returningChain([{ id: 'prj_1' }])), returning: vi.fn(() => returningChain([{ id: 'prj_1' }])) }) })),
-  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) }) })),
+  insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => returningChain([{ id: 'prj_1' }])), returning: vi.fn(() => returningChain([{ id: 'prj_1' }])) })) })),
+  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) })),
   query: { projects: { findFirst: vi.fn(() => Promise.resolve({ id: 'prj_1', ownerId: 'u1' })) }, skills: { findFirst: vi.fn(() => Promise.resolve(null)) } },
   transaction: vi.fn((fn: any) => fn(txMock)),
 };
@@ -55,7 +55,7 @@ describe('project.service', () => {
   });
 
   it('ensureProject returns existing project when conflict (no row)', async () => {
-    txMock.insert.mockReturnValueOnce({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => returningChain([])), returning: vi.fn(() => returningChain([])) }) });
+    txMock.insert.mockReturnValueOnce({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => returningChain([])), returning: vi.fn(() => returningChain([])) })) });
     txMock.query.projects.findFirst.mockResolvedValueOnce({ id: 'prj_1', ownerId: 'u1' });
     const r = await ensureProject('proj_1', 'transfer');
     expect(r.id).toBe('prj_1');

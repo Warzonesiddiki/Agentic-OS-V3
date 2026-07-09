@@ -465,3 +465,35 @@ describe('EnterpriseService — SIEM sinks & onboarding (config isolation)', () 
 function eqOnboarding(orgId: string) {
   return { queryChunks: [{ value: [''] }, { name: 'orgId' }, { value: [' = '] }, orgId, { value: [''] }] };
 }
+
+describe('EnterpriseService - multi-tenant quota enforcement', () => {
+  beforeEach(async () => {
+    await seedOrg('o1');
+    await seedTenantConfig('o1');
+    await seedUser('o1', 'u1', [], 'active');
+    await seedUser('o1', 'u2', [], 'active');
+    await seedUser('o1', 'u3', [], 'active');
+    await seedOrg('o2');
+    await seedTenantConfig('o2', { budgetAlertPct: 50 });
+    await seedUser('o2', 'v1', [], 'active');
+    await fakeDb.insert(invoices).values({ id: 'inv_3', orgId: 'o2', amountUsd: 200, currency: 'usd', status: 'paid', periodStart: new Date().toISOString(), periodEnd: new Date().toISOString() }).returning();
+  });
+
+  it('per-org seat quota is enforced (seatUsage never exceeds capacity)', async () => {
+    const b = await es.getBilling('o1');
+    expect(b.seatUsage).toBe(3);
+    expect(b.seatLimit).toBe(10);
+    expect(b.seatUsage).toBeLessThanOrEqual(b.seatLimit);
+    expect(Math.round((b.seatUsage / b.seatLimit) * 100)).toBe(30);
+  });
+
+  it('multi-tenant quota isolation - org billing totals are not cross-contaminated', async () => {
+    const b1 = await es.getBilling('o1');
+    const b2 = await es.getBilling('o2');
+    expect(b1.currentPeriodCostUsd).toBeCloseTo(5.0, 5);
+    expect(b1.seatUsage).toBe(3);
+    expect(b2.currentPeriodCostUsd).toBeCloseTo(2.0, 5);
+    expect(b2.seatUsage).toBe(1);
+    expect(b2.budgetAlertPct).toBe(50);
+  });
+});

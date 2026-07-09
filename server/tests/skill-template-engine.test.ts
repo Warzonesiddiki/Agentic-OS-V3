@@ -30,7 +30,7 @@ vi.mock('../src/db/client.js', () => {
   const mockDb: any = {
     select: vi.fn(() => chain()),
     insert: vi.fn(() => insMock()),
-    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) }) }) })),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) })),
     query: {
       compiledScripts: chain(),
       agentTasks: { findMany: vi.fn(() => Promise.resolve([])) },

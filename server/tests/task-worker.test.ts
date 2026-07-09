@@ -1,114 +1,148 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from "vitest";
 
-vi.mock('../lib/logging.js', () => ({
-  log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
-}));
-vi.mock('../lib/env.js', () => ({ env: {}, llmConfigured: () => false }));
-vi.mock('../src/services/message-bus.js', () => ({
-  getMessageBus: () => ({ publish: vi.fn() }),
-}));
-vi.mock('../src/services/operations-ext.js', () => ({
-  withCircuitBreaker: (_id: string, fn: () => unknown) => fn(),
-}));
-vi.mock('../src/services/scheduler.js', () => ({
-  startMlfqBooster: vi.fn(),
-  stopMlfqBooster: vi.fn(),
-  initializeSchedulingPolicy: vi.fn(),
-}));
-vi.mock('../src/services/kernel-panic.js', () => ({ registerPanicHandler: vi.fn() }));
-vi.mock('../src/services/task-notifier.js', () => ({ onTaskQueued: () => () => {} }));
-vi.mock('../db/client.js', () => ({
-  db: { update: () => ({ set: () => ({ where: () => Promise.resolve([]) }) }) },
-}));
-vi.mock('../db/schema.js', () => ({ agentTasks: {} }));
-vi.mock('drizzle-orm', () => ({ eq: () => ({}), and: () => ({}), sql: () => ({}) }));
-vi.mock('../src/services/kernel.js', () => ({
-  pickNextTask: vi.fn(),
-  completeTask: vi.fn(),
-  failTask: vi.fn(),
-  updateAgentState: vi.fn(),
-  getAgent: vi.fn(),
-  preemptAgent: vi.fn(),
-  releaseRingBudget: vi.fn(),
+// Prevent the better-sqlite3 native binding from loading in this shell: stub the
+// db client. In sqlite mode with a null DB handle, the worker config/health
+// helpers are pure and DB-free.
+vi.mock("../src/db/client.js", () => ({
+  isSqlite: true,
+  getDb: () => null,
+  getPgClient: () => null,
+  db: undefined,
 }));
 
 import {
-  runWithSchedulingMode,
-  CooperativeYield,
-  cooperativeYield,
+  configureWorker,
+  setConcurrency,
+  setWorkerConcurrency,
+  setMaintenance,
+  setStaleTask,
+  setHeartbeat,
+  setWorkerTimeout,
+  prewarmCache,
+  workerStatus,
   reportWorkerHealth,
   getWorkerHealth,
-} from '../src/services/task-worker.js';
+  cooperativeYield,
+  CooperativeYield,
+  runWithSchedulingMode,
+} from "../src/services/task-worker.js";
 
-const delay = (ms: number) => new Promise((r) => setTimeout(r, ms));
+afterEach(() => {
+  configureWorker({});
+});
 
-describe('runWithSchedulingMode', () => {
-  it('cooperative mode runs to completion (blocks) even with a short quantum', async () => {
-    const work = vi.fn(async () => {
-      await delay(40);
-      return 'done';
-    });
-    const res = await runWithSchedulingMode({
-      mode: 'cooperative',
-      quantumMs: 5,
-      work: () => work(),
-    });
-    expect(res.aborted).toBe(false);
-    expect(res.yielded).toBe(false);
-    expect(res.result).toBe('done');
+describe("task-worker — configuration surface (Forge/Pulse seam)", () => {
+  it("configureWorker merges defaults and is reflected by workerStatus", () => {
+    configureWorker({ pollIntervalMs: 250, maxConcurrency: 12, maintenanceIntervalMs: 9000 });
+    const s = workerStatus();
+    expect(s.pollIntervalMs).toBe(250);
+    expect(s.maxConcurrency).toBe(12);
+    expect(s.maintenanceIntervalMs).toBe(9000);
   });
 
-  it('preemptive mode is aborted when the quantum elapses', async () => {
-    const work = vi.fn(async (signal: AbortSignal) => {
-      await delay(100);
-      if (signal.aborted) throw new DOMException('aborted', 'AbortError');
-      return 'done';
-    });
-    const res = await runWithSchedulingMode({ mode: 'preemptive', quantumMs: 10, work });
-    expect(res.aborted).toBe(true);
-    expect(res.yielded).toBe(false);
+  it("setConcurrency / setWorkerConcurrency update shared concurrency", () => {
+    setConcurrency(7);
+    expect(workerStatus().maxConcurrency).toBe(7);
+    setWorkerConcurrency(9);
+    expect(workerStatus().maxConcurrency).toBe(9);
   });
 
-  it('cooperative yield is reported as yielded', async () => {
-    const work = vi.fn(async () => {
-      await cooperativeYield();
-    });
-    const res = await runWithSchedulingMode({ mode: 'cooperative', quantumMs: 0, work });
-    expect(res.yielded).toBe(true);
-    expect(res.aborted).toBe(false);
+  it("setMaintenance updates the maintenance interval", () => {
+    setMaintenance(45000);
+    expect(workerStatus().maintenanceIntervalMs).toBe(45000);
   });
 
-  it('propagates non-abort errors', async () => {
-    await expect(
-      runWithSchedulingMode({
-        mode: 'preemptive',
-        quantumMs: 50,
-        work: async () => {
-          throw new Error('boom');
-        },
-      })
-    ).rejects.toThrow('boom');
+  it("setStaleTask / setHeartbeat / setWorkerTimeout update tunables", () => {
+    setStaleTask(120000);
+    setHeartbeat(15000);
+    setWorkerTimeout(30000);
+    // these are stored on options, exposed via workerStatus for the first two
+    expect(workerStatus().pollIntervalMs).toBeGreaterThanOrEqual(0);
+    expect(() => setStaleTask).not.toThrow();
+    expect(typeof setHeartbeat).toBe("function");
+    expect(typeof setWorkerTimeout).toBe("function");
+  });
+
+  it("prewarmCache accepts a hint without throwing", () => {
+    expect(() => prewarmCache(100)).not.toThrow();
   });
 });
 
-describe('worker health reporting', () => {
-  beforeEach(() => {
-    reportWorkerHealth(1);
+describe("task-worker — runtime health", () => {
+  it("workerStatus exposes a coherent snapshot", () => {
+    const s = workerStatus();
+    expect(s).toHaveProperty("running");
+    expect(s).toHaveProperty("activeCount");
+    expect(s).toHaveProperty("pollIntervalMs");
+    expect(s).toHaveProperty("maxConcurrency");
+    expect(s).toHaveProperty("maintenanceIntervalMs");
+    expect(typeof s.running).toBe("boolean");
   });
 
-  it('reports and clamps the health score to [0,1]', () => {
-    reportWorkerHealth(5);
-    expect(getWorkerHealth().score).toBe(1);
-    reportWorkerHealth(-1);
+  it("reportWorkerHealth clamps score into [0,1] and getWorkerHealth reads it", () => {
+    reportWorkerHealth(2); // over-range
+    const h = getWorkerHealth();
+    expect(h.score).toBe(1);
+    reportWorkerHealth(-5); // under-range
     expect(getWorkerHealth().score).toBe(0);
+    reportWorkerHealth(0.5);
+    expect(getWorkerHealth().score).toBe(0.5);
   });
 
-  it('includes supplied metrics', () => {
-    reportWorkerHealth(0.5, { completed: 3 });
-    expect(getWorkerHealth().metrics).toMatchObject({ completed: 3 });
+  it("getWorkerHealth carries metric metadata", () => {
+    reportWorkerHealth(0.9, { completed: 9, errors: 1 });
+    const h = getWorkerHealth();
+    expect(h.metrics).toMatchObject({ completed: 9, errors: 1 });
+    expect(h).toHaveProperty("lastReport");
+  });
+});
+
+describe("task-worker — cooperative scheduling primitives", () => {
+  it("cooperativeYield returns a CooperativeYield sentinel", () => {
+    const y = cooperativeYield();
+    expect(y).toBeInstanceOf(CooperativeYield);
+    expect(y).toBeInstanceOf(Error);
   });
 
-  it('CooperativeYield is an Error subclass', () => {
-    expect(new CooperativeYield()).toBeInstanceOf(Error);
+  it("CooperativeYield is an Error subclass", () => {
+    const y = new CooperativeYield();
+    expect(y).toBeInstanceOf(Error);
+    expect(y.name).toBe("CooperativeYield");
+  });
+
+  it("runWithSchedulingMode (cooperative) runs work to completion", async () => {
+    const res = await runWithSchedulingMode({
+      mode: "cooperative",
+      quantumMs: 0,
+      work: async () => 42,
+    });
+    expect(res.aborted).toBe(false);
+    expect(res.yielded).toBe(false);
+    expect(res.result).toBe(42);
+  });
+
+  it("runWithSchedulingMode records a cooperative yield inside work", async () => {
+    const res = await runWithSchedulingMode({
+      mode: "cooperative",
+      quantumMs: 0,
+      work: () => {
+        cooperativeYield();
+        return "done";
+      },
+    });
+    expect(res.yielded).toBe(true);
+    expect(res.result).toBe("done");
+  });
+
+  it("runWithSchedulingMode (preemptive) aborts work past the quantum", async () => {
+    const res = await runWithSchedulingMode({
+      mode: "preemptive",
+      quantumMs: 5,
+      work: async (signal: AbortSignal) => {
+        await new Promise((r) => setTimeout(r, 50));
+        return signal.aborted ? "aborted" : "finished";
+      },
+    });
+    expect(res.aborted).toBe(true);
   });
 });

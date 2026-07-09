@@ -1,96 +1,110 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// p2p-swarm imports db (real better-sqlite3) at module load — that won't run in this
-// shell, but on the aionr runner it loads fine. The module also imports getEnv/forward
-// which we stub. We mock fetch to simulate the transport without real HTTP.
+// p2p-swarm only imports getEnv (from ../lib/env) + EventEmitter + log. We mock getEnv and
+// fetch so the node can run without real networking. The P2P state is in-memory.
 const fetchMock = vi.fn();
 vi.stubGlobal('fetch', fetchMock);
 
 vi.mock('../lib/env.js', () => ({
-  getEnv: (k: string, d?: string) => (k === 'NEXUS_BLOCKCHAIN_RPC_URL' ? d ?? '' : d ?? ''),
+  getEnv: () => ({
+    NEXUS_BLOCKCHAIN_RPC_URL: 'http://boot.test/v1/p2p', // enables P2P + bootstrap URL
+    NODE_ENV: 'test',
+    PORT: '9999',
+  }),
 }));
-vi.mock('../services/security/index.js', () => ({ forward: vi.fn(async () => ({})) }));
 
 const p2p = await import('../src/services/p2p-swarm.js');
 const P2P: any = (p2p as any).default ?? p2p;
 
 beforeEach(() => {
-  if (typeof P2P.reset === 'function') P2P.reset();
   fetchMock.mockReset();
-  fetchMock.mockResolvedValue({ ok: true, status: 200 } as Response);
+  fetchMock.mockResolvedValue({ ok: true, status: 200, json: async () => ({ peers: [] }) } as any);
 });
 afterEach(() => {
+  try {
+    P2P.stopP2PNode();
+  } catch {
+    /* noop */
+  }
   vi.unstubAllGlobals();
 });
 
-describe('p2p-swarm — peer discovery & gossip', () => {
-  it('discovers peers from bootstrap hosts and marks them active', () => {
-    P2P.peerDiscovery(['127.0.0.1:7100', '127.0.0.1:7101']);
+describe('p2p-swarm — peer discovery add/remove (mock transport)', () => {
+  it('startP2PNode discovers and ADDS peers from the bootstrap endpoint', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ peers: [{ id: 'peer-1', host: '10.0.0.1', port: 7100, status: 'active' }] }),
+    } as any);
+
+    await P2P.startP2PNode();
     const peers = P2P.getPeers();
-    expect(peers.length).toBe(2);
-    for (const p of peers) {
-      expect(p.status).toBe('active');
-      expect(p.host).toMatch(/127\.0\.0\.1/);
-      expect(typeof p.port).toBe('number');
-    }
+    expect(peers.length).toBe(1);
+    expect(peers[0].id).toBe('peer-1');
+    expect(peers[0].status).toBe('active');
+    // the discovery fetch hit the bootstrap /peers endpoint
+    expect(fetchMock).toHaveBeenCalledWith('http://boot.test/v1/p2p/peers');
   });
 
-  it('re-discovery reactivates a stale/unreachable peer', () => {
-    P2P.peerDiscovery(['127.0.0.1:7100']);
-    const first = P2P.getPeers()[0];
-    const before = first.lastSeen;
-    first.status = 'unreachable';
-    P2P.peerDiscovery(['127.0.0.1:7100']);
-    const after = P2P.getPeers()[0];
-    expect(after.status).toBe('active');
-    expect(after.lastSeen).toBeGreaterThanOrEqual(before);
+  it('stopP2PNode REMOVES all peers (peer lifecycle teardown)', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ peers: [{ id: 'peer-1', host: '10.0.0.1', port: 7100, status: 'active' }] }),
+    } as any);
+    await P2P.startP2PNode();
+    expect(P2P.getPeers().length).toBe(1);
+    P2P.stopP2PNode();
+    expect(P2P.getPeers().length).toBe(0);
   });
 
-  it('marks stale peers unreachable during the discovery sweep', () => {
-    P2P.peerDiscovery(['127.0.0.1:7100']);
-    P2P.getPeers()[0].lastSeen = Date.now() - 200_000;
-    P2P.peerDiscovery([]); // empty bootstrap still runs the stale sweep
-    expect(P2P.getPeers()[0].status).toBe('unreachable');
+  it('ignores self in discovery results (does not add the local node)', async () => {
+    // local id is nexus-test-9999; bootstrap returns the same id → must be filtered out
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ peers: [{ id: 'nexus-test-9999', host: '127.0.0.1', port: 9999, status: 'active' }] }),
+    } as any);
+    await P2P.startP2PNode();
+    expect(P2P.getPeers().length).toBe(0);
   });
 
-  it('emits peer_found and peer_lost events', () => {
-    const found: string[] = [];
-    const lost: string[] = [];
-    P2P.events.on('p2p:peer_found', (p: any) => found.push(p.id));
-    P2P.events.on('p2p:peer_lost', (id: string) => lost.push(id));
-    P2P.peerDiscovery(['127.0.0.1:7100']);
-    expect(found.length).toBe(1);
-    P2P.getPeers()[0].lastSeen = Date.now() - 200_000;
-    P2P.peerDiscovery([]);
-    expect(lost.length).toBe(1);
+  it('getPeerListHandler returns the discovered peers', async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ peers: [{ id: 'peer-9', host: '10.0.0.9', port: 7100, status: 'active' }] }),
+    } as any);
+    await P2P.startP2PNode();
+    const { peers } = P2P.getPeerListHandler();
+    expect(peers.length).toBe(1);
+    expect(peers[0].id).toBe('peer-9');
+  });
+});
+
+describe('p2p-swarm — publish / audit broadcast (mock transport)', () => {
+  beforeEach(async () => {
+    fetchMock.mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ peers: [{ id: 'peer-1', host: '10.0.0.1', port: 7100, status: 'active' }] }),
+    } as any);
+    await P2P.startP2PNode();
+    fetchMock.mockReset();
+    fetchMock.mockResolvedValue({ ok: true, status: 200 } as any);
   });
 
-  it('publish fans out to every active peer over the mock transport', async () => {
-    P2P.peerDiscovery(['127.0.0.1:7100', '127.0.0.1:7101']);
+  it('publish fans out to the active peer over the transport', async () => {
     await P2P.publish('topic-x', 'payload-y');
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const urls = fetchMock.mock.calls.map((c: any) => c[0] as string);
-    expect(urls.every((u: string) => u.includes('/api/v1/p2p/message'))).toBe(true);
-    const bodies = fetchMock.mock.calls.map((c: any) => JSON.parse((c[1] as RequestInit).body as string));
-    expect(bodies.every((b: any) => b.topic === 'topic-x' && b.data === 'payload-y')).toBe(true);
-  });
-
-  it('skips unreachable peers when publishing', async () => {
-    P2P.peerDiscovery(['127.0.0.1:7100']);
-    P2P.getPeers()[0].status = 'unreachable';
-    await P2P.publish('t', 'd');
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it('does not crash when a peer transport rejects', async () => {
-    P2P.peerDiscovery(['127.0.0.1:7100']);
-    fetchMock.mockRejectedValueOnce(new Error('network down'));
-    await expect(P2P.publish('t', 'd')).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledTimes(1);
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(String(url)).toContain('/api/v1/p2p/message');
+    const body = JSON.parse((init as RequestInit).body as string);
+    expect(body.topic).toBe('topic-x');
+    expect(body.data).toBe('payload-y');
   });
 
-  it('broadcastAuditRoot delegates to publish with the audit_checkpoint topic', async () => {
-    P2P.peerDiscovery(['127.0.0.1:7100']);
+  it('broadcastAuditRoot delegates to publish as audit_checkpoint', async () => {
     await P2P.broadcastAuditRoot('ROOT', 'CP');
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse((fetchMock.mock.calls[0][1] as RequestInit).body as string);
@@ -98,7 +112,14 @@ describe('p2p-swarm — peer discovery & gossip', () => {
     expect(JSON.parse(body.data)).toEqual({ root: 'ROOT', checkpointId: 'CP' });
   });
 
-  it('receiveMessageHandler parses and emits a message event', () => {
+  it('does not crash when a peer transport rejects', async () => {
+    fetchMock.mockRejectedValueOnce(new Error('network down'));
+    await expect(P2P.publish('t', 'd')).resolves.toBeUndefined();
+  });
+});
+
+describe('p2p-swarm — receiveMessageHandler', () => {
+  it('parses and emits a message event', () => {
     const msgs: any[] = [];
     P2P.events.on('p2p:message', (m: any) => msgs.push(m));
     const res = P2P.receiveMessageHandler({ from: 'peer-a', topic: 't', data: 'd', timestamp: 123 });
@@ -107,23 +128,11 @@ describe('p2p-swarm — peer discovery & gossip', () => {
     expect(msgs[0].from).toBe('peer-a');
   });
 
-  it('receiveMessageHandler ignores malformed envelopes', () => {
+  it('ignores malformed envelopes', () => {
     const msgs: any[] = [];
     P2P.events.on('p2p:message', (m: any) => msgs.push(m));
     const res = P2P.receiveMessageHandler({ foo: 'bar' });
     expect(res.ok).toBe(true);
     expect(msgs.length).toBe(0);
-  });
-
-  it('getPeerListHandler returns the current peers', () => {
-    P2P.peerDiscovery(['127.0.0.1:7100']);
-    const { peers } = P2P.getPeerListHandler();
-    expect(peers.length).toBe(1);
-  });
-
-  it('reset clears all peers and identity', () => {
-    P2P.peerDiscovery(['127.0.0.1:7100']);
-    P2P.reset();
-    expect(P2P.getPeers().length).toBe(0);
   });
 });

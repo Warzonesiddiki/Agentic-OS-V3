@@ -5,8 +5,6 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import path from 'node:path';
-import path from 'node:path';
-import path from 'node:path';
 
 const mockInsert = vi.fn(() => ({
   values: vi.fn(() => ({ returning: vi.fn(() => Promise.resolve([{ id: 'v1' }])) })),
@@ -49,6 +47,7 @@ vi.mock('../src/lib/guards.js', () => {
 });
 vi.mock('../src/lib/env.js', () => ({
   env: { NEXUS_OBSIDIAN_VAULT: '/tmp/vault' },
+  getEnv: () => ({ NEXUS_OBSIDIAN_VAULT: '/tmp/vault' }),
 }));
 vi.mock('node:fs/promises', () => ({
   readdir: vi.fn(() => Promise.resolve([])),

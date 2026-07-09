@@ -1,6 +1,4 @@
 import { describe, it, expect, vi } from "vitest";
-import { AgentRuntime } from "../src/services/agent-loop.js";
-import { createDefaultActions } from "../src/services/action-registry.js";
 
 const appendAudit = vi.fn(async () => {});
 vi.mock("../src/lib/audit.js", () => ({
@@ -8,6 +6,15 @@ vi.mock("../src/lib/audit.js", () => ({
 }));
 vi.mock("../src/lib/logging.js", () => ({
   log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+vi.mock("../src/services/kernel.js", () => ({
+  getAgent: vi.fn(async () => null),
+  isAgentIdle: vi.fn(() => true),
+  incrementTokenUsage: vi.fn(),
+}));
+vi.mock("../src/db/client.js", () => ({
+  db: {},
+  eq: vi.fn(),
 }));
 vi.mock("../src/services/agent-persistence.js", () => ({
   loadAgentProcessState: vi.fn(async () => null),
@@ -34,11 +41,8 @@ describe("AgentRuntime — pure surface", () => {
 
   it("validateAction passes for a valid default action input", () => {
     const rt = new AgentRuntime("a1", "actor");
-    const action = createDefaultActions().find((a) => a.name) ?? rt;
-    // pick an action that accepts free-form input
     const target = rt.getAvailableActions()[0];
     const res = rt.validateAction(target.name, {});
-    // default actions have permissive schemas; result must be boolean
     expect(typeof res.valid).toBe("boolean");
   });
 
@@ -55,7 +59,6 @@ describe("AgentRuntime — pure surface", () => {
 
   it("executeAction delegates to the registry", async () => {
     const rt = new AgentRuntime("a1", "actor");
-    // default actions are side-effecting; just assert it returns a result shape
     const res = await rt.executeAction(rt.getAvailableActions()[0].name, {}, 1000);
     expect(res).toHaveProperty("ok");
   });

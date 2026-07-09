@@ -43,6 +43,10 @@ vi.mock('../../src/lib/logging', () => ({
   log: { info: () => {}, warn: () => {}, error: () => {}, debug: () => {} },
 }));
 
+vi.mock('../../src/lib/message-bus', () => ({
+  getMessageBus: () => ({ publish: async () => {}, subscribe: () => () => {} }),
+}));
+
 import { addEdge, addNode, compile, createDAG, invoke, resetDAGRegistry } from '../../src/services/agent-dag';
 import { mergeBy, mergeConcat, mergeSchemaUnion, MergeStrategySchema } from '../../src/services/merge-strategies';
 import { analyzeWaitForGraph, detectDeadlock, suggestBreakpoints } from '../../src/services/deadlock-detector';
@@ -197,4 +201,30 @@ describe('deadlock-detection — cyclic wait-for graphs', () => {
     expect(detectDeadlock(edges).hasCycle).toBe(false);
     expect(suggestBreakpoints(edges).length).toBe(0);
   });
-});
+
+  it('flags a cyclic DAG built via the real DAG builder (a->b->c->a)', () => {
+    const dagId = createDAG(`${NS}-cyclic`, {});
+    const a = addNode(dagId, { agentId: 'a', goal: 'g', actor: 'tester' });
+    const b = addNode(dagId, { agentId: 'b', goal: 'g', actor: 'tester' });
+    const c = addNode(dagId, { agentId: 'c', goal: 'g', actor: 'tester' });
+    addEdge(dagId, a, b);
+    addEdge(dagId, b, c);
+    addEdge(dagId, c, a);
+    const edges = [
+      { from: a, to: b },
+      { from: b, to: c },
+      { from: c, to: a },
+    ];
+    const analysis = analyzeWaitForGraph([
+      { id: a, priority: 5, waitingFor: b },
+      { id: b, priority: 3, waitingFor: c },
+      { id: c, priority: 1, waitingFor: a },
+    ]);
+    expect(analysis.hasCycle).toBe(true);
+    const detected = detectDeadlock(edges);
+    expect(detected.hasCycle).toBe(true);
+    expect(detected.cycles.length).toBeGreaterThan(0);
+    expect(detected.deadlock).toBe(true);
+    const breaks = suggestBreakpoints(edges, analysis);
+    expect(breaks.length).toBeGreaterThan(0);
+  });});

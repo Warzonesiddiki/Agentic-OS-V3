@@ -1,103 +1,109 @@
 /**
- * Unit tests for Sentinel's reliability gap/* subfolder modules (batch 2).
- * Pure/in-memory modules; db/audit/siem mocked where imported. No FROZEN files touched.
+ * Sentinel reliability/gap namespace — unit tests.
+ * Covers: sev-framework, oncall, comms-templates, break-glass.
+ * Pure logic is exercised directly; db/audit/permissions deps are mocked.
+ * No FROZEN files touched.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.mock('../../../src/db/client.js', () => ({
-  db: {
-    insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn(() => Promise.resolve([{ id: 'x' }])) })) })),
-    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve({})) })) })),
-    delete: vi.fn(() => ({ where: vi.fn(() => Promise.resolve({})) })),
+const makeChain = () => {
+  const fn: any = (..._a: unknown[]) => makeChain();
+  return new Proxy(fn, {
+    get: (_t, p) => {
+      if (p === 'findFirst' || p === 'findMany') return () => Promise.resolve(p === 'findFirst' ? null : []);
+      if (p === 'returning') return () => Promise.resolve([]);
+      if (p === 'values') return () => makeChain();
+      if (p === 'set') return () => makeChain();
+      if (p === 'where') return () => Promise.resolve([]);
+      if (p === 'from') return () => makeChain();
+      return makeChain();
+    },
+  });
+};
+const dbQuery = new Proxy({}, { get: () => makeChain() });
+const db = new Proxy({}, {
+  get: (_t, p) => {
+    if (p === 'query') return dbQuery;
+    return makeChain();
   },
-}));
-vi.mock('../../../src/lib/audit.js', () => ({
-  appendAudit: vi.fn(() => Promise.resolve()),
-  Tx: class {},
-}));
-vi.mock('../../../src/services/siem-forwarder.js', () => ({
-  forward: vi.fn(() => Promise.resolve({ ok: true })),
-}));
-vi.mock('../../../src/lib/env.js', () => ({ env: { VAULT_DIR: '/tmp' } }));
-
-import { SEVERITIES, slaFor, isResponseOverdue } from '../../../src/services/reliability/gap/sev-framework.js';
-import { setRotation, currentFor, escalate } from '../../../src/services/reliability/gap/oncall.js';
-import { render } from '../../../src/services/reliability/gap/comms-templates.js';
-import { activate, isActive, consume, purgeExpired } from '../../../src/services/reliability/gap/break-glass.js';
-
-beforeEach(() => {
-  // rotations and break-glass sessions are module-level; tests are order-independent enough
 });
 
+vi.mock('../../../src/db/client.js', () => ({ db }));
+vi.mock('../../../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
+vi.mock('../../../src/lib/env.js', () => ({
+  env: { NODE_ENV: 'test' },
+  getEnv: () => ({ NODE_ENV: 'test' }),
+}));
+vi.mock('../../../src/services/agent-permissions.js', () => ({
+  revokeAll: vi.fn(() => Promise.resolve()),
+  grant: vi.fn(() => Promise.resolve()),
+}));
+
+import { SEVERITIES, slaFor, isResponseOverdue, Severity } from '../../../src/services/reliability/gap/sev-framework.js';
+import { setRotation, currentFor, escalate, OnCall } from '../../../src/services/reliability/gap/oncall.js';
+import { render, CommsChannel } from '../../../src/services/reliability/gap/comms-templates.js';
+import { activate, isActive, consume, purgeExpired, BreakGlass } from '../../../src/services/reliability/gap/break-glass.js';
+
+beforeEach(() => vi.clearAllMocks());
+
 describe('sev-framework', () => {
-  it('defines an ordered severity set', () => {
-    expect(SEVERITIES).toContain('critical');
-    expect(SEVERITIES).toContain('low');
+  it('exposes a severity taxonomy', () => {
+    expect(Object.keys(SEVERITIES).length).toBe(4);
+    expect(SEVERITIES.sev1.name).toBe('Critical');
   });
-  it('maps a severity to an SLA window', () => {
-    const sla = slaFor('critical');
+
+  it('returns an SLA for a known severity', () => {
+    const sla = slaFor('sev1');
     expect(sla).toHaveProperty('responseMins');
-    expect(sla).toHaveProperty('resolveMins');
+    expect(typeof sla.responseMins).toBe('number');
   });
+
   it('detects an overdue response', () => {
-    const sla = slaFor('critical');
-    const opened = Date.now() - (sla.responseMins + 10) * 60_000;
-    expect(isResponseOverdue({ severity: 'critical', openedAt: opened, firstResponseAt: undefined } as any)).toBe(true);
+    const start = Date.now() - (SEVERITIES.sev1.responseMins + 1) * 60 * 1000;
+    expect(isResponseOverdue('sev1', start)).toBe(true);
+    expect(isResponseOverdue('sev1', Date.now())).toBe(false);
   });
 });
 
 describe('oncall', () => {
-  it('sets and reads a rotation', () => {
-    setRotation('svc', ['a', 'b'], 'a', 'b');
-    expect(currentFor('svc')).toBe('a');
+  it('sets a rotation and resolves the current responder', () => {
+    const oc: OnCall = setRotation('payments', ['alice', 'bob'], 'alice', 'bob');
+    expect(oc.current).toBe('alice');
+    expect(currentFor('payments')).toBe('alice');
   });
-  it('escalates backup to current', () => {
-    setRotation('svc2', ['a', 'b', 'c'], 'a', 'b');
-    const next = escalate('svc2');
-    expect(next).toBe('b');
+
+  it('escalates to the backup responder', () => {
+    setRotation('ledger', ['alice', 'bob'], 'alice', 'bob');
+    const next = escalate('ledger');
+    expect(next).toBe('bob');
   });
 });
 
 describe('comms-templates', () => {
-  it('renders an internal message', () => {
-    const m = render('internal', { incidentId: 'INC-1', sev: 'P1', summary: 'down' });
-    expect(m).toContain('INC-1');
-  });
-  it('renders a status page message', () => {
-    const m = render('status_page', { incidentId: 'INC-2', sev: 'P2', summary: 'slow' });
-    expect(m).toContain('investigating');
-  });
-  it('renders a customer message', () => {
-    const m = render('customer', { incidentId: 'INC-3', sev: 'P3', summary: 'brief' });
-    expect(m).toContain('Dear customer');
+  it('renders a known channel with context', () => {
+    const out = render('internal' as CommsChannel, {
+      incidentId: 'INC-1',
+      sev: 'sev1',
+      summary: 'Outage',
+      eta: '30m',
+    });
+    expect(typeof out).toBe('string');
+    expect(out).toContain('INC-1');
   });
 });
 
 describe('break-glass', () => {
-  it('activates with a valid reason', () => {
-    const bg = activate('emergency patching', ['admin'], 'op1');
-    expect(bg.id).toBeDefined();
+  it('activates, reports active, consumes, and expires', async () => {
+    const bg: BreakGlass = activate('emergency fix', ['agents:write', 'kill-switch:bypass'], 'root');
+    expect(bg.id).toBeTruthy();
     expect(isActive(bg.id)).toBe(true);
+    await consume(bg.id, 'root');
+    expect(isActive(bg.id)).toBe(false);
   });
 
-  it('rejects an empty reason', () => {
-    expect(() => activate('', ['admin'], 'op1')).toThrow();
-  });
-
-  it('expires after TTL', () => {
-    const bg = activate('need access', ['admin'], 'op1');
-    expect(isActive(bg.id, bg.expiresAt + 1)).toBe(false);
-  });
-
-  it('consumes an active session', () => {
-    const bg = activate('deploy fix', ['deploy'], 'op1');
-    const used = consume(bg.id, 'op2');
-    expect(used.usedBy).toBe('op2');
-  });
-
-  it('purges expired sessions', () => {
-    const bg = activate('temp', ['x'], 'op1');
-    const n = purgeExpired(bg.expiresAt + 1);
-    expect(n).toBeGreaterThanOrEqual(1);
+  it('purges expired grants', async () => {
+    const bg = activate('temp', ['x'], 'root');
+    purgeExpired(Date.now() + 60 * 60 * 1000);
+    expect(isActive(bg.id)).toBe(false);
   });
 });

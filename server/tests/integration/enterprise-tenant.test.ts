@@ -122,7 +122,7 @@ describe('Multi-tenant isolation (3 tenants)', () => {
     }
   });
 
-  it('a cross-tenant token cannot read another tenant's data (RLS-equivalent)', async () => {
+  it("a cross-tenant token cannot read another tenant's data (RLS-equivalent)", async () => {
     // issue a token (api key) scoped to tenant-alpha
     const alpha = tenants[0];
     const beta = tenants[1];

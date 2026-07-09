@@ -1,86 +1,112 @@
 /**
  * memory-export-v3.test.ts — deep coverage for Mnemosyne export v3 slice.
- * Tests version stamping, content hashing, export → import round-trip,
- * and integrity verification.
+ * Tests schema-version stamping, content hashing, v3 bundle validation,
+ * and the export → contentHash round-trip invariants.
+ *
+ * NOTE: the authoritative source API (memory-export-v3.ts, Mnemosyne-owned)
+ * is `EXPORT_SCHEMA_VERSION` (number 3), `contentHash(payload)` (FNV-1a over
+ * JSON), `exportBrainV3(projectId, brainId, clearance)` returning a `BrainV3`
+ * bundle, and `isV3(brain)`. There is no packV3Bundle/unpackV3Bundle — the
+ * symmetric import path lives in brain.ts. Tests assert the real contract.
  */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// Isolate from the FROZEN db/client (better-sqlite3 native binding) so the
+// pure export/integrity helpers can be unit-tested without a live database.
+// The factory also exports the table references and a chainable `db.select`
+// stub so exportBrainV3 can run in pure mode without a real database.
+// Avoid loading the full privacy-zones module (which touches db) in this
+// pure-path test; applyZone is a passthrough stub here.
+vi.mock('../src/services/memory-privacy-zones.js', () => ({
+  applyZone: (rows: unknown[]) => rows,
+}));
+
+vi.mock('../src/db/client.js', () => {
+  // A thenable that also exposes the chainable builder methods, mirroring
+  // Drizzle's query builder so select().from().where().orderBy() resolves to [].
+  const resolved: unknown[] = [];
+  const p = Object.assign(Promise.resolve(resolved), {
+    where: () => p,
+    orderBy: () => p,
+    leftJoin: () => p,
+  });
+  const chain = () => ({ from: vi.fn(() => p) });
+  return {
+    db: { select: vi.fn(chain) },
+    isSqlite: () => false,
+    memories: { projectId: 'projectId', deletedAt: 'deletedAt' },
+    memoryClusters: {},
+    clusterMembers: {},
+    causalLinks: {},
+    memoryCausalEdges: {},
+    memoryClusterMembers: {},
+  };
+});
 import {
   EXPORT_SCHEMA_VERSION,
-  packV3Bundle,
   contentHash,
   isV3,
-  unpackV3Bundle,
+  exportBrainV3,
 } from '../src/services/memory-export-v3.js';
 
-const sampleMemory = {
-  id: 'm1',
-  projectId: 'p1',
-  agentId: 'a1',
-  kind: 'fact',
-  title: 'Earth is round',
-  content: 'scientific consensus',
-  importance: 0.9,
-  language: 'en',
-  tags: ['geo'],
-  embedding: [0.1, 0.2],
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString(),
+const samplePayload = {
+  mems: [{ id: 'm1', kind: 'fact', text: 'Earth is round', importance: 0.9, zone: 'public', clusterId: null }],
+  clusters: [],
+  members: [],
+  causal: [],
 };
 
 describe('EXPORT_SCHEMA_VERSION', () => {
-  it('is the v3 magic string', () => {
-    expect(EXPORT_SCHEMA_VERSION).toBe('nexus-memory-export@3');
+  it('is the numeric v3 marker', () => {
+    expect(EXPORT_SCHEMA_VERSION).toBe(3);
   });
 });
 
 describe('contentHash', () => {
-  it('is stable for identical memory content', () => {
-    expect(contentHash(sampleMemory)).toBe(contentHash({ ...sampleMemory }));
+  it('is stable for identical payloads', () => {
+    expect(contentHash(samplePayload)).toBe(contentHash({ ...samplePayload }));
   });
 
-  it('changes when content changes', () => {
-    expect(contentHash(sampleMemory)).not.toBe(contentHash({ ...sampleMemory, content: 'changed' }));
+  it('changes when payload content changes', () => {
+    expect(contentHash(samplePayload)).not.toBe(
+      contentHash({ ...samplePayload, mems: [{ ...samplePayload.mems[0], text: 'changed' }] })
+    );
   });
 
-  it('ignores volatile fields like updatedAt', () => {
-    const a = contentHash({ ...sampleMemory, updatedAt: new Date(0).toISOString() });
-    const b = contentHash({ ...sampleMemory, updatedAt: new Date(9_999_999).toISOString() });
-    expect(a).toBe(b);
+  it('is order-sensitive', () => {
+    const a = contentHash({ mems: [{ id: '1' }, { id: '2' }] });
+    const b = contentHash({ mems: [{ id: '2' }, { id: '1' }] });
+    expect(a).not.toBe(b);
+  });
+
+  it('produces a stable 8-char hex digest', () => {
+    expect(contentHash(samplePayload)).toMatch(/^[0-9a-f]{8}$/);
   });
 });
 
-describe('packV3Bundle / isV3 / unpackV3Bundle', () => {
-  it('stamps the v3 magic version', () => {
-    const blob = packV3Bundle({ memories: [sampleMemory], clusterIds: [] });
-    expect(blob.version).toBe(EXPORT_SCHEMA_VERSION);
+describe('isV3', () => {
+  it('recognises a v3 schemaVersion', () => {
+    expect(isV3({ schemaVersion: EXPORT_SCHEMA_VERSION })).toBe(true);
   });
 
-  it('computes a sha256 integrity hash over the payload', () => {
-    const blob = packV3Bundle({ memories: [sampleMemory], clusterIds: [] });
-    expect(blob.integrity).toMatch(/^[0-9a-f]{64}$/);
+  it('rejects other versions', () => {
+    expect(isV3({ schemaVersion: 2 })).toBe(false);
   });
 
-  it('isV3 recognises v3 bundles and rejects others', () => {
-    const blob = packV3Bundle({ memories: [sampleMemory], clusterIds: [] });
-    expect(isV3(blob)).toBe(true);
-    expect(isV3({ version: 'nexus-memory-export@2', integrity: 'x', memories: [], clusters: [] })).toBe(false);
-    expect(isV3(null)).toBe(false);
+  it('rejects null / malformed input', () => {
+    expect(isV3(null as unknown as { schemaVersion?: number })).toBe(false);
+    expect(isV3({} as { schemaVersion?: number })).toBe(false);
   });
+});
 
-  it('round-trips memories through pack → unpack', () => {
-    const blob = packV3Bundle({ memories: [sampleMemory], clusterIds: ['c1'] });
-    const unpacked = unpackV3Bundle(blob);
-    expect(unpacked.memories).toHaveLength(1);
-    expect(unpacked.memories[0]!.id).toBe('m1');
-    expect(unpacked.clusters).toHaveLength(1);
-    expect(unpacked.integrity).toBe(blob.integrity);
-  });
-
-  it('round-trips multiple memories preserving order and fields', () => {
-    const m2 = { ...sampleMemory, id: 'm2', title: 'second' };
-    const blob = packV3Bundle({ memories: [sampleMemory, m2], clusterIds: [] });
-    const unpacked = unpackV3Bundle(blob);
-    expect(unpacked.memories.map((m) => m.id)).toEqual(['m1', 'm2']);
-    expect(unpacked.memories[1]!.title).toBe('second');
+describe('exportBrainV3 (pure-path / contentHash invariant)', () => {
+  it('returns a v3 bundle shape with a content hash', async () => {
+    // The db select chain is stubbed by the vi.mock factory above (returns []).
+    const brain = await exportBrainV3('p1', 'b1', 'public');
+    expect(brain.schemaVersion).toBe(EXPORT_SCHEMA_VERSION);
+    expect(brain.brainId).toBe('b1');
+    expect(typeof brain.contentHash).toBe('string');
+    expect(brain.memories).toEqual([]);
+    expect(brain.causalEdges).toEqual([]);
   });
 });

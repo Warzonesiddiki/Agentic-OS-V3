@@ -139,3 +139,73 @@ impl Client {
     Ok(page.items)
   }
 }
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn plugin_kind_serde_roundtrip_lowercase() {
+        for (json, expected) in [
+            ("\"plugin\"", PluginKind::Plugin),
+            ("\"agent\"", PluginKind::Agent),
+            ("\"memory\"", PluginKind::Memory),
+            ("\"widget\"", PluginKind::Widget),
+            ("\"tool\"", PluginKind::Tool),
+            ("\"integration\"", PluginKind::Integration),
+        ] {
+            let parsed: PluginKind = serde_json::from_str(json).unwrap();
+            assert_eq!(parsed, expected);
+        }
+    }
+
+    #[test]
+    fn plugin_kind_display_matches_json() {
+        assert_eq!(PluginKind::Plugin.to_string(), "plugin");
+        assert_eq!(PluginKind::Agent.to_string(), "agent");
+        assert_eq!(PluginKind::Integration.to_string(), "integration");
+    }
+
+    #[test]
+    fn envelope_ok_with_result() {
+        let json = r#"{"ok":true,"request_id":"r1","result":{"id":"p1","slug":"s","name":"N","description":"d","kind":"plugin","category":"c","status":"active"},"error":null}"#;
+        let env: Envelope<Plugin> = serde_json::from_str(json).unwrap();
+        assert!(env.ok);
+        assert_eq!(env.request_id, "r1");
+        assert_eq!(env.result.unwrap().id, "p1");
+    }
+
+    #[test]
+    fn envelope_defaults_when_fields_absent() {
+        // request_id/result/error may be absent (serde default)
+        let json = r#"{"ok":false}"#;
+        let env: Envelope<Plugin> = serde_json::from_str(json).unwrap();
+        assert!(!env.ok);
+        assert_eq!(env.request_id, "");
+        assert!(env.result.is_none());
+        assert!(env.error.is_none());
+    }
+
+    #[test]
+    fn envelope_error_shape() {
+        let json = r#"{"ok":false,"error":{"code":"E1","message":"boom"}}"#;
+        let env: Envelope<Plugin> = serde_json::from_str(json).unwrap();
+        let err = env.error.unwrap();
+        assert_eq!(err.code, "E1");
+        assert_eq!(err.message, "boom");
+    }
+
+    #[test]
+    fn page_defaults_total() {
+        let json = r#"{"items":[{"id":"a","status":"up"}]}"#;
+        let page: Page<Agent> = serde_json::from_str(json).unwrap();
+        assert_eq!(page.items.len(), 1);
+        assert_eq!(page.total, 0);
+    }
+
+    #[test]
+    fn client_new_constructs_with_token() {
+        let c = Client::new("http://x".into(), Some("tok".into()));
+        // token presence is exercised by auth(); just ensure construction is sound
+        let _ = c;
+    }
+}

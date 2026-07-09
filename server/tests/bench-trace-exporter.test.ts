@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { BatchedSpanProcessor, type SpanExporter, type ExportedSpan } from '../src/services/trace-exporter.js';
 
 function fakeSpan(i: number): ExportedSpan {

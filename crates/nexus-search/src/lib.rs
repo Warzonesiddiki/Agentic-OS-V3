@@ -74,3 +74,43 @@ mod tests {
         assert_eq!(hits[0].score, 3.0);
     }
 }
+    #[test]
+    fn case_insensitive_terms() {
+        let mut idx = SearchIndex::default();
+        idx.insert("x", "Rust KERNEL");
+        let hits = idx.search("rust kernel");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].key, "x");
+        assert_eq!(hits[0].score, 2.0);
+    }
+
+    #[test]
+    fn no_match_returns_empty() {
+        let mut idx = SearchIndex::default();
+        idx.insert("only", "alpha beta");
+        assert!(idx.search("gamma").is_empty());
+    }
+
+    #[test]
+    fn multi_term_query_scores_additively() {
+        let mut idx = SearchIndex::default();
+        idx.insert("d1", "rust cache safety");
+        idx.insert("d2", "rust performance");
+        let hits = idx.search("rust cache");
+        assert_eq!(hits.len(), 2);
+        assert_eq!(hits[0].key, "d1");
+        assert_eq!(hits[0].score, 2.0);
+        assert_eq!(hits[1].key, "d2");
+        assert_eq!(hits[1].score, 1.0);
+    }
+
+    #[test]
+    fn reinsert_does_not_duplicate_keys() {
+        let mut idx = SearchIndex::default();
+        idx.insert("k", "token");
+        idx.insert("k", "token");
+        let hits = idx.search("token");
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].key, "k");
+        assert_eq!(hits[0].score, 2.0);
+    }
