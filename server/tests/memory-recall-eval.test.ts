@@ -71,7 +71,7 @@ vi.mock('../src/services/embeddings.js', () => ({
 
 function mockLocalRows(rows: any[]) {
   const chainFor = (table: any): any => ({
-    from: (_t: any) => chainFor(table),
+    from: (t: any) => chainFor(t),
     where: () => chainFor(table),
     orderBy: () => chainFor(table),
     limit: () => Promise.resolve(table === memoriesTable ? rows : []),

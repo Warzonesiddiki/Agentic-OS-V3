@@ -19,8 +19,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 // ── Mock the FROZEN / cross-namespace owner modules (live setters) ──
-// Each mock exports the live setters the tuner adapters call via the
-// interface-only dynamic-import seam. Spies let us assert invocation.
 vi.mock('../src/services/scheduler.js', () => ({
   applySchedulerPidGain: vi.fn(),
   setSchedulingPolicy: vi.fn(),
@@ -84,7 +82,6 @@ import {
 import { metaOptimize } from '../src/services/self-opt/gap-items.js';
 import { ALL_TUNERS } from '../src/services/self-opt/tuners.js';
 
-// Spies on the mocked owner modules (imported after vi.mock hoisting).
 import * as schedulerMod from '../src/services/scheduler.js';
 import * as taskWorkerMod from '../src/services/task-worker.js';
 import * as recallMod from '../src/services/recall.js';
@@ -137,7 +134,6 @@ function breachSnapshot(): void {
 
 beforeEach(() => {
   metricStore.clear();
-  // Restore guard spine to a deterministic state for each test.
   setGuardrailBounds({
     maxWriteApplyPerDay: DEFAULT_BOUNDS.maxWriteApplyPerDay,
     fairnessMinDelta: DEFAULT_BOUNDS.fairnessMinDelta,
@@ -152,7 +148,6 @@ beforeEach(() => {
 
 describe('Pulse: self-opt EMIT path', () => {
   it('(a) emits telemetry + audit events when a tuner flag flips (live cycle)', async () => {
-    // Live controller: breaches -> proposals allowed to apply.
     breachSnapshot();
     const controller = new SelfOptController({ dryRunDefault: false });
     const results = await controller.runCycle();
@@ -160,15 +155,12 @@ describe('Pulse: self-opt EMIT path', () => {
     const applied = results.filter((r) => r.applied);
     expect(applied.length).toBeGreaterThan(0);
 
-    // Telemetry was emitted: MetricStore now holds per-tuner applied values
-    // (controller sets `${tunerId}_${k}` for each applied tuner).
     const metrics = readMetrics();
     const emittedByTuners = applied.filter((r) =>
       Object.keys(metrics).some((k) => k.startsWith(r.tunerId))
     );
     expect(emittedByTuners.length).toBeGreaterThan(0);
 
-    // exportMetric path executed without throwing (prom-client gauges).
     expect(() => exportMetric('scheduler_queue_depth', 12)).not.toThrow();
   });
 
@@ -177,17 +169,12 @@ describe('Pulse: self-opt EMIT path', () => {
     const controller = new SelfOptController({ dryRunDefault: false });
     await controller.runCycle();
 
-    // At least one owner live setter must have been called through the seam.
     const anySpyCalled = allSpies().some(
       (s) => (s as ReturnType<typeof vi.fn>).mock.calls.length > 0
     );
     expect(anySpyCalled).toBe(true);
 
-    // Spot-check deterministic mappings:
-    //  - queue depth breach -> Forge's configureWorker(maxConcurrency) via 18.2;
-    //    queue wait breach -> configureWorker(maintenanceMs) via 18.20.
     expect((taskWorkerMod.configureWorker as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
-    //  - guardrail auto-tune -> Sentinel's setGuardrailThreshold via 18.13/18.18.
     expect((guardrailsMod.setGuardrailThreshold as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
   });
 
@@ -207,8 +194,7 @@ describe('Pulse: self-opt EMIT path', () => {
       totalApplied += results.filter((r) => r.applied).length;
     }
 
-    expect(totalProposed).toBeGreaterThan(0); // tuners still propose
-    // Budget cap must never be exceeded regardless of how many cycles ran.
+    expect(totalProposed).toBeGreaterThan(0);
     expect(totalApplied).toBeLessThanOrEqual(CAP);
   });
 
@@ -233,13 +219,12 @@ describe('Pulse: self-opt EMIT path', () => {
     expect(result.converged).toBe(true);
     expect(result.iterations).toBeLessThanOrEqual(50);
     expect(result.score).toBeGreaterThan(-1e-3);
-    // Best point is close to the target.
     expect(Math.abs((result.best.recall ?? 0) - 0.9)).toBeLessThan(0.06);
     expect(Math.abs((result.best.satisfaction ?? 0) - 0.8)).toBeLessThan(0.06);
     expect(Math.abs((result.best.perf ?? 0) - 0.7)).toBeLessThan(0.06);
   });
 
-  it('(registry) exposes exactly 17 live tuners (18.1-18.20 full set)', () => {
+  it('(registry) exposes exactly 17 live tuners', () => {
     expect(ALL_TUNERS.length).toBe(17);
     const ids = ALL_TUNERS.map((t) => t.id);
     expect(new Set(ids).size).toBe(17);

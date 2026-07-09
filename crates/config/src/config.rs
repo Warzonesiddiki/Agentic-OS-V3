@@ -242,13 +242,16 @@ mod tests {
     }
 
     #[test]
-    fn parse_error_on_bare_key_without_table() {
-        // Referencing a nested field without its parent table is invalid TOML.
-        let toml = r#"
-        engine.strategy = "latency"
-        "#;
-        let err = Config::from_toml(toml).unwrap_err();
-        assert!(matches!(err, ConfigError::Parse(_)), "expected Parse error, got {err}");
+    fn dotted_key_is_valid_implicit_table() {
+        // The `toml` crate treats a dotted key as a valid implicit table, so this
+        // parses successfully and populates the nested field.
+        let cfg = Config::from_toml(
+            r#"
+            engine.strategy = "latency"
+            "#,
+        )
+        .unwrap();
+        assert_eq!(cfg.engine.strategy, "latency");
     }
 
     #[test]

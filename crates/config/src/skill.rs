@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 /// Configuration for the skill subsystem.
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct SkillManagerConfig {
     /// Directories to scan for skill definitions.
     #[serde(default = "default_skill_dirs")]
@@ -36,6 +36,14 @@ fn default_cache_size() -> usize {
     64
 }
 
-fn default_rescan_interval() -> u64 {
-    300
+impl Default for SkillManagerConfig {
+    fn default() -> Self {
+        Self {
+            skill_dirs: default_skill_dirs(),
+            skill_patterns: default_skill_patterns(),
+            lazy_load: false,
+            cache_size: default_cache_size(),
+            rescan_interval_secs: default_rescan_interval(),
+        }
+    }
 }

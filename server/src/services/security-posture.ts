@@ -174,7 +174,7 @@ async function safe<T>(fn: () => Promise<T>, fallback: T): Promise<T> {
  * subsystems. Falls back to neutral signals if a subsystem is unavailable.
  */
 export async function computePosture(): Promise<PostureReport> {
-  const dyn = async (spec: string): Promise<any> => {
+  const dyn = async (spec: string): Promise<Record<string, unknown>> => {
     try {
       return await import(/* @vite-ignore */ spec);
     } catch {

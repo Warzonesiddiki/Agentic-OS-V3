@@ -90,9 +90,11 @@ async function request<T>(
   const { signal, clear } = withTimeout(timeoutMs, init?.signal);
   try {
     const res = await fetch(`${baseUrl}${path}`, {
-    ...init,
-    headers,
-  });
+      ...init,
+      method: init?.method ?? "GET",
+      headers,
+      signal,
+    });
 
   const env: ApiEnvelope<T> = await res.json().catch(() => ({
     ok: false,

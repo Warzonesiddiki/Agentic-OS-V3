@@ -15,13 +15,14 @@ vi.mock('../src/db/client.js', () => {
     return o;
   };
   const upd = () => ({ set: () => ({ where: () => Promise.resolve() }) });
+  const insMock = () => ({ values: () => ({ onConflictDoUpdate: () => Promise.resolve() }) });
   const txMock: any = {
-    insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoUpdate: vi.fn(() => Promise.resolve()) })) ),
+    insert: vi.fn(() => insMock()),
     update: vi.fn(() => upd()),
     query: { killSwitch: { findFirst: vi.fn(() => Promise.resolve({ enabled: false })) } },
   };
   const dbMock: any = {
-    insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoUpdate: vi.fn(() => Promise.resolve()) })) ),
+    insert: vi.fn(() => insMock()),
     update: vi.fn(() => upd()),
     query: {
       killSwitch: { findFirst: vi.fn(() => Promise.resolve({ enabled: false })) },
