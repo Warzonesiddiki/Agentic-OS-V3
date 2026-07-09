@@ -7,16 +7,12 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   getDesktopActuator,
   createActuatorForMode,
-  resolveActuatorMode,
   resetDesktopActuator,
   sanitizeShellArg,
   sanitizePs,
   sanitizeAppleScriptString,
   RateLimiter,
   HeadlessActuator,
-  WindowsActuator,
-  MacOSActuator,
-  LinuxActuator,
   runDesktopActuation,
 } from '../src/services/desktop-actuator.js';
 
