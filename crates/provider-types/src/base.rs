@@ -714,4 +714,30 @@ mod tests {
         assert_eq!(info.output_token_cost, Some(0.00001));
         assert_eq!(info.currency, Some("$".to_string()));
     }
-}
+
+    #[test]
+    fn config_key_round_trip() {
+        let key = ConfigKey::new_oauth_device_code("API_KEY", true, true, Some("def"), true);
+        assert!(key.oauth_flow);
+        assert!(key.device_code_flow);
+        let json = serde_json::to_value(&key).unwrap();
+        let back: ConfigKey = serde_json::from_value(json).unwrap();
+        assert_eq!(key.name, back.name);
+        assert_eq!(key.required, back.required);
+        assert_eq!(key.device_code_flow, back.device_code_flow);
+        assert_eq!(key.default, back.default);
+    }
+
+    #[test]
+    fn model_info_round_trip_preserves_fields() {
+        let info = ModelInfo::with_cost("gpt-4o", 128000, 0.0000025, 0.00001);
+        let json = serde_json::to_value(&info).unwrap();
+        let back: ModelInfo = serde_json::from_value(json).unwrap();
+        assert_eq!(info, back);
+    }
+
+    #[test]
+    fn permission_routing_matches() {
+        assert_eq!(PermissionRouting::ActionRequired, PermissionRouting::ActionRequired);
+        assert_ne!(PermissionRouting::ActionRequired, PermissionRouting::Noop);
+    }}

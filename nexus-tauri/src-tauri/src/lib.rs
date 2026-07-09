@@ -3,10 +3,8 @@ use std::process::Command;
 use std::path::PathBuf;
 use tauri::Manager;
 
-#[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
-}
+mod commands;
+mod state;
 
 /// Clean up the port file on application exit.
 fn cleanup_port_file() {
@@ -22,7 +20,13 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .manage(state::AppState::default())
+        .invoke_handler(tauri::generate_handler![
+            commands::greet,
+            commands::get_backend_port,
+            commands::get_backend_dir,
+            commands::is_backend_ready
+        ])
         .setup(move |app| {
             // Resolve backend directory relative to the executable location (works in dev and bundle)
             let exe_path = std::env::current_exe().expect("cannot get exe path");
@@ -62,6 +66,11 @@ pub fn run() {
                 }
                 p
             };
+
+            // Persist the resolved port/backend dir into shared app state.
+            let state = app.state::<state::AppState>();
+            state.set_backend_port(resolved_port);
+            state.set_backend_dir(backend_dir);
 
             // 4) Inject the port into the frontend's JS context
             if let Some(window) = app.get_webview_window("main") {

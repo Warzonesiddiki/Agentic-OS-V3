@@ -216,7 +216,7 @@ describe('recall-eval harness', () => {
 
 describe('contradiction-edge inclusion in recall results', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   it('wires contradictionEdges among returned hits when a conflict exists', async () => {
@@ -264,8 +264,6 @@ describe('contradiction-edge inclusion in recall results', () => {
       { id: 'c2', memoryA: 'm1', memoryB: 'mOutside', relation: 'contradictory', summary: '', strategy: 'highest_importance', resolutionOf: null, resolvedAt: null, createdAt: now },
     ]);
     const edges = await contradictionsAmong(['m1', 'm2']);
-    // eslint-disable-next-line no-console
-    console.error('DEBUG contradictionsAmong:', JSON.stringify(edges));
     expect(edges).toHaveLength(1);
     expect(edges[0]!.memoryB).toBe('m2');
   });
@@ -277,7 +275,7 @@ describe('contradiction-edge inclusion in recall results', () => {
 
 describe('budget packing (top-N fits token budget)', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.restoreAllMocks();
   });
 
   function mkItem(id: string, tokens: number, score: number) {
@@ -299,8 +297,6 @@ describe('budget packing (top-N fits token budget)', () => {
 
     const fr = new FederatedRecall();
     const result = await fr.search({ text: 'xx', budget: 250, actor: 'tester', options: { noCache: true } });
-    // eslint-disable-next-line no-console
-    console.error('DEBUG budget result:', JSON.stringify({ returned: result.returned.map((r) => r.id), tokensUsed: result.tokensUsed, truncated: result.truncated }));
 
     expect(result.tokensUsed).toBeLessThanOrEqual(250);
     expect(result.returned.length).toBeLessThanOrEqual(2);

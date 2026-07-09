@@ -30,7 +30,7 @@ vi.mock('../src/services/audit-analytics.js', () => ({
   metricSnapshot: () => Promise.resolve(h.metrics),
 }));
 
-import { generateReport, registerControls, listControls } from '../src/services/compliance-reporter.js';
+import { generateReport, registerControls } from '../src/services/compliance-reporter.js';
 
 beforeEach(() => {
   h.setIncidents([]);
@@ -70,9 +70,9 @@ describe('Aegis: compliance report correctness', () => {
   it('registerControls is idempotent — latest registration wins', async () => {
     registerControls([{ id: 'X', framework: 'ISO', title: 'x', status: 'implemented', evidence: 'e' }]);
     registerControls([{ id: 'Y', framework: 'ISO', title: 'y', status: 'missing', evidence: 'e' }]);
-    const controls = listControls();
-    expect(controls).toHaveLength(1);
-    expect(controls[0].id).toBe('Y');
+    const report = await generateReport();
+    expect(report.controls).toHaveLength(1);
+    expect(report.controls[0].id).toBe('Y');
   });
 
   it('report includes every registered control in the controls array', async () => {

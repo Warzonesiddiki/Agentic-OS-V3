@@ -2067,4 +2067,90 @@ mod tests {
             .unwrap()
             .contains("malformed arguments"));
     }
-}
+
+#[cfg(test)]
+mod ferric_tests {
+    use super::*;
+    use serde_json::json;
+
+    #[test]
+    fn response_api_round_trip() {
+        let json = json!({
+            "id": "resp_1",
+            "object": "response",
+            "created_at": 1_700_000_000i64,
+            "status": "completed",
+            "model": "gpt-4o",
+            "output": [
+                {
+                    "type": "message",
+                    "role": "assistant",
+                    "content": [ { "type": "output_text", "text": "hi" } ]
+                }
+            ],
+            "usage": { "input_tokens": 10, "output_tokens": 5, "total_tokens": 15 }
+        });
+        let parsed: ResponsesApiResponse = serde_json::from_value(json.clone()).unwrap();
+        assert_eq!(parsed.id, "resp_1");
+        assert_eq!(parsed.model, "gpt-4o");
+        assert_eq!(parsed.output.len(), 1);
+        let back = serde_json::to_value(&parsed).unwrap();
+        assert_eq!(back, json);
+    }
+
+    #[test]
+    fn reasoning_and_usage_are_optional() {
+        let json = json!({
+            "id": "r", "object": "response", "created_at": 1,
+            "status": "ok", "model": "m", "output": []
+        });
+        let parsed: ResponsesApiResponse = serde_json::from_value(json).unwrap();
+        assert!(parsed.reasoning.is_none());
+        assert!(parsed.usage.is_none());
+    }
+
+    #[test]
+    fn output_item_enum_tags_deserialize() {
+        let reasoning = json!({ "type": "reasoning", "summary": [ { "text": "think" } ] });
+        let msg = json!({ "type": "message", "role": "assistant",
+            "content": [ { "type": "output_text", "text": "x" } ] });
+        let fncall = json!({ "type": "function_call", "name": "f", "arguments": "{}" });
+
+        assert!(matches!(
+            serde_json::from_value::<ResponseOutputItem>(reasoning).unwrap(),
+            ResponseOutputItem::Reasoning { .. }
+        ));
+        assert!(matches!(
+            serde_json::from_value::<ResponseOutputItem>(msg).unwrap(),
+            ResponseOutputItem::Message { .. }
+        ));
+        assert!(matches!(
+            serde_json::from_value::<ResponseOutputItem>(fncall).unwrap(),
+            ResponseOutputItem::FunctionCall { .. }
+        ));
+    }
+
+    #[test]
+    fn usage_round_trip_with_details() {
+        let json = json!({
+            "input_tokens": 7, "output_tokens": 3, "total_tokens": 10,
+            "input_tokens_details": { "cached_tokens": 2 }
+        });
+        let usage: ResponseUsage = serde_json::from_value(json.clone()).unwrap();
+        assert_eq!(usage.input_tokens, 7);
+        assert_eq!(usage.input_tokens_details.as_ref().unwrap().cached_tokens, Some(2));
+        let back = serde_json::to_value(&usage).unwrap();
+        assert_eq!(back, json);
+    }
+
+    #[test]
+    fn reasoning_info_round_trip() {
+        let info = ResponseReasoningInfo {
+            effort: Some("high".into()),
+            summary: Some("did stuff".into()),
+        };
+        let json = serde_json::to_value(&info).unwrap();
+        let back: ResponseReasoningInfo = serde_json::from_value(json).unwrap();
+        assert_eq!(back.effort, Some("high".into()));
+    }
+}}

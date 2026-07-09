@@ -25,7 +25,7 @@ export function registerControls(controls: ComplianceControl[]): void {
 export async function generateReport(): Promise<{
   generatedAt: number;
   controls: ComplianceControl[];
-  summary: { implemented: number; partial: number; missing: number };
+  summary: { implemented: number; partial: number; missing: number; notApplicable: number };
   openIncidents: number;
 }> {
   const metrics = await metricSnapshot();

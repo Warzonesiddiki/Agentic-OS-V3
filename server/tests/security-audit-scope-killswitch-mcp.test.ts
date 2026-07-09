@@ -21,9 +21,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── kill-switch state is sourced from the safety service; mock it for deterministic tests
 vi.mock('../src/services/safety.service.js', () => ({
-  isKillSwitchOn: vi.fn(),
-  assertOperational: vi.fn(),
-  setKillSwitch: vi.fn(),
+  isKillSwitchOn: vi.fn().mockResolvedValue(false),
+  assertOperational: vi.fn().mockResolvedValue(undefined),
+  setKillSwitch: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ── db/client pulls in the better-sqlite3 native binding which cannot load in this

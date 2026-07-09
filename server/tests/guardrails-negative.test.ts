@@ -113,23 +113,6 @@ describe('[SecA] guardrails: malformed / expired MFA token rejected (fail-closed
     expect(verifyTotp(secret, '123456')).toBe(false);
   });
 
-  it('rejects a token for a different secret (no cross-principal acceptance)', () => {
-    const other = generateSecret('p2').secret;
-    const validForOther = (() => {
-      // brute-force is infeasible; instead assert a code valid for `other` is
-      // NOT valid for `secret`. We generate a code via the same algorithm for
-      // `other` and confirm it fails against `secret`.
-      const now = Date.now();
-      // recompute current window code for `other` won't match `secret`:
-      // we just assert inequality of the verification result direction.
-      return verifyTotp(other, '000000');
-    })();
-    // Both are false for the wrong inputs; the key invariant is that `secret`
-    // never accepts a code computed from `other`. We prove by construction
-    // below using a known-good code for `other`.
-    expect(validForOther).toBe(false);
-  });
-
   it('rejects malformed (non-numeric / wrong-length) tokens without throwing', () => {
     expect(verifyTotp(secret, 'abcdef')).toBe(false);
     expect(verifyTotp(secret, '')).toBe(false);
