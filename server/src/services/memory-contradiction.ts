@@ -1,4 +1,4 @@
-import { and, eq, inArray, isNotNull, not, or, type SQL } from 'drizzle-orm';
+import { and, eq, inArray, not, or, type SQL } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import { memories } from '../db/client.js';
 import { memoryContradictions } from '../db/schema.js';

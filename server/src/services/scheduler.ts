@@ -1546,7 +1546,7 @@ export const DEFAULT_MLFQ_TUNER_CONFIG: MlfqSelfTunerConfig = {
 
 let tunerConfig: MlfqSelfTunerConfig = { ...DEFAULT_MLFQ_TUNER_CONFIG };
 let tunerTimer: ReturnType<typeof setInterval> | null = null;
-let lastAdjustMs: Record<string, number> = {};
+const lastAdjustMs: Record<string, number> = {};
 
 export function configureMlfqSelfTuner(cfg: Partial<MlfqSelfTunerConfig>): MlfqSelfTunerConfig {
   tunerConfig = { ...tunerConfig, ...cfg };

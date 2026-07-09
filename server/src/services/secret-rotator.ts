@@ -50,10 +50,6 @@ export type RotationAction = (
 
 const DEFAULT_GRACE_MS = 6 * 60 * 60 * 1000;
 
-function toSiem(s: 'low' | 'medium' | 'high' | 'critical'): 'info' | 'warn' | 'error' | 'critical' {
-  return s === 'critical' ? 'critical' : s === 'high' ? 'error' : s === 'medium' ? 'warn' : 'info';
-}
-
 export class SecretRotator {
   private registrations = new Map<string, SecretRegistration>();
   private ledger = new Map<string, RotationRecord>();

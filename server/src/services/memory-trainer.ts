@@ -8,8 +8,8 @@
  * deterministic so it can be unit-tested without a DB.
  */
 import { db } from '../db/client.js';
-import { feedback, memories } from '../db/client.js';
-import { desc, eq, sql } from 'drizzle-orm';
+import { feedback } from '../db/client.js';
+import { desc, eq } from 'drizzle-orm';
 
 export interface RankWeights {
   /** weight per memory kind (episodic/semantic/procedural/...) */

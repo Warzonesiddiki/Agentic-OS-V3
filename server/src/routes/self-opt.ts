@@ -7,7 +7,6 @@ import { selfOptController, SelfOptController } from '../services/self-opt/contr
 import {
   guardrailGuard,
   getGuardrailBounds,
-  setGuardrailBounds,
   GuardrailGuard,
   GUARDRAIL_LEVELS,
 } from '../services/self-opt/guardrail-guard.js';
@@ -25,12 +24,11 @@ import {
   finishExperiment,
   publishKnowledge,
   bestKnowledge,
-  explainabilityReport,
   recordSatisfaction,
   type SimulateCandidate,
 } from '../services/self-opt/gap-items.js';
 import { ADAPTERS } from '../services/self-opt/adapters.js';
-import { setSelfOptParam, getSelfOptParam } from '../services/self-opt/bootstrap.js';
+import { setSelfOptParam } from '../services/self-opt/bootstrap.js';
 
 export const selfOptRouter = new Hono();
 
@@ -66,7 +64,6 @@ selfOptRouter.post('/live-write', async (c) => {
 });
 
 selfOptRouter.get('/metrics', (c) => {
-  const limit = Number(c.req.query('limit') ?? 200);
   return c.json(ok({ metrics: readMetrics() }));
 });
 

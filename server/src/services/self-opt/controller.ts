@@ -1,11 +1,9 @@
 import { db } from '../../db/client.js';
-import { selfOptParamVersions, selfOptEvents } from '../../db/schema.js';
-import { eq, desc } from 'drizzle-orm';
+import { selfOptParamVersions } from '../../db/schema.js';
 import { ALL_TUNERS } from './tuners.js';
 import { type SelfOptTuner } from './types.js';
 import { guardrailGuard, type TunerDelta } from './guardrail-guard.js';
 import { metricStore, exportMetric } from './telemetry.js';
-import { isSqlite } from '../../db/client.js';
 import { log } from '../../lib/logging.js';
 
 export const ALL_TUNERS_LIST = ALL_TUNERS;

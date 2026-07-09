@@ -184,7 +184,6 @@ describe('agent-dag — tool registry self-healing (ML-002)', () => {
     });
     resetDAGRegistry();
     for (let i = 0; i < 10; i++) {
-      // eslint-disable-next-line no-await-in-loop
       await fast.execute({ goal: 'g' }, { actor: 'b', parentAgentId: 'b' });
     }
     await slow.execute({ goal: 'g' }, { actor: 'b', parentAgentId: 'b' });

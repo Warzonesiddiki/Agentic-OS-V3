@@ -25,38 +25,6 @@ export class BootstrapCycleError extends Error {
   }
 }
 
-/** Compute the strongly-connected set forming a cycle (DFS back-edge detection). */
-function findCycle(adj: Map<string, string[]>, nodes: string[]): string[] {
-  const WHITE = 0;
-  const GRAY = 1;
-  const BLACK = 2;
-  const color = new Map<string, number>(nodes.map((n) => [n, WHITE]));
-  const stack: string[] = [];
-  let cycle: string[] = [];
-
-  const visit = (u: string): boolean => {
-    color.set(u, GRAY);
-    stack.push(u);
-    for (const v of adj.get(u) ?? []) {
-      const c = color.get(v);
-      if (c === GRAY) {
-        const idx = stack.indexOf(v);
-        cycle = stack.slice(idx);
-        return true;
-      }
-      if (c === WHITE && visit(v)) return true;
-    }
-    color.set(u, BLACK);
-    stack.pop();
-    return false;
-  };
-
-  for (const n of nodes) {
-    if (color.get(n) === WHITE && visit(n)) break;
-  }
-  return cycle;
-}
-
 export class BootstrapGraph {
   private readonly nodes = new Map<string, KernelService>();
 

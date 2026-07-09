@@ -5,7 +5,7 @@
  * audit rolls back its mutation. The kill switch is enforced before each tx.
  */
 import { and, eq, sql } from 'drizzle-orm';
-import { db, isSqlite } from './db/client.js';
+import { db } from './db/client.js';
 import { memories, skills, projects, feedback, systemMeta } from './db/client.js';
 import { appendAudit, type Tx } from './lib/audit.js';
 import { estimateTokens } from './lib/tokens.js';

@@ -9,7 +9,7 @@
  * tamper-evident audit + SIEM events via Sentinel's security barrel.
  */
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gte, lte, sql, inArray } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import { db } from '../db/client.js';
 import {
   orgs,
@@ -24,7 +24,6 @@ import {
   crossOrgShares,
   onboardingState,
 } from '../db/schema.js';
-import { buuid } from '../lib/id.js';
 import { createHash } from 'node:crypto';
 import { forward } from '../services/security/index.js';
 import { appendAudit } from '../lib/audit.js';
@@ -796,16 +795,14 @@ export async function shareResource(
   input: { resource: string; resourceId: string; targetOrgId: string; role: string }
 ): Promise<void> {
   const id = `cos_${randomUUID()}`;
-  await db
-    .insert(crossOrgShares)
-    .values({
-      id,
-      orgId,
-      targetOrgId: input.targetOrgId,
-      resource: input.resource,
-      resourceId: input.resourceId,
-      role: input.role,
-    });
+  await db.insert(crossOrgShares).values({
+    id,
+    orgId,
+    targetOrgId: input.targetOrgId,
+    resource: input.resource,
+    resourceId: input.resourceId,
+    role: input.role,
+  });
   await auditLog({
     action: 'enterprise.share',
     resource: input.resource,

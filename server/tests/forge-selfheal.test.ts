@@ -6,15 +6,11 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import type { PipelineNode, NodeType } from '../src/services/pipeline-executor.js';
 import { getNodeCompensator } from '../src/services/pipeline-executor.js';
-import { getMlfqPromotionCount, resetMlfqPromotionCount } from '../src/services/kernel.js';
+import { getMlfqPromotionCount } from '../src/services/kernel.js';
 import {
-  getQueueLatencyPercentiles,
   recordQueueLatency,
   resetQuantum,
   getQuantum,
-  setQuantum,
-  getPidGain,
-  setPidGain,
   mlfqSelfTuneStep,
   configureMlfqSelfTuner,
   DEFAULT_MLFQ_TUNER_CONFIG,

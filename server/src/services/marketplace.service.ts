@@ -26,14 +26,7 @@ import {
 import { ApiError } from '../lib/errors.js';
 import { parse } from '../lib/auth-context.js';
 import { z } from 'zod';
-import {
-  sha256Hex,
-  signArtifactEd25519,
-  verifyArtifactEd25519,
-  webhookHmac,
-  receiptHash,
-  type ReceiptInput,
-} from '../lib/crypto-sign.js';
+import { signArtifactEd25519, verifyArtifactEd25519, receiptHash } from '../lib/crypto-sign.js';
 import { tarjanSCC, topoSort, type DepNode } from '../lib/graph.js';
 
 /* ─── Validation schemas ───────────────────────────────────────────────── */
@@ -432,7 +425,7 @@ export const marketplaceService = {
     });
     return { id };
   },
-  async submitForReview(versionId: string, notes?: string) {
+  async submitForReview(versionId: string) {
     const ver = await db.query.marketplaceVersions.findFirst({
       where: eq(marketplaceVersions.id, versionId),
     });

@@ -8,8 +8,7 @@
  * unit-tested without a DB; the DB path backs the live UI.
  */
 import { db } from '../db/client.js';
-import { memories, memoryClusters, memoryTags, tagTaxonomy, feedback } from '../db/client.js';
-import { and, isNull, sql } from 'drizzle-orm';
+import { memoryClusters, tagTaxonomy } from '../db/client.js';
 
 export interface Suggestion {
   value: string;

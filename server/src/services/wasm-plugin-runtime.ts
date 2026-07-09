@@ -389,16 +389,6 @@ export async function withResourceFuse<T>(
 }
 
 export async function loadPlugin(pluginId: string): Promise<LoadedPlugin | null> {
-  /** Read the persisted plugin row (artifact bytes + recorded hash) for integrity checks. */
-  async function getPluginRecord(
-    pluginId: string
-  ): Promise<{ contentSha256: string; wasmBytes?: Uint8Array } | null> {
-    const row = await db.query.plugins.findFirst({ where: eq(plugins.id, pluginId) });
-    if (!row) return null;
-    const bytes = row.wasmBytes ? Buffer.from(row.wasmBytes, 'base64') : undefined;
-    return { contentSha256: row.contentSha256, wasmBytes: bytes };
-  }
-
   const cached = loaded.get(pluginId);
   if (cached) return cached;
 

@@ -6,7 +6,7 @@ import { Hono } from 'hono';
 import { z } from 'zod';
 import type { NexusEnv } from '../lib/hono-env.js';
 import { requireScope, safeJson, parse } from '../lib/auth-context.js';
-import { ok, err } from '../lib/envelope.js';
+import { ok } from '../lib/envelope.js';
 import { marketplaceService } from '../services/marketplace.service.js';
 import { meta } from './meta.js';
 

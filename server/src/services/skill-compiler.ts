@@ -537,6 +537,11 @@ export async function runCompilationPipeline(actor: string): Promise<Compilation
         occurrences: pattern.occurrences,
         status: 'eval_failed',
       });
+      await appendAudit(
+        'skill.capability_violation',
+        { scriptId, pattern: pattern.signature, reason: capabilityError, actor },
+        actor
+      );
     }
   }
 

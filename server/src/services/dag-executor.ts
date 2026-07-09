@@ -17,7 +17,7 @@
 import { randomId } from '../lib/id.js';
 import { log } from '../lib/logging.js';
 import { appendAudit } from '../lib/audit.js';
-import { runAgent, type AgentConfig } from './agent-runtime.js';
+import { runAgent } from './agent-runtime.js';
 import { blackboard } from './blackboard.js';
 import { detectDeadlock } from './deadlock-detector.js';
 import { mergeBy } from './merge-strategies.js';
@@ -68,6 +68,40 @@ export interface ExecutorOptions {
   /** Base backoff (ms) for retries (default 300). Actual delay uses
    *  exponential jitter: base * 2^(attempt-1) ± 25%. */
   retryBaseMs?: number;
+  /** Durable checkpoint store. When provided, every completed step is
+   *  checkpointed so a crashed/aborted run can be resumed (see `resumeRunId`)
+   *  without re-executing finished steps. Plug your own (DB/Redis) backend. */
+  checkpoint?: CheckpointStore;
+  /** Resume a previously checkpointed run instead of starting fresh. The
+   *  executor reloads completed step results from `checkpoint`, reuses the
+   *  same `runId`, and only executes steps that are not yet `ok`. */
+  resumeRunId?: string;
+}
+
+/**
+ * Pluggable checkpoint store for DAG execution. Implementations decide
+ * durability (in-memory / Redis / DB). The executor calls `save` after every
+ * settled step and `load` at resume time.
+ */
+export interface CheckpointStore {
+  save(planId: string, runId: string, results: StepResult[]): void | Promise<void>;
+  load(planId: string, runId: string): StepResult[] | undefined | Promise<StepResult[] | undefined>;
+}
+
+/** Default in-memory checkpoint store (process-local; fine for tests/dev). */
+export class MapCheckpointStore implements CheckpointStore {
+  private store = new Map<string, StepResult[]>();
+  private key(planId: string, runId: string): string {
+    return `${planId}:${runId}`;
+  }
+  save(planId: string, runId: string, results: StepResult[]): void {
+    // Persist only terminal results (a step may appear multiple times across
+    // retries; we keep the latest settled outcome).
+    this.store.set(this.key(planId, runId), [...results]);
+  }
+  load(planId: string, runId: string): StepResult[] | undefined {
+    return this.store.get(this.key(planId, runId));
+  }
 }
 
 const DEFAULT_CONCURRENCY = 4;
@@ -209,9 +243,16 @@ function collectInputs(step: PlanStep, results: Map<string, StepResult>): Record
   return inputs;
 }
 
-/** Execute a plan to completion. */
+/**
+ * Execute a plan to completion, with optional checkpoint/resume.
+ *
+ * - `opts.checkpoint` (a `CheckpointStore`): every settled step is persisted
+ *   so the run can survive a crash/abort and be resumed.
+ * - `opts.resumeRunId`: reuses that runId and reloads completed step results,
+ *   skipping re-execution of already-`ok` steps. Only the remaining steps run.
+ */
 export async function executePlan(plan: RunPlan, opts: ExecutorOptions = {}): Promise<RunResult> {
-  const runId = randomId();
+  const runId = opts.resumeRunId ?? randomId();
   const startedAt = Date.now();
   const maxConcurrency = opts.maxConcurrency ?? DEFAULT_CONCURRENCY;
   const results = new Map<string, StepResult>();
@@ -220,6 +261,28 @@ export async function executePlan(plan: RunPlan, opts: ExecutorOptions = {}): Pr
   const index = new Map<string, PlanStep>();
   plan.steps.forEach((s) => index.set(s.id, s));
   let compensationMap: Record<string, boolean> | undefined;
+
+  // Resume: hydrate completed steps from a prior checkpoint so they are not
+  // re-executed. Steps that were checkpointed as ok are marked done.
+  if (opts.resumeRunId && opts.checkpoint) {
+    const prior = await opts.checkpoint.load(plan.id, runId);
+    if (prior && prior.length > 0) {
+      for (const r of prior) {
+        results.set(r.stepId, r);
+        if (r.ok) done.add(r.stepId);
+      }
+      log.info('dag.executor.resume', {
+        runId,
+        restored: prior.filter((r) => r.ok).length,
+        remaining: plan.steps.length - done.size,
+      });
+      await appendAudit(
+        'dag.executor.resume',
+        { runId, restored: prior.filter((r) => r.ok).length },
+        'executor'
+      );
+    }
+  }
 
   const ready = (id: string): boolean => {
     const s = index.get(id);
@@ -271,6 +334,11 @@ export async function executePlan(plan: RunPlan, opts: ExecutorOptions = {}): Pr
           results.set(id, r);
           if (r.ok) done.add(id);
           opts.onStep?.(r);
+          // Durable checkpoint after every settled step so a crash/abort can
+          // resume without re-running finished work.
+          if (opts.checkpoint) {
+            await opts.checkpoint.save(plan.id, runId, Array.from(results.values()));
+          }
           return { id, ok: r.ok };
         })
       );

@@ -16,7 +16,7 @@ import { appendAudit, Tx } from '../../lib/audit.js';
 import { db } from '../../db/client.js';
 import { defineExperiment, runExperiment, ChaosExperiment } from './chaos.js';
 import { startDrill, completeDrill } from './failover-drill.js';
-import { heal, HealResult, HealAction } from './self-healing.js';
+import { heal, HealResult } from './self-healing.js';
 
 export interface ComponentSpec {
   component: string;

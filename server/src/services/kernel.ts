@@ -109,7 +109,9 @@ export async function spawnAgent(input: SpawnAgentInput, actor: string) {
   try {
     const { agentSpawnsTotal } = await import('./metrics.js');
     agentSpawnsTotal.inc();
-  } catch {}
+  } catch {
+    // metrics import is best-effort; ignore failure
+  }
 
   await appendAudit(
     'agent.spawned',
@@ -254,7 +256,9 @@ export async function terminateAgent(id: string, reason: string, actor: string) 
     try {
       const { agentTerminationsTotal } = await import('./metrics.js');
       agentTerminationsTotal.inc();
-    } catch {}
+    } catch {
+      // metrics import is best-effort; ignore failure
+    }
     await appendAudit('agent.terminated', { agentId: id, reason }, actor);
   }
   return updated;
@@ -584,7 +588,7 @@ export async function pickNextTask(): Promise<typeof agentTasks.$inferSelect | n
       let acquiredExtra = 0;
       const others = ids.filter((id) => id !== pick.id);
       let rollBack = false;
-      for (const id of others) {
+      for (const _id of others) {
         if (!acquireRingBudget(ring)) {
           rollBack = true;
           break;

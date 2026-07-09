@@ -12,7 +12,6 @@ import { and, eq, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import { embedQuery } from './embeddings.js';
 import { log } from '../lib/logging.js';
-import { env } from '../lib/env.js';
 type MemoryRow = typeof memories.$inferSelect;
 
 export type AttachmentKind = 'image' | 'audio' | 'video' | 'file' | 'text';

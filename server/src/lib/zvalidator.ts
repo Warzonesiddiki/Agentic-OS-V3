@@ -8,7 +8,7 @@
  */
 
 import type { Context, MiddlewareHandler, ValidationTargets } from 'hono';
-import { z, type ZodTypeAny } from 'zod';
+import { type ZodTypeAny } from 'zod';
 
 declare module 'hono' {
   interface HonoRequest {

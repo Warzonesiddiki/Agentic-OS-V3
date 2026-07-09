@@ -457,6 +457,8 @@ export interface RecallResult {
   truncated: number;
   mode: 'lexical' | 'semantic';
   federatedContribution: number;
+  /** contradiction edges among the returned hits (self-healing memory signal) */
+  contradictionEdges?: { memoryA: string; memoryB: string; classification: string }[];
   nextCursor?: number;
 }
 

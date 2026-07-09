@@ -8,7 +8,7 @@ import {
 import { getSchedulerLatency, getSlotManager, riskLevelForTask } from './scheduler.js';
 import { getKernelEventHistory } from './kernel.js';
 import { db, agentTasks, ringPolicies, agents } from '../db/client.js';
-import { eq, and, inArray, isNotNull } from 'drizzle-orm';
+import { eq, and, isNotNull } from 'drizzle-orm';
 
 /**
  * Phase 11 — Task 11.27: Kernel Introspection API.

@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import type { NexusEnv } from '../lib/hono-env.js';
 import { requireScope, safeJson, parse } from '../lib/auth-context.js';
 import { z } from 'zod';
-import { ok, err } from '../lib/envelope.js';
+import { ok } from '../lib/envelope.js';
 import {
   deduplicateMemories,
   DEDUP_SIMILARITY_THRESHOLD,

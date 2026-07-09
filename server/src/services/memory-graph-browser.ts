@@ -14,7 +14,7 @@ import {
   sessionLinks,
   memories,
 } from '../db/client.js';
-import { and, eq, isNull, inArray } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 
 export interface GraphNode {
   id: string;

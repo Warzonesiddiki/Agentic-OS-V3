@@ -17,7 +17,6 @@ import { eq, gt, sql } from 'drizzle-orm';
 import { ok, err } from './lib/envelope.js';
 import type { NexusEnv } from './lib/hono-env.js';
 import { requireScope, safeJson, parse, fail } from './lib/auth-context.js';
-import { createPrincipal, listPrincipals, revokePrincipal, type Scope } from './lib/security.js';
 import {
   memoryInput,
   memoryPatch,

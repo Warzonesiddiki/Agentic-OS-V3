@@ -1,14 +1,8 @@
 npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
 npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
-tests/agent-dag.test.ts(24,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/agent-dag.test.ts(25,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/agent-dag.test.ts(26,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/agent-dag.test.ts(27,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/agent-dag.test.ts(36,16): error TS2488: Type 'string[] | undefined' must have a '[Symbol.iterator]()' method that returns an iterator.
-tests/agent-dag.test.ts(42,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/agent-dag.test.ts(43,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/agent-dag.test.ts(51,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/agent-dag.test.ts(70,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/agent-dag.test.ts(71,69): error TS2353: Object literal may only specify known properties, and 'dependsOn' does not exist in type 'DAGNodeConfig'.
-tests/phase14-security.test.ts(250,33): error TS2554: Expected 1 arguments, but got 2.
-tests/phase14-security.test.ts(252,60): error TS2367: This comparison appears to be unintentional because the types '"ok" | "degraded" | "down"' and '"pass"' have no overlap.
+src/services/self-opt/adapters.ts(5,15): error TS2304: Cannot find name 'OwnerAgent'.
+tests/dag-executor.test.ts(65,73): error TS2353: Object literal may only specify known properties, and 'retries' does not exist in type 'StepResult'.
+tests/forge-selfheal.test.ts(110,16): error TS2304: Cannot find name 'getPidGain'.
+tests/forge-selfheal.test.ts(113,16): error TS2304: Cannot find name 'getPidGain'.
+tests/phase14-security.test.ts(333,33): error TS2554: Expected 1 arguments, but got 2.
+tests/phase14-security.test.ts(340,60): error TS2367: This comparison appears to be unintentional because the types '"ok" | "degraded" | "down"' and '"pass"' have no overlap.

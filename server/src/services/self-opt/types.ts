@@ -158,10 +158,10 @@ export function policyNameFromIndex(idx: number): PolicyName {
   return name ?? 'mlfq';
 }
 
-let registry: Gauge<any> | null = null;
-export function attachMetricsRegistry(g: Gauge<any>): void {
+let registry: Gauge<string> | null = null;
+export function attachMetricsRegistry(g: Gauge<string>): void {
   registry = g;
 }
-export function getMetricsRegistry(): Gauge<any> | null {
+export function getMetricsRegistry(): Gauge<string> | null {
   return registry;
 }

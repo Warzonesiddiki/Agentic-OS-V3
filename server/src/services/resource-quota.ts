@@ -240,7 +240,7 @@ export class QuotaRegistry {
     return enf;
   }
 
-  private evictIfNeeded(now: number): void {
+  private evictIfNeeded(_now: number): void {
     if (this.store.size <= this.maxEntries) return;
     // Evict oldest-idle entries until we are back under the cap.
     const entries = [...this.store.entries()].sort((a, b) => a[1].lastUsed - b[1].lastUsed);

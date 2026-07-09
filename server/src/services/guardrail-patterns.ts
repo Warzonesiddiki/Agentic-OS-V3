@@ -1,9 +1,4 @@
-import {
-  type ViolationAction,
-  type PatternRule,
-  type ContentFilterResult,
-  type PIIResult,
-} from './guardrail-types.js';
+import { type PatternRule, type ContentFilterResult, type PIIResult } from './guardrail-types.js';
 
 export const builtinPatterns: PatternRule[] = [
   {

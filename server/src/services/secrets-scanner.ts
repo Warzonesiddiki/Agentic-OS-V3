@@ -288,7 +288,7 @@ const DETECTORS: Detector[] = [
     description: 'Generic API Key Assignment',
     severity: 'medium',
     pattern:
-      /(?:api[_-]?key|apikey|access[_-]?token|secret[_-]?key|client[_-]?secret)\s*[:=]\s*['"]?([A-Za-z0-9_\-]{16,64})['"]?/gi,
+      /(?:api[_-]?key|apikey|access[_-]?token|secret[_-]?key|client[_-]?secret)\s*[:=]\s*['"]?([A-Za-z0-9_-]{16,64})['"]?/gi,
     minEntropy: 3.0,
   },
   {
@@ -310,7 +310,7 @@ const DETECTORS: Detector[] = [
     description: 'Slack Incoming Webhook URL',
     severity: 'high',
     provider: 'slack',
-    pattern: /https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9\/]{20,}/g,
+    pattern: /https:\/\/hooks\.slack\.com\/services\/[A-Za-z0-9/]{20,}/g,
   },
   {
     id: 'npm-token',
@@ -331,7 +331,7 @@ const DETECTORS: Detector[] = [
     description: 'SendGrid API Key',
     severity: 'high',
     provider: 'sendgrid',
-    pattern: /\b(SG\.[A-Za-z0-9_\-]{16,}\.[A-Za-z0-9_\-]{16,})\b/g,
+    pattern: /\b(SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,})\b/g,
   },
 ];
 

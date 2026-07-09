@@ -30,7 +30,6 @@ export interface LabeledQuery {
   relevantIds: string[];
 }
 
-const RRF_K = env.NEXUS_RRF_K;
 const W_RRF = env.NEXUS_RECALL_WEIGHT_RRF;
 const W_IMPORTANCE = env.NEXUS_RECALL_WEIGHT_IMPORTANCE;
 const W_RECENCY = env.NEXUS_RECALL_WEIGHT_RECENCY;

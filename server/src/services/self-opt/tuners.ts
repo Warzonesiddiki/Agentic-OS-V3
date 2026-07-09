@@ -9,7 +9,6 @@ import {
   type SignificanceResult,
   type ExplainResult,
 } from './types.js';
-import { metricStore, exportMetric } from './telemetry.js';
 
 const clamp = (x: number, lo: number, hi: number): number => Math.max(lo, Math.min(hi, x));
 const round2 = (x: number): number => Math.round(x * 100) / 100;
@@ -458,7 +457,7 @@ export class RLSchedulingPolicy implements SelfOptTuner {
       after: { policy },
     };
   }
-  explain(d: TunerDeltaInput): ExplainResult {
+  explain(_d: TunerDeltaInput): ExplainResult {
     return {
       reason: 'queue wait critical',
       expectedEffect: 'better wait distribution',
@@ -513,7 +512,7 @@ function makeTuner(
     ownerAgent,
     adapter,
     propose: proposeFn,
-    explain: (d: TunerDeltaInput): ExplainResult => ({
+    explain: (_d: TunerDeltaInput): ExplainResult => ({
       reason: name,
       expectedEffect: 'improve metric',
       cohortMetrics: {},

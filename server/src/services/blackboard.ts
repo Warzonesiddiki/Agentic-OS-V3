@@ -252,7 +252,7 @@ export function applyAuditRows(
     payload?: unknown;
     createdAt?: Date | number;
   }>,
-  runId: string
+  _runId: string
 ): Blackboard {
   const board: Blackboard = {};
   for (const row of rows) {

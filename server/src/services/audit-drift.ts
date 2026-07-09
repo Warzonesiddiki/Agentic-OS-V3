@@ -12,13 +12,8 @@
 import { verifyAuditChain, AuditVerifyResult } from '../lib/audit.js';
 import { appendAudit, Tx } from '../lib/audit.js';
 import { db } from '../db/client.js';
-import { systemMeta } from '../db/client.js';
-import { eq } from 'drizzle-orm';
 import { forward } from './siem-forwarder.js';
 import { log } from '../lib/logging.js';
-
-const CONFIG_KEY = 'audit-drift:config';
-const STATE_KEY = 'audit-drift:state';
 
 export interface AuditDriftConfig {
   /** How often to replay the chain (ms). */
@@ -60,7 +55,7 @@ export interface DriftReport {
 export function evaluateDrift(
   result: AuditVerifyResult,
   config: AuditDriftConfig,
-  prev: AuditDriftState
+  _prev: AuditDriftState
 ): { isNewBreak: boolean; shouldReanchor: boolean } {
   if (result.valid) return { isNewBreak: false, shouldReanchor: false };
   const breakAt = result.brokenAt ?? null;

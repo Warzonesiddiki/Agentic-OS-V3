@@ -226,7 +226,7 @@ const PII_PATTERNS: RegExp[] = [
 export function applyOutputGuardrails(text: string): string {
   let redacted = text;
   for (const re of PII_PATTERNS) {
-    redacted = redacted.replace(re, (m) => {
+    redacted = redacted.replace(re, () => {
       guardrailReport.outputRedacted++;
       return `[REDACTED:${re.source.slice(0, 8)}]`;
     });

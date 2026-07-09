@@ -16,7 +16,7 @@ import { rehearseDueMemories, rehearseMemory } from './memory-rehearsal.js';
 import { detectContradictions } from './memory-contradiction.js';
 import { storeMemoryEmotion } from './memory-emotion.js';
 import { selectForConsolidation, type ConsolidationMemory } from './consolidation-budget.js';
-import { and, eq, isNull, lt, desc } from 'drizzle-orm';
+import { and, eq, isNull, desc } from 'drizzle-orm';
 import { memories } from '../db/client.js';
 import { randomUUID } from 'node:crypto';
 

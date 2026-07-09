@@ -35,10 +35,7 @@ function cutoffValue(days: number): string | Date {
   return isSqlite ? d.toISOString() : d;
 }
 
-export async function forgetMe(
-  identifier: string,
-  opts?: { mode?: 'id' | 'content' }
-): Promise<ForgetReport> {
+export async function forgetMe(identifier: string): Promise<ForgetReport> {
   const idMatches = (await db
     .select({ id: memories.id })
     .from(memories)

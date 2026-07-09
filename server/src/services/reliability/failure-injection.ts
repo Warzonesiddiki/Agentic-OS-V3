@@ -12,7 +12,6 @@
  * to the caller-supplied runner (injected so the harness is unit-testable).
  */
 
-import { log } from '../../lib/logging.js';
 import { appendAudit, Tx } from '../../lib/audit.js';
 import { db } from '../../db/client.js';
 import { defineExperiment, runExperiment, ChaosExperiment, ChaosTarget } from './chaos.js';
@@ -163,7 +162,7 @@ export class FailureInjectionHarness {
     }).catch(() => undefined);
 
     let aborted = false;
-    let observedImpact = '';
+    const observedImpact = '';
     let injectError: string | undefined;
     try {
       const result = await runExperiment(exp.id, this.runner, 'failure-injection');

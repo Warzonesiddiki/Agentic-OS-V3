@@ -22,7 +22,6 @@ vi.mock('../src/lib/errors.js', () => ({
 import {
   grant,
   deny,
-  revoke,
   revokeAll,
   hasPermission,
   assertPermission,
