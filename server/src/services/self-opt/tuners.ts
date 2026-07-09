@@ -183,7 +183,7 @@ export class PromptABEngine extends BaseTuner {
   readonly id = '18.3' as const;
   readonly name = 'Prompt A/B Engine';
   readonly ownerAgent = 'atlas' as const;
-  async propose(_t: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
+  async propose(t: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
     if (t.prompt.impressions < 2000) return null; // need minimum sample
     return {
       targetInterface: this.adapter.targetInterface,
