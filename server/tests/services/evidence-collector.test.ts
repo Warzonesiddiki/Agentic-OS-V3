@@ -1,5 +1,6 @@
 /** evidence-collector.test.ts — forensic evidence bundling (Aegis namespace). */
 import { describe, it, expect, vi } from 'vitest';
+import { ApiError } from '../../src/lib/errors.js';
 
 vi.mock('../../src/services/session-recorder.js', () => ({
   replay: vi.fn(() => [{ ts: 1, action: 'x' }]),
@@ -17,7 +18,13 @@ const mockedGetIncident = vi.mocked(getIncident);
 describe('collect', () => {
   it('throws EVIDENCE_NO_INCIDENT when the incident is missing', async () => {
     mockedGetIncident.mockReturnValue(undefined);
-    await expect(collect('nope')).rejects.toThrow(/EVIDENCE_NO_INCIDENT/);
+    let code = '';
+    try {
+      await collect('nope');
+    } catch (e) {
+      code = (e as ApiError).code;
+    }
+    expect(code).toBe('EVIDENCE_NO_INCIDENT');
   });
 
   it('builds a bundle from the incident + a replayed session chain', async () => {

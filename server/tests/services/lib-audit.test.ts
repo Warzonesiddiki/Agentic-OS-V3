@@ -1,5 +1,10 @@
 /** lib/audit.test.ts — pure audit-chain helpers (Aegis namespace). */
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
+
+// lib/audit imports the DB client for its async helpers; mock it to keep this
+// test free of the native better-sqlite3 binding (we only exercise pure fns).
+vi.mock('../../src/db/client.js', () => ({ db: {}, auditLog: {}, systemMeta: {} }));
+
 import { stableStringify, computeEntryHash, GENESIS_HASH } from '../../src/lib/audit.js';
 
 describe('GENESIS_HASH', () => {
@@ -32,18 +37,33 @@ describe('stableStringify', () => {
 });
 
 describe('computeEntryHash', () => {
+  const call = (over: Partial<{ prevHash: string; sequence: number; action: string; actor: string; createdAtMs: number; payload: unknown }> = {}) =>
+    computeEntryHash(
+      over.prevHash ?? 'prev',
+      over.sequence ?? 1,
+      over.action ?? 'a',
+      over.actor ?? 'u',
+      over.createdAtMs ?? 1,
+      over.payload ?? {}
+    );
+
   it('produces a 64-char hex digest', () => {
-    const h = computeEntryHash({ seq: 1, action: 'a', actor: 'u', ts: 1, payload: {} });
-    expect(h).toMatch(/^[0-9a-f]{64}$/);
+    expect(call()).toMatch(/^[0-9a-f]{64}$/);
   });
 
   it('is deterministic', () => {
-    const e = { seq: 5, action: 'write', actor: 'agent', ts: 123, payload: { k: 'v' } };
-    expect(computeEntryHash(e)).toBe(computeEntryHash(e));
+    expect(call({ payload: { k: 'v' } })).toBe(call({ payload: { k: 'v' } }));
+  });
+
+  it('differs when payload changes', () => {
+    expect(call({ payload: { x: 1 } })).not.toBe(call({ payload: { x: 2 } }));
   });
 
   it('differs when action changes', () => {
-    const base = { seq: 1, action: 'a', actor: 'u', ts: 1, payload: {} };
-    expect(computeEntryHash(base)).not.toBe(computeEntryHash({ ...base, action: 'b' }));
+    expect(call({ action: 'read' })).not.toBe(call({ action: 'write' }));
+  });
+
+  it('differs when actor changes', () => {
+    expect(call({ actor: 'a1' })).not.toBe(call({ actor: 'a2' }));
   });
 });

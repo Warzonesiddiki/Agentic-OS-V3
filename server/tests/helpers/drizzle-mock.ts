@@ -1,18 +1,22 @@
 /**
  * Shared drizzle-style in-memory mock for unit tests.
  *
- * Vitest's `vi.mock('../src/db/client.js', () => ({ db: makeDrizzleMock(store) }))`
- * uses this. It supports the query chains used across the memory-* services:
- *   db.insert(t).values(row)                       -> stores row (keyed by row.id)
- *   db.select().from(t).where(eq(col,id)).limit(n) -> matching rows
- *   db.select().from(t).orderBy(col)               -> all rows
- *   db.update(t).set(patch).where(eq(col,id)).returning() -> updated row
- *   db.delete(t).where(eq(col,id))                 -> removes row
+ * Used as `vi.mock('../src/db/client.js', () => ({ db: makeDrizzleMock(store) }))`.
+ * Supports the query chains used across the memory-* services:
+ *   db.insert(t).values(row)                       -> stores row (keyed by id/agentId/memoryId)
+ *   db.select().from(t).where(eq(col,val)).limit(n) -> matching rows
+ *   db.select().from(t).orderBy(col)               -> all rows (sorted by name)
+ *   db.update(t).set(patch).where(eq(col,val))[.returning()] -> updated row
+ *   db.delete(t).where(eq(col,val))                -> removes row
  *
- * `extractEqId` pulls the id out of a drizzle `eq(column, value)` condition by
- * scanning the condition object for a string value present in the store.
+ * `extractEqId` pulls the matching id out of a drizzle `eq(...)` condition by
+ * scanning the condition object for a string value present as a store key.
  */
-import type { Row } from './drizzle-mock-types.js';
+import type { Row } from './drizzle-mock-types.ts';
+
+function keyOf(row: Row): string | undefined {
+  return (row.id ?? row.agentId ?? row.memoryId ?? row.clusterId) as string | undefined;
+}
 
 export function extractEqId(cond: unknown, store: Map<string, Row>): string | undefined {
   if (!cond || typeof cond !== 'object') return undefined;
@@ -34,8 +38,14 @@ export function makeDrizzleMock(store: Map<string, Row>) {
   return {
     insert: () => ({
       values: (row: Row) => {
-        if (row && row.id) store.set(row.id, row);
-        return { returning: () => Promise.resolve([row]) };
+        const k = keyOf(row);
+        if (k) store.set(k, row);
+        return {
+          onConflictDoUpdate: () => ({
+            returning: () => Promise.resolve(k ? [store.get(k)!] : [row]),
+          }),
+          returning: () => Promise.resolve(k ? [store.get(k)!] : [row]),
+        };
       },
     }),
     select: () => ({
@@ -47,17 +57,16 @@ export function makeDrizzleMock(store: Map<string, Row>) {
             orderBy: () => Promise.resolve(rows),
           };
         },
-        orderBy: () => Promise.resolve([...store.values()]),
+        orderBy: () => Promise.resolve([...store.values()].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? '')))),
       }),
     }),
     update: () => ({
       set: (patch: Partial<Row>) => ({
         where: (cond: unknown) => {
-          // Apply the patch eagerly (some callers omit .returning()).
           const id = extractEqId(cond, store);
           const applyPatch = () => {
             if (id && store.has(id)) {
-              const merged = { ...store.get(id)!, ...patch, id };
+              const merged = { ...store.get(id)!, ...patch, ...(id ? { id } : {}) };
               store.set(id, merged);
               return merged;
             }

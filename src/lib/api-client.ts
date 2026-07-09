@@ -39,9 +39,13 @@ export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
 function withTimeout(
   timeoutMs: number,
   callerSignal?: AbortSignal
-): { signal: AbortSignal; clear: () => void } {
+): { signal: AbortSignal; clear: () => void; timedOutRef: { value: boolean } } {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new ApiTimeoutError(timeoutMs)), timeoutMs);
+  const timedOutRef = { value: false };
+  const timer = setTimeout(() => {
+    timedOutRef.value = true;
+    controller.abort(new ApiTimeoutError(timeoutMs));
+  }, timeoutMs);
   const onCallerAbort = () => controller.abort();
   if (callerSignal && !callerSignal.aborted) {
     callerSignal.addEventListener('abort', onCallerAbort, { once: true });
@@ -50,7 +54,7 @@ function withTimeout(
     clearTimeout(timer);
     if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
   };
-  return { signal: controller.signal, clear };
+  return { signal: controller.signal, clear, timedOutRef };
 }
 
 /** Thrown when a request exceeds its timeout budget. React Query's retry
@@ -58,7 +62,7 @@ function withTimeout(
 export class ApiTimeoutError extends Error {
   readonly timeoutMs: number;
   constructor(timeoutMs: number) {
-    super(Request timed out after ms);
+    super('Request timed out after ' + timeoutMs + 'ms');
     this.name = 'ApiTimeoutError';
     this.timeoutMs = timeoutMs;
   }
@@ -76,7 +80,7 @@ export function getApiKey(): string {
   return apiKey;
 }
 
-async function request<T>(
+export async function request<T>(
   path: string,
   init?: RequestInit & { timeoutMs?: number }
 ): Promise<T> {
@@ -87,7 +91,7 @@ async function request<T>(
   }
 
   const timeoutMs = init?.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const { signal, clear } = withTimeout(timeoutMs, init?.signal);
+  const { signal, clear, timedOutRef } = withTimeout(timeoutMs, init?.signal);
   try {
     const res = await fetch(`${baseUrl}${path}`, {
       ...init,
@@ -108,6 +112,11 @@ async function request<T>(
   }
 
   return env.data;
+  } catch (e) {
+    // When our timeout fired, surface a typed ApiTimeoutError (fetch only
+    // rejects with a generic AbortError and discards the abort reason).
+    if (timedOutRef.value) throw new ApiTimeoutError(timeoutMs);
+    throw e;
   } finally {
     clear();
   }

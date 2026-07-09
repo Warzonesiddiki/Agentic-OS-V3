@@ -41,9 +41,8 @@ describe('operations reducers — expected state', () => {
     expect(updated.tags).toEqual(['t']);
   });
 
-  it('updateMemory returns the same id for an unknown id (no throw)', () => {
-    const updated = ops.updateMemory('nope', { content: 'x' }, ACTOR);
-    expect(updated.id).toBe('nope');
+  it('updateMemory throws on an unknown id (terminal, no silent no-op)', () => {
+    expect(() => ops.updateMemory('nope', { content: 'x' }, ACTOR)).toThrow(/not found/);
   });
 
   it('deleteMemory removes by id', () => {

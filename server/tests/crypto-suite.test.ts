@@ -3,6 +3,7 @@
  * Pure cryptographic helpers — no FROZEN files touched.
  */
 import { describe, it, expect } from 'vitest';
+import { createHmac } from 'node:crypto';
 import {
   CIPHER,
   KEY_LEN,
@@ -132,7 +133,7 @@ describe('deriveKey', () => {
     const salt = 'uniquesalt';
     const info = 'aes-key';
     const derived = deriveKey(secret, salt, info);
-    const { createHmac } = require('node:crypto');
+    const { createHmac: ch } = await import('node:crypto');
     const prk = createHmac('sha256', salt).update(secret).digest();
     const expected = createHmac('sha256', prk).update(Buffer.from(info)).digest();
     expect(derived.equals(expected.subarray(0, KEY_LEN))).toBe(true);

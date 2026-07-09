@@ -123,21 +123,16 @@ describe('applyTemplate', () => {
   it('validates and structures a matching memory', async () => {
     const t = await createMemoryTemplate({ name: 'P', schema: personSchema });
     const res = await applyTemplate(t.id, { kind: 'fact', title: 't', content: 'c', name: 'Ada', age: 30, role: 'admin' });
-    expect(res.valid).toBe(true);
-    expect(res.structured.name).toBe('Ada');
-    expect(res.structured.importance).toBe(0.5);
+    expect(res.content).toBe('c');
+    expect(res.importance).toBe(0.5);
   });
-  it('reports errors for a missing required field', async () => {
+  it('throws when a required field is missing', async () => {
     const t = await createMemoryTemplate({ name: 'P', schema: personSchema });
-    const res = await applyTemplate(t.id, { kind: 'fact', title: 't', content: 'c' });
-    expect(res.valid).toBe(false);
-    expect(res.errors.some((e) => e.includes('name'))).toBe(true);
+    await expect(applyTemplate(t.id, { kind: 'fact', title: 't', content: 'c' })).rejects.toThrow(/name/);
   });
-  it('reports errors for an invalid enum value', async () => {
+  it('throws for an invalid enum value', async () => {
     const t = await createMemoryTemplate({ name: 'P', schema: personSchema });
-    const res = await applyTemplate(t.id, { kind: 'fact', title: 't', content: 'c', name: 'Ada', role: 'guest' });
-    expect(res.valid).toBe(false);
-    expect(res.errors.some((e) => e.includes('role'))).toBe(true);
+    await expect(applyTemplate(t.id, { kind: 'fact', title: 't', content: 'c', name: 'Ada', role: 'guest' })).rejects.toThrow(/role/);
   });
   it('throws NOT_FOUND for an unknown template', async () => {
     await expect(applyTemplate('nope', { kind: 'fact', title: 't', content: 'c' })).rejects.toMatchObject({ code: 'NOT_FOUND' });

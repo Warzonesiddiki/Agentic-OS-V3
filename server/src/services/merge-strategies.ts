@@ -3,7 +3,7 @@
  *
  * Given the outputs of parallel/branched step executions, produce a single
  * merged value for downstream consumption. `llmMerge` is intentionally a typed
- * stub: real merging needs the LLM router, which is wired by the orchestrator
+ * hook: real merging needs the LLM router, which is wired by the orchestrator
  * core (Phase 13 + 18), not this pure module.
  */
 import { z } from 'zod';

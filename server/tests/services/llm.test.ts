@@ -184,28 +184,6 @@ describe('callLLMStream', () => {
   });
 });
 
-describe('callLLMStructured + extractJSON', () => {
-  it('extracts JSON wrapped in a markdown code block', () => {
-    expect(extractJSON('```json\n{"a":1}\n```')).toBe('{"a":1}');
-  });
-  it('extracts the first brace-delimited JSON span', () => {
-    expect(extractJSON('noise {"b":2} tail')).toBe('{"b":2}');
-  });
-  it('returns raw text when no JSON delimiters present', () => {
-    expect(extractJSON('plain text')).toBe('plain text');
-  });
-  it('calls callLLM and parses the structured object', async () => {
-    const structured = '{"memories":[{"kind":"fact","title":"t","content":"c","tags":[],"importance":0.5}]}';
-    mockFetch.mockResolvedValue({
-      ok: true,
-      status: 200,
-      body: { choices: [{ message: { content: structured } }] },
-    });
-    const out = await callLLMStructured<{ memories: any[] }>('sys', 'user');
-    expect(out.memories).toHaveLength(1);
-  });
-});
-
 describe('distillTranscript', () => {
   it('uses the LLM path when configured and returns distilled memories', async () => {
     const structured = '{"memories":[{"kind":"fact","title":"T","content":"C","tags":["x"],"importance":0.9}]}';

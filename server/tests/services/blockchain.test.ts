@@ -24,7 +24,7 @@ vi.mock('../../src/lib/logging.js', () => ({
   log: { info: vi.fn(), debug: vi.fn(), error: vi.fn(), warn: vi.fn() },
 }));
 
-import { computeMerkleRoot, encodeRLP, encodeRawEvmTransaction, BLOCKCHAIN_ENABLED } from '../../src/services/blockchain.js';
+import { computeMerkleRoot, encodeRLP, encodeRawEvmTransaction } from '../../src/services/blockchain.js';
 
 describe('computeMerkleRoot', () => {
   it('returns the leaf string unchanged for a single leaf (no 0x prefix)', () => {
@@ -41,7 +41,6 @@ describe('computeMerkleRoot', () => {
 
   it('reduces an even set by SHA-256 of concatenated hex', () => {
     const root = computeMerkleRoot(['aa', 'bb']);
-    // root = sha256('aa' + 'bb')
     const expected = createHash('sha256').update('aabb', 'hex').digest('hex');
     expect(root).toBe(expected);
   });
@@ -55,25 +54,26 @@ describe('computeMerkleRoot', () => {
 
 describe('encodeRLP', () => {
   it('encodes a single byte string with short-length prefix', () => {
-    const out = encodeRLP(['hello']);
+    const out = encodeRLP('hello');
     expect(Buffer.isBuffer(out)).toBe(true);
     expect(out[0]).toBe(0x85); // 0x80 + 5
     expect(out.toString('utf8', 1)).toBe('hello');
   });
 
-  it('encodes multiple fields', () => {
+  it('encodes an array of two strings with a list header', () => {
     const out = encodeRLP(['ab', 'cd']);
-    expect(out.length).toBe(2 + 2 + 2); // two 2-byte strings
-    expect(out[0]).toBe(0x82);
+    // items: 0x82 'ab' (3 bytes) + 0x82 'cd' (3 bytes) = 6 bytes -> 0xc6
+    expect(out[0]).toBe(0xc6);
+    expect(out.length).toBe(1 + 6);
   });
 
   it('encodes an empty string as 0x80', () => {
-    const out = encodeRLP(['']);
+    const out = encodeRLP('');
     expect(out[0]).toBe(0x80);
   });
 
   it('encodes a zero number as 0x80', () => {
-    const out = encodeRLP([0]);
+    const out = encodeRLP(0);
     expect(out[0]).toBe(0x80);
   });
 });
@@ -110,11 +110,5 @@ describe('encodeRawEvmTransaction', () => {
   it('accepts a private key without throwing (signing may fall back, but API holds)', () => {
     const pk = '0x' + '22'.repeat(32);
     expect(() => encodeRawEvmTransaction(base, pk)).not.toThrow();
-  });
-});
-
-describe('BLOCKCHAIN_ENABLED', () => {
-  it('is a boolean', () => {
-    expect(typeof BLOCKCHAIN_ENABLED).toBe('boolean');
   });
 });

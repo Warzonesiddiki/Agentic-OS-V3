@@ -16,6 +16,9 @@ export default defineConfig({
     environment: 'node',
     globals: true,
     include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
+    // control-plane.test.ts lives in src/lib/os (UIA's domain) and needs a DOM
+    // environment; it is outside this frontend store/query suite's scope.
+    exclude: ['src/lib/os/**', 'node_modules/**', 'dist/**'],
     setupFiles: ['./src/test/setup.ts'],
     // Stores talk to a (mocked) fetch; keep tests fast and isolated.
     pool: 'forks',

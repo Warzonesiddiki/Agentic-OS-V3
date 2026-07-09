@@ -1,98 +1,90 @@
 /**
  * memory-provenance.test.ts — deep coverage for Mnemosyne provenance slice.
- * Tests influence recording (mocked DB) and pure provenance-graph helpers.
+ * Tests influence recording (mocked DB) with the real InfluenceInput shape.
  */
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { recordMemoryInfluence, recordMemoryInfluences, type MemoryInfluence } from '../src/services/memory-provenance.js';
+import { describe, it, expect, vi } from 'vitest';
+import {
+  recordMemoryInfluence,
+  recordMemoryInfluences,
+  type InfluenceInput,
+  type StoredInfluence,
+} from '../src/services/memory-provenance.js';
 import * as dbClient from '../src/db/client.js';
+
+// eslint-disable-next-line no-var
+var provCaptured: any = { values: undefined, calls: 0 };
 
 vi.mock('../src/db/client.js', () => ({
   db: {
-    insert: vi.fn(() => ({ values: vi.fn(async () => ({})) })),
+    insert: vi.fn(() => ({
+      values: (v: any) => {
+        provCaptured.values = v;
+        provCaptured.calls += 1;
+        return Promise.resolve({});
+      },
+    })),
   },
 }));
 
 vi.mock('../src/db/schema.js', () => ({
-  memoryInfluence: { id: 'id', sourceMemoryId: 'sourceMemoryId', targetMemoryId: 'targetMemoryId' },
+  memoryInfluence: { id: 'id', memoryId: 'memoryId', contextKey: 'contextKey' },
 }));
 
 describe('recordMemoryInfluence', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('inserts a single influence row with all fields', async () => {
-    let captured: any;
-    (dbClient.db.insert as any).mockImplementation((_table: any) => ({
-      values: (v: any) => {
-        captured = v;
-        return Promise.resolve({});
-      },
-    }));
-    const inf: MemoryInfluence = {
-      sourceMemoryId: 'm1',
-      targetMemoryId: 'm2',
-      relation: 'derived_from',
-      strength: 0.8,
-      channel: 'recall',
-      note: 'merged during consolidation',
+    provCaptured.values = undefined;
+    provCaptured.calls = 0;
+    const input: InfluenceInput = {
+      memoryId: 'm1',
+      contextKey: 'recall:alpha',
+      reason: 'recall',
+      tokens: 42,
+      position: 3,
     };
-    await recordMemoryInfluence(inf);
-    expect(captured.sourceMemoryId).toBe('m1');
-    expect(captured.targetMemoryId).toBe('m2');
-    expect(captured.relation).toBe('derived_from');
-    expect(captured.strength).toBe(0.8);
-    expect(captured.channel).toBe('recall');
+    const out: StoredInfluence = await recordMemoryInfluence(input);
+    expect(provCaptured.calls).toBe(1);
+    expect(provCaptured.values.memoryId).toBe('m1');
+    expect(provCaptured.values.contextKey).toBe('recall:alpha');
+    expect(provCaptured.values.reason).toBe('recall');
+    expect(provCaptured.values.tokens).toBe(42);
+    expect(provCaptured.values.position).toBe(3);
+    expect(provCaptured.values.id).toMatch(/^inf_/);
+    // returns a stored record with generated id + createdAt
+    expect(out.id).toMatch(/^inf_/);
+    expect(out.createdAt).toBeTruthy();
   });
 
-  it('escapes a malicious relation string', async () => {
-    let captured: any;
-    (dbClient.db.insert as any).mockImplementation(() => ({
-      values: (v: any) => {
-        captured = v;
-        return Promise.resolve({});
-      },
-    }));
+  it('escapes a malicious contextKey string', async () => {
+    provCaptured.values = undefined;
+    provCaptured.calls = 0;
     await recordMemoryInfluence({
-      sourceMemoryId: 'm1',
-      targetMemoryId: 'm2',
-      relation: 'x<script>alert(1)</script>',
-      strength: 0.5,
+      memoryId: 'm1',
+      contextKey: 'x<script>alert(1)</script>',
+      reason: 'provenance',
+      tokens: 1,
+      position: 0,
     });
-    expect(captured.relation).not.toContain('<script>');
+    expect(provCaptured.values.contextKey).not.toContain('<script>');
   });
 });
 
 describe('recordMemoryInfluences', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('records each influence in the batch', async () => {
-    let count = 0;
-    (dbClient.db.insert as any).mockImplementation(() => ({
-      values: () => {
-        count += 1;
-        return Promise.resolve({});
-      },
-    }));
-    const batch: MemoryInfluence[] = [
-      { sourceMemoryId: 'a', targetMemoryId: 'b', relation: 'derived_from', strength: 0.5 },
-      { sourceMemoryId: 'b', targetMemoryId: 'c', relation: 'supports', strength: 0.6 },
+    provCaptured.calls = 0;
+    const batch: InfluenceInput[] = [
+      { memoryId: 'a', contextKey: 'k1', reason: 'recall', tokens: 1, position: 0 },
+      { memoryId: 'b', contextKey: 'k2', reason: 'priming', tokens: 2, position: 1 },
     ];
-    await recordMemoryInfluences(batch);
-    expect(count).toBe(2);
+    const out = await recordMemoryInfluences(batch);
+    expect(provCaptured.calls).toBe(2);
+    expect(out).toHaveLength(2);
+    expect(out[0]!.id).toMatch(/^inf_/);
   });
 
   it('is a no-op for an empty batch', async () => {
-    let count = 0;
-    (dbClient.db.insert as any).mockImplementation(() => ({
-      values: () => {
-        count += 1;
-        return Promise.resolve({});
-      },
-    }));
-    await recordMemoryInfluences([]);
-    expect(count).toBe(0);
+    provCaptured.calls = 0;
+    const out = await recordMemoryInfluences([]);
+    expect(provCaptured.calls).toBe(0);
+    expect(out).toHaveLength(0);
   });
 });

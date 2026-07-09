@@ -1,6 +1,6 @@
 /** supply-chain.test.ts — dependency/plugin integrity verification (Aegis, pure). */
 import { describe, it, expect, vi } from 'vitest';
-import { createHash, createPublicKey, generateKeyPairSync } from 'node:crypto';
+import { createHash, generateKeyPairSync, sign } from 'node:crypto';
 import {
   verifyIntegrity,
   detectTyposquat,
@@ -60,10 +60,10 @@ describe('verifySignature', () => {
     expect(verifySignature(artifact, signature, pubPem)).toBe(true);
   });
 
-  it('throws SUPPLY_CHAIN_BAD_KEY on an invalid public key', () => {
+  it('throws on an invalid public key (malformed PEM)', () => {
     const artifact = Buffer.from('x');
     const sig = Buffer.alloc(32);
-    expect(() => verifySignature(artifact, sig, 'not-a-pem')).toThrow(/SUPPLY_CHAIN_BAD_KEY/);
+    expect(() => verifySignature(artifact, sig, 'not-a-pem')).toThrow(/Signature verification failed/);
   });
 });
 

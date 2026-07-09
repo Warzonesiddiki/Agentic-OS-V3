@@ -7,8 +7,8 @@
  * (state stays intact, error is returned not thrown into the UI).
  */
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { nexus, syncToRemote, setRemoteMode, getState } from './store';
-import { setRemote, remoteEnabled } from './remote';
+import { nexus, syncToRemote, getState } from './store';
+import { setRemote, remoteEnabled } from './lib/remote';
 
 function snapshot(state: ReturnType<typeof getState>) {
   return JSON.parse(JSON.stringify(state));
@@ -86,7 +86,6 @@ describe('nexus facade — async syncToRemote resilience (timeout/retry)', () =>
     nexus.wipe();
     // Enable the remote path (route() requires remoteEnabled() => enabled && baseUrl).
     setRemote({ enabled: true, baseUrl: 'http://localhost:9900', mode: 'remote', apiKey: 'k' });
-    setRemoteMode('remote', 'test');
     expect(remoteEnabled()).toBe(true);
   });
   afterEach(() => {

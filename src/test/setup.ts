@@ -6,7 +6,13 @@
  * neither, and we cannot install jsdom/happy-dom in this runtime. So we supply a
  * dependency-free in-memory shim for the few browser globals the stores touch.
  * This keeps the test run green without pulling a DOM testing library.
+ *
+ * Registered as the vitest setup file in vitest.config.ts. In the jsdom
+ * environment (component tests) the browser globals already exist, so the shim
+ * below is skipped; this import additionally registers the jest-dom matchers
+ * used by the React Testing Library component tests.
  */
+import '@testing-library/jest-dom/vitest';
 
 class MemoryStorage {
   private map = new Map<string, string>();

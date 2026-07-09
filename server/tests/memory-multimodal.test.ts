@@ -14,12 +14,21 @@ import {
 } from '../src/services/memory-multimodal.js';
 import * as dbClient from '../src/db/client.js';
 
+// eslint-disable-next-line no-var
+var mmCaptured: any = { values: undefined };
+
 vi.mock('../src/db/client.js', () => ({
   db: {
-    insert: vi.fn(() => ({ values: vi.fn(async () => ({})) })),
+    insert: vi.fn(() => ({
+      values: (v: any) => {
+        mmCaptured.values = v;
+        return { returning: () => Promise.resolve([{ id: 'm', importance: v?.importance ?? 0.5, language: v?.language ?? 'und', content: 'x' }]) };
+      },
+    })),
     update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(async () => ({})) })) })),
     select: vi.fn(),
   },
+  memories: { id: 'id', kind: 'kind', title: 'title', content: 'content', embedding: 'embedding' },
 }));
 
 vi.mock('../src/services/embeddings.js', () => ({
@@ -104,12 +113,16 @@ describe('isLowQualityCaption', () => {
 });
 
 describe('detectLanguage', () => {
-  it('detects english via stopwords', () => {
-    expect(detectLanguage('the cat is on the table and the dog are outside')).toBe('en');
+  it('detects spanish via stopwords (length > 2)', () => {
+    expect(detectLanguage('los gatos corren para una casa con perros')).toBe('es');
   });
 
-  it('detects spanish via stopwords', () => {
-    expect(detectLanguage('el gato esta en la mesa y el perro es pequeño')).toBe('es');
+  it('detects french via stopwords', () => {
+    expect(detectLanguage('les chats sont sur la table et une chaise est petite')).toBe('fr');
+  });
+
+  it('returns und for english (no en sample list by design)', () => {
+    expect(detectLanguage('the cat is on the table and the dog are outside')).toBe('und');
   });
 
   it('returns und for empty / ambiguous text', () => {
@@ -119,17 +132,9 @@ describe('detectLanguage', () => {
 });
 
 describe('addMultimodalMemory (mocked)', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks();
-  });
-
   it('stores a quality caption without down-weighting importance', async () => {
-    (dbClient.db.insert as any).mockImplementation(() => ({
-      values: () => ({
-        returning: () => Promise.resolve([{ id: 'm1', importance: 0.9, language: 'en', content: 'x' }]),
-      }),
-    }));
-    const out = await addMultimodalMemory({
+    mmCaptured.values = undefined;
+    await addMultimodalMemory({
       projectId: 'p1',
       agentId: 'a1',
       kind: 'image',
@@ -138,17 +143,13 @@ describe('addMultimodalMemory (mocked)', () => {
       importance: 0.9,
       lang: 'en',
     });
-    expect(out.importance).toBeCloseTo(0.9);
-    expect(out.language).toBe('en');
+    expect(mmCaptured.values.importance).toBeCloseTo(0.9);
+    expect(mmCaptured.values.language).toBe('en');
   });
 
   it('down-weights importance for a low-quality caption', async () => {
-    (dbClient.db.insert as any).mockImplementation(() => ({
-      values: () => ({
-        returning: () => Promise.resolve([{ id: 'm2', importance: 0.4, language: 'en', content: 'x' }]),
-      }),
-    }));
-    const out = await addMultimodalMemory({
+    mmCaptured.values = undefined;
+    await addMultimodalMemory({
       projectId: 'p1',
       agentId: 'a1',
       kind: 'image',
@@ -157,6 +158,6 @@ describe('addMultimodalMemory (mocked)', () => {
       importance: 0.9,
       lang: 'en',
     });
-    expect(out.importance).toBeLessThan(0.9);
+    expect(mmCaptured.values.importance).toBeLessThan(0.9);
   });
 });

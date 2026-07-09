@@ -31,7 +31,7 @@ const insertChain = () => ({
 const dbMock: any = {
   select: vi.fn(() => chain()),
   insert: vi.fn(() => insertChain()),
-  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => returningChain([{}]) }) }) })),
+  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => returningChain([{}]) }) }) ) }))),
   delete: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })),
   query: { marketplacePlugins: chain(), pluginInstallations: chain(), pluginRatings: chain() },
   transaction: vi.fn((fn: any) => fn(dbMock)),

@@ -4,6 +4,9 @@
  * No FROZEN files touched.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import path from 'node:path';
+import path from 'node:path';
+import path from 'node:path';
 
 const mockInsert = vi.fn(() => ({
   values: vi.fn(() => ({ returning: vi.fn(() => Promise.resolve([{ id: 'v1' }])) })),
@@ -37,7 +40,6 @@ vi.mock('../src/lib/audit.js', () => ({
   appendAudit: vi.fn(() => Promise.resolve()),
 }));
 vi.mock('../src/lib/guards.js', () => {
-  const path = require('node:path');
   return {
     safeVaultPath: (p: string, root: string) => ({
       ok: true,
