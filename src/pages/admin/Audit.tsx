@@ -13,7 +13,7 @@ export default function AdminAudit() {
   const [action, setAction] = useState('');
   const [outcome, setOutcome] = useState('');
 
-  const { data, isLoading } = useQuery<AuditEvent[]>({
+  const { data, isLoading, isError, error } = useQuery<AuditEvent[]>({
     queryKey: ['audit', orgId, action, outcome],
     queryFn: () =>
       apiClient.listAudit(orgId, {
@@ -75,20 +75,26 @@ export default function AdminAudit() {
 
       {isLoading ? (
         <div className="text-zinc-500">Loading…</div>
+      ) : isError ? (
+        <div className="text-red-400">
+          Failed to load audit log: {error instanceof Error ? error.message : 'unknown error'}
+        </div>
+      ) : (data ?? []).length === 0 ? (
+        <div className="text-zinc-500">No audit events found.</div>
       ) : (
         <table className="w-full text-sm">
           <thead className="text-left text-zinc-400">
             <tr>
-              <th className="py-2">Time</th>
-              <th>Actor</th>
-              <th>Action</th>
-              <th>Resource</th>
-              <th>Outcome</th>
-              <th>IP</th>
+              <th scope="col" className="py-2">Time</th>
+              <th scope="col">Actor</th>
+              <th scope="col">Action</th>
+              <th scope="col">Resource</th>
+              <th scope="col">Outcome</th>
+              <th scope="col">IP</th>
             </tr>
           </thead>
           <tbody>
-            {data?.map((e) => (
+            {(data ?? []).map((e) => (
               <tr key={e.id} className="border-t border-zinc-800">
                 <td className="py-2">{new Date(e.ts).toLocaleString()}</td>
                 <td>{e.actorEmail ?? 'system'}</td>

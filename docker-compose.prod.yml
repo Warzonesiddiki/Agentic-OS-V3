@@ -5,8 +5,6 @@
 # TLS certs: place cert.pem + key.pem in ./certs/ or see ./certs/README.md.
 # ─────────────────────────────────────────────────────────────────────
 
-version: '3.8'
-
 x-logging: &default-logging
   driver: json-file
   options:

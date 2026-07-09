@@ -260,7 +260,7 @@ function ConfigPanel({
           <span className="text-lg">{def.icon}</span>
           <span className="text-sm font-semibold text-slate-100">{def.label}</span>
         </div>
-        <button onClick={onClose} className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-200">✕</button>
+        <button onClick={onClose} aria-label="Close" className="rounded p-1 text-slate-500 hover:bg-slate-800 hover:text-slate-200">✕</button>
       </div>
       <div className="space-y-3 p-4">
         <Field label="Label">
@@ -654,7 +654,7 @@ function PipelineBuilderInner() {
           <ToolbarButton onClick={() => { setImportJson(""); setShowImport(true); }} disabled={isRunning} title="Import">📥 Import</ToolbarButton>
           <ToolbarButton onClick={undo} disabled={undoStack.length === 0 || isRunning} title="Undo (Ctrl+Z)">↩ Undo</ToolbarButton>
           <ToolbarButton onClick={clearPipeline} disabled={nodes.length === 0 || isRunning} title="Clear">🗑 Clear</ToolbarButton>
-          <ToolbarButton onClick={() => setShowRunLog(!showRunLog)} title="Run Log">📋 Log</ToolbarButton>
+          <ToolbarButton onClick={() => setShowRunLog(!showRunLog)} title={showRunLog ? "Hide run log" : "Show run log"}>📋 Log</ToolbarButton>
         </div>
       </div>
 
@@ -745,7 +745,7 @@ function PipelineBuilderInner() {
           >
             <div className="flex items-center justify-between px-4 py-1.5">
               <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Run Log</span>
-              <button onClick={() => setShowRunLog(false)} className="text-xs text-slate-500 hover:text-slate-200">✕</button>
+              <button onClick={() => setShowRunLog(false)} aria-label="Close run log" className="text-xs text-slate-500 hover:text-slate-200">✕</button>
             </div>
             <div className="space-y-0.5 px-4 pb-2">
               {runLog.length === 0 && (

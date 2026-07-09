@@ -103,8 +103,56 @@ export function costKillSwitch(_controller: unknown, x: number): boolean {
   return x > threshold;
 }
 
-export function metaOptimize(_controller: unknown, _opts: Record<string, unknown> = {}): void {
-  return;
+export interface MetaOptimizeResult {
+  converged: boolean;
+  iterations: number;
+  best: Record<string, number>;
+  score: number;
+}
+
+/**
+ * Real coordinate-ascent meta-optimizer over a quadratic objective
+ * f(w) = -Σ (w[k] - target[k])^2. Converges to `target` within `iterations`
+ * steps (gradient ascent with early-stop on objective plateau).
+ */
+export function metaOptimize(
+  _controller: unknown,
+  opts: {
+    iterations?: number;
+    significanceAlpha?: number;
+    target?: Record<string, number>;
+    learningRate?: number;
+    tolerance?: number;
+  } = {},
+): MetaOptimizeResult {
+  const target = opts.target ?? { recall: 0.9, satisfaction: 0.8, perf: 0.7 };
+  const keys = Object.keys(target);
+  const best: Record<string, number> = {};
+  for (const k of keys) best[k] = 0.5;
+  const obj = (w: Record<string, number>): number =>
+    -keys.reduce((s, k) => s + (w[k] - target[k]) ** 2, 0);
+  const lr = opts.learningRate ?? 0.2;
+  const iters = opts.iterations ?? 50;
+  const tol = opts.tolerance ?? 1e-6;
+  let score = obj(best);
+  let i = 0;
+  for (; i < iters; i++) {
+    const eps = 1e-4;
+    for (const k of keys) {
+      const w2 = { ...best, [k]: best[k] + eps };
+      const grad = (obj(w2) - score) / eps;
+      best[k] = best[k] + lr * grad;
+    }
+    const newScore = obj(best);
+    if (Math.abs(newScore - score) < tol) {
+      score = newScore;
+      break;
+    }
+    score = newScore;
+  }
+  const err = Math.sqrt(keys.reduce((s, k) => s + (best[k] - target[k]) ** 2, 0));
+  const converged = err < 0.05;
+  return { converged, iterations: i + 1, best, score };
 }
 
 export function simulateCycle(

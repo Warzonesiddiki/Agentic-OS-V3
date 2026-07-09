@@ -91,12 +91,12 @@ export default function AdminUsers() {
         <table className="w-full text-sm">
           <thead className="text-left text-zinc-400">
             <tr>
-              <th className="py-2">Name</th>
-              <th>Email</th>
-              <th>Roles</th>
-              <th>Status</th>
-              <th>MFA</th>
-              <th></th>
+              <th scope="col" className="py-2">Name</th>
+              <th scope="col">Email</th>
+              <th scope="col">Roles</th>
+              <th scope="col">Status</th>
+              <th scope="col">MFA</th>
+              <th scope="col" aria-label="Actions"></th>
             </tr>
           </thead>
           <tbody>

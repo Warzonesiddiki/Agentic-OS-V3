@@ -1,0 +1,10 @@
+const { eq, and, gte, desc, sql } = require('drizzle-orm');
+const col = { name: 'id', tableName: 'orgs' };
+const e = eq(col, 'X');
+console.log('EQ:', JSON.stringify(e, null, 1));
+const a = and(eq(col, '1'), eq({ name: 'b' }, '2'));
+console.log('AND:', JSON.stringify(a, null, 1));
+const g = gte(col, 5);
+console.log('GTE:', JSON.stringify(g, null, 1));
+console.log('DESC:', JSON.stringify(desc(col), null, 1));
+console.log('SQL:', JSON.stringify(sql`audit_log.org_id`, null, 1));

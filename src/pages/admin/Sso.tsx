@@ -8,7 +8,7 @@ export default function AdminSso() {
   const orgId = useAuthStore((s) => s.user?.orgId ?? '');
   const qc = useQueryClient();
   const provider: 'oidc' | 'saml' = 'oidc';
-  const { data, isLoading } = useQuery<SsoConfig>({
+  const { data, isLoading, isError, error } = useQuery<SsoConfig>({
     queryKey: ['sso', orgId, provider],
     queryFn: () => apiClient.getSso(orgId, provider),
     enabled: !!orgId,
@@ -39,6 +39,12 @@ export default function AdminSso() {
     });
 
   if (isLoading) return <div className="text-zinc-500">Loading…</div>;
+  if (isError)
+    return (
+      <div className="text-red-400">
+        Failed to load SSO config: {error instanceof Error ? error.message : 'unknown error'}
+      </div>
+    );
 
   return (
     <div className="space-y-4">

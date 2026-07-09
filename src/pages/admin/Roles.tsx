@@ -10,7 +10,7 @@ export default function AdminRoles() {
   const [name, setName] = useState('');
   const [perms, setPerms] = useState('');
 
-  const { data } = useQuery<RbacRole[]>({
+  const { data, isError, error } = useQuery<RbacRole[]>({
     queryKey: ['roles', orgId],
     queryFn: () => apiClient.listRoles(orgId),
     enabled: !!orgId,
@@ -57,16 +57,22 @@ export default function AdminRoles() {
           Create role
         </button>
       </form>
+      {isError && (
+        <div className="text-red-400">
+          Failed to load roles: {error instanceof Error ? error.message : 'unknown error'}
+        </div>
+      )}
+      {data && data.length === 0 && <div className="text-zinc-500">No custom roles yet.</div>}
       <table className="w-full text-sm">
         <thead className="text-left text-zinc-400">
           <tr>
-            <th className="py-2">Name</th>
-            <th>Custom</th>
-            <th>Permissions</th>
+            <th scope="col" className="py-2">Name</th>
+            <th scope="col">Custom</th>
+            <th scope="col">Permissions</th>
           </tr>
         </thead>
         <tbody>
-          {data?.map((r) => (
+          {(data ?? []).map((r) => (
             <tr key={r.id} className="border-t border-zinc-800">
               <td className="py-2">{r.name}</td>
               <td>{r.isCustom ? 'yes' : 'no'}</td>

@@ -4,7 +4,7 @@
  * resolved org (tenant isolation) and enforce RBAC scopes via requireScope.
  * Thin handlers over services/enterprise.service.ts; emit audit + SIEM via Sentinel's barrel.
  */
-import { Hono } from 'hono';
+import { Hono, type Context } from 'hono';
 import { z } from 'zod';
 import { zValidator } from '../lib/zvalidator.js';
 import { requireScope, type Scope } from '../lib/auth-context.js';
@@ -12,7 +12,7 @@ import { ok, err } from '../lib/envelope.js';
 import * as ent from '../services/enterprise.service.js';
 
 const enterpriseRouter = new Hono();
-const rid = (c: any) => c.get('requestId') ?? '';
+const rid = (c: Context) => c.get('requestId') ?? '';
 
 /* ── Orgs / Workspaces ─────────────────────────────────── */
 enterpriseRouter.get('/orgs', async (c) => {
@@ -148,7 +148,7 @@ enterpriseRouter.post(
           tier: created.tier,
           scopes: created.scopes,
           rateLimitRpm: created.rateLimitRpm,
-          secret: (created as any).secret,
+          secret: created.secret,
         },
         rid(c)
       ),

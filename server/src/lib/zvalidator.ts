@@ -13,7 +13,7 @@ import { type ZodTypeAny } from 'zod';
 declare module 'hono' {
   interface HonoRequest {
     /** Returns the validated payload for the given target. */
-    valid(target: keyof ValidationTargets): any;
+    valid(target: keyof ValidationTargets): unknown;
   }
 }
 

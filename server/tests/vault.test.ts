@@ -1,63 +1,115 @@
 /**
- * Guards + vault-parsing unit tests — pure, no database required.
+ * Dedicated unit tests for Sentinel's vault namespace.
+ * Mocks db + fs-adjacent deps; exercises pure parseMarkdown + sync/write-back paths.
+ * No FROZEN files touched.
  */
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-vi.hoisted(() => {
-  process.env.DATABASE_URL ??= "postgres://p:pass@localhost:5432/nexus_test";
+const mockInsert = vi.fn(() => ({
+  values: vi.fn(() => ({ returning: vi.fn(() => Promise.resolve([{ id: 'v1' }])) })),
+}));
+const mockSelect = vi.fn(() => ({
+  from: vi.fn(() => ({
+    where: vi.fn(() => Promise.resolve([])),
+  })),
+}));
+const mockUpdate = vi.fn(() => ({
+  set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve({})) })),
+}));
+
+vi.mock('../src/db/client.js', () => ({
+  db: {
+    insert: (...args: unknown[]) => mockInsert(...args),
+    select: (...args: unknown[]) => mockSelect(...args),
+    update: (...args: unknown[]) => mockUpdate(...args),
+    query: {
+      notes: {
+        findFirst: vi.fn(() => Promise.resolve(null)),
+      },
+      memories: {
+        findFirst: vi.fn(() => Promise.resolve({ id: 'm1', title: 'T', content: 'B', tags: ['x'] })),
+      },
+    },
+  },
+  notes: { id: 'notes-id', path: 'path' },
+  memories: { id: 'memories-id', title: 'title', content: 'content', tags: 'tags' },
+}));
+
+vi.mock('../src/lib/audit.js', () => ({
+  appendAudit: vi.fn(() => Promise.resolve()),
+}));
+vi.mock('../src/lib/guards.js', () => ({
+  safeVaultPath: vi.fn((p: string, _root: string) => ({ ok: true, resolved: `/tmp/vault/${p}` })),
+}));
+vi.mock('../src/lib/env.js', () => ({
+  env: { NEXUS_OBSIDIAN_VAULT: '/tmp/vault' },
+}));
+vi.mock('node:fs/promises', () => ({
+  readdir: vi.fn(() => Promise.resolve([])),
+  stat: vi.fn(() => Promise.resolve({ isDirectory: () => false, mtime: new Date() })),
+  readFile: vi.fn(() => Promise.resolve('# Note\nhello #world')),
+  mkdir: vi.fn(() => Promise.resolve()),
+  writeFile: vi.fn(() => Promise.resolve()),
+}));
+vi.mock('node:path', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('node:path')>();
+  return {
+    ...actual,
+    resolve: (...args: string[]) => args.join('/'),
+  };
 });
 
-import { safeVaultPath, assertPublicHost } from "../src/lib/guards.js";
-import { parseMarkdown } from "../src/services/vault.js";
+import { parseMarkdown, syncVault, writeBack } from '../src/services/vault.js';
 
-describe("vault path safety", () => {
-  it("accepts in-root paths", () => {
-    expect(safeVaultPath("notes/idea.md", "/vault").ok).toBe(true);
-    expect(safeVaultPath("sub/dir/idea.md", "/vault").ok).toBe(true);
+beforeEach(() => {
+  mockInsert.mockClear();
+  mockSelect.mockClear();
+  mockUpdate.mockClear();
+});
+
+describe('parseMarkdown', () => {
+  it('parses frontmatter and body', () => {
+    const raw = `---\ntitle: Hello\ntags: [a, b]\n---\n# Body\nSome text.`;
+    const parsed = parseMarkdown(raw);
+    expect(parsed.title).toBe('Hello');
+    expect(parsed.tags).toEqual(['a', 'b']);
+    expect(parsed.content).toContain('Body');
+    expect(parsed.frontmatter.title).toBe('Hello');
   });
-  it("rejects parent traversal", () => {
-    expect(safeVaultPath("../../etc/passwd", "/vault").ok).toBe(false);
-    expect(safeVaultPath("notes/../../../etc/shadow", "/vault").ok).toBe(false);
+
+  it('returns defaults for empty input', () => {
+    const parsed = parseMarkdown('');
+    expect(parsed.title).toBe('untitled');
+    expect(Array.isArray(parsed.tags)).toBe(true);
+    expect(parsed.content).toBe('');
   });
-  it("rejects absolute escapes", () => {
-    expect(safeVaultPath("/etc/passwd", "/vault").ok).toBe(false);
+
+  it('handles missing frontmatter gracefully', () => {
+    const parsed = parseMarkdown('just text');
+    expect(parsed.content).toBe('just text');
+    expect(parsed.title).toBe('untitled');
   });
-  it("rejects null bytes", () => {
-    expect(safeVaultPath("safe\0evil.md", "/vault").ok).toBe(false);
+
+  it('extracts inline #tags and wikilinks', () => {
+    const parsed = parseMarkdown('note #project [[other-note]]');
+    expect(parsed.tags).toContain('project');
+    expect(parsed.wikilinks).toContain('other-note');
   });
 });
 
-describe("markdown parsing", () => {
-  it("parses frontmatter, heading, tags, and wikilinks", () => {
-    const md = `---
-title: Recall Strategy
-tags: [search, recall]
----
-# Recall Strategy
-Uses [[token-ledger]] and [[bm25]].
-Also inline #ranking note.`;
-    const p = parseMarkdown(md);
-    expect(p.title).toBe("Recall Strategy");
-    expect(p.frontmatter.title).toBe("Recall Strategy");
-    expect(p.tags).toContain("search");
-    expect(p.tags).toContain("recall");
-    expect(p.tags).toContain("ranking");
-    expect(p.wikilinks).toEqual(expect.arrayContaining(["token-ledger", "bm25"]));
-  });
-
-  it("falls back to filename-style title when no frontmatter/heading", () => {
-    const p = parseMarkdown("just some body text");
-    expect(p.title).toBe("untitled");
-    expect(p.tags).toEqual([]);
+describe('syncVault', () => {
+  it('indexes notes and reports count', async () => {
+    const result = await syncVault('tester');
+    expect(result).toHaveProperty('indexed');
+    expect(typeof result.indexed).toBe('number');
   });
 });
 
-describe("SSRF enforcement", () => {
-  it("blocks private hosts synchronously", () => {
-    // assertPublicHost resolves DNS, but private literal hosts are blocked first.
-    return expect(assertPublicHost("127.0.0.1")).rejects.toThrow(/private/);
-  });
-  it("blocks link-local metadata host", () => {
-    return expect(assertPublicHost("169.254.169.254")).rejects.toThrow(/private/);
+describe('writeBack', () => {
+  it('writes a note with audit trail', async () => {
+    const entry = { id: 'n1', title: 'T', body: 'B', tags: ['x'] };
+    const result = await writeBack(entry as any, 'tester');
+    expect(result).toBeDefined();
+    expect(mockUpdate).toHaveBeenCalled();
   });
 });

@@ -18,6 +18,11 @@ declare global {
 
 const KEY = 'nexus.remote';
 
+/** Per-request socket timeout. Without this a hung backend keeps the fetch in
+ *  `pending` forever — the caller (and any React Query hook) never settles and
+ *  the in-flight promise leaks until navigation. Mirrors api-client's budget. */
+const FETCH_TIMEOUT_MS = 30_000;
+
 export interface RemoteConfig {
   enabled: boolean;
   baseUrl: string;
@@ -188,9 +193,17 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   let lastErr: unknown;
   let lastStatus = 0;
   for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
+    // Bounded socket timeout per attempt. If the caller already supplied a
+    // signal (e.g. useV3Query aborting on unmount), merging keeps BOTH the
+    // caller's cancel AND our timeout — whichever fires first wins.
+    const timeoutCtl = new AbortController();
+    const timeoutId = setTimeout(() => timeoutCtl.abort(), FETCH_TIMEOUT_MS);
+    const onCallerAbort = () => timeoutCtl.abort();
+    if (init?.signal) init.signal.addEventListener('abort', onCallerAbort, { once: true });
     try {
       const res = await fetch(`${cfg.baseUrl}${path}`, {
         ...init,
+        signal: timeoutCtl.signal,
         headers: {
           'content-type': 'application/json',
           ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
@@ -238,6 +251,11 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
         // Non-retryable (e.g. 400/401/403/404) — surface immediately.
         if (e instanceof Error && lastStatus !== 0) throw e;
       }
+    } finally {
+      // Always release the per-attempt timer + caller listener so a failed
+      // attempt can't leave a dangling timeout that fires into a dead request.
+      clearTimeout(timeoutId);
+      if (init?.signal) init.signal.removeEventListener('abort', onCallerAbort);
     }
 
     if (attempt < RETRY_ATTEMPTS) {
@@ -506,10 +524,25 @@ export const remote = {
     });
   },
   // ── Approvals ──
-  async resolveApproval(taskId: string, approved: boolean): Promise<unknown> {
+  /**
+   * Resolve a pending human-in-the-loop approval on the backend.
+   * - 2-arg form: `{ taskId, approved }` → POST /api/v1/approvals/resolve
+   * - 3-arg form: `{ decision, decidedBy }` → POST /api/v1/approvals/:id
+   */
+  async resolveApproval(
+    taskIdOrId: string,
+    approved: boolean,
+    by?: string
+  ): Promise<unknown> {
+    if (by !== undefined) {
+      return call(`/api/v1/approvals/${encodeURIComponent(taskIdOrId)}`, {
+        method: 'POST',
+        body: JSON.stringify({ decision: approved ? 'approve' : 'deny', decidedBy: by }),
+      });
+    }
     return call('/api/v1/approvals/resolve', {
       method: 'POST',
-      body: JSON.stringify({ taskId, approved }),
+      body: JSON.stringify({ taskId: taskIdOrId, approved }),
     });
   },
   // ── Workspace ──
@@ -570,13 +603,6 @@ export const remote = {
   /** Hierarchical (team-weighted) scheduler enrollment snapshot. */
   async schedulerHierarchical(): Promise<unknown> {
     return call('/api/scheduler/hierarchical');
-  },
-  /** Resolve a pending human-in-the-loop approval on the backend. */
-  async resolveApproval(id: string, approve: boolean, by: string): Promise<unknown> {
-    return call(`/api/v1/approvals/${encodeURIComponent(id)}`, {
-      method: 'POST',
-      body: JSON.stringify({ decision: approve ? 'approve' : 'deny', decidedBy: by }),
-    });
   },
   // ── Self-Optimization control plane (P18, consumes Pulse's self-opt router) ──
   /** Live tuner state, guardrail bounds, and live-write flag. */
@@ -663,20 +689,32 @@ export const v3 = {
     init?: RequestInit
   ): Promise<import('./types').Envelope<T>> {
     if (!remoteEnabled()) throw new Error('Remote not enabled.');
-    const res = await fetch(`${cfg.baseUrl}${path}`, {
-      ...init,
-      headers: {
-        'content-type': 'application/json',
-        ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
-        ...(init?.headers ?? {}),
-      },
-    });
-    return res
-      .json()
-      .catch(() => ({
-        ok: false,
-        error: { code: 'NETWORK_ERROR', message: 'Failed to parse response' },
-        traceId: '',
-      }));
+    // Bound the socket so a hung backend can't pin this promise forever
+    // (useV3Query relies on this resolving or aborting to settle its state).
+    const timeoutCtl = new AbortController();
+    const timeoutId = setTimeout(() => timeoutCtl.abort(), FETCH_TIMEOUT_MS);
+    const onCallerAbort = () => timeoutCtl.abort();
+    if (init?.signal) init.signal.addEventListener('abort', onCallerAbort, { once: true });
+    try {
+      const res = await fetch(`${cfg.baseUrl}${path}`, {
+        ...init,
+        signal: timeoutCtl.signal,
+        headers: {
+          'content-type': 'application/json',
+          ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
+          ...(init?.headers ?? {}),
+        },
+      });
+      return res
+        .json()
+        .catch(() => ({
+          ok: false,
+          error: { code: 'NETWORK_ERROR', message: 'Failed to parse response' },
+          traceId: '',
+        }));
+    } finally {
+      clearTimeout(timeoutId);
+      if (init?.signal) init.signal.removeEventListener('abort', onCallerAbort);
+    }
   },
 };

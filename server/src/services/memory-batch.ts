@@ -64,7 +64,7 @@ export async function applyBatch(
   for (let i = 0; i < ops.length; i += chunk) {
     const slice = ops.slice(i, i + chunk);
     try {
-      await db.transaction(async (tx: any) => {
+      await db.transaction(async (tx) => {
         for (const o of slice) {
           if (o.op === 'create') {
             await tx.insert(memories).values({

@@ -5,6 +5,11 @@ description = "A Tauri App"
 authors = ["you"]
 edition = "2021"
 
+# Standalone workspace: this crate is intentionally decoupled from the root
+# `crates/` workspace (see ADR-0007). An empty [workspace] table makes it its
+# own root so cargo does not try to attach it to the parent workspace.
+[workspace]
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [lib]

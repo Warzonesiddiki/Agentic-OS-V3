@@ -1,96 +1,119 @@
-import { describe, it, expect } from 'vitest';
-import {
-  SpecializationRegistry,
-  type RegisteredAgent,
-} from '../src/services/specialization-registry.js';
-import type { AgentCapability } from '@agentic-os/a2a-server';
+import { describe, it, expect, vi } from "vitest";
 
-function agent(
-  partial: Partial<RegisteredAgent> & { agentId: string; capability: AgentCapability }
-): RegisteredAgent {
+vi.mock("../src/lib/logging.js", () => ({
+  log: { warn: vi.fn(), info: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+import { SpecializationRegistry } from "../src/services/specialization-registry.js";
+import type { RegisteredAgent } from "../src/services/specialization-registry.js";
+import { AgentCapabilitySchema } from "@agentic-os/a2a-server";
+
+function cap(name: string, domain: string = "Dev") {
+  return AgentCapabilitySchema.parse({
+    name,
+    domain,
+    category: "read",
+    sideEffects: ["memory.read"],
+    scopes: ["mem:r"],
+    failureMode: "fail-closed",
+  });
+}
+
+function agent(partial: Partial<RegisteredAgent> & { agentId: string }): RegisteredAgent {
   return {
-    version: '1.0.0',
-    reputation: 0.9,
+    capability: cap("translate"),
+    version: "1.0.0",
+    reputation: 0.8,
     costTier: 2,
-    load: 0.1,
+    load: 0.2,
     available: true,
     ...partial,
   };
 }
 
-const cap = (name: string, domain: AgentCapability['domain'] = 'Dev'): AgentCapability => ({
-  name,
-  domain,
-  category: 'read',
-  sideEffects: ['env.read'],
-  scopes: ['*'],
-  failureMode: 'fail-closed',
-});
-
-describe('specialization-registry', () => {
-  it('ranks by reputation then cost then load', () => {
-    const r = new SpecializationRegistry();
-    r.register(
-      agent({
-        agentId: 'low',
-        capability: cap('memory.search'),
-        reputation: 0.5,
-        costTier: 1,
-        load: 0.1,
-      })
-    );
-    r.register(
-      agent({
-        agentId: 'high',
-        capability: cap('memory.search'),
-        reputation: 0.95,
-        costTier: 3,
-        load: 0.2,
-      })
-    );
-    const ranked = r.match({ capability: 'memory.search' });
-    expect(ranked[0]!.agentId).toBe('high');
+describe("SpecializationRegistry", () => {
+  it("registers and lists agents after validating schema", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "a1" }));
+    expect(reg.list()).toHaveLength(1);
   });
 
-  it('filters by minReputation / maxCostTier', () => {
-    const r = new SpecializationRegistry();
-    r.register(
-      agent({ agentId: 'cheap', capability: cap('memory.search'), reputation: 0.4, costTier: 1 })
-    );
-    r.register(
-      agent({ agentId: 'good', capability: cap('memory.search'), reputation: 0.95, costTier: 4 })
-    );
-    expect(
-      r.match({ capability: 'memory.search', minReputation: 0.8 }).map((a) => a.agentId)
-    ).toEqual(['good']);
-    expect(r.match({ capability: 'memory.search', maxCostTier: 2 }).map((a) => a.agentId)).toEqual([
-      'cheap',
-    ]);
-  });
-
-  it('skips unavailable agents', () => {
-    const r = new SpecializationRegistry();
-    r.register(agent({ agentId: 'down', capability: cap('memory.search'), available: false }));
-    expect(r.pick({ capability: 'memory.search' })).toBeUndefined();
-  });
-
-  it('costOptimized biases toward cheaper', () => {
-    const r = new SpecializationRegistry();
-    r.register(agent({ agentId: 'pricey', capability: cap('x'), reputation: 0.99, costTier: 5 }));
-    r.register(agent({ agentId: 'budget', capability: cap('x'), reputation: 0.9, costTier: 1 }));
-    expect(r.match({ capability: 'x', costOptimized: true })[0]!.agentId).toBe('budget');
-  });
-
-  it('rejects bad capability/version on register', () => {
-    const r = new SpecializationRegistry();
+  it("rejects an invalid capability version (register calls CapabilityVersionSchema)", () => {
+    const reg = new SpecializationRegistry();
     expect(() =>
-      r.register(
-        agent({
-          agentId: 'bad',
-          capability: { ...cap('x'), domain: 'Nope' as never },
-          version: 'not-semver',
-        })
-      )
+      reg.register(agent({ agentId: "a2", version: "v1" as never })),
     ).toThrow();
+  });
+
+  it("unregisters", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "a1" }));
+    reg.unregister("a1");
+    expect(reg.list()).toHaveLength(0);
+  });
+
+  it("filters by capability name", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "a1", capability: cap("translate") }));
+    reg.register(agent({ agentId: "a2", capability: cap("summarize") }));
+    const res = reg.match({ capability: "translate" });
+    expect(res.map((a) => a.agentId)).toEqual(["a1"]);
+  });
+
+  it("filters by domain", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "a1", capability: cap("translate", "Dev") }));
+    reg.register(agent({ agentId: "a2", capability: cap("translate", "Research") }));
+    const res = reg.match({ capability: "translate", domain: "Research" });
+    expect(res.map((a) => a.agentId)).toEqual(["a2"]);
+  });
+
+  it("skips unavailable agents", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "a1", available: false }));
+    expect(reg.match({ capability: "translate" })).toHaveLength(0);
+  });
+
+  it("enforces minReputation", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "a1", reputation: 0.3 }));
+    reg.register(agent({ agentId: "a2", reputation: 0.9 }));
+    const res = reg.match({ capability: "translate", minReputation: 0.5 });
+    expect(res.map((a) => a.agentId)).toEqual(["a2"]);
+  });
+
+  it("enforces maxCostTier", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "a1", costTier: 1 }));
+    reg.register(agent({ agentId: "a2", costTier: 5 }));
+    const res = reg.match({ capability: "translate", maxCostTier: 3 });
+    expect(res.map((a) => a.agentId)).toEqual(["a1"]);
+  });
+
+  it("ranks higher reputation / lower cost higher", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "cheap", reputation: 0.5, costTier: 1, load: 0.1 }));
+    reg.register(agent({ agentId: "best", reputation: 0.99, costTier: 2, load: 0.1 }));
+    const res = reg.match({ capability: "translate" });
+    expect(res[0].agentId).toBe("best");
+  });
+
+  it("costOptimized biases toward cheaper agents", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "pricey", reputation: 0.99, costTier: 5, load: 0.1 }));
+    reg.register(agent({ agentId: "budget", reputation: 0.99, costTier: 1, load: 0.1 }));
+    const res = reg.match({ capability: "translate", costOptimized: true });
+    expect(res[0].agentId).toBe("budget");
+  });
+
+  it("pick returns the top match", () => {
+    const reg = new SpecializationRegistry();
+    reg.register(agent({ agentId: "a1", reputation: 0.9 }));
+    expect(reg.pick({ capability: "translate" })?.agentId).toBe("a1");
+  });
+
+  it("pick returns undefined when none match", () => {
+    const reg = new SpecializationRegistry();
+    expect(reg.pick({ capability: "nope" })).toBeUndefined();
   });
 });

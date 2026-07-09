@@ -1,8 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Force persistence/resilience DB paths to no-op under test (guarded by env.NODE_ENV).
+vi.mock('../lib/env.js', () => ({
+  env: { NODE_ENV: 'test' },
+  getEnv: () => ({ NODE_ENV: 'test' }),
+  resetEnv: () => {},
+}));
+
 vi.mock('../src/services/kernel.js', () => ({ publishKernelEvent: vi.fn() }));
 vi.mock('../src/services/agent-runtime.js', () => ({ runAgent: vi.fn() }));
-vi.mock('../lib/audit.js', () => ({ appendAudit: vi.fn() }));
+vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn() }));
 vi.mock('../lib/logging.js', () => ({ log: { debug: vi.fn(), info: vi.fn(), warn: vi.fn() } }));
 vi.mock('../src/db/client.js', () => {
   const chain = new Proxy(

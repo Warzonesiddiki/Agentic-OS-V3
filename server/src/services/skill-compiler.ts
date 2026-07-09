@@ -194,13 +194,26 @@ export interface GeneratedScript {
  * The generated code is stored and validated before activation.
  */
 export function generateScript(pattern: DetectedPattern): GeneratedScript {
+
+/**
+ * Sanitize a string for safe embedding inside a JS block comment (`/** ... */`).
+ * Removes comment-terminator and comment-start sequences, newlines, and stray
+ * backslashes so untrusted pattern fields can never break out of the comment
+ * and inject executable code into a generated skill (template-injection guard).
+ */
+function sanitizeForComment(s: unknown): string {
+  return String(s)
+    .replace(/\*\//g, '* /')
+    .replace(/\/\*/g, '/ *')
+    .replace(/[\r\n]/g, ' ');
+}
   const inputKeys = Object.keys((pattern.inputShape as Record<string, unknown>) ?? {});
   const outputKeys = Object.keys((pattern.outputShape as Record<string, unknown>) ?? {});
 
   // Generate a transformation function based on the observed mapping
   const code = `/**
  * Auto-compiled by NEXUS Neural Skill Compiler
- * Pattern: ${pattern.taskLabel}
+ * Pattern: ${sanitizeForComment(pattern.taskLabel)}
  * Detected: ${pattern.occurrences} repetitions
  * Avg tokens/call: ${pattern.avgTokensPerCall}
  * Avg latency: ${pattern.avgLatencyMs}ms
@@ -227,7 +240,7 @@ function compiledTask(input) {
 }
 
 // Self-test: verify against historical samples
-const testResults = ${JSON.stringify(pattern.sampleOutputs.slice(0, 3), null, 2)};
+  const testResults = ${sanitizeForComment(JSON.stringify(pattern.sampleOutputs.slice(0, 3), null, 2))};
 
 module.exports = { compiledTask, testResults };
 `;

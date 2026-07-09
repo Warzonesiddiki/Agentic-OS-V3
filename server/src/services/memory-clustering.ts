@@ -282,8 +282,12 @@ export async function clusterMemories(options?: ClusterOptions): Promise<Cluster
         centroidEmbedding: centroid,
         singletonRatio: members.length <= 1 ? 1 : 0,
       });
-      for (const m of members) {
-        await tx.insert(memoryClusterMembers).values({ clusterId, memoryId: m.id });
+      // perfA: batch all member rows into a single multi-row insert (was an N+1
+      // per-member loop, one round-trip per member).
+      if (members.length > 0) {
+        await tx.insert(memoryClusterMembers).values(
+          members.map((m) => ({ clusterId, memoryId: m.id }))
+        );
       }
     });
 

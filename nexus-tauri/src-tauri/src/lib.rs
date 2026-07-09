@@ -1,6 +1,5 @@
 use std::fs;
 use std::process::Command;
-use std::path::PathBuf;
 use tauri::Manager;
 
 #[tauri::command]
@@ -33,7 +32,10 @@ pub fn run() {
             let node_exe = backend_dir.join("node.exe");
             let server_entry = backend_dir.join("dist").join("src").join("index.js");
 
-            // 2) Launch the Node.js backend as a sidecar with PORT=0 for dynamic allocation
+            // 2) Launch the Node.js backend as a sidecar with PORT=0 for dynamic allocation.
+            // Intentionally detached: the sidecar must outlive this setup closure, so we
+            // do not wait() on it. The OS reaps it when the app exits.
+            #[allow(clippy::zombie_processes)]
             let _child = Command::new(&node_exe)
                 .arg(&server_entry)
                 .current_dir(&backend_dir)
@@ -65,14 +67,14 @@ pub fn run() {
 
             // 4) Inject the port into the frontend's JS context
             if let Some(window) = app.get_webview_window("main") {
-                let _ = window.eval(&format!("window.NEXUS_API_PORT = {};", resolved_port));
+                let _ = window.eval(format!("window.NEXUS_API_PORT = {};", resolved_port).as_str());
             }
 
             Ok(())
         })
-        .on_window_event(|event| {
+        .on_window_event(|_window, event| {
             // Clean up port file when the main window closes
-            if let tauri::WindowEvent::Destroyed = event.event() {
+            if let tauri::WindowEvent::Destroyed = event {
                 cleanup_port_file();
             }
         })

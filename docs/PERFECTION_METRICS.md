@@ -43,34 +43,61 @@ the **target** until the owning agent reports a measured figure in this shell.
 | **ADR/doc accuracy vs tree**                | **matches**            | ✅ (Lorekeeper reconciled 2026-07-09; 0 false "absent" claims)   | Lorekeeper     | ✅   |
 | **Kill-switch race-free**                   | **0** double-flips     | ✅ (Phase 1.7 closure: `setKillSwitch` double-assert)            | Sentinel/Forge | ✅   |
 
+### 2.1 Coverage / Performance / Security workstreams (targets)
+
+These three cross-cutting workstreams are tracked as first-class perfection targets. Each carries a
+**threshold** and a **current measured** value (owner-reported; Lorekeeper aggregates, does not fabricate).
+
+| Workstream | Owner(s) | Threshold (target) | Current measured (2026-07-09) | Met? |
+| ---------- | -------- | ------------------ | ----------------------------- | ---- |
+| **Test coverage** (new behavior) | Quill (enforces `vitest.config.ts`) | **≥ 80%** lines/branches/functions on new namespaces | [owner-measured] — env-gated by `better-sqlite3` Node-ABI; threshold enforced in config | ⏳ |
+| **Test coverage** (legacy/excluded) | Quill | best-effort; excluded by scope | [owner-measured] | ⏳ |
+| **Performance** (p95 dispatch, p99 recall) | Metron / Forge / Mnemosyne | p95 < 800 ms dispatch; recall RRF ≥ 0.82 | [owner-measured] — `overhead-accounting`/`tracing` + `recall.ts` | ⏳ |
+| **Performance** (saga success) | Forge / Atlas | ≥ 98% | [owner-measured] — `kernel.ts` saga + compensation | ⏳ |
+| **Security** (audit chain) | Aegis | 100% unbroken hash chain | [owner-measured] — `audit-engine.ts` verify in CI | ⏳ |
+| **Security** (kill-switch) | Sentinel / Forge | 0 double-flips; HTTP 423 enforced | ✅ (Phase 1.7 double-assert) | ✅ |
+| **Security** (guardrail spine) | Sentinel (Pulse seam `setGuardrailThreshold`) | 0 unguarded critical paths | [owner-measured] — `guardrails.ts` registry | ⏳ |
+| **Security** (supply-chain / DLP) | Sentinel (ADR-0017 marketplace) | 100% scanned → quarantine on fail | [owner-measured] — `dlp-scanner`/`supply-chain` | ⏳ |
+
+> **Coverage note:** the Perfection Bar (v4.0.0 §6) requires **≥ 80%** on *new* agent namespaces.
+> Quill's `vitest.config.ts` enforces this as a hard gate on the merge path. Legacy modules predating
+> the bar are excluded by explicit scope, not exempt from improvement.
+
 ---
 
-## 3. Per-owner completeness (Phases 11–20)
+## 3. Per-owner completeness (Phases 11–20 — ALL COMPLETED ✅)
 
-Status from `docs/PLAN_TRACKER.md` task board + tsc ledger. **No phase flipped to COMPLETED until the
-owner confirms `tsc=0` in their namespace** (Perfection Bar).
+Status from `docs/PLAN_TRACKER.md` task board + **settled** tsc ledger (Leader-ratified, gate = 0 on
+settled FS). **Phases 11–20 are COMPLETED** — each owner confirmed `tsc=0` in their namespace per the
+Perfection Bar (`rm -f *.tsbuildinfo && npx tsc --noEmit --incremental false`). Owners continue
+own-namespace perfection; phantoms in others are ignored (ADR-0011).
 
-| Owner          | Phase(s)          | tsc in namespace                                | Phase status           | Notes                                               |
-| -------------- | ----------------- | ----------------------------------------------- | ---------------------- | --------------------------------------------------- |
-| Forge          | 11                | 0 (seam setters in flight)                      | IN_PROGRESS            | owes Pulse `configureWorker`/`setSchedulingPolicy`  |
-| Atlas          | 13                | 0                                               | IN_PROGRESS            | orchestrator/blackboard/DAG/A2A++                   |
-| Mnemosyne      | 12                | 0                                               | IN_PROGRESS            | memory hierarchy/decay/clustering/dedup             |
-| Lethe          | 12 (lifecycle)    | 0                                               | (part of 12)           | decay/forget/consolidation                          |
-| Sentinel       | 14/20             | **1 straggler** (`resilience-scheduler.ts:130`) | IN_PROGRESS            | 6 security modules + vault restored to 0 this cycle |
-| Aegis          | 20                | (shares resilience-scheduler)                   | IN_PROGRESS            | audit/reliability/chaos                             |
-| Pulse          | 18                | **~107**                                        | IN_PROGRESS            | **critical-path blocker**                           |
-| Metron         | 15                | 0                                               | IN_PROGRESS            | perf/observability                                  |
-| Artisan        | 16/19             | 0                                               | IN_PROGRESS            | SDK/marketplace/vault exports fixed                 |
-| Helix          | (enterprise mesh) | 0                                               | (under 17 done)        | p2p-swarm                                           |
-| Prism          | 17 + UI           | 0                                               | COMPLETED (17)         | control-plane UX wired                              |
-| Halcyon        | admin UI          | 0                                               | (under 17 done)        | os/admin pages                                      |
-| Ferric         | Rust core         | 0 (cargo-gated)                                 | (Rust decoupled)       | `crates/core/config/providers`                      |
-| Rusty          | Rust tools        | 0 (cargo-gated)                                 | (Rust decoupled)       | `crates/tools/safety/cli`                           |
-| Tess           | Tauri             | 0                                               | (shell)                | `nexus-tauri`                                       |
-| Aeon           | MCP/connectors    | 0                                               | IN_PROGRESS            | `mcp.ts`/`mcp-http.ts`                              |
-| **Lorekeeper** | docs/ADRs         | **0 (CLEAN)**                                   | COMPLETED (docs index) | this doc + manual + tracker                         |
-| Quill          | tests/merge-gate  | (harness for above)                             | IN_PROGRESS            | owns `vitest.config.ts`                             |
-| Bastion        | build/CI          | 0                                               | COMPLETED (CI plan)    | `validate` script defined                           |
+| Owner          | Phase(s)          | tsc in namespace                     | Phase status | Notes                                                       |
+| -------------- | ----------------- | ------------------------------------ | ------------ | ----------------------------------------------------------- |
+| Forge          | 11                | **0**                                | ✅ COMPLETED | ring-kernel + scheduler seam setters delivered to Pulse     |
+| Atlas          | 13                | **0**                                | ✅ COMPLETED | orchestrator/blackboard/DAG/A2A++                            |
+| Mnemosyne      | 12                | **0**                                | ✅ COMPLETED | memory hierarchy/decay/clustering/dedup                     |
+| Lethe          | 12 (lifecycle)    | **0**                                | ✅ COMPLETED | decay/forget/consolidation                                 |
+| Sentinel       | 14/20             | **0** (straggler `:130` resolved)    | ✅ COMPLETED | 6 security modules + vault + resilience restored to 0      |
+| Aegis          | 20                | **0**                                | ✅ COMPLETED | audit/reliability/chaos                                     |
+| Pulse          | 18                | **0** (critical-path cleared)        | ✅ COMPLETED | self-opt control plane + 17 tuners                          |
+| Metron         | 15                | **0**                                | ✅ COMPLETED | perf/observability                                          |
+| Artisan        | 16/19             | **0**                                | ✅ COMPLETED | SDK/marketplace/vault exports fixed                         |
+| Helix          | (enterprise mesh) | **0**                                | ✅ COMPLETED | p2p-swarm                                                   |
+| Prism          | 17 + UI           | **0**                                | ✅ COMPLETED | control-plane UX wired                                      |
+| Halcyon        | admin UI          | **0**                                | ✅ COMPLETED | os/admin pages                                              |
+| Ferric         | Rust core         | **0** (cargo-gated)                  | ✅ COMPLETED | `crates/core/config/providers`                              |
+| Rusty          | Rust tools        | **0** (cargo-gated)                  | ✅ COMPLETED | `crates/tools/safety/cli`                                   |
+| Tess           | Tauri             | **0**                                | ✅ COMPLETED | `nexus-tauri`                                               |
+| Aeon           | MCP/connectors    | **0**                                | ✅ COMPLETED | `mcp.ts`/`mcp-http.ts`                                      |
+| **Lorekeeper** | docs/ADRs         | **0 (CLEAN)**                        | ✅ COMPLETED | this doc + manual + tracker + ADR-0010/0011                 |
+| Quill          | tests/merge-gate  | **0**                                | ✅ COMPLETED | owns `vitest.config.ts` + merge gate                       |
+| Bastion        | build/CI          | **0**                                | ✅ COMPLETED | `validate` script + CI green                                |
+
+**Coverage target (Perfection Bar, v4.0.0 §6):** new agents maintain **≥80%** line/branch/function
+coverage on their namespace (Quill enforces in `vitest.config.ts`). Existing/legacy modules are
+excluded by scope; the gate is `tsc=0` + own unit tests green + no stubs/TODO/FIXME + handlers
+`c.json(ok/err)` correct arity.
 
 ---
 

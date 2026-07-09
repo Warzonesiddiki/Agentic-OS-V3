@@ -32,11 +32,17 @@ export function EventTicker({ events, className }: EventTickerProps) {
   if (events.length === 0) return null;
 
   return (
-    <div className={cn("overflow-hidden rounded-lg border border-nexus-border bg-nexus-panel px-4 py-2", className)}>
+    <div
+      className={cn("overflow-hidden rounded-lg border border-nexus-border bg-nexus-panel px-4 py-2", className)}
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
+      aria-label="Live event feed"
+    >
       <div className="nexus-ticker flex items-center gap-8 whitespace-nowrap">
         {events.map((event) => (
           <span key={event.id} className="inline-flex items-center gap-1.5">
-            <span className={cn("text-xs", TONE[event.type] ?? "text-slate-400")}>{ICON[event.type] ?? "•"}</span>
+            <span aria-hidden="true" className={cn("text-xs", TONE[event.type] ?? "text-slate-400")}>{ICON[event.type] ?? "•"}</span>
             <span className="text-xs text-slate-400">{event.label}</span>
             <span className="font-mono text-[10px] text-slate-600">
               {new Date(event.timestamp).toLocaleTimeString()}

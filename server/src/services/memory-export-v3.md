@@ -1,0 +1,17 @@
+# memory-export-v3.ts
+
+> Auto-generated module README stub (DocA, 2026-07-09). Replace with a hand-written
+> overview once the module stabilizes. Source: [memory-export-v3.ts](./memory-export-v3.ts).
+
+**Namespace owner:** see `AGENTS.md` multi-agent ownership table.
+**Key exports:** EXPORT_SCHEMA_VERSION
+
+## Purpose
+
+Exposes `EXPORT_SCHEMA_VERSION` (and related exports). See source for the full public surface.
+
+## Notes
+
+- This stub is part of the NONSTOP documentation perfection workstream.
+- Do not commit stubs as final docs; they are placeholders pending author review.
+

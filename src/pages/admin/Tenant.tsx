@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../lib/api-client';
 import { useAuthStore } from '../../store/auth-store';
@@ -12,9 +12,18 @@ export default function AdminTenant() {
     queryFn: () => apiClient.getTenantConfig(orgId),
     enabled: !!orgId,
   });
-  const [auditDays, setAuditDays] = useState(data?.auditDays ?? 365);
-  const [pitr, setPitr] = useState(data?.backupPitr ?? false);
-  const [cmk, setCmk] = useState(data?.cmkEnabled ?? false);
+  const [auditDays, setAuditDays] = useState(365);
+  const [pitr, setPitr] = useState(false);
+  const [cmk, setCmk] = useState(false);
+
+  // Sync local form state once the backend config loads (single run on load).
+  useEffect(() => {
+    if (data) {
+      setAuditDays(data.auditDays);
+      setPitr(data.backupPitr);
+      setCmk(data.cmkEnabled);
+    }
+  }, [data]);
 
   const save = useMutation({
     mutationFn: () =>

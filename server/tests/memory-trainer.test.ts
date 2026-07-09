@@ -1,141 +1,189 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+/**
+ * Tests for server/src/services/memory-trainer.ts
+ *
+ * Phase 12.10 feedback-weighted ranking trainer. Pure deterministic logic for
+ * `trainRanker` + `applyWeights` (no DB). `recordFeedback` / `trainFromStore`
+ * are DB-backed and exercised via a mocked db client.
+ */
+import { describe, it, expect, vi } from 'vitest';
+
+const inserted: Array<Record<string, unknown>> = [];
+const selectRows: Array<Record<string, unknown>> = [];
+
+vi.mock('../src/db/client.js', () => ({
+  db: {
+    insert: (table: unknown) => ({
+      values: (row: Record<string, unknown>) => {
+        inserted.push(row);
+        return Promise.resolve(undefined);
+      },
+    }),
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          orderBy: () => ({
+            limit: () => Promise.resolve(selectRows),
+          }),
+        }),
+      }),
+    }),
+  },
+  feedback: { id: 'id', projectId: 'projectId', itemId: 'itemId', itemType: 'itemType', helpful: 'helpful' },
+  isSqlite: true,
+}));
+
+vi.mock('../src/lib/logging.js', () => ({
+  log: { error: () => undefined, info: () => undefined, warn: () => undefined },
+}));
+
 import {
   trainRanker,
-  getRankerWeights,
-  resetRankerWeights,
-  rankWithLearnedWeights,
-  DEFAULT_WEIGHTS,
-  type RankCandidate,
-  type FeedbackTriple,
-} from '../src/services/ranking-trainer.js';
-import {
-  selectForConsolidation,
-  type ConsolidationMemory,
-} from '../src/services/consolidation-budget.js';
-import { detectMemoryAnomalies, type AnomalyMemory } from '../src/services/memory-anomaly.js';
+  applyWeights,
+  recordFeedback,
+  trainFromStore,
+  type RankWeights,
+  type TrainingSample,
+} from '../src/services/memory-trainer.js';
 
-const HOUR = 3_600_000;
-const DAY = 86_400_000;
-
-describe('ranking-trainer', () => {
-  beforeEach(() => {
-    resetRankerWeights();
+describe('trainRanker', () => {
+  it('returns empty/zero weights when there are no samples', () => {
+    const w = trainRanker([]);
+    expect(w.byKind).toEqual({});
+    expect(w.byTag).toEqual({});
+    expect(w.global).toBe(0);
   });
 
-  it('training changes weights and reorders candidates versus defaults', () => {
-    const triples: FeedbackTriple[] = [];
-    for (let i = 0; i < 5; i++) {
-      triples.push({ features: { rrf: 0, importance: 0, recency: 1, feedback: 0 }, helpful: true });
-      triples.push({
-        features: { rrf: 0, importance: 1, recency: 0, feedback: 0 },
-        helpful: false,
-      });
-    }
-
-    const learned = trainRanker(triples);
-    expect(learned).not.toEqual(DEFAULT_WEIGHTS);
-    expect(learned.recency).toBeGreaterThan(learned.importance);
-
-    const x: RankCandidate = { id: 'X', rrf: 0, importance: 1, recency: 0, feedback: 0 };
-    const y: RankCandidate = { id: 'Y', rrf: 0, importance: 0, recency: 1, feedback: 0 };
-
-    const defaultRanked = rankWithLearnedWeights([x, y], DEFAULT_WEIGHTS);
-    const defaultTop = defaultRanked[0];
-    if (defaultTop === undefined) throw new Error('expected defaultRanked[0]');
-    expect(defaultTop.id).toBe('X');
-
-    const learnedRanked = rankWithLearnedWeights([x, y], learned);
-    const learnedTop = learnedRanked[0];
-    if (learnedTop === undefined) throw new Error('expected learnedRanked[0]');
-    expect(learnedTop.id).toBe('Y');
-  });
-
-  it('empty triples return defaults and leave current weights unchanged', () => {
-    const result = trainRanker([]);
-    expect(result).toEqual(DEFAULT_WEIGHTS);
-    expect(getRankerWeights()).toEqual(DEFAULT_WEIGHTS);
-  });
-
-  it('rankWithLearnedWeights sorts by score descending (stable)', () => {
-    const candidates: RankCandidate[] = [
-      { id: 'a', rrf: 0, importance: 0.2, recency: 0, feedback: 0 },
-      { id: 'b', rrf: 0, importance: 0.9, recency: 0, feedback: 0 },
-      { id: 'c', rrf: 0, importance: 0.2, recency: 0, feedback: 0 },
+  it('computes a positive global bias when most feedback is helpful', () => {
+    const samples: TrainingSample[] = [
+      { itemId: 'a', itemType: 'episodic', helpful: true },
+      { itemId: 'b', itemType: 'episodic', helpful: true },
+      { itemId: 'c', itemType: 'semantic', helpful: true },
+      { itemId: 'd', itemType: 'semantic', helpful: false },
     ];
-    const ranked = rankWithLearnedWeights(candidates, DEFAULT_WEIGHTS);
-    expect(ranked.map((r) => r.id)).toEqual(['b', 'a', 'c']);
-    const top = ranked[0];
-    if (top === undefined) throw new Error('expected ranked[0]');
-    expect(top.score).toBeCloseTo(0.9 * DEFAULT_WEIGHTS.importance, 6);
+    const w = trainRanker(samples);
+    expect(w.global).toBeCloseTo(0.5, 10); // (3 positive - 1 negative) / 4
+  });
+
+  it('computes a negative global bias when most feedback is unhelpful', () => {
+    const samples: TrainingSample[] = [
+      { itemId: 'a', itemType: 'episodic', helpful: false },
+      { itemId: 'b', itemType: 'episodic', helpful: false },
+      { itemId: 'c', itemType: 'semantic', helpful: false },
+      { itemId: 'd', itemType: 'semantic', helpful: true },
+    ];
+    const w = trainRanker(samples);
+    expect(w.global).toBeCloseTo(-0.5, 10);
+  });
+
+  it('builds per-kind weight buckets from helpfulness', () => {
+    const samples: TrainingSample[] = [
+      { itemId: 'a', itemType: 'episodic', helpful: true },
+      { itemId: 'b', itemType: 'episodic', helpful: true },
+      { itemId: 'c', itemType: 'episodic', helpful: false },
+    ];
+    const w = trainRanker(samples);
+    // episodic: +1, +1, -1 = +1 over total 3 -> normalized to +1/3
+    expect(w.byKind['episodic']).toBeCloseTo(1 / 3, 10);
+  });
+
+  it('clamps kind weights to [-1, 1]', () => {
+    const samples: TrainingSample[] = [];
+    for (let i = 0; i < 10; i++) samples.push({ itemId: 'x' + i, itemType: 'k', helpful: true });
+    const w = trainRanker(samples);
+    expect(w.byKind['k']).toBeLessThanOrEqual(1);
+    expect(w.byKind['k']).toBeGreaterThanOrEqual(-1);
+  });
+
+  it('creates a parallel byTag bucket derived from itemType', () => {
+    const samples: TrainingSample[] = [
+      { itemId: 'a', itemType: 'episodic', helpful: true },
+      { itemId: 'b', itemType: 'episodic', helpful: false },
+    ];
+    const w = trainRanker(samples);
+    expect(w.byTag['t:episodic']).toBeDefined();
+    expect(w.byTag['t:episodic']).toBeCloseTo(0, 10); // +1 -1 = 0
   });
 });
 
-describe('consolidation-budget', () => {
-  it('promotes high-importance within budget and archives the rest', () => {
-    const memories: ConsolidationMemory[] = [
-      { id: 'A', importance: 0.9, tokens: 6 },
-      { id: 'B', importance: 0.8, tokens: 6 },
-      { id: 'C', importance: 0.1, tokens: 5 },
-    ];
-    const plan = selectForConsolidation(memories, 10);
-    expect(plan.promote.map((m) => m.id)).toEqual(['A']);
-    expect(plan.archive.map((m) => m.id).sort()).toEqual(['B', 'C']);
-    expect(plan.usedTokens).toBe(6);
-    expect(plan.remainingTokens).toBe(4);
-    expect(plan.totalTokens).toBe(17);
+describe('applyWeights', () => {
+  it('increases a base score when kind weight is positive', () => {
+    const w: RankWeights = {
+      byKind: { episodic: 0.5 },
+      byTag: {},
+      global: 0,
+    };
+    const base = 0.5;
+    const applied = applyWeights(base, 'episodic', w);
+    expect(applied).toBeGreaterThan(base);
   });
 
-  it('zero-token items are always promoted; large budget promotes all', () => {
-    const memories: ConsolidationMemory[] = [
-      { id: 'Z', importance: 0.1, tokens: 0 },
-      { id: 'W', importance: 0.5, tokens: 3 },
-    ];
-    const small = selectForConsolidation(memories, 2);
-    expect(small.promote.map((m) => m.id)).toEqual(['Z']);
-    expect(small.archive.map((m) => m.id)).toEqual(['W']);
-
-    const big = selectForConsolidation(memories, 100);
-    expect(big.promote.map((m) => m.id).sort()).toEqual(['W', 'Z']);
+  it('decreases a base score when kind weight is negative', () => {
+    const w: RankWeights = {
+      byKind: { episodic: -0.5 },
+      byTag: {},
+      global: 0,
+    };
+    const applied = applyWeights(0.5, 'episodic', w);
+    expect(applied).toBeLessThan(0.5);
   });
 
-  it('empty input returns empty plan with remaining budget', () => {
-    const plan = selectForConsolidation([], 50);
-    expect(plan.promote).toEqual([]);
-    expect(plan.archive).toEqual([]);
-    expect(plan.remainingTokens).toBe(50);
+  it('uses global bias when kind weight is absent', () => {
+    const w: RankWeights = { byKind: {}, byTag: {}, global: 0.4 };
+    const applied = applyWeights(0.5, 'unknown-kind', w);
+    expect(applied).toBeGreaterThan(0.5);
+  });
+
+  it('clamps the result into a sane range', () => {
+    const w: RankWeights = { byKind: { k: 1 }, byTag: {}, global: 1 };
+    const applied = applyWeights(1, 'k', w);
+    expect(applied).toBeLessThanOrEqual(1);
+    expect(applied).toBeGreaterThanOrEqual(0);
+  });
+
+  it('treats missing kind weight as zero contribution from kind', () => {
+    const w: RankWeights = { byKind: {}, byTag: {}, global: 0 };
+    expect(applyWeights(0.4, 'x', w)).toBeCloseTo(0.4, 10);
   });
 });
 
-describe('memory-anomaly', () => {
-  it('flags stale high-importance recent memories and ignores others', () => {
-    const now = new Date('2026-07-08T12:00:00Z');
-    const mk = (
-      id: string,
-      lastAccessedAt: Date | null,
-      createdDaysAgo: number,
-      importance = 0.9
-    ): AnomalyMemory => ({
-      id,
-      agentId: 'agent-a',
-      importance,
-      lastAccessedAt,
-      createdAt: new Date(now.getTime() - createdDaysAgo * DAY),
-    });
+describe('recordFeedback', () => {
+  it('inserts a feedback row with generated id and timestamp', async () => {
+    inserted.length = 0;
+    await recordFeedback('p1', 'item-1', 'episodic', true);
+    expect(inserted).toHaveLength(1);
+    expect(inserted[0].projectId).toBe('p1');
+    expect(inserted[0].itemId).toBe('item-1');
+    expect(inserted[0].itemType).toBe('episodic');
+    expect(inserted[0].helpful).toBe(true);
+    expect(typeof inserted[0].id).toBe('string');
+    expect(inserted[0].createdAt instanceof Date).toBe(true);
+  });
+});
 
-    const memories: AnomalyMemory[] = [
-      mk('m1', new Date(now.getTime() - 72 * HOUR), 2),
-      mk('m2', new Date(now.getTime() - 1 * HOUR), 2),
-      mk('m3', new Date(now.getTime() - 100 * HOUR), 2, 0.4),
-      mk('m4', null, 1),
-      mk('m5', new Date(now.getTime() - 72 * HOUR), 30),
-    ];
+describe('trainFromStore', () => {
+  it('returns zero weights when the store is empty', async () => {
+    selectRows.length = 0;
+    const w = await trainFromStore('p1');
+    expect(w.global).toBe(0);
+    expect(w.byKind).toEqual({});
+  });
 
-    const res = detectMemoryAnomalies(memories, { now });
-    const ids = res.map((r) => r.memoryId);
-    expect(ids).toContain('m1');
-    expect(ids).toContain('m4');
-    expect(ids).not.toContain('m2');
-    expect(ids).not.toContain('m3');
-    expect(ids).not.toContain('m5');
+  it('trains from persisted feedback rows', async () => {
+    selectRows.length = 0;
+    selectRows.push(
+      { itemId: 'a', itemType: 'episodic', helpful: true },
+      { itemId: 'b', itemType: 'semantic', helpful: false }
+    );
+    const w = await trainFromStore('p1');
+    expect(w.global).toBeCloseTo(0, 10); // +1 -1
+    expect(w.byKind['episodic']).toBeCloseTo(0.5, 10); // +1 over 2 samples
+    expect(w.byKind['semantic']).toBeCloseTo(-0.5, 10); // -1 over 2 samples
+  });
+
+  it('maps rows preserving the helpful flag', async () => {
+    selectRows.length = 0;
+    selectRows.push({ itemId: 'z', itemType: 'procedural', helpful: false });
+    const w = await trainFromStore('p2');
+    expect(w.byKind['procedural']).toBeCloseTo(-1, 10);
   });
 });

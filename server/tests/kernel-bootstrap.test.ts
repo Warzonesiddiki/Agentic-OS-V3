@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest';
 import {
   BootstrapGraph,
   bootstrapServices,
+  bootstrapKernel,
+  validateDependencyGraph,
   BootstrapCycleError,
   type KernelService,
 } from '../src/services/kernel-bootstrap.js';
@@ -35,7 +37,7 @@ describe('BootstrapGraph.order', () => {
   it('throws on an unknown dependency', () => {
     const graph = new BootstrapGraph();
     graph.add(svc('x', ['missing']));
-    expect(() => graph.order()).toThrow(/unknown service/);
+    expect(() => graph.order()).toThrow(/unknown dependency/);
   });
 
   it('handles diamond dependencies', () => {
@@ -70,5 +72,59 @@ describe('bootstrapServices', () => {
     const c1 = svc('c1', ['c2']);
     const c2 = svc('c2', ['c1']);
     await expect(bootstrapServices([c1, c2])).rejects.toThrow(BootstrapCycleError);
+  });
+
+  it('propagates an init() error with a descriptive message', async () => {
+    const bad = svc('bad', [], async () => {
+      throw new Error('kaboom');
+    });
+    await expect(bootstrapServices([bad])).rejects.toThrow(/Bootstrap init failed for "bad"/);
+  });
+
+  it('rejects a service without a name', () => {
+    const graph = new BootstrapGraph();
+    expect(() => graph.add({ name: '' })).toThrow(/requires a name/);
+  });
+
+  it('accepts a relabelled dependency that still resolves', async () => {
+    const base = svc('base');
+    const derived = svc('derived', ['base']);
+    const ordered = await bootstrapServices([derived, base]);
+    expect(ordered.indexOf('base')).toBeLessThan(ordered.indexOf('derived'));
+  });
+});
+
+describe('validateDependencyGraph', () => {
+  it('reports ok for an acyclic graph', () => {
+    expect(validateDependencyGraph([{ id: 'a' }, { id: 'b', deps: ['a'] }])).toEqual({ ok: true });
+  });
+
+  it('reports the cycle path for a cyclic graph', () => {
+    const res = validateDependencyGraph([
+      { id: 'a', deps: ['b'] },
+      { id: 'b', deps: ['a'] },
+    ]);
+    expect(res.ok).toBe(false);
+    expect(res.cycle).toBeDefined();
+  });
+});
+
+describe('bootstrapKernel', () => {
+  it('resolves an ordered id list for valid modules', async () => {
+    const res = await bootstrapKernel([
+      { id: 'db' },
+      { id: 'kernel', deps: ['db'] },
+      { id: 'scheduler', deps: ['kernel'] },
+    ]);
+    expect(res.order).toEqual(['db', 'kernel', 'scheduler']);
+  });
+
+  it('rejects on a cycle', async () => {
+    await expect(
+      bootstrapKernel([
+        { id: 'a', deps: ['b'] },
+        { id: 'b', deps: ['a'] },
+      ]),
+    ).rejects.toThrow(BootstrapCycleError);
   });
 });

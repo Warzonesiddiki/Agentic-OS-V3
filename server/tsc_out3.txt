@@ -1,0 +1,218 @@
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+src/services/message-bus.ts(211,5): error TS1068: Unexpected token. A constructor, method, accessor, or property was expected.
+src/services/message-bus.ts(227,3): error TS1128: Declaration or statement expected.
+src/services/message-bus.ts(236,17): error TS1005: ',' expected.
+src/services/message-bus.ts(237,17): error TS1005: ',' expected.
+src/services/message-bus.ts(238,12): error TS1005: ',' expected.
+src/services/message-bus.ts(239,3): error TS1109: Expression expected.
+src/services/message-bus.ts(239,4): error TS1005: ';' expected.
+src/services/message-bus.ts(239,6): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(263,23): error TS1005: ',' expected.
+src/services/message-bus.ts(263,50): error TS1109: Expression expected.
+src/services/message-bus.ts(263,51): error TS1005: ';' expected.
+src/services/message-bus.ts(264,11): error TS1005: ':' expected.
+src/services/message-bus.ts(264,75): error TS1005: ',' expected.
+src/services/message-bus.ts(265,13): error TS1005: ',' expected.
+src/services/message-bus.ts(265,26): error TS1005: ',' expected.
+src/services/message-bus.ts(266,9): error TS1005: ':' expected.
+src/services/message-bus.ts(266,55): error TS1005: ',' expected.
+src/services/message-bus.ts(267,15): error TS1005: '{' expected.
+src/services/message-bus.ts(267,18): error TS1136: Property assignment expected.
+src/services/message-bus.ts(268,3): error TS1128: Declaration or statement expected.
+src/services/message-bus.ts(270,29): error TS1005: ',' expected.
+src/services/message-bus.ts(270,38): error TS1005: ';' expected.
+src/services/message-bus.ts(270,40): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(280,30): error TS1005: ',' expected.
+src/services/message-bus.ts(280,39): error TS1005: ';' expected.
+src/services/message-bus.ts(280,41): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(300,3): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(301,10): error TS1005: ',' expected.
+src/services/message-bus.ts(302,9): error TS1005: ',' expected.
+src/services/message-bus.ts(303,11): error TS1005: ',' expected.
+src/services/message-bus.ts(304,14): error TS1005: ',' expected.
+src/services/message-bus.ts(305,4): error TS1005: ';' expected.
+src/services/message-bus.ts(306,11): error TS1005: ':' expected.
+src/services/message-bus.ts(306,42): error TS1005: ',' expected.
+src/services/message-bus.ts(308,12): error TS1005: ':' expected.
+src/services/message-bus.ts(349,7): error TS1005: ',' expected.
+src/services/message-bus.ts(357,18): error TS1005: ',' expected.
+src/services/message-bus.ts(358,9): error TS1005: ',' expected.
+src/services/message-bus.ts(359,7): error TS1005: ',' expected.
+src/services/message-bus.ts(360,9): error TS1005: ',' expected.
+src/services/message-bus.ts(361,11): error TS1109: Expression expected.
+src/services/message-bus.ts(362,4): error TS1005: ';' expected.
+src/services/message-bus.ts(362,6): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(377,9): error TS1005: ',' expected.
+src/services/message-bus.ts(378,9): error TS1005: ',' expected.
+src/services/message-bus.ts(379,10): error TS1005: ',' expected.
+src/services/message-bus.ts(380,12): error TS1005: ',' expected.
+src/services/message-bus.ts(381,11): error TS1109: Expression expected.
+src/services/message-bus.ts(382,4): error TS1005: ';' expected.
+src/services/message-bus.ts(382,6): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(387,9): error TS1005: ',' expected.
+src/services/message-bus.ts(388,9): error TS1005: ',' expected.
+src/services/message-bus.ts(389,7): error TS1005: ',' expected.
+src/services/message-bus.ts(390,10): error TS1005: ',' expected.
+src/services/message-bus.ts(391,12): error TS1005: ',' expected.
+src/services/message-bus.ts(392,4): error TS1005: ';' expected.
+src/services/message-bus.ts(392,6): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(397,9): error TS1005: ',' expected.
+src/services/message-bus.ts(398,9): error TS1005: ',' expected.
+src/services/message-bus.ts(399,7): error TS1005: ',' expected.
+src/services/message-bus.ts(400,10): error TS1005: ',' expected.
+src/services/message-bus.ts(401,12): error TS1005: ',' expected.
+src/services/message-bus.ts(402,4): error TS1005: ';' expected.
+src/services/message-bus.ts(402,6): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(408,16): error TS1005: ',' expected.
+src/services/message-bus.ts(408,25): error TS1005: ';' expected.
+src/services/message-bus.ts(408,27): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(416,17): error TS1005: ',' expected.
+src/services/message-bus.ts(416,26): error TS1005: ';' expected.
+src/services/message-bus.ts(416,28): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(429,29): error TS1005: ',' expected.
+src/services/message-bus.ts(429,45): error TS1005: ',' expected.
+src/services/message-bus.ts(429,54): error TS1005: ';' expected.
+src/services/message-bus.ts(429,79): error TS1005: ';' expected.
+src/services/message-bus.ts(448,24): error TS1005: ',' expected.
+src/services/message-bus.ts(448,33): error TS1005: ';' expected.
+src/services/message-bus.ts(448,53): error TS1005: ';' expected.
+src/services/message-bus.ts(458,27): error TS1109: Expression expected.
+src/services/message-bus.ts(458,65): error TS1005: ';' expected.
+src/services/message-bus.ts(458,67): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(471,20): error TS1005: ';' expected.
+src/services/message-bus.ts(471,22): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(480,21): error TS1005: ';' expected.
+src/services/message-bus.ts(480,39): error TS1011: An element access expression should take an argument.
+src/services/message-bus.ts(480,41): error TS1005: ';' expected.
+src/services/message-bus.ts(484,35): error TS1005: ',' expected.
+src/services/message-bus.ts(484,44): error TS1005: ';' expected.
+src/services/message-bus.ts(484,62): error TS1011: An element access expression should take an argument.
+src/services/message-bus.ts(484,64): error TS1005: ';' expected.
+src/services/message-bus.ts(489,18): error TS1005: ';' expected.
+src/services/message-bus.ts(489,36): error TS1011: An element access expression should take an argument.
+src/services/message-bus.ts(489,38): error TS1005: ';' expected.
+src/services/message-bus.ts(493,22): error TS1109: Expression expected.
+src/services/message-bus.ts(493,38): error TS1005: ';' expected.
+src/services/message-bus.ts(493,51): error TS1011: An element access expression should take an argument.
+src/services/message-bus.ts(493,53): error TS1005: ';' expected.
+src/services/message-bus.ts(505,16): error TS1005: ',' expected.
+src/services/message-bus.ts(505,25): error TS1005: ';' expected.
+src/services/message-bus.ts(505,50): error TS1005: ';' expected.
+src/services/message-bus.ts(509,13): error TS1005: ';' expected.
+src/services/message-bus.ts(509,15): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(513,18): error TS1005: ';' expected.
+src/services/message-bus.ts(513,20): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(517,28): error TS1109: Expression expected.
+src/services/message-bus.ts(517,37): error TS1005: ';' expected.
+src/services/message-bus.ts(517,39): error TS1434: Unexpected keyword or identifier.
+src/services/message-bus.ts(531,10): error TS1005: ';' expected.
+src/services/message-bus.ts(532,9): error TS1005: ':' expected.
+src/services/message-bus.ts(532,31): error TS1005: ',' expected.
+src/services/message-bus.ts(533,9): error TS1005: ':' expected.
+src/services/message-bus.ts(533,38): error TS1005: ',' expected.
+src/services/message-bus.ts(534,9): error TS1005: ':' expected.
+src/services/message-bus.ts(534,23): error TS1005: ',' expected.
+src/services/message-bus.ts(535,9): error TS1005: ':' expected.
+src/services/message-bus.ts(535,25): error TS1005: ',' expected.
+src/services/message-bus.ts(536,9): error TS1005: ':' expected.
+src/services/message-bus.ts(536,42): error TS1005: ',' expected.
+src/services/message-bus.ts(537,9): error TS1005: ':' expected.
+src/services/message-bus.ts(544,6): error TS1005: ',' expected.
+src/services/message-bus.ts(545,9): error TS1005: ':' expected.
+src/services/message-bus.ts(545,30): error TS1005: ',' expected.
+src/services/message-bus.ts(546,9): error TS1005: ':' expected.
+src/services/message-bus.ts(546,25): error TS1005: ',' expected.
+src/services/message-bus.ts(551,3): error TS1128: Declaration or statement expected.
+src/services/message-bus.ts(551,34): error TS1005: ',' expected.
+src/services/message-bus.ts(551,51): error TS1005: ',' expected.
+src/services/message-bus.ts(551,75): error TS1005: ',' expected.
+src/services/message-bus.ts(551,85): error TS1005: ';' expected.
+src/services/message-bus.ts(552,11): error TS1005: ':' expected.
+src/services/message-bus.ts(552,74): error TS1005: ',' expected.
+src/services/message-bus.ts(553,8): error TS1005: ',' expected.
+src/services/message-bus.ts(558,7): error TS1005: ',' expected.
+src/services/message-bus.ts(559,8): error TS1005: ',' expected.
+src/services/message-bus.ts(559,21): error TS1005: ',' expected.
+src/services/message-bus.ts(560,12): error TS1005: ',' expected.
+src/services/message-bus.ts(560,28): error TS1005: ',' expected.
+src/services/message-bus.ts(560,30): error TS1136: Property assignment expected.
+src/services/message-bus.ts(563,3): error TS1128: Declaration or statement expected.
+src/services/message-bus.ts(565,3): error TS1128: Declaration or statement expected.
+src/services/message-bus.ts(565,25): error TS1005: ';' expected.
+src/services/message-bus.ts(566,13): error TS1005: ',' expected.
+src/services/message-bus.ts(566,48): error TS1005: ',' expected.
+src/services/message-bus.ts(566,50): error TS1136: Property assignment expected.
+src/services/message-bus.ts(569,3): error TS1128: Declaration or statement expected.
+src/services/message-bus.ts(571,3): error TS1128: Declaration or statement expected.
+src/services/message-bus.ts(571,27): error TS1005: ';' expected.
+src/services/message-bus.ts(572,13): error TS1005: ',' expected.
+src/services/message-bus.ts(572,52): error TS1005: ',' expected.
+src/services/message-bus.ts(572,54): error TS1136: Property assignment expected.
+src/services/message-bus.ts(575,3): error TS1128: Declaration or statement expected.
+src/services/message-bus.ts(576,1): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(229,3): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(236,6): error TS1005: ',' expected.
+src/services/skill-compiler.ts(236,17): error TS1005: ',' expected.
+src/services/skill-compiler.ts(236,21): error TS1005: ',' expected.
+src/services/skill-compiler.ts(240,1): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(243,24): error TS1005: ',' expected.
+src/services/skill-compiler.ts(243,43): error TS1005: ',' expected.
+src/services/skill-compiler.ts(243,103): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(329,23): error TS1127: Invalid character.
+src/services/skill-compiler.ts(329,25): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(329,32): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(329,40): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(329,47): error TS1443: Module declaration names may only use ' or " quoted strings.
+src/services/skill-compiler.ts(332,12): error TS1127: Invalid character.
+src/services/skill-compiler.ts(332,12): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(332,14): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(332,21): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(332,29): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(332,50): error TS1005: ',' expected.
+src/services/skill-compiler.ts(332,51): error TS1005: ',' expected.
+src/services/skill-compiler.ts(332,56): error TS1005: ',' expected.
+src/services/skill-compiler.ts(332,96): error TS1005: ',' expected.
+src/services/skill-compiler.ts(332,97): error TS1005: ',' expected.
+src/services/skill-compiler.ts(332,102): error TS1005: ',' expected.
+src/services/skill-compiler.ts(332,149): error TS1443: Module declaration names may only use ' or " quoted strings.
+src/services/skill-compiler.ts(336,21): error TS1127: Invalid character.
+src/services/skill-compiler.ts(336,21): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(336,23): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(336,30): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(336,38): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(336,48): error TS1005: ',' expected.
+src/services/skill-compiler.ts(336,51): error TS1005: ',' expected.
+src/services/skill-compiler.ts(336,62): error TS1005: ':' expected.
+src/services/skill-compiler.ts(336,93): error TS1443: Module declaration names may only use ' or " quoted strings.
+src/services/skill-compiler.ts(374,8): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(374,14): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(374,36): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(374,66): error TS1005: ';' expected.
+src/services/skill-compiler.ts(374,73): error TS1005: ']' expected.
+src/services/skill-compiler.ts(374,94): error TS1128: Declaration or statement expected.
+src/services/skill-compiler.ts(392,27): error TS1005: ';' expected.
+src/services/skill-compiler.ts(392,35): error TS1443: Module declaration names may only use ' or " quoted strings.
+src/services/skill-compiler.ts(433,37): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(433,49): error TS1443: Module declaration names may only use ' or " quoted strings.
+src/services/skill-compiler.ts(497,23): error TS1434: Unexpected keyword or identifier.
+src/services/skill-compiler.ts(643,1): error TS1160: Unterminated template literal.
+tests/marketplace.service.test.ts(34,90): error TS1005: ',' expected.
+tests/memory-privacy-zones.test.ts(1,34): error TS1005: ',' expected.
+tests/memory-privacy-zones.test.ts(3,3): error TS1005: ',' expected.
+tests/session.service.test.ts(23,87): error TS1005: ',' expected.
+tests/session.service.test.ts(23,90): error TS1005: ',' expected.
+tests/session.service.test.ts(23,91): error TS1005: ',' expected.
+tests/session.service.test.ts(23,92): error TS1134: Variable declaration expected.
+tests/session.service.test.ts(24,42): error TS1005: ';' expected.
+tests/session.service.test.ts(24,43): error TS1138: Parameter declaration expected.
+tests/session.service.test.ts(24,46): error TS1005: ':' expected.
+tests/session.service.test.ts(24,64): error TS1005: ';' expected.
+tests/session.service.test.ts(24,76): error TS1359: Identifier expected. 'false' is a reserved word that cannot be used here.
+tests/session.service.test.ts(24,82): error TS1005: ':' expected.
+tests/session.service.test.ts(24,84): error TS1005: ';' expected.
+tests/session.service.test.ts(25,1): error TS1128: Declaration or statement expected.
+tests/session.service.test.ts(28,87): error TS1005: ',' expected.
+tests/skill-template-engine.test.ts(26,9): error TS1005: ',' expected.
+tests/skill-template-engine.test.ts(27,8): error TS1005: ',' expected.
+tests/skill-template-engine.test.ts(28,1): error TS1135: Argument expression expected.
