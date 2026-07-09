@@ -2,8 +2,10 @@
 
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
+use serde::Serialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
+#[allow(dead_code)]
 pub struct Plugin {
   pub id: String,
   pub slug: String,
@@ -20,9 +22,10 @@ pub struct Plugin {
   pub status: String,
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "lowercase")]
 pub enum PluginKind {
+  #[default]
   Plugin,
   Agent,
   Memory,
@@ -45,13 +48,14 @@ impl std::fmt::Display for PluginKind {
   }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Default, Deserialize)]
 pub struct Agent {
   pub id: String,
   pub status: String,
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct Envelope<T> {
   ok: bool,
   #[serde(default)]
@@ -63,12 +67,14 @@ struct Envelope<T> {
 }
 
 #[derive(Debug, Deserialize)]
+#[allow(dead_code)]
 struct ApiError {
   code: String,
   message: String,
 }
 
 #[derive(Debug, Default, Deserialize)]
+#[allow(dead_code)]
 struct Page<T> {
   items: Vec<T>,
   #[serde(default)]

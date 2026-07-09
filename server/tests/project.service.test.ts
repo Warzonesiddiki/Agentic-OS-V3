@@ -10,7 +10,7 @@ const returningChain = (rows: unknown[] = [{ id: 'prj_1' }]) => {
   return p;
 };
 const txMock: any = {
-  insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn(() => returningChain([{ id: 'prj_1' }])) })) ),
+  insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn(() => returningChain([{ id: 'prj_1' }])) })) })),
   update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) }) })),
   query: {
     projects: { findFirst: vi.fn(() => Promise.resolve({ id: 'prj_1', ownerId: 'u1' })) },

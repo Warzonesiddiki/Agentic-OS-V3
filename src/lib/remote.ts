@@ -195,7 +195,7 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
     // Bounded socket timeout per attempt. Merges with any caller-supplied signal.
     const timeoutCtl = new AbortController();
-    const timeoutId = setTimeout(() => timeoutCtl.abort(), FETCH_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => timeoutCtl.abort(), init?.timeoutMs ?? FETCH_TIMEOUT_MS);
     const onCallerAbort = () => timeoutCtl.abort();
     if (init?.signal) init.signal.addEventListener('abort', onCallerAbort, { once: true });
     try {
@@ -244,6 +244,9 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
       }
     } catch (e) {
       if (e instanceof Error && e.message.includes('kill switch')) throw e;
+      // An intentional cancellation (caller abort or our timeout) must NOT be
+      // retried — surface it immediately so useV3Query can swallow AbortError.
+      if (e instanceof DOMException && e.name === 'AbortError') throw e;
       lastErr = e;
       if (!isTransient(lastStatus, e)) {
         // Non-retryable (e.g. 400/401/403/404) — surface immediately.
@@ -619,8 +622,14 @@ export const v3 = {
     init?: RequestInit
   ): Promise<import('./types').Envelope<T>> {
     if (!remoteEnabled()) throw new Error('Remote not enabled.');
-    const res = await fetch(`${cfg.baseUrl}${path}`, {
+    const timeoutCtl = new AbortController();
+    const timeoutId = setTimeout(() => timeoutCtl.abort(), init?.timeoutMs ?? FETCH_TIMEOUT_MS);
+    const onCallerAbort = () => timeoutCtl.abort();
+    if (init?.signal) init.signal.addEventListener('abort', onCallerAbort, { once: true });
+    try {
+      const res = await fetch(`${cfg.baseUrl}${path}`, {
       ...init,
+      signal: timeoutCtl.signal,
       headers: {
         'content-type': 'application/json',
         ...(cfg.apiKey ? { authorization: `Bearer ${cfg.apiKey}` } : {}),
@@ -632,4 +641,11 @@ export const v3 = {
       .catch(() => ({
         ok: false,
         error: { code: 'NETWORK_ERROR', message: 'Failed to parse response' },
-        
+        traceId: '',
+      }));
+    } finally {
+      clearTimeout(timeoutId);
+      if (init?.signal) init.signal.removeEventListener('abort', onCallerAbort);
+    }
+  },
+};

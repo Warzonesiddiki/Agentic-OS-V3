@@ -84,8 +84,8 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
     if (tasks.length < COMPILATION_THRESHOLD) continue;
 
     // Extract input/output shapes from samples
-    const sampleInputs = tasks.slice(0, 10).map((t: any) => t.input);
-    const sampleOutputs = tasks.slice(0, 10).map((t: any) => t.output);
+    const sampleInputs = tasks.slice(0, 10).map((t: (typeof recentTasks)[number]) => t.input);
+    const sampleOutputs = tasks.slice(0, 10).map((t: (typeof recentTasks)[number]) => t.output);
 
     // Check if outputs are structurally similar (deterministic transformation)
     const inputShape = extractShape(sampleInputs[0]);
@@ -102,11 +102,11 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
       .where(and(eq(agentTasks.label, tasks[0]!.label), eq(agentTasks.status, 'succeeded')))
       .limit(tasks.length);
 
-    const totalTokens = tokenUsages.reduce((sum: number, t: any) => {
+    const totalTokens = tokenUsages.reduce((sum: number, t: (typeof tokenUsages)[number]) => {
       const usage = t.tokenUsage as { total?: number } | null;
       return sum + (usage?.total ?? 0);
     }, 0);
-    const totalLatency = tokenUsages.reduce((sum: number, t: any) => sum + t.latencyMs, 0);
+    const totalLatency = tokenUsages.reduce((sum: number, t: (typeof tokenUsages)[number]) => sum + t.latencyMs, 0);
 
     patterns.push({
       signature: createHash('sha256').update(normalizedLabel).digest('hex').slice(0, 16),
@@ -200,7 +200,7 @@ export function generateScript(pattern: DetectedPattern): GeneratedScript {
   // Generate a transformation function based on the observed mapping
   const code = `/**
  * Auto-compiled by NEXUS Neural Skill Compiler
- * Pattern: ${pattern.taskLabel}
+ * Pattern: ${sanitizeForComment(pattern.taskLabel)}
  * Detected: ${pattern.occurrences} repetitions
  * Avg tokens/call: ${pattern.avgTokensPerCall}
  * Avg latency: ${pattern.avgLatencyMs}ms
@@ -213,21 +213,21 @@ export function generateScript(pattern: DetectedPattern): GeneratedScript {
  */
 function compiledTask(input) {
   // Extract input fields
-  ${inputKeys.map((k: any) => `const ${k.replace(/[^a-zA-Z0-9_]/g, '_')} = input["${k}"];`).join('\n  ')}
+  ${inputKeys.map((k: string) => `const ${k.replace(/[^a-zA-Z0-9_]/g, '_')} = input["${k}"];`).join('\n  ')}
 
   // Deterministic transformation (extracted from pattern analysis)
   // NOTE: This is a structural mapping. If the task involves complex
   // reasoning that varies per input, this compiled function should be
   // deprecated and the LLM call restored.
   const output = {
-    ${outputKeys.map((k: any) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(',\n    ')}
+    ${outputKeys.map((k: string) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(',\n    ')}
   };
 
   return output;
 }
 
 // Self-test: verify against historical samples
-const testResults = ${JSON.stringify(pattern.sampleOutputs.slice(0, 3), null, 2)};
+const testResults = ${sanitizeForComment(JSON.stringify((pattern.sampleOutputs || []).slice(0, 3), null, 2))};
 
 module.exports = { compiledTask, testResults };
 `;
@@ -258,12 +258,12 @@ function inferOutputExpression(
 
   // Check if the output values are constant across all samples
   const outputValues = pattern.sampleOutputs
-    .map((o: any) => (o as Record<string, unknown>)?.[outputKey])
-    .filter((v: any) => v !== undefined);
+    .map((o: unknown) => (o as Record<string, unknown>)?.[outputKey])
+    .filter((v: unknown) => v !== undefined);
 
   if (outputValues.length >= 2) {
     const allSame = outputValues.every(
-      (v: any) => JSON.stringify(v) === JSON.stringify(outputValues[0])
+      (v: unknown) => JSON.stringify(v) === JSON.stringify(outputValues[0])
     );
     if (allSame) {
       return JSON.stringify(outputValues[0]);
@@ -300,7 +300,7 @@ export async function evaluateScript(
   const total = Math.min(pattern.sampleInputs.length, pattern.sampleOutputs.length);
 
   for (let i = 0; i < total; i++) {
-    const expected = pattern.sampleOutputs[i];
+    const expected = (pattern.sampleOutputs || [])[i];
     try {
       // Evaluate via sandbox (Docker if available, in-process fallback)
       const { executeSandboxed } = await import('./sandbox.js');

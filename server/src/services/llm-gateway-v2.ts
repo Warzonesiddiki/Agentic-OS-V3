@@ -517,7 +517,6 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
             ) || void 0,
         }))
         );
-        });
 
         shouldCleanupProbe = false; // Handled by recordSuccess
         // Record success in circuit breaker & OmniRoute health registry

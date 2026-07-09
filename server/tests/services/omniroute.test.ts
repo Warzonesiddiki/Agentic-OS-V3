@@ -4,15 +4,13 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const healthyCatalog: Record<string, { provider: string; tier: string; costPer1K?: number }> = {
-  'gpt-4o': { provider: 'openai', tier: 'flagship' },
-  'gpt-4o-mini': { provider: 'openai', tier: 'fast' },
-  'claude-3-5-sonnet-20241022': { provider: 'anthropic', tier: 'flagship' },
-  'gemini-1.5-flash': { provider: 'google', tier: 'fast', costPer1K: 0.0001 },
-};
-
 vi.mock('../../src/services/omniroute-bridge.js', () => ({
-  MODEL_TIER_CATALOG: healthyCatalog,
+  MODEL_TIER_CATALOG: {
+    'gpt-4o': { provider: 'openai', tier: 'flagship' },
+    'gpt-4o-mini': { provider: 'openai', tier: 'fast' },
+    'claude-3-5-sonnet-20241022': { provider: 'anthropic', tier: 'flagship' },
+    'gemini-1.5-flash': { provider: 'google', tier: 'fast', costPer1K: 0.0001 },
+  },
   getProviderHealth: vi.fn((p: string) => ({ status: 'healthy', consecutive5xxCount: 0, provider: p })),
   isProviderHealthy: vi.fn((p: string) => p !== 'down-provider'),
 }));

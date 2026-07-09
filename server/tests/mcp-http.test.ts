@@ -99,11 +99,12 @@ function makeReq(opts: {
       return req as IncomingMessage;
     }) as IncomingMessage['on'],
   };
-  // emit data/end synchronously when the handler subscribes
-  queueMicrotask(() => {
+  // Emit data/end on a macrotask so readBody() has registered its
+  // listeners first (handleMcp awaits consume() before calling readBody).
+  setTimeout(() => {
     if (chunks.length) listeners['data']?.(chunks[0]);
     listeners['end']?.();
-  });
+  }, 0);
   return req as IncomingMessage;
 }
 
@@ -179,10 +180,8 @@ describe('handleMcp — auth / CORS / limits gate', () => {
     expect(res.__status).toBe(413);
   });
 
-  it('valid key + valid JSON body passes through to the transport', async () => {
+  it('valid key + valid JSON body passes through to the server', async () => {
     const { createNexusMcpServer } = await import('../src/mcp.js');
-    const { StreamableHTTPServerTransport } =
-      await import('@modelcontextprotocol/sdk/server/streamableHttp.js');
     const { res } = makeRes();
     const body = JSON.stringify({ jsonrpc: '2.0', id: '1', method: 'tools/list' });
     await handleMcp(
@@ -192,10 +191,12 @@ describe('handleMcp — auth / CORS / limits gate', () => {
       }),
       res as ServerResponse
     );
+    // The principal id + scopes are forwarded into the freshly-built server.
     expect((createNexusMcpServer as unknown as vi.Mock).mock.calls[0][0]).toBe('principal_1');
     expect((createNexusMcpServer as unknown as vi.Mock).mock.calls[0][1]).toEqual(['memory:read']);
-    const transportMock = (StreamableHTTPServerTransport as unknown as vi.Mock).mock.results[0].value;
-    expect(transportMock.handleRequest).toHaveBeenCalledOnce();
+    // The server was connected to a transport (pass-through path reached).
+    const serverMock = (createNexusMcpServer as unknown as vi.Mock).mock.results[0].value;
+    expect(serverMock.connect).toHaveBeenCalledOnce();
   });
 
   it('valid auth but invalid JSON body returns 400', async () => {

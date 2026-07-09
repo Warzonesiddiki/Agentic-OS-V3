@@ -1,0 +1,628 @@
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\agent-loop.test.ts
+  35:11  error  'action' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\audit-chain.test.ts
+  16:12  error    'stableStringify' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  30:18  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  36:23  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  47:29  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  63:23  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  69:40  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  74:57  warning  Unexpected any. Specify a different type                                           @typescript-eslint/no-explicit-any
+  86:23  error    'GENESIS_HASH' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\bench-trace-exporter.test.ts
+  1:32  error  'vi' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\connectors.test.ts
+  114:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\crypto-suite.test.ts
+  135:28  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\dag-executor.test.ts
+  49:8   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  74:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  92:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\db-concurrency.test.ts
+   38:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   58:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   76:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   95:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\e2e\system.e2e.test.ts
+  135:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\enterprise.test.ts
+    4:25  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+    9:24  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   14:18  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   24:32  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   27:14  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   51:28  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   53:51  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   54:51  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   57:25  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+   57:35  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  106:33  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  107:23  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  110:42  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  118:22  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  118:28  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  123:27  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  124:20  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  127:16  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  128:15  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  132:19  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  136:18  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  139:46  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  149:21  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  153:25  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  153:33  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  155:33  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  155:56  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  156:33  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  156:56  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  162:29  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  167:13  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  172:19  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  175:21  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  190:19  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  192:19  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  193:17  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  195:16  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  199:18  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  217:19  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  219:17  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  221:18  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  243:10  error    'randomUUID' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  247:3   error    'workspaces' is defined but never used. Allowed unused vars must match /^_/u         @typescript-eslint/no-unused-vars
+  249:3   error    'enterpriseApiKeys' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  251:3   error    'siemSinks' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+  254:3   error    'paymentMethods' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  255:3   error    'crossOrgShares' is defined but never used. Allowed unused vars must match /^_/u     @typescript-eslint/no-unused-vars
+  261:11  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  308:28  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  309:28  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  312:28  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  314:28  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  323:30  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  350:30  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  352:23  warning  Unexpected any. Specify a different type                                             @typescript-eslint/no-explicit-any
+  465:10  error    'eqOnboarding' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\feedback.service.test.ts
+   7:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\forge-selfheal.test.ts
+  186:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\helpers\db-setup.ts
+   31:7   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   32:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   33:13  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   34:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   35:13  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   37:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   38:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   39:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   40:13  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   41:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   42:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:13  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   44:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   45:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   46:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   47:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   48:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   49:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   50:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   51:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   53:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   54:13  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   56:18  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   57:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:28  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  115:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  116:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  123:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  125:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  126:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\helpers\mock-llm.ts
+   73:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:80  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\integration\dag.test.ts
+  47:19  error  'mergeConcat' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\integration\enterprise-tenant.test.ts
+  125:54  error  Parsing error: ',' expected
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\integration\marketplace.test.ts
+   27:34  error    'signArtifactEd25519' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  153:33  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  201:80  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  242:65  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  272:62  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+  310:55  warning  Unexpected any. Specify a different type                                               @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\integration\memory-recall-enterprise.test.ts
+  15:42  error  'orgs' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  24:14  error  'or' is defined but never used. Allowed unused vars must match /^_/u    @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\killswitch-race.test.ts
+  41:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  51:37  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\lib\auth-context.test.ts
+   28:81  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   29:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   32:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   38:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   75:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   98:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  126:46  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\marketplace.service.test.ts
+  34:85  error  Parsing error: ',' expected
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\memory-conflict-resolver.test.ts
+  17:46  error  'ConflictStrategy' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\memory-graph-browser.test.ts
+   67:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   70:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   82:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  166:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  166:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  176:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\memory-privacy-zones.test.ts
+  30:77  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  46:74  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\memory-recall-eval.test.ts
+   71:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   72:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   81:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  239:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  260:82  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  303:82  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  322:82  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\memory-rehearsal.test.ts
+  67:8  error  'RehearsalRecord' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\memory-search-suggest.test.ts
+  20:11  error  'sugs' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\p2p-swarm.test.ts
+   15:12  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   15:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   59:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   72:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   74:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   75:29  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:17  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\phase15-performance.test.ts
+  135:51  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\probe-batch.test.ts
+  21:112  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  21:132  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:140  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  23:160  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\project.service.test.ts
+  14:86  error  Parsing error: ',' expected
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\ranking-trainer.test.ts
+   23:20  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   65:42  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   69:58  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   91:20  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  103:20  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  107:11  error    'w' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  111:10  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  121:19  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  129:19  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  140:22  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+  144:22  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\routes\agent-lifecycle.test.ts
+   54:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   55:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:77  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   85:77  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:85  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   93:86  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:84  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:84  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  119:88  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  128:85  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  140:94  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  141:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  142:77  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\routes\agents.test.ts
+   79:90  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   84:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  101:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:87  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  112:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  116:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  126:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  132:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  133:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  135:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  139:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  145:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  147:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  151:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  157:61  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  158:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  159:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  164:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  164:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  164:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  173:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  177:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  182:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  186:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  193:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  194:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  195:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  202:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  202:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  202:68  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  206:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\routes\automation.test.ts
+   53:95  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   65:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   69:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   78:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   82:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   92:88  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   95:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   96:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   96:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   96:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:96  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  108:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  109:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  113:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  122:69  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  126:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\routes\sse.test.ts
+   30:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   50:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   61:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   70:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   80:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   90:65  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  102:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\routes\v3-upgrade.test.ts
+   94:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   94:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  104:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  114:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  118:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  128:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  140:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  146:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  150:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  156:32  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  160:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:10  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  172:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  180:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  180:66  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  184:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\security-audit-scope-killswitch-mcp.test.ts
+   72:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   73:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  195:40  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\self-improvement-harness-control.test.ts
+  30:20  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  42:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  45:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\self-improvement-harness.test.ts
+  126:85   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  129:87   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  134:101  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\self-opt-adapters.test.ts
+  11:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  14:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\self-opt-controller.test.ts
+  30:78  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  31:76  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  40:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\self-opt-gap-items.test.ts
+  17:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\self-opt-telemetry.test.ts
+  9:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\self-opt-tuners.test.ts
+   16:14  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   16:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   17:39  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   18:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  165:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  165:64  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  182:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\sentinel-core.test.ts
+  269:76  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  277:71  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  287:71  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\blockchain.test.ts
+  33:28  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+  45:28  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\brain.test.ts
+   24:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   49:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   51:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   52:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   58:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  137:53  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\breach-notifier.test.ts
+  12:10  error  'notify' is defined but never used. Allowed unused vars must match /^_/u        @typescript-eslint/no-unused-vars
+  12:18  error  'resolve' is defined but never used. Allowed unused vars must match /^_/u       @typescript-eslint/no-unused-vars
+  12:27  error  'listBreaches' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\embeddings.test.ts
+   19:56  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   36:54  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  164:26  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  170:41  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  170:51  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  347:91  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  366:89  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  383:88  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  424:92  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  457:93  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\fairness-corrector.test.ts
+  16:127  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\kernel.test.ts
+   20:15  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   21:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   22:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   23:16  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   43:35  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   45:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   51:25  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   57:33  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:23  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  213:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  600:58  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  612:55  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  623:52  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  672:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  673:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\llm-gateway-v2.test.ts
+   23:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:19  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  121:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  124:57  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  155:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  167:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  546:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  598:38  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  618:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  622:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  633:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  653:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  655:42  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  659:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  677:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  699:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\llm-router.test.ts
+  40:43  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\llm-scheduler.test.ts
+  33:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\llm.test.ts
+  208:127  error  Parsing error: ',' expected
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\omniroute.test.ts
+   72:49  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   91:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  105:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  111:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  130:44  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  131:45  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  155:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  162:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  168:27  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\portkey-bridge.test.ts
+   11:29  warning  Unexpected any. Specify a different type                                                          @typescript-eslint/no-explicit-any
+   44:10  error    'dispatchPortkeyRequest' is defined but never used. Allowed unused vars must match /^_/u          @typescript-eslint/no-unused-vars
+   44:34  error    'createPortkeySSEResponseStream' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   45:10  error    'env' is defined but never used. Allowed unused vars must match /^_/u                             @typescript-eslint/no-unused-vars
+   51:33  warning  Unexpected any. Specify a different type                                                          @typescript-eslint/no-explicit-any
+  130:30  warning  Unexpected any. Specify a different type                                                          @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\providers\openai.test.ts
+  92:96  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\ransomware-detector.test.ts
+  16:47  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\recall.test.ts
+  157:11  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  186:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  199:36  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  271:51  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\reliability\core.test.ts
+   54:25   error    'completeStep' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   64:68   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+   69:31   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+   73:35   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+   76:35   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+   79:35   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  125:82   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  146:46   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  171:92   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  219:71   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  231:107  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  235:107  warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  242:10   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  249:38   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+  256:40   warning  Unexpected any. Specify a different type                                        @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\reliability\degraded-mode.test.ts
+  20:8  error  'Capability' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\reliability\gap.test.ts
+  45:104  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\siem-forwarder.test.ts
+   31:50  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   63:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   64:31  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   97:30  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  117:24  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\supply-chain.test.ts
+   3:22  error  'createPublicKey' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  59:23  error  A `require()` style import is forbidden                                            @typescript-eslint/no-require-imports
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\unified-gateway\portkey.test.ts
+  19:34  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\vendor-assessor.test.ts
+  4:10  error  'ApiError' is defined but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\services\vlm.test.ts
+   67:10   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   77:29   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   88:115  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   95:88   warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  100:115  warning  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\session.service.test.ts
+   8:9   error    'chain' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+   9:14  warning  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  19:17  warning  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  24:17  warning  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  32:29  warning  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  49:61  warning  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  52:75  warning  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  59:70  warning  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+  66:61  warning  Unexpected any. Specify a different type                                          @typescript-eslint/no-explicit-any
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\skill-template-engine.test.ts
+  33:88  error  Parsing error: ',' expected
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\vault.test.ts
+  40:16  error  A `require()` style import is forbidden  @typescript-eslint/no-require-imports
+
+C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\server\tests\wasm-plugin-runtime.test.ts
+   37:27  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   52:35  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+   54:11  error    'b' is assigned a value but never used. Allowed unused vars must match /^_/u  @typescript-eslint/no-unused-vars
+  104:20  warning  Unexpected any. Specify a different type                                      @typescript-eslint/no-explicit-any
+
+✖ 479 problems (41 errors, 438 warnings)
+

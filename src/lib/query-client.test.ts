@@ -33,9 +33,9 @@ describe('query-client — cache invalidation', () => {
     expect(queryClient.getQueryData(KEY)).toBeUndefined();
   });
 
-  it('reset() clears all cached queries', () => {
+  it('clearing the query cache evicts all cached queries', () => {
     queryClient.setQueryData(KEY, [{ id: 'm1' }]);
-    queryClient.reset();
+    queryClient.getQueryCache().clear();
     expect(queryClient.getQueryData(KEY)).toBeUndefined();
   });
 });

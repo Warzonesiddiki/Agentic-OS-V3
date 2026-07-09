@@ -828,16 +828,27 @@ export class MLFQPolicy implements SchedulingPolicy {
   readonly name = 'mlfq';
   pick(tasks: QueuedTask[]): QueuedTask | null {
     if (!tasks.length) return null;
-    const sorted = [...tasks].sort((a, b) => {
-      const ra = queueRank(a.queue);
-      const rb = queueRank(b.queue);
-      if (ra !== rb) return ra - rb;
-      // (Forge) Risk-aware tiebreaker: within the same queue, prefer higher-risk work.
-      const r = (b.risk ?? 0) - (a.risk ?? 0);
-      if (r !== 0) return r;
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    });
-    return sorted[0] ?? null;
+    // Linear O(N) scan (zero allocation) — we only need the min under the
+    // policy ordering, so a sort would waste an O(N log N) copy per dispatch.
+    let best = tasks[0];
+    let bestRank = queueRank(best.queue);
+    let bestRisk = best.risk ?? 0;
+    let bestCreated = best.createdAt.getTime();
+    for (let i = 1; i < tasks.length; i++) {
+      const t = tasks[i];
+      const r = queueRank(t.queue);
+      if (
+        r < bestRank ||
+        (r === bestRank && (t.risk ?? 0) > bestRisk) ||
+        (r === bestRank && (t.risk ?? 0) === bestRisk && t.createdAt.getTime() < bestCreated)
+      ) {
+        best = t;
+        bestRank = r;
+        bestRisk = t.risk ?? 0;
+        bestCreated = t.createdAt.getTime();
+      }
+    }
+    return best;
   }
 }
 
@@ -845,16 +856,27 @@ export class EDFPolicy implements SchedulingPolicy {
   readonly name = 'edf';
   pick(tasks: QueuedTask[]): QueuedTask | null {
     if (!tasks.length) return null;
-    const sorted = [...tasks].sort((a, b) => {
-      const da = a.deadline ? a.deadline.getTime() : Number.POSITIVE_INFINITY;
-      const db2 = b.deadline ? b.deadline.getTime() : Number.POSITIVE_INFINITY;
-      if (da !== db2) return da - db2;
-      // (Forge) Risk-aware tiebreaker: when deadlines tie, prefer higher-risk work.
-      const r = (b.risk ?? 0) - (a.risk ?? 0);
-      if (r !== 0) return r;
-      return a.createdAt.getTime() - b.createdAt.getTime();
-    });
-    return sorted[0] ?? null;
+    let best = tasks[0];
+    let bestDeadline = best.deadline ? best.deadline.getTime() : Number.POSITIVE_INFINITY;
+    let bestRisk = best.risk ?? 0;
+    let bestCreated = best.createdAt.getTime();
+    for (let i = 1; i < tasks.length; i++) {
+      const t = tasks[i];
+      const d = t.deadline ? t.deadline.getTime() : Number.POSITIVE_INFINITY;
+      if (
+        d < bestDeadline ||
+        (d === bestDeadline && (t.risk ?? 0) > bestRisk) ||
+        (d === bestDeadline &&
+          (t.risk ?? 0) === bestRisk &&
+          t.createdAt.getTime() < bestCreated)
+      ) {
+        best = t;
+        bestDeadline = d;
+        bestRisk = t.risk ?? 0;
+        bestCreated = t.createdAt.getTime();
+      }
+    }
+    return best;
   }
 }
 
@@ -864,28 +886,48 @@ export class FairSharePolicy implements SchedulingPolicy {
   readonly name = 'fairshare';
   pick(tasks: QueuedTask[]): QueuedTask | null {
     if (!tasks.length) return null;
-    const agents = Array.from(new Set(tasks.map((t) => t.agentId ?? '_global')));
-    let bestAgent = agents[0] ?? '_global';
-    let bestTime = Number.POSITIVE_INFINITY;
-    for (const a of agents) {
+    // Single O(N) pass: track the least-recently-served agent and remember the
+    // best candidate seen for each agent (priority/risk/age tiebreaker).
+    // Avoids the Array.from(new Set(...)) + filter() + sort() allocation churn.
+    let bestAgent = tasks[0].agentId ?? '_global';
+    let bestTime = fairShareLastServed.get(bestAgent) ?? 0;
+    let bestTask: QueuedTask | null = tasks[0];
+    let bestPriority = tasks[0].priority;
+    let bestRisk = tasks[0].risk ?? 0;
+    let bestCreated = tasks[0].createdAt.getTime();
+
+    for (let i = 1; i < tasks.length; i++) {
+      const t = tasks[i];
+      const a = t.agentId ?? '_global';
       const last = fairShareLastServed.get(a) ?? 0;
       if (last < bestTime) {
         bestTime = last;
         bestAgent = a;
+        // New least-served agent → restart the candidate tracking for it.
+        bestTask = t;
+        bestPriority = t.priority;
+        bestRisk = t.risk ?? 0;
+        bestCreated = t.createdAt.getTime();
+        continue;
+      }
+      if (a !== bestAgent) continue;
+      // Same least-served agent → pick the best by (priority, risk, age).
+      if (
+        t.priority > bestPriority ||
+        (t.priority === bestPriority && (t.risk ?? 0) > bestRisk) ||
+        (t.priority === bestPriority &&
+          (t.risk ?? 0) === bestRisk &&
+          t.createdAt.getTime() < bestCreated)
+      ) {
+        bestTask = t;
+        bestPriority = t.priority;
+        bestRisk = t.risk ?? 0;
+        bestCreated = t.createdAt.getTime();
       }
     }
-    const candidates = tasks
-      .filter((t) => (t.agentId ?? '_global') === bestAgent)
-      .sort(
-        (x, y) =>
-          y.priority - x.priority ||
-          // (Forge) risk-aware tiebreaker
-          (y.risk ?? 0) - (x.risk ?? 0) ||
-          x.createdAt.getTime() - y.createdAt.getTime()
-      );
-    const chosen = candidates[0] ?? [...tasks].sort((x, y) => y.priority - x.priority)[0] ?? null;
-    if (chosen) fairShareLastServed.set(bestAgent, Date.now());
-    return chosen;
+
+    if (bestTask) fairShareLastServed.set(bestAgent, Date.now());
+    return bestTask;
   }
 }
 
@@ -1003,14 +1045,27 @@ export function checkDeadlineAdmission(
 }
 
 // ── Per-queue latency profiling ───────────────────────────────
-const latencySamples = new Map<string, number[]>();
+// Ring buffer per queue avoids the O(N) Array.shift() on every sample. The
+// buffer is a fixed-size Float64Array; writes wrap around, overwriting the
+// oldest sample. getQueueLatencyPercentiles copies + sorts once on read.
 const MAX_SAMPLES = 1000;
+const latencyBuffers = new Map<string, Float64Array>();
+const latencyHead = new Map<string, number>();
+const latencyCount = new Map<string, number>();
 
 export function recordQueueLatency(queue: string, waitMs: number): void {
-  const arr = latencySamples.get(queue) ?? [];
-  arr.push(waitMs);
-  if (arr.length > MAX_SAMPLES) arr.shift();
-  latencySamples.set(queue, arr);
+  let buf = latencyBuffers.get(queue);
+  if (!buf) {
+    buf = new Float64Array(MAX_SAMPLES);
+    latencyBuffers.set(queue, buf);
+    latencyHead.set(queue, 0);
+    latencyCount.set(queue, 0);
+  }
+  const head = latencyHead.get(queue)!;
+  buf[head] = waitMs;
+  latencyHead.set(queue, (head + 1) % MAX_SAMPLES);
+  const c = latencyCount.get(queue)!;
+  if (c < MAX_SAMPLES) latencyCount.set(queue, c + 1);
 }
 
 export function percentile(sorted: number[], p: number): number {
@@ -1027,8 +1082,13 @@ export function getQueueLatencyPercentiles(): Record<
     string,
     { p50: number; p90: number; p99: number; p999: number; samples: number }
   > = {};
-  for (const [queue, samples] of latencySamples) {
-    const sorted = [...samples].sort((a, b) => a - b);
+  for (const [queue, buf] of latencyBuffers) {
+    const n = latencyCount.get(queue) ?? 0;
+    if (n === 0) continue;
+    const head = latencyHead.get(queue) ?? 0;
+    const tmp = new Array<number>(n);
+    for (let i = 0; i < n; i++) tmp[i] = buf[(head - n + i + MAX_SAMPLES) % MAX_SAMPLES];
+    const sorted = tmp.sort((a, b) => a - b);
     out[queue] = {
       p50: percentile(sorted, 50),
       p90: percentile(sorted, 90),

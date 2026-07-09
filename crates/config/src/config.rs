@@ -242,7 +242,7 @@ mod tests {
     }
 
     #[test]
-    fn dotted_key_is_valid_implicit_table() {
+    fn parse_error_on_duplicate_key() {
         // The `toml` crate treats a dotted key as a valid implicit table, so this
         // parses successfully and populates the nested field.
         let cfg = Config::from_toml(

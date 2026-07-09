@@ -21,10 +21,16 @@ vi.mock('../src/db/client.js', () => {
     p.$dynamic = () => Promise.resolve(rows);
     return p;
   };
+  const insMock = () => ({
+    values: vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => Promise.resolve()),
+      returning: vi.fn(() => pchain([{ id: 'cmp_1' }])),
+    })),
+  });
   const mockDb: any = {
     select: vi.fn(() => chain()),
-    insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => Promise.resolve()), returning: vi.fn(() => pchain([{ id: 'cmp_1' }])) })) ),
-    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) }) })),
+    insert: vi.fn(() => insMock()),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) }) }) })),
     query: {
       compiledScripts: chain(),
       agentTasks: { findMany: vi.fn(() => Promise.resolve([])) },

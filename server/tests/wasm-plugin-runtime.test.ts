@@ -81,15 +81,15 @@ describe('checkCapability (default-deny)', () => {
   });
 
   it('matches prefix children (child must be namespaced)', () => {
-    const p = makePlugin([{ prefix: 'http.outbound' }]);
-    expect(checkCapability(p, 'http.outbound.api.com')).not.toBeNull();
-    expect(checkCapability(p, 'http.outbound')).toBeNull();
+    const p = makePlugin([{ prefix: 'skill.invoke' }]);
+    expect(checkCapability(p, 'skill.invoke.summarize')).not.toBeNull();
+    expect(checkCapability(p, 'skill.other')).toBeNull();
   });
 
   it('honors prefixExcept deny', () => {
-    const p = makePlugin([{ prefix: 'http.outbound', prefixExcept: ['http.outbound.evil.com'] }]);
-    expect(checkCapability(p, 'http.outbound.api.com')).not.toBeNull();
-    expect(checkCapability(p, 'http.outbound.evil.com')).toBeNull();
+    const p = makePlugin([{ prefix: 'skill.invoke', prefixExcept: ['skill.invoke.danger'] }]);
+    expect(checkCapability(p, 'skill.invoke.safe')).not.toBeNull();
+    expect(checkCapability(p, 'skill.invoke.danger')).toBeNull();
   });
 
   it('returns null when nothing matches', () => {

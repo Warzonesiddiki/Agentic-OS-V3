@@ -12,6 +12,7 @@
 
 import { LLMResponseCache } from './llm-cache.js';
 import { ConnectionPool } from './connection-pool.js';
+import { tallyConsensus, tallyBFT, type Vote } from '../consensus.js';
 
 export interface BenchResult {
   name: string;
@@ -81,10 +82,29 @@ export async function runPoolBenchmark(iterations = 500, max = 8): Promise<Bench
   };
 }
 
+export async function runConsensusBenchmark(n = 5000): Promise<BenchResult> {
+  const votes: Vote[] = Array.from({ length: n }, (_, i) => ({
+    agentId: `agent-${i}`,
+    value: i < n * 0.95 ? { decision: 'A' } : { decision: 'B' },
+    weight: 1,
+  }));
+  const start = Date.now();
+  const r1 = tallyConsensus('weighted', votes);
+  const r2 = tallyBFT(votes, { threshold: 2 / 3 });
+  const totalMs = Date.now() - start;
+  return {
+    name: `consensus (n=${n})`,
+    iterations: 2,
+    totalMs,
+    perOpMs: totalMs / 2,
+  };
+}
+
 export async function runAllBenchmarks(): Promise<BenchResult[]> {
   const cache = await runCacheBenchmark();
   const pool = await runPoolBenchmark();
-  return [cache, pool];
+  const cons = await runConsensusBenchmark();
+  return [cache, pool, cons];
 }
 
 const isMain = typeof process !== 'undefined' && process.argv[1]?.includes('benchmark.ts');

@@ -49,31 +49,34 @@ describe('api-client request — happy path + headers', () => {
 describe('api-client request — timeout / abort resilience', () => {
   afterEach(() => vi.unstubAllGlobals());
 
+  /** fetch stub that never resolves but rejects with AbortError on abort. */
+  function hungFetch() {
+    return vi.fn(async (_input: string, init?: RequestInit) => {
+      const sig = init?.signal;
+      return new Promise<Response>((_resolve, reject) => {
+        if (sig?.aborted) {
+          reject(new DOMException('The operation was aborted', 'AbortError'));
+          return;
+        }
+        sig?.addEventListener(
+          'abort',
+          () => reject(new DOMException('The operation was aborted', 'AbortError')),
+          { once: true }
+        );
+      });
+    });
+  }
+
   it('rejects with ApiTimeoutError when the request exceeds the timeout budget', async () => {
-    vi.useFakeTimers();
-    try {
-      // fetch never settles; the internal 30s AbortController should fire.
-      mockFetchOnce(() => new Promise<Response>(() => {}));
-      const promise = request<unknown>('/api/slow', { timeoutMs: 1000 });
-      // Advance past the timeout so the AbortController aborts.
-      await vi.advanceTimersByTimeAsync(1500);
-      await expect(promise).rejects.toBeInstanceOf(ApiTimeoutError);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
+    vi.stubGlobal('fetch', hungFetch());
+    await expect(request<unknown>('/api/slow', { timeoutMs: 50 })).rejects.toBeInstanceOf(ApiTimeoutError);
+  }, 5000);
 
   it('respects a caller-supplied AbortSignal (aborts before the timeout)', async () => {
-    vi.useFakeTimers();
-    try {
-      mockFetchOnce(() => new Promise<Response>(() => {}));
-      const controller = new AbortController();
-      const promise = request<unknown>('/api/cancel', { signal: controller.signal, timeoutMs: 10_000 });
-      controller.abort();
-      await vi.advanceTimersByTimeAsync(0);
-      await expect(promise).rejects.toBeInstanceOf(DOMException);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
+    vi.stubGlobal('fetch', hungFetch());
+    const controller = new AbortController();
+    const promise = request<unknown>('/api/cancel', { signal: controller.signal, timeoutMs: 10_000 });
+    controller.abort();
+    await expect(promise).rejects.toBeInstanceOf(DOMException);
+  }, 5000);
 });

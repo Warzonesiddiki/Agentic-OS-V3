@@ -1,5 +1,3 @@
-use tauri::Manager;
-
 use crate::state::AppState;
 
 /// Returns a friendly greeting produced by the Rust core.

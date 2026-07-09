@@ -65,6 +65,7 @@ function appEnforcingScope(scope: Scope, killSwitchAware = false) {
     if (e instanceof ApiError) {
       return c.json({ error: { code: e.code } }, e.status);
     }
+     
     return c.json({ error: { code: 'INTERNAL_ERROR' } }, 500);
   });
   const handler = killSwitchAware
@@ -94,7 +95,7 @@ describe('SecD: API-key scope enforcement (requireScope)', () => {
   it('rejects a key missing the required scope (→ 403 FORBIDDEN)', async () => {
     const app = appEnforcingScope('memory:read');
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['agent:read', 'skill:read']));
+      c.set('principal', principalWithScopes(['agent:read', 'skill:read']));
       return next();
     });
     const res = await app.request('/x');
@@ -106,7 +107,7 @@ describe('SecD: API-key scope enforcement (requireScope)', () => {
   it('allows a key that holds the exact required scope', async () => {
     const app = appEnforcingScope('memory:read');
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['memory:read', 'agent:read']));
+      c.set('principal', principalWithScopes(['memory:read', 'agent:read']));
       return next();
     });
     const res = await app.request('/x');
@@ -117,7 +118,7 @@ describe('SecD: API-key scope enforcement (requireScope)', () => {
     // hasScope matches `ns.*` -> `ns.sub` (the documented wildcard contract).
     const app = appEnforcingScope('ns.sub' as Scope);
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['ns.*', 'agent:read']));
+      c.set('principal', principalWithScopes(['ns.*', 'agent:read']));
       return next();
     });
     const res = await app.request('/x');
@@ -128,7 +129,7 @@ describe('SecD: API-key scope enforcement (requireScope)', () => {
     // "agent:.*" must not satisfy "memory:write"
     const app = appEnforcingScope('memory:write');
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['agent:.*']));
+      c.set('principal', principalWithScopes(['agent:.*']));
       return next();
     });
     const res = await app.request('/x');
@@ -153,7 +154,7 @@ describe('SecD: API-key scope enforcement (requireScope)', () => {
     it(`rejects missing scope "${s.scope}" (route isolation)`, async () => {
       const app = appEnforcingScope(s.scope);
       app.use('/x', (c, next) => {
-        c.set('auth', principalWithScopes(s.denied as Scope[]));
+        c.set('principal', principalWithScopes(s.denied as Scope[]));
         return next();
       });
       const res = await app.request('/x');
@@ -163,7 +164,7 @@ describe('SecD: API-key scope enforcement (requireScope)', () => {
     it(`allows holding scope "${s.scope}"`, async () => {
       const app = appEnforcingScope(s.scope);
       app.use('/x', (c, next) => {
-        c.set('auth', principalWithScopes(s.allowed as Scope[]));
+        c.set('principal', principalWithScopes(s.allowed as Scope[]));
         return next();
       });
       const res = await app.request('/x');
@@ -186,7 +187,7 @@ describe('SecD: Kill-switch blocks mutations (HTTP 423)', () => {
     vi.mocked(isKillSwitchOn).mockResolvedValue(true);
     const app = appEnforcingScope('memory:write', true);
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['memory:write']));
+      c.set('principal', principalWithScopes(['memory:write']));
       return next();
     });
     const res = await app.request('/x');
@@ -199,7 +200,7 @@ describe('SecD: Kill-switch blocks mutations (HTTP 423)', () => {
     vi.mocked(isKillSwitchOn).mockResolvedValue(false);
     const app = appEnforcingScope('memory:write', true);
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['agent:read']));
+      c.set('principal', principalWithScopes(['agent:read']));
       return next();
     });
     const res = await app.request('/x');
@@ -210,7 +211,7 @@ describe('SecD: Kill-switch blocks mutations (HTTP 423)', () => {
     vi.mocked(isKillSwitchOn).mockResolvedValue(false);
     const app = appEnforcingScope('memory:write', true);
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['memory:write']));
+      c.set('principal', principalWithScopes(['memory:write']));
       return next();
     });
     const res = await app.request('/x');
@@ -244,10 +245,14 @@ describe('SecD: Kill-switch blocks mutations (HTTP 423)', () => {
       ),
     );
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['memory:read']));
+      c.set('principal', principalWithScopes(['memory:read']));
       return next();
     });
     const res = await app.request('/x');
+    if (res.status !== 200) {
+       
+      console.error('DEBUG opts.killSwitch=false body:', JSON.stringify(await res.json()));
+    }
     expect(res.status).toBe(200);
   });
 });

@@ -1,0 +1,50 @@
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+
+[1m[46m RUN [49m[22m [36mv3.2.6 [39m[90mC:/Users/Tahir/OneDrive/Desktop/nexus-20-ai-agent-os (7)/Agentic OS V3/server[39m
+
+[90mstdout[2m | tests/memory-recall-eval.test.ts
+[22m[39m◇ injected env (0) from .env // tip: ⌘ override existing { override: true }
+
+[90mstdout[2m | tests/memory-perfection.test.ts
+[22m[39m◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+
+ [32m✓[39m tests/memory-recall-eval.test.ts [2m([22m[2m28 tests[22m[2m)[22m[32m 60[2mms[22m[39m
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/memory-perfection.test.ts [ tests/memory-perfection.test.ts ]
+Error: Could not locate the bindings file. Tried:
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\build\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\build\Debug\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\build\Release\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\out\Debug\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\Debug\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\out\Release\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\Release\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\build\default\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\compiled\26.5.0\win32\x64\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\addon-build\release\install-root\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\addon-build\debug\install-root\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\addon-build\default\install-root\better_sqlite3.node
+ → C:\Users\Tahir\OneDrive\Desktop\nexus-20-ai-agent-os (7)\Agentic OS V3\node_modules\.pnpm\better-sqlite3@11.10.0\node_modules\better-sqlite3\lib\binding\node-v147-win32-x64\better_sqlite3.node
+ ❯ bindings ../node_modules/.pnpm/bindings@1.5.0/node_modules/bindings/bindings.js:126:9
+ ❯ new Database ../node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/database.js:48:64
+ ❯ createSqliteDb src/db/client.ts:72:16
+     70| function createSqliteDb() {
+     71|   const Database = require('better-sqlite3');
+     72|   const conn = new Database('./agentic-os.db');
+       |                ^
+     73|   conn.pragma('journal_mode = WAL');
+     74|   conn.pragma('foreign_keys = ON');
+ ❯ src/db/client.ts:122:37
+ ❯ src/services/memory-dedup.ts:2:1
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[2m | [22m[1m[32m1 passed[39m[22m[90m (2)[39m
+[2m      Tests [22m [1m[32m28 passed[39m[22m[90m (28)[39m
+[2m   Start at [22m 23:04:46
+[2m   Duration [22m 8.88s[2m (transform 5.80s, setup 0ms, collect 6.49s, tests 60ms, environment 1ms, prepare 1.76s)[22m
+

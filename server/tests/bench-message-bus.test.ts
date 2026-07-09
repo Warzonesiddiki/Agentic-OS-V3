@@ -40,7 +40,7 @@ describe('message-bus publish hot-path benchmark', () => {
     expect(p95).toBeLessThan(50);
 
     const avg = latencies.reduce((s, v) => s + v, 0) / latencies.length;
-    // eslint-disable-next-line no-console
+     
     console.log(
       `[message-bus bench] subs=${N} iters=${iterations} avg=${avg.toFixed(4)}ms p95=${p95.toFixed(4)}ms`
     );

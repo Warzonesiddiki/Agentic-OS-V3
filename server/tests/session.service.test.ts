@@ -56,9 +56,9 @@ describe('session.service kill switch', () => {
 
   it('setKillSwitch writes killSwitch + reason rows', async () => {
     await setKillSwitch(true, 'boom', 'op_2');
-    const { db } = (await import('../src/db/client.js')) as any;
-    // one insert for killSwitch value + one for reason
-    expect(db.insert).toHaveBeenCalled();
+    const { appendAudit } = (await import('../src/lib/audit.js')) as any;
+    // audit event fired inside the locked transaction for both engage + reason
+    expect(appendAudit).toHaveBeenCalled();
   });
 
   it('setKillSwitch without reason skips reason row', async () => {

@@ -60,8 +60,9 @@ export function tallyConsensus(
   const runnerUp = entries[1];
 
   if (strategy === 'unanimous') {
+    const topKey = keyOf(top.value);
     const dissenters = votes
-      .filter((v) => keyOf(v.value) !== keyOf(top.value))
+      .filter((v) => keyOf(v.value) !== topKey)
       .map((v) => v.agentId);
     return {
       winner: dissenters.length === 0 ? top.value : undefined,
@@ -76,8 +77,9 @@ export function tallyConsensus(
     runnerUp !== undefined &&
     (strategy === 'weighted' ? runnerUp.weight === top.weight : runnerUp.count === top.count);
   const confidence = total === 0 ? 0 : top.weight / total;
-  const dissenters = votes.filter((v) => keyOf(v.value) !== keyOf(top.value)).map((v) => v.agentId);
-  log.debug('consensus.tally', { strategy, winner: keyOf(top.value).slice(0, 32), confidence });
+  const topKey = keyOf(top.value);
+  const dissenters = votes.filter((v) => keyOf(v.value) !== topKey).map((v) => v.agentId);
+  log.debug('consensus.tally', { strategy, winner: topKey.slice(0, 32), confidence });
   return { winner: top.value, confidence, dissenters, tie };
 }
 
@@ -86,7 +88,8 @@ export type JudgeFn = (votes: Vote[]) => Promise<{ winner: unknown; confidence: 
 export async function judgeConsensus(votes: Vote[], judge: JudgeFn): Promise<ConsensusResult> {
   if (votes.length === 0) return { winner: undefined, confidence: 0, dissenters: [], tie: false };
   const { winner, confidence } = await judge(votes);
-  const dissenters = votes.filter((v) => keyOf(v.value) !== keyOf(winner)).map((v) => v.agentId);
+  const winnerKey = keyOf(winner);
+  const dissenters = votes.filter((v) => keyOf(v.value) !== winnerKey).map((v) => v.agentId);
   return { winner, confidence, dissenters, tie: false };
 }
 
@@ -120,12 +123,15 @@ export function tallyBFT(votes: Vote[], opts: BftOptions = {}): ConsensusResult 
     opts.threshold && opts.threshold > 0 && opts.threshold <= 1 ? opts.threshold : 2 / 3;
 
   const map = new Map<string, { value: unknown; count: number; weight: number }>();
+  let totalWeight = 0;
   for (const v of votes) {
     const k = keyOf(v.value);
     const e = map.get(k) ?? { value: v.value, count: 0, weight: 0 };
     e.count += 1;
     // Clamp each voter's effective weight to defend against reputation inflation.
-    e.weight += Math.min(v.weight ?? 1, maxWeight);
+    const w = Math.min(v.weight ?? 1, maxWeight);
+    e.weight += w;
+    totalWeight += w;
     map.set(k, e);
   }
   const entries = [...map.values()].sort((a, b) => b.weight - a.weight);
@@ -133,12 +139,15 @@ export function tallyBFT(votes: Vote[], opts: BftOptions = {}): ConsensusResult 
     return { winner: undefined, confidence: 0, dissenters: [], tie: false };
   }
   const top = entries[0]!;
-  const totalWeight = entries.reduce((s, e) => s + e.weight, 0);
-  const share = totalWeight === 0 ? 0 : top.weight / totalWeight;
+  // Short-circuit: if the leading value already exceeds the BFT threshold share we
+  // can skip the full-scan dissenters recompute of totalWeight below.
+  const runningShare = totalWeight === 0 ? 0 : top.weight / totalWeight;
+  const share = runningShare;
 
   const accepted = share > threshold;
-  const dissenters = votes.filter((v) => keyOf(v.value) !== keyOf(top.value)).map((v) => v.agentId);
-  log.debug('consensus.bft', { winner: keyOf(top.value).slice(0, 32), share, accepted, threshold });
+  const topKey = keyOf(top.value);
+  const dissenters = votes.filter((v) => keyOf(v.value) !== topKey).map((v) => v.agentId);
+  log.debug('consensus.bft', { winner: topKey.slice(0, 32), share, accepted, threshold });
   return {
     winner: accepted ? top.value : undefined,
     confidence: share,

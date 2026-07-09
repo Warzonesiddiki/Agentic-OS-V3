@@ -17,7 +17,7 @@ mod tui;
 
 #[derive(Parser)]
 #[command(name = "nexus-cli", version, about = "NEXUS Agentic OS command line client")]
-struct Cli {
+pub struct Cli {
   /// Base URL of the NEXUS API.
   #[arg(long, env = "NEXUS_URL", default_value = "http://localhost:8787")]
   url: String,

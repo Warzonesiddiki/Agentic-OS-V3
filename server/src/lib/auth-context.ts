@@ -2,12 +2,13 @@
  * auth-context.ts — per-request principal + scope enforcement.
  */
 import type { Context } from 'hono';
-import { authenticate, type Principal, type Scope } from './security.js';
+import { authenticate, hasScope, type Principal, type Scope } from './security.js';
 export type { Scope } from './security.js';
 import { db } from '../db/client.js';
 import { err } from './envelope.js';
 import { ApiError } from './errors.js';
 import type { NexusEnv } from './hono-env.js';
+import { isKillSwitchOn, assertOperational } from '../services/safety.service.js';
 
 export async function resolvePrincipal(c: Context<NexusEnv>): Promise<Principal | null> {
   // Reuse the principal the auth backstop already resolved (mutations), instead
@@ -25,7 +26,7 @@ export async function resolvePrincipal(c: Context<NexusEnv>): Promise<Principal 
 export async function requireScope(c: Context, scope: Scope) {
   const principal = await resolvePrincipal(c);
   if (!principal) throw new ApiError('UNAUTHORIZED', 'Authentication required.');
-  if (!principal.scopes.includes(scope))
+  if (!hasScope(principal.scopes, scope))
     throw new ApiError('FORBIDDEN', `Missing required scope: ${scope}`);
   return principal;
 }
@@ -54,9 +55,36 @@ export function fail(c: Context, e: unknown) {
   if (e instanceof ApiError) {
     return c.json(
       err(e.code, e.message, traceId, e.status),
-      e.status as Parameters<typeof c.json>[1]
+      e.status as Parameters<typeof c.json>[1],
     );
   }
   const msg = e instanceof Error ? e.message : 'Internal error';
   return c.json(err('INTERNAL_ERROR', msg, traceId), 500);
+}
+
+/**
+ * Enforce a scope AND the global kill-switch before allowing a (potentially
+ * mutating) operation. Throws:
+ *   - ApiError('UNAUTHORIZED') if no principal
+ *   - ApiError('FORBIDDEN') if the principal lacks `scope`
+ *   - ApiError('KILL_SWITCH_ENGAGED', 423) if the kill-switch is engaged
+ *   - ApiError('SAFETY_KILL_SWITCH') if assertOperational fails (kill-switch on)
+ *
+ * `opts.killSwitch === false` skips the kill-switch gate (scope-only check).
+ * All failures THROW (they are not returned as a discarded Response) so that
+ * callers using `await requireScopeThroughKillSwitch(c, scope)` cannot
+ * accidentally proceed past a failed guard.
+ */
+export async function requireScopeThroughKillSwitch(
+  c: Context,
+  scope: Scope,
+  opts: { killSwitch?: boolean } = {},
+): Promise<Principal> {
+  const principal = await requireScope(c, scope);
+  if (opts?.killSwitch !== false) {
+    if (await isKillSwitchOn())
+      throw new ApiError('KILL_SWITCH_ENGAGED', 'Service is locked (kill-switch engaged).');
+  }
+  await assertOperational(`${c.req.method} ${c.req.path}`);
+  return principal;
 }

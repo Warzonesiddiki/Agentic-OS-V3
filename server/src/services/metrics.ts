@@ -182,6 +182,8 @@ interface ExportedMetric {
   name: string;
   metric: promClient.Gauge<string>;
   labelNames: string[];
+  /** Cached normalized-label -> original-key map (built once at creation). */
+  labelKeyMap: Map<string, string>;
 }
 
 const _exportMetrics = new Map<string, ExportedMetric>();
@@ -194,17 +196,20 @@ function normalizeLabelName(key: string): string {
     .toLowerCase();
 }
 
+/** Build a normalized-label -> original-key map once (hot-path avoids re-scanning). */
+function buildLabelKeyMap(labels: Record<string, string>): Map<string, string> {
+  const m = new Map<string, string>();
+  for (const k of Object.keys(labels)) {
+    const nk = normalizeLabelName(k);
+    if (nk.length > 0) m.set(nk, k);
+  }
+  return m;
+}
+
 export function recordExport(name: string, value: number, labels?: Record<string, string>): void {
   if (!Number.isFinite(value)) return;
   const safeName = name.replace(/[^a-zA-Z0-9_:]/g, '_').replace(/^_+|_+$/g, '');
   if (!safeName) return;
-
-  const labelNames = labels
-    ? Object.keys(labels)
-        .map(normalizeLabelName)
-        .filter((k) => k.length > 0)
-        .slice(0, 16)
-    : [];
 
   let entry = _exportMetrics.get(safeName);
   if (!entry) {
@@ -212,20 +217,26 @@ export function recordExport(name: string, value: number, labels?: Record<string
       // Bound memory: refuse to allocate beyond the cap rather than leak.
       return;
     }
+    const labelNames: string[] = [];
+    const labelKeyMap = labels ? buildLabelKeyMap(labels) : new Map();
+    for (const nk of labelKeyMap.keys()) {
+      if (labelNames.length < 16) labelNames.push(nk);
+    }
     const metric = new promClient.Gauge({
       name: `nexus_export_${safeName}`,
       help: `Exported metric: ${safeName}`,
       labelNames,
       registers: [getRegistry()],
     });
-    entry = { name: `nexus_export_${safeName}`, metric, labelNames };
+    entry = { name: `nexus_export_${safeName}`, metric, labelNames, labelKeyMap };
     _exportMetrics.set(safeName, entry);
   }
 
   if (entry.labelNames.length > 0 && labels) {
+    // Reuse the cached labelKeyMap — no per-call re-normalization or find scan.
     const labelValues: Record<string, string> = {};
     for (const ln of entry.labelNames) {
-      const original = Object.keys(labels).find((k) => normalizeLabelName(k) === ln);
+      const original = entry.labelKeyMap.get(ln);
       labelValues[ln] = original ? String(labels[original]) : '';
     }
     entry.metric.set(labelValues, value);

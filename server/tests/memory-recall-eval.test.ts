@@ -35,12 +35,11 @@ import {
   getRecallFeedbackStats,
 } from '../src/services/federated-recall.js';
 import { activeLearningSample } from '../src/services/memory-clustering.js';
-import { listContradictions, contradictionsAmong } from '../src/services/memory-contradiction.js';
+import { contradictionsAmong } from '../src/services/memory-contradiction.js';
 
 // ─── Mocked DB-backed collaborators (import for spy targets) ───────────────
 import * as dbClient from '../src/db/client.js';
 import * as contradictionModule from '../src/services/memory-contradiction.js';
-import { memories as memoriesTable } from '../src/db/schema.js';
 
 vi.mock('../src/db/client.js', () => ({
   db: {
@@ -70,15 +69,21 @@ vi.mock('../src/services/embeddings.js', () => ({
 }));
 
 function mockLocalRows(rows: any[]) {
-  const chainFor = (table: any): any => ({
-    from: (t: any) => chainFor(t),
-    where: () => chainFor(table),
-    orderBy: () => chainFor(table),
-    limit: () => Promise.resolve(table === memoriesTable ? rows : []),
+  const chainFor = (resolveRows: boolean): any => ({
+    from: () => chainFor(resolveRows),
+    where: () => chainFor(resolveRows),
+    orderBy: () => chainFor(resolveRows),
+    limit: () => Promise.resolve(resolveRows ? rows : []),
     then: (_resolve?: any, _reject?: any) =>
-      Promise.resolve(table === memoriesTable ? rows : []).then(_resolve, _reject),
+      Promise.resolve(resolveRows ? rows : []).then(_resolve, _reject),
   });
-  (dbClient.db.select as any).mockImplementation(() => chainFor(memoriesTable));
+  let call = 0;
+  (dbClient.db.select as any).mockImplementation(() => {
+    // Promise.all in searchLocal resolves [memories, skills, notes] in that order
+    const resolveRows = call === 0;
+    call += 1;
+    return chainFor(resolveRows);
+  });
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -280,27 +285,26 @@ describe('budget packing (top-N fits token budget)', () => {
     vi.restoreAllMocks();
   });
 
-  function mkItem(id: string, tokens: number, score: number) {
-    return { id, score, tokenCost: tokens, type: 'memory' as const, title: id, content: '', source: 's', importance: 0.5, recency: 0.5, matchedBy: ['bm25' as const] };
+  function mkItem(id: string, _tokens: number, score: number, content: string) {
+    return { id, score, kind: 'note', title: id, content, tags: [], importance: score, source: 's', updatedAt: new Date() };
   }
 
   it('never exceeds the token budget and reports truncated count', async () => {
-    const now = new Date();
+    // each item ≈ 50 tokens (200 chars / 4); budget 120 → at most 2 fit
     const rows = [
-      mkItem('m1', 100, 0.9),
-      mkItem('m2', 100, 0.8),
-      mkItem('m3', 100, 0.7),
-      mkItem('m4', 100, 0.6),
-      mkItem('m5', 100, 0.5),
-    ].map((it) => ({ ...it, kind: 'note', title: it.id, content: 'xx '.repeat(it.tokenCost * 4), tags: [], importance: it.score, source: 's', updatedAt: now }));
+      mkItem('m1', 100, 0.9, 'xx '.repeat(67)),
+      mkItem('m2', 100, 0.8, 'xx '.repeat(67)),
+      mkItem('m3', 100, 0.7, 'xx '.repeat(67)),
+      mkItem('m4', 100, 0.6, 'xx '.repeat(67)),
+      mkItem('m5', 100, 0.5, 'xx '.repeat(67)),
+    ];
 
     mockLocalRows(rows);
     vi.spyOn(contradictionModule, 'contradictionsAmong').mockResolvedValue([] as any);
 
     const fr = new FederatedRecall();
-    const result = await fr.search({ text: 'xx', budget: 250, actor: 'tester', options: { noCache: true } });
-
-    expect(result.tokensUsed).toBeLessThanOrEqual(250);
+    const result = await fr.search({ text: 'xx', budget: 120, actor: 'tester', options: { noCache: true } });
+    expect(result.tokensUsed).toBeLessThanOrEqual(120);
     expect(result.returned.length).toBeLessThanOrEqual(2);
     const ids = result.returned.map((r) => r.id);
     expect(ids).toContain('m1');
@@ -309,11 +313,10 @@ describe('budget packing (top-N fits token budget)', () => {
   });
 
   it('fits the whole set when budget is large', async () => {
-    const now = new Date();
     const rows = [
-      mkItem('m1', 50, 0.9),
-      mkItem('m2', 50, 0.8),
-    ].map((it) => ({ ...it, kind: 'note', title: it.id, content: 'xx '.repeat(it.tokenCost * 4), tags: [], importance: it.score, source: 's', updatedAt: now }));
+      mkItem('m1', 50, 0.9, 'xx '.repeat(67)),
+      mkItem('m2', 50, 0.8, 'xx '.repeat(67)),
+    ];
 
     mockLocalRows(rows);
     vi.spyOn(contradictionModule, 'contradictionsAmong').mockResolvedValue([] as any);

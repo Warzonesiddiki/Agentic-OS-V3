@@ -55,7 +55,7 @@ describe('sse-bus fan-out benchmark', () => {
     expect(p95).toBeLessThan(50);
 
     const avg = latencies.reduce((s, v) => s + v, 0) / latencies.length;
-    // eslint-disable-next-line no-console
+     
     console.log(
       `[sse-bus bench] N=${N} iters=${iterations} avg=${avg.toFixed(4)}ms p95=${p95.toFixed(4)}ms`
     );

@@ -2,7 +2,6 @@ import { log } from '../lib/logging.js';
 import { getEnv } from '../lib/env.js';
 
 const isSqlite = !(getEnv().DATABASE_URL || '').startsWith('postgres');
-import { db } from '../db/client.js';
 
 export type SpanType = 'agent_span' | 'tool_span' | 'llm_span' | 'handoff_span';
 export type SpanStatus = 'ok' | 'error' | 'cancelled';
@@ -207,5 +206,75 @@ export class MultiSpanExporter implements SpanExporter {
 
   async shutdown(): Promise<void> {
     await Promise.all(this._exporters.map((e) => e.shutdown()));
+  }
+}
+
+/**
+ * BatchedSpanProcessor — buffers finished spans and flushes them in batches.
+ *
+ * A naive processor exports every span the instant it ends, which means one
+ * DB insert / one OTLP POST per span. Under a hot trace path that is thousands
+ * of tiny writes/sec, each paying serialization + network latency. Batching
+ * amortizes that cost: spans accumulate in an array and are flushed when the
+ * buffer reaches `maxBatchSize` or `maxBatchDelayMs` elapses. The buffer is a
+ * reused array; on flush we swap in a fresh array so the exporter drains the
+ * snapshot without blocking concurrent `onEnd` calls.
+ */
+export class BatchedSpanProcessor implements SpanProcessor {
+  private _buffer: ExportedSpan[] = [];
+  private _timer: ReturnType<typeof setTimeout> | null = null;
+  private _shutdownFlag = false;
+  private _flushChain: Promise<void> = Promise.resolve();
+
+  constructor(
+    private readonly _exporter: SpanExporter,
+    private readonly _options: { maxBatchSize?: number; maxBatchDelayMs?: number } = {}
+  ) {}
+
+  onStart(_span: unknown): void {
+    // no-op: sampling/start work is done by the tracer
+  }
+
+  onEnd(span: unknown): void {
+    if (this._shutdownFlag) return;
+    this._buffer.push(span as ExportedSpan);
+    const maxBatch = this._options.maxBatchSize ?? 64;
+    if (this._buffer.length >= maxBatch) {
+      void this.forceFlush();
+      return;
+    }
+    if (!this._timer) {
+      const delay = this._options.maxBatchDelayMs ?? 1000;
+      this._timer = setTimeout(() => {
+        this._timer = null;
+        void this.forceFlush();
+      }, delay);
+    }
+  }
+
+  async forceFlush(): Promise<void> {
+    if (this._buffer.length === 0) return;
+    // Swap out the live buffer so concurrent onEnd calls append to a fresh array.
+    const batch = this._buffer;
+    this._buffer = [];
+    this._flushChain = this._flushChain.then(() =>
+      this._exporter.export(batch).catch((e) => {
+        log.warn('batched_span_export_failed', {
+          count: batch.length,
+          error: e instanceof Error ? e.message : String(e),
+        });
+      })
+    );
+    await this._flushChain;
+  }
+
+  async shutdown(): Promise<void> {
+    this._shutdownFlag = true;
+    if (this._timer) {
+      clearTimeout(this._timer);
+      this._timer = null;
+    }
+    await this.forceFlush();
+    await this._exporter.shutdown();
   }
 }

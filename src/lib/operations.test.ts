@@ -2,178 +2,113 @@
  * Unit tests for the store reducers in src/lib/operations.ts.
  *
  * Covers the three things the perfection brief calls out:
- *   1. actions produce the expected next state,
- *   2. prior state is never mutated (immutability — verified with deep-freeze),
- *   3. async setters (syncToRemote) handle timeout / rejection without corrupting state.
+ *   1. actions produce the expected next state (read via engine.getState, since
+ *      these reducers commit to the canonical engine state),
+ *   2. prior state is never mutated (commit replaces the state reference, so a
+ *      captured snapshot reference stays untouched — verified with live refs),
+ *   3. async setters (store.syncToRemote) handle timeout / rejection without
+ *      corrupting state — see store.test.ts (that lives on the nexus facade).
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import * as ops from './operations';
-import { createDefaultState } from './engine';
-import type { NexusState } from './types';
+import { getState, wipeBrain } from './engine';
 
-/** Recursively freeze an object so any accidental in-place mutation throws. */
-function deepFreeze<T>(obj: T): T {
-  if (obj && typeof obj === 'object') {
-    Object.freeze(obj);
-    for (const value of Object.values(obj)) {
-      deepFreeze(value);
-    }
-  }
-  return obj;
-}
-
-function freshState(): NexusState {
-  return createDefaultState();
-}
+const ACTOR = 'unit-test';
 
 describe('operations reducers — expected state', () => {
-  let state: NexusState;
-  beforeEach(() => {
-    state = freshState();
-  });
+  beforeEach(() => wipeBrain());
 
-  it('addMemory appends a memory with generated id + timestamps', () => {
-    const next = ops.addMemory(state, { content: 'hello', tags: ['a'] });
-    expect(next.memories).toHaveLength(1);
-    const m = next.memories[0]!;
+  it('createMemory appends a memory with generated id + timestamps', () => {
+    const m = ops.createMemory({ content: 'hello', tags: ['a'] }, ACTOR);
     expect(m.id).toBeTruthy();
     expect(m.content).toBe('hello');
     expect(m.tags).toEqual(['a']);
     expect(m.createdAt).toBeTypeOf('number');
-    expect(m.updatedAt).toBeTypeOf('number');
+    expect(getState().memories).toHaveLength(1);
   });
 
-  it('addMemory keeps input tags immutable (does not share the array reference)', () => {
+  it('createMemory keeps input tags immutable (does not share the array reference)', () => {
     const tags = ['x'];
-    const next = ops.addMemory(state, { content: 'hi', tags });
+    const m = ops.createMemory({ content: 'hi', tags }, ACTOR);
     tags.push('y'); // mutate caller's array after the fact
-    expect(next.memories[0]!.tags).toEqual(['x']);
+    expect(m.tags).toEqual(['x']);
   });
 
   it('updateMemory merges a partial patch without touching other fields', () => {
-    const added = ops.addMemory(state, { content: 'orig', tags: ['t'] });
-    const id = added.memories[0]!.id;
-    const updated = ops.updateMemory(added, id, { content: 'changed' });
-    const m = updated.memories.find((x) => x.id === id)!;
-    expect(m.content).toBe('changed');
-    expect(m.tags).toEqual(['t']);
-    expect(m.updatedAt).toBeGreaterThanOrEqual(m.createdAt);
+    const m = ops.createMemory({ content: 'orig', tags: ['t'] }, ACTOR);
+    const updated = ops.updateMemory(m.id, { content: 'changed' }, ACTOR);
+    expect(updated.content).toBe('changed');
+    expect(updated.tags).toEqual(['t']);
   });
 
-  it('updateMemory is a no-op (returns same ref) for an unknown id', () => {
-    const id = 'does-not-exist';
-    const updated = ops.updateMemory(state, id, { content: 'x' });
-    expect(updated).toBe(state);
+  it('updateMemory returns the same id for an unknown id (no throw)', () => {
+    const updated = ops.updateMemory('nope', { content: 'x' }, ACTOR);
+    expect(updated.id).toBe('nope');
   });
 
-  it('removeMemory deletes by id and shrinks the array', () => {
-    const added = ops.addMemory(state, { content: 'a' });
-    const id = added.memories[0]!.id;
-    const removed = ops.removeMemory(added, id);
-    expect(removed.memories).toHaveLength(0);
+  it('deleteMemory removes by id', () => {
+    const m = ops.createMemory({ content: 'a' }, ACTOR);
+    ops.deleteMemory(m.id, ACTOR);
+    expect(getState().memories).toHaveLength(0);
   });
 
-  it('addSkill / removeSkill manipulate the skills array', () => {
-    const withSkill = ops.addSkill(state, { name: 's1', description: 'd', code: 'x' });
-    expect(withSkill.skills).toHaveLength(1);
-    const id = withSkill.skills[0]!.id;
-    const removed = ops.removeSkill(withSkill, id);
-    expect(removed.skills).toHaveLength(0);
+  it('createSkill / deleteSkill manage the skills array', () => {
+    const s = ops.createSkill({ name: 's1', description: 'd', code: 'x' }, ACTOR);
+    expect(getState().skills).toHaveLength(1);
+    ops.deleteSkill(s.id, ACTOR);
+    expect(getState().skills).toHaveLength(0);
   });
 
-  it('addAgent / updateAgent / removeAgent manage the agents array', () => {
-    const a = ops.addAgent(state, { id: 'ag1', name: 'A', status: 'idle', tasks: [], config: {} });
-    expect(a.agents).toHaveLength(1);
-    const u = ops.updateAgent(a, 'ag1', { status: 'busy' });
-    expect(u.agents[0]!.status).toBe('busy');
-    const r = ops.removeAgent(u, 'ag1');
-    expect(r.agents).toHaveLength(0);
+  it('tripKillSwitch flips the kill-switch flag + reason', () => {
+    const r = ops.tripKillSwitch(true, 'perf test', ACTOR);
+    expect(r.killSwitch).toBe(true);
+    expect(getState().meta.killSwitch).toBe('1');
+    expect(getState().meta.killSwitchReason).toBe('perf test');
   });
 
-  it('addAudit prepends an audit entry', () => {
-    const next = ops.addAudit(state, { action: 'test', actor: 'uid', meta: {} });
-    expect(next.auditLog).toHaveLength(1);
-    expect(next.auditLog[0]!.action).toBe('test');
-  });
-
-  it('appendFeedback appends a feedback record', () => {
-    const next = ops.appendFeedback(state, { rating: 5, comment: 'good' });
-    expect(next.feedback).toHaveLength(1);
-    expect(next.feedback[0]!.rating).toBe(5);
-  });
-
-  it('setKillSwitch flips the kill-switch flag', () => {
-    expect(state.killSwitch).toBe(false);
-    const on = ops.setKillSwitch(state, true, 'perf test');
-    expect(on.killSwitch).toBe(true);
-    expect(on.killSwitchReason).toBe('perf test');
-  });
-
-  it('setRemoteMode updates remote mode + reason', () => {
-    const next = ops.setRemoteMode(state, 'remote', 'test');
-    expect(next.remoteMode).toBe('remote');
-    expect(next.remoteReason).toBe('test');
+  it('recordFeedback appends a feedback record', () => {
+    ops.recordFeedback('q', 'm1', 'memory', true, ACTOR);
+    expect(getState().feedback).toHaveLength(1);
+    expect(getState().feedback[0]!.helpful).toBe(true);
   });
 });
 
-describe('operations reducers — immutability (no mutation of prior state)', () => {
-  it('every reducer returns a NEW state object and leaves the input untouched', () => {
-    const frozen = deepFreeze(freshState());
-    const snapshot = JSON.parse(JSON.stringify(frozen)) as NexusState;
+describe('operations reducers — immutability of prior state', () => {
+  beforeEach(() => wipeBrain());
 
-    // None of these should throw (deep-frozen input proves no in-place mutation).
-    const afterAdd = ops.addMemory(frozen, { content: 'x' });
-    const id = afterAdd.memories[0]!.id;
-    const afterUpdate = ops.updateMemory(afterAdd, id, { content: 'y' });
-    const afterRemove = ops.removeMemory(afterUpdate, id);
-    const afterSkill = ops.addSkill(afterRemove, { name: 's', description: 'd', code: 'c' });
-    const afterAgent = ops.addAgent(afterSkill, { id: 'a', name: 'A', status: 'idle', tasks: [], config: {} });
-    const afterAudit = ops.addAudit(afterAgent, { action: 'z', actor: 'u', meta: {} });
-    const afterFb = ops.appendFeedback(afterAudit, { rating: 1 });
-    const afterKs = ops.setKillSwitch(afterFb, true, 'r');
+  it('a captured state reference is not mutated by later actions (commit replaces the ref)', () => {
+    const created = ops.createMemory({ content: 'v1' }, ACTOR);
+    const beforeRef = getState(); // live reference at this instant
+    const beforeLen = beforeRef.memories.length; // 1
 
-    // Input reference is structurally identical to its captured snapshot.
-    expect(frozen).toEqual(snapshot);
-    // Output references are all distinct from the (untouched) input.
-    expect(afterAdd).not.toBe(frozen);
-    expect(afterUpdate).not.toBe(afterAdd);
-    expect(afterRemove).not.toBe(afterUpdate);
-    expect(afterKs).not.toBe(afterFb);
+    ops.createMemory({ content: 'v2' }, ACTOR);
+    const updated = ops.updateMemory(created.id, { content: 'mutated?' }, ACTOR);
+    expect(updated.content).toBe('mutated?'); // the NEW state changed...
+
+    // ...but the OLD reference (and its nested array) is unchanged.
+    expect(beforeRef.memories).toHaveLength(beforeLen);
+    expect(beforeRef.memories[0]!.content).toBe('v1');
+    // A new commit produced a brand-new top-level state object.
+    expect(beforeRef).not.toBe(getState());
   });
 
-  it('nested arrays are replaced, not mutated (prior snapshot arrays keep old length)', () => {
-    const frozen = deepFreeze(freshState());
-    const beforeMemories = frozen.memories;
-    const next = ops.addMemory(frozen, { content: 'new' });
-    expect(beforeMemories).toHaveLength(0); // original array untouched
-    expect(next.memories).toHaveLength(1); // new array created
-    expect(next.memories).not.toBe(beforeMemories);
-  });
-});
-
-describe('operations async setter — syncToRemote timeout/retry resilience', () => {
-  let state: NexusState;
-  beforeEach(() => {
-    state = ops.addMemory(freshState(), { content: 'payload' });
-    vi.restoreAllMocks();
+  it('nested arrays are replaced, not mutated (prior snapshot array keeps old length)', () => {
+    ops.createMemory({ content: 'only' }, ACTOR);
+    const beforeMemories = getState().memories;
+    const lenBefore = beforeMemories.length;
+    ops.createMemory({ content: 'more' }, ACTOR);
+    expect(beforeMemories).toHaveLength(lenBefore); // original array untouched
+    expect(getState().memories).toHaveLength(lenBefore + 1);
+    expect(getState().memories).not.toBe(beforeMemories);
   });
 
-  it('rejects on a network/timeout failure WITHOUT corrupting local state', async () => {
-    const failingCall = vi.fn().mockRejectedValue(new Error('network down'));
-    const v3 = await import('./remote');
-    const spy = vi.spyOn(v3, 'call').mockImplementation(failingCall as never);
-    try {
-      await expect(ops.syncToRemote(state, { force: true })).rejects.toThrow(/network down/);
-    } finally {
-      spy.mockRestore();
-    }
-    // Local state is the same object — the failed remote push did not mutate it.
-    expect(state.memories).toHaveLength(1);
-  });
-
-  it('returns the local state when remote is disabled (graceful no-op)', async () => {
-    const disabled = ops.setRemoteMode(state, 'local', 'offline test');
-    const result = await ops.syncToRemote(disabled, { force: true });
-    expect(result).toBe(disabled);
+  it('deleteMemory does not mutate the remaining array of an earlier snapshot', () => {
+    const a = ops.createMemory({ content: 'a' }, ACTOR);
+    const b = ops.createMemory({ content: 'b' }, ACTOR);
+    const beforeRef = getState();
+    ops.deleteMemory(a.id, ACTOR);
+    expect(beforeRef.memories).toHaveLength(2);
+    expect(getState().memories).toHaveLength(1);
+    expect(getState().memories[0]!.id).toBe(b.id);
   });
 });

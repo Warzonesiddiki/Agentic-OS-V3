@@ -124,14 +124,20 @@ export async function buildMemoryGraph(
   const linkRows = await db.select().from(sessionLinks);
   for (const l of linkRows) {
     const sid = `session:${l.fromSession}`;
-    if (!nodes.some((n) => n.id === sid)) {
-      nodes.push({
-        id: sid,
-        label: `session ${l.fromSession.slice(0, 8)}`,
-        kind: 'session' as const,
-      });
+    const tid = `session:${l.toSession}`;
+    for (const [id, label] of [
+      [sid, l.fromSession],
+      [tid, l.toSession],
+    ] as [string, string][]) {
+      if (!nodes.some((n) => n.id === id)) {
+        nodes.push({
+          id,
+          label: `session ${label.slice(0, 8)}`,
+          kind: 'session' as const,
+        });
+      }
     }
-    edges.push({ source: sid, target: l.toSession, relation: 'links' });
+    edges.push({ source: sid, target: tid, relation: 'links' });
   }
 
   return sanitizeGraph({ nodes, edges });
