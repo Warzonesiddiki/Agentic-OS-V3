@@ -112,7 +112,6 @@ describe('nexus facade — async syncToRemote resilience (timeout/retry)', () =>
 
   it('does not throw when pushed locally (remote disabled no-op returns ok)', async () => {
     setRemote({ enabled: false, baseUrl: '', mode: 'local' });
-    setRemoteMode('local', 'offline');
     nexus.createMemory({ content: 'x' });
     const res = await syncToRemote({ force: true });
     expect(res.ok).toBe(true);

@@ -40,7 +40,7 @@ export async function recordMemoryInfluence(input: InfluenceInput): Promise<Stor
   await db.insert(table).values({
     id,
     memoryId: input.memoryId,
-    contextKey: input.contextKey,
+    contextKey: escapeHtml(input.contextKey),
     reason: input.reason,
     tokens: input.tokens,
     position: input.position,

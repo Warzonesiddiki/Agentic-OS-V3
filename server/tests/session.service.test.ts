@@ -5,15 +5,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('../src/db/client.js', () => {
-  const chain = (rows: unknown[] = [{ enabled: false, reason: 'r', setAt: 1, setBy: 'x' }]) => {
-    const o: any = {};
-    o.from = () => o;
-    o.where = () => o;
-    o.limit = () => Promise.resolve(rows);
-    o.findFirst = () => Promise.resolve(rows[0] ?? null);
-    o.findMany = () => Promise.resolve(rows);
-    return o;
-  };
   const upd = () => ({ set: () => ({ where: () => Promise.resolve() }) });
   const insMock = () => ({ values: () => ({ onConflictDoUpdate: () => Promise.resolve() }) });
   const txMock: any = {

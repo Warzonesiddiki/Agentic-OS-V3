@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
+import { AgentRuntime } from "../src/services/agent-loop.js";
+import { createDefaultActions } from "../src/services/action-registry.js";
 
 const appendAudit = vi.fn(async () => {});
 vi.mock("../src/lib/audit.js", () => ({

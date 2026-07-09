@@ -23,28 +23,31 @@ const cfg = {
   canaryPaths: ['/canary'],
 };
 
+// Fixed "now" so the event timestamps fall inside the detection window.
+const NOW = 1_700_000_000_000;
+
 function fsEv(over: Record<string, unknown>): any {
-  return { op: 'write', path: '/data/x', agentId: 'a1', entropy: 0.5, ts: 1_700_000_000_000, ...over };
+  return { op: 'write', path: '/data/x', agentId: 'a1', entropy: 0.5, ts: NOW, ...over };
 }
 
 describe('scoreEvents (pure)', () => {
   it('returns none for a calm workload', () => {
     const events = Array.from({ length: 3 }, (_, i) => fsEv({ path: `/d/${i}`, entropy: 0.4, op: 'read' }));
-    const a = scoreEvents(events, cfg, events[0].ts);
+    const a = scoreEvents(events, cfg, NOW);
     expect(a.level).toBe('none');
     expect(a.score).toBe(0);
   });
 
   it('scores suspicious on a burst of high-entropy writes', () => {
     const events = Array.from({ length: 10 }, (_, i) => fsEv({ path: `/d/${i}`, op: 'write', entropy: 0.98 }));
-    const a = scoreEvents(events, cfg, Date.now());
+    const a = scoreEvents(events, cfg, NOW);
     expect(a.level).toBe('suspicious');
     expect(a.score).toBeGreaterThanOrEqual(40);
   });
 
   it('scores suspicious on a single canary-path tamper', () => {
     const events = [fsEv({ path: '/canary/secret.txt', op: 'write' })];
-    const a = scoreEvents(events, cfg, Date.now());
+    const a = scoreEvents(events, cfg, NOW);
     expect(a.level).toBe('suspicious');
     expect(a.reasons.join(',')).toContain('canary-tamper');
   });
@@ -52,7 +55,7 @@ describe('scoreEvents (pure)', () => {
   it('scores critical on canary tamper + ransom-extension burst', () => {
     const events = Array.from({ length: 10 }, (_, i) => fsEv({ path: `/d/${i}.crypt`, op: 'rename', entropy: 0.98 }));
     events.push(fsEv({ path: '/canary/secret.txt', op: 'write' }));
-    const a = scoreEvents(events, cfg, Date.now());
+    const a = scoreEvents(events, cfg, NOW);
     expect(a.level).toBe('critical');
     expect(a.score).toBe(100);
   });
@@ -83,8 +86,8 @@ describe('RansomwareDetector.ingest', () => {
 
   it('de-duplicates alerts within the window (no double forward)', async () => {
     const d = new RansomwareDetector(cfg, null);
-    await d.ingest(fsEv({ path: '/canary/secret.txt', op: 'write', ts: 1_000 }));
-    await d.ingest(fsEv({ path: '/canary/secret.txt', op: 'write', ts: 1_500 }));
+    await d.ingest(fsEv({ path: '/canary/secret.txt', op: 'write', ts: NOW }));
+    await d.ingest(fsEv({ path: '/canary/secret.txt', op: 'write', ts: NOW + 1_500 }));
     expect(mockedForward).toHaveBeenCalledTimes(1);
   });
 

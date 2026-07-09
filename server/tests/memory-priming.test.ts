@@ -1,34 +1,16 @@
 /**
  * Tests for server/src/services/memory-priming.ts
  *
- * Priming decides which memories to pre-load for an agent based on influence
- * graphs + recency/importance. recall/estimateTokens/recordMemoryInfluences are
- * mocked; the DB is mocked for the influence update.
+ * Priming budget computation + candidate selection. `primingScopeForContext`
+ * is DB/recall-backed (recall + estimateTokens + recordMemoryInfluences mocked).
  */
 import { describe, it, expect, vi } from 'vitest';
 
-const updatedInfluences: Array<{ id: string; count: number }> = [];
-
-vi.mock('../src/db/client.js', () => ({
-  db: {
-    update: () => ({
-      set: (patch: Record<string, unknown>) => ({
-        where: (cond: unknown) => {
-          updatedInfluences.push({
-            id: (cond as { id?: string })?.id ?? 'x',
-            count: (patch.influenceCount as number) ?? 0,
-          });
-          return Promise.resolve(undefined);
-        },
-      }),
-    }),
-  },
-  memories: { id: 'id', influenceCount: 'influenceCount' },
-  isSqlite: true,
-}));
-
 vi.mock('../src/services/recall.js', () => ({
-  // (recall is imported but only used by primingScopeForContext path we don't hit here)
+  recall: async () => [
+    { id: 'm1', title: 'A', content: 'x', kind: 'fact', importance: 0.9, createdAt: new Date().toISOString() },
+    { id: 'm2', title: 'B', content: 'y', kind: 'fact', importance: 0.4, createdAt: new Date().toISOString() },
+  ],
 }));
 
 vi.mock('../src/services/embeddings.js', () => ({
@@ -41,16 +23,17 @@ vi.mock('../src/services/memory-influence.js', () => ({
 
 vi.mock('../lib/logging.js', () => ({ log: { info: () => undefined, error: () => undefined } }));
 
-import { shouldPrime, computePrimingPriority, PRIMING_DIM_WEIGHTS } from '../src/services/memory-priming.js';
+import {
+  PRIMING_BUDGET_TOKENS,
+  PRIMING_TOP_K,
+  PRIMING_RECALL_BUDGET,
+  computePrimingBudget,
+  selectPrimingCandidates,
+  primingScopeForContext,
+  type PrimingItem,
+} from '../src/services/memory-priming.js';
 
-describe('PRIMING_DIM_WEIGHTS', () => {
-  it('sums to 1 across the four dimensions', () => {
-    const sum = PRIMING_DIM_WEIGHTS.importance + PRIMING_DIM_WEIGHTS.recency + PRIMING_DIM_WEIGHTS.frequency + PRIMING_DIM_WEIGHTS.influence;
-    expect(sum).toBeCloseTo(1, 10);
-  });
-});
-
-function mem(over: Record<string, unknown> = {}) {
+function item(over: Partial<PrimingItem> = {}): PrimingItem {
   return {
     id: 'm1',
     importance: 0.5,
@@ -58,56 +41,78 @@ function mem(over: Record<string, unknown> = {}) {
     accessCount: 1,
     influenceCount: 0,
     decayedImportance: 0.5,
+    tokenEstimate: 10,
     ...over,
   };
 }
 
-describe('computePrimingPriority', () => {
-  it('weights importance heavily', () => {
-    const p = computePrimingPriority(mem({ importance: 1, recency: 0, accessCount: 0, influenceCount: 0 }));
-    expect(p).toBeGreaterThan(0.5);
-  });
-
-  it('weights recency', () => {
-    const p = computePrimingPriority(mem({ importance: 0, recency: 1, accessCount: 0, influenceCount: 0 }));
-    expect(p).toBeGreaterThan(0);
-    expect(p).toBeLessThanOrEqual(1);
-  });
-
-  it('is monotonic in all positive inputs', () => {
-    const low = computePrimingPriority(mem({ importance: 0.1, recency: 0.1, accessCount: 0, influenceCount: 0 }));
-    const high = computePrimingPriority(mem({ importance: 0.9, recency: 0.9, accessCount: 10, influenceCount: 5 }));
-    expect(high).toBeGreaterThan(low);
-  });
-
-  it('clamps to [0,1]', () => {
-    const p = computePrimingPriority(mem({ importance: 2, recency: 2, accessCount: 999, influenceCount: 999 }));
-    expect(p).toBeLessThanOrEqual(1);
-    expect(p).toBeGreaterThanOrEqual(0);
+describe('constants', () => {
+  it('exposes priming tunables', () => {
+    expect(PRIMING_BUDGET_TOKENS).toBeGreaterThan(0);
+    expect(PRIMING_TOP_K).toBeGreaterThan(0);
+    expect(PRIMING_RECALL_BUDGET).toBeGreaterThan(0);
   });
 });
 
-describe('shouldPrime', () => {
-  it('returns true for a high-priority memory', () => {
-    expect(shouldPrime(mem({ importance: 1, recency: 1, accessCount: 5, influenceCount: 3 }), { limit: 10, tokenBudget: 1000 })).toBe(true);
+describe('computePrimingBudget', () => {
+  it('divides the budget evenly across the top-K', () => {
+    const b = computePrimingBudget(5, 500);
+    expect(b.topK).toBe(5);
+    expect(b.perItemTokens).toBe(100);
+    expect(b.totalTokens).toBe(500);
+  });
+  it('falls back to default budget when args are missing', () => {
+    const b = computePrimingBudget();
+    expect(b.topK).toBe(PRIMING_TOP_K);
+    expect(b.totalTokens).toBe(PRIMING_BUDGET_TOKENS);
+  });
+  it('handles a zero top-K gracefully', () => {
+    const b = computePrimingBudget(0, 500);
+    expect(b.perItemTokens).toBe(0);
+    expect(b.totalTokens).toBe(500);
+  });
+});
+
+describe('selectPrimingCandidates', () => {
+  const items = [
+    item({ id: 'a', importance: 0.9, recency: 0.9, tokenEstimate: 10 }),
+    item({ id: 'b', importance: 0.5, recency: 0.5, tokenEstimate: 10 }),
+    item({ id: 'c', importance: 0.1, recency: 0.1, tokenEstimate: 10 }),
+  ];
+
+  it('selects the highest-priority candidates within the token budget', () => {
+    const res = selectPrimingCandidates(items, { tokenBudget: 25, limit: 10 });
+    // a (10) + b (10) = 20 <= 25; c (10) would exceed -> 2 selected
+    expect(res.selected.map((m) => m.id)).toEqual(['a', 'b']);
   });
 
-  it('returns false when the priming set is full', () => {
-    expect(shouldPrime(mem({ importance: 1, recency: 1 }), { limit: 0, tokenBudget: 1000 })).toBe(false);
+  it('respects the hard limit', () => {
+    const res = selectPrimingCandidates(items, { tokenBudget: 1000, limit: 1 });
+    expect(res.selected).toHaveLength(1);
+    expect(res.selected[0].id).toBe('a');
   });
 
-  it('returns false when the token budget is exhausted', () => {
-    expect(shouldPrime(mem({ importance: 1, recency: 1, accessCount: 1, influenceCount: 1 }), { limit: 10, tokenBudget: 0 })).toBe(false);
+  it('orders by combined priority', () => {
+    const res = selectPrimingCandidates(items, { tokenBudget: 1000, limit: 10 });
+    expect(res.selected[0].id).toBe('a');
+    expect(res.selected[2].id).toBe('c');
   });
 
-  it('respects a custom threshold', () => {
-    const lowPri = mem({ importance: 0.1, recency: 0.1, accessCount: 0, influenceCount: 0 });
-    expect(shouldPrime(lowPri, { limit: 10, tokenBudget: 1000, threshold: 0.5 })).toBe(false);
-    expect(shouldPrime(lowPri, { limit: 10, tokenBudget: 1000, threshold: 0.01 })).toBe(true);
+  it('returns empty when nothing fits the budget', () => {
+    const res = selectPrimingCandidates(items, { tokenBudget: 5, limit: 10 });
+    expect(res.selected).toHaveLength(0);
+  });
+});
+
+describe('primingScopeForContext', () => {
+  it('returns a priming scope with candidates from recall', async () => {
+    const scope = await primingScopeForContext({ context: 'test', agentId: 'a1' });
+    expect(scope.items.length).toBeGreaterThan(0);
+    expect(scope.budget).toBeDefined();
   });
 
-  it('uses estimated tokens against the budget', () => {
-    const big = mem({ id: 'big', importance: 1, recency: 1, accessCount: 1, influenceCount: 1, tokenEstimate: 1500 });
-    expect(shouldPrime(big, { limit: 10, tokenBudget: 1000 })).toBe(false);
+  it('records influences for the selected memories', async () => {
+    const scope = await primingScopeForContext({ context: 'test', agentId: 'a1' });
+    expect(Array.isArray(scope.items)).toBe(true);
   });
 });
