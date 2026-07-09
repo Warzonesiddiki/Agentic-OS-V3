@@ -133,7 +133,6 @@ describe('deriveKey', () => {
     const salt = 'uniquesalt';
     const info = 'aes-key';
     const derived = deriveKey(secret, salt, info);
-    const { createHmac: ch } = await import('node:crypto');
     const prk = createHmac('sha256', salt).update(secret).digest();
     const expected = createHmac('sha256', prk).update(Buffer.from(info)).digest();
     expect(derived.equals(expected.subarray(0, KEY_LEN))).toBe(true);

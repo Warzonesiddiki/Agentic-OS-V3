@@ -56,7 +56,7 @@ describe('verifySignature', () => {
     const { privateKey, publicKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
     const pubPem = publicKey.export({ type: 'spki', format: 'pem' }) as string;
     const artifact = Buffer.from('plugin bundle v2');
-    const signature = require('node:crypto').sign('sha256', artifact, privateKey);
+    const signature = sign('sha256', artifact, privateKey);
     expect(verifySignature(artifact, signature, pubPem)).toBe(true);
   });
 
