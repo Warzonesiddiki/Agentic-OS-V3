@@ -1,9 +1,9 @@
 {
   "name": "agentic-os-v3",
   "private": true,
-  "version": "0.1.0",
+  "version": "2.1.0",
   "type": "module",
-  "description": "Agentic OS V4 - Universal AI Agent Operating System",
+  "description": "NEXUS 2.0 / Agentic OS V3 - Universal AI Agent Operating System",
   "license": "Apache-2.0",
   "author": "Warzonesiddiki",
   "workspaces": [
@@ -17,14 +17,35 @@
     "lint": "pnpm -r lint",
     "typecheck": "pnpm -r typecheck",
     "format": "prettier --write 'packages/**/*.ts'",
+    "validate": "pnpm -r lint && pnpm -r typecheck && pnpm -r test && pnpm -r build",
+    "validate:server": "cd server && npm run validate",
     "prepare": "husky"
   },
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
+    "@tanstack/react-virtual": "^3.14.5",
+    "@xyflow/react": "^12.11.2",
+    "clsx": "^2.1.1",
+    "jotai": "^2.10.0",
+    "tailwind-merge": "^3.6.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "recharts": "^2.13.0",
+    "zustand": "^5.0.0"
+  },
   "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "@tailwindcss/vite": "^4.3.2",
     "husky": "^9.1.7",
+    "vite-plugin-singlefile": "^2.3.3",
     "lint-staged": "^17.0.8",
     "prettier": "^3.3",
     "tsx": "^4.19",
     "typescript": "^5.8",
+    "vite": "^5.4.0",
     "vitest": "^3.1"
   }
 }
