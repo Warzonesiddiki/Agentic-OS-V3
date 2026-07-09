@@ -124,3 +124,8 @@ server/__tsc_err.cjs
 server/tests/zz-debug.test.ts
 server/tests/services/probe.tmp.ts
 server/vitest.config.secd-audit.ts
+
+# Fleet control-plane tooling (committed on purpose)
+!fleet/
+!fleet/**
+
