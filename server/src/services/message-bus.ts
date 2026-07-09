@@ -43,8 +43,6 @@ export interface BusSubscription {
   id: string;
   subscriberId: string;
   topicPattern: string;
-  /** Pre-split pattern segments cached at subscribe time to avoid re-splitting on every publish (hot path). */
-  segments: string[];
   queue?: string;
   createdAt: number;
 }
@@ -88,9 +86,9 @@ export interface MessageFilter {
 
 // ── Topic Matching ────────────────────────────────────────────
 
-function topicMatchSegments(patternSegments: string[], topicSegments: string[]): boolean {
-  const p = patternSegments;
-  const t = topicSegments;
+function topicMatch(pattern: string, topic: string): boolean {
+  const p = pattern.split("/");
+  const t = topic.split("/");
   let pi = 0;
   for (let ti = 0; ti < t.length; ti++) {
     if (pi >= p.length) return false;
@@ -102,10 +100,6 @@ function topicMatchSegments(patternSegments: string[], topicSegments: string[]):
     return false;
   }
   return pi === p.length;
-}
-
-function topicMatch(pattern: string, topic: string): boolean {
-  return topicMatchSegments(pattern.split("/"), topic.split("/"));
 }
 
 function createId(prefix: string): string {
@@ -190,10 +184,9 @@ export class MessageBus extends EventEmitter {
       }
     }
 
-    const topicSegments = topicStr.split("/");
-    for (const sub of this.subscriptions.values()) {
-      if (!topicMatchSegments(sub.segments, topicSegments)) continue;
-      const subHandlers = this.subscriptionHandlers.get(sub.id);
+    for (const [, sub] of this.subscriptions) {
+      if (topicMatch(sub.topicPattern, topicStr)) {
+        const subHandlers = this.subscriptionHandlers.get(sub.id);
         if (subHandlers) {
           for (const fn of subHandlers) {
             try {
@@ -245,7 +238,6 @@ export class MessageBus extends EventEmitter {
       id: createId("sub"),
       subscriberId,
       topicPattern,
-      segments: topicPattern.split("/"),
       createdAt: Date.now(),
     };
 

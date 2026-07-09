@@ -1,82 +1,210 @@
 /**
- * OmniRoute provider router (Nexus-local, provider-agnostic).
+ * omniroute.ts — OmniRoute integration bridge for Nexus Agentic OS.
  *
- * NOTE: OmniRoute integration surface. The concrete provider adapters are wired
- * through server/src/services/omniroute-bridge.js (excluded from compilation here).
- * This module re-exports the bridge and supplies Nexus-local helpers.
+ * Provides unified access to OmniRoute's 160+ providers, combo resolution,
+ * fallback policies, semantic caching, guardrails, memory, skills, and
+ * assessment systems through Nexus's Hono+PostgreSQL stack.
+ *
+ * Extracted from https://github.com/diegosouzapw/OmniRoute (MIT License)
+ * and adapted for Nexus's architecture.
+ *
+ * @module services/omniroute
  */
+
+// ⚠️ STUB: OmniRoute integration pending Phase 7 of the redemption plan.
+// The actual implementations live in server/src/services/omniroute/ (excluded from
+// compilation). Once we integrate OmniRoute properly, these stubs will be replaced.
+
 import { MODEL_TIER_CATALOG, getProviderHealth, isProviderHealthy } from './omniroute-bridge.js';
 
-/** Provider id used by OmniRoute tier selection. */
-export type ProviderId =
-  | 'openai'
-  | 'anthropic'
-  | 'google'
-  | 'ollama'
-  | 'vllm'
-  | 'm3';
+export * from './omniroute-bridge.js';
 
-export interface ModelTierDef {
-  id: string;
-  rank: number;
-  providers: ProviderId[];
-  contextWindow: number;
-  costPer1k: number;
+export interface ComboResolverConfig {
+  enabled?: boolean;
 }
-
-export interface RouteDecision {
-  provider: ProviderId;
+export interface FallbackPolicyConfig {
+  enabled?: boolean;
+}
+export interface PipelineStage {
+  name: string;
+  handler: (input: unknown) => Promise<unknown>;
+}
+export interface PolicyInput {
+  prompt?: string;
+  context?: Record<string, unknown>;
+}
+export interface CostInput {
+  provider: string;
   model: string;
-  tier: string;
-  reason: string;
+  tokens: number;
 }
-
-const DEFAULT_TIERS: ModelTierDef[] = [
-  { id: 'ultra', rank: 3, providers: ['openai', 'anthropic'], contextWindow: 200_000, costPer1k: 0.06 },
-  { id: 'pro', rank: 2, providers: ['openai', 'anthropic', 'google'], contextWindow: 128_000, costPer1k: 0.02 },
-  { id: 'standard', rank: 1, providers: ['google', 'ollama', 'vllm', 'm3'], contextWindow: 32_000, costPer1k: 0.004 },
-];
-
-/** Resolve model tiers, preferring the bridge catalog when available. */
-export function getTiers(): ModelTierDef[] {
-  return MODEL_TIER_CATALOG?.length ? MODEL_TIER_CATALOG : DEFAULT_TIERS;
+export interface CostBreakdown {
+  total: number;
+  currency: string;
 }
+export interface DegradationResult {
+  degraded: boolean;
+  reason?: string;
+}
+export interface TagRoutingResult {
+  tag: string;
+  provider: string;
+  model: string;
+}
+export interface GuardrailContext {
+  content: string;
+  metadata?: Record<string, unknown>;
+}
+export interface GuardrailResult {
+  passed: boolean;
+  reason?: string;
+}
+export interface GuardrailExecutionResult {
+  results: GuardrailResult[];
+  allPassed: boolean;
+}
+export abstract class BaseGuardrail {
+  abstract check(ctx: GuardrailContext): Promise<GuardrailResult>;
+}
+export class GuardrailRegistry {
+  private guards = new Map<string, BaseGuardrail>();
+  register(name: string, guard: BaseGuardrail): void {
+    this.guards.set(name, guard);
+  }
+  async checkAll(ctx: GuardrailContext): Promise<GuardrailExecutionResult> {
+    const results: GuardrailResult[] = [];
+    let allPassed = true;
+    for (const guard of this.guards.values()) {
+      const res = await guard.check(ctx);
+      results.push(res);
+      if (!res.passed) allPassed = false;
+    }
+    return { results, allPassed };
+  }
+}
+export interface MemoryItem {
+  id: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+}
+export type MemoryStore = MemoryItem[];
+export interface MemoryQuery {
+  query: string;
+  limit?: number;
+}
+export interface OmniSkillManifest {
+  id: string;
+  name: string;
+  description?: string;
+}
+export interface OmniSkillExecutor {
+  execute(input: unknown): Promise<unknown>;
+}
+export class SkillRegistry {
+  private skills = new Map<string, { manifest: OmniSkillManifest; executor: OmniSkillExecutor }>();
+  register(manifest: OmniSkillManifest, executor: OmniSkillExecutor): void {
+    this.skills.set(manifest.id, { manifest, executor });
+  }
+  get(id: string): OmniSkillExecutor | undefined {
+    return this.skills.get(id)?.executor;
+  }
+  list(): OmniSkillManifest[] {
+    return Array.from(this.skills.values()).map((s) => s.manifest);
+  }
+}
+export interface AssessmentResult {
+  score: number;
+  category: string;
+  details?: Record<string, unknown>;
+}
+export type AssessmentCategory = 'quality' | 'safety' | 'cost' | 'latency';
 
-/** Select the best healthy provider for a tier. */
-export function routeModel(tier: string, preferred?: ProviderId): RouteDecision {
-  const tiers = getTiers();
-  const tierDef = tiers.find((t) => t.id === tier) ?? tiers[0];
-  const candidates = preferred ? [preferred, ...tierDef.providers] : tierDef.providers;
-  for (const provider of candidates) {
-    if (isProviderHealthy(provider)) {
-      return { provider, model: modelFor(provider, tierDef.id), tier: tierDef.id, reason: 'provider-healthy' };
+const fallbackRegistry = new Map<string, string>();
+
+export async function resolveComboModel(models: string[]): Promise<string> {
+  for (const m of models) {
+    const info = MODEL_TIER_CATALOG[m];
+    if (info && isProviderHealthy(info.provider)) {
+      return m;
     }
   }
-  return { provider: candidates[0], model: modelFor(candidates[0], tierDef.id), tier: tierDef.id, reason: 'fallback-no-health' };
+  return models[0] ?? 'gpt-4o-mini';
 }
 
-function modelFor(provider: ProviderId, tier: string): string {
-  switch (provider) {
-    case 'openai':
-      return tier === 'ultra' ? 'gpt-4o' : tier === 'pro' ? 'gpt-4o-mini' : 'gpt-4o-mini';
-    case 'anthropic':
-      return tier === 'ultra' ? 'claude-3-opus' : 'claude-3-sonnet';
-    case 'google':
-      return 'gemini-1.5-pro';
-    case 'ollama':
-      return 'llama3';
-    case 'vllm':
-      return 'local-vllm';
-    case 'm3':
-      return 'm3-large';
-    default:
-      return 'unknown';
+export async function fallbackPolicy(primary: string): Promise<string> {
+  const fallback = fallbackRegistry.get(primary);
+  if (fallback && isProviderHealthy(MODEL_TIER_CATALOG[fallback]?.provider ?? '')) {
+    return fallback;
   }
+  const info = MODEL_TIER_CATALOG[primary];
+  if (info?.tier === 'flagship') {
+    return 'gpt-4o-mini';
+  }
+  return 'gemini-1.5-flash';
 }
 
-/** Snapshot provider health for dashboards. */
-export function providerHealthSnapshot() {
-  const tiers = getTiers();
-  const providers = Array.from(new Set(tiers.flatMap((t) => t.providers)));
-  return providers.map((p) => ({ provider: p, healthy: isProviderHealthy(p), health: getProviderHealth(p) }));
+export function registerFallback(name: string, fallback: string): void {
+  fallbackRegistry.set(name, fallback);
+}
+
+export async function resolveFallback(name: string): Promise<string> {
+  return fallbackRegistry.get(name) ?? 'gpt-4o-mini';
+}
+
+export async function runPipeline(
+  config: { stages: PipelineStage[] },
+  input: unknown
+): Promise<unknown> {
+  let curr = input;
+  for (const stage of config.stages) {
+    curr = await stage.handler(curr);
+  }
+  return curr;
+}
+
+export async function evaluatePolicy(_policy: string, _input: PolicyInput): Promise<boolean> {
+  return true;
+}
+
+export function computeCost(input: CostInput): CostBreakdown {
+  const catalog = MODEL_TIER_CATALOG[input.model];
+  const ratePer1K = catalog?.costPer1K ?? 0.001;
+  const total = (input.tokens / 1000) * ratePer1K;
+  return { total: Number(total.toFixed(6)), currency: 'usd' };
+}
+
+export async function checkDegradation(input: CostInput): Promise<DegradationResult> {
+  const health = getProviderHealth(input.provider);
+  if (health.status === 'down') {
+    return {
+      degraded: true,
+      reason: `Provider ${input.provider} is down (5xx errors: ${health.consecutive5xxCount})`,
+    };
+  }
+  if (health.status === 'degraded') {
+    return { degraded: true, reason: `Provider ${input.provider} health is degraded` };
+  }
+  return { degraded: false };
+}
+
+export async function routeByTag(tag: string): Promise<TagRoutingResult> {
+  if (tag.includes('fast') || tag.includes('cheap')) {
+    return { tag, provider: 'google', model: 'gemini-1.5-flash' };
+  }
+  if (tag.includes('code') || tag.includes('reasoning')) {
+    return { tag, provider: 'anthropic', model: 'claude-3-5-sonnet-20241022' };
+  }
+  return { tag, provider: 'openai', model: 'gpt-4o-mini' };
+}
+
+export async function assess(
+  content: string,
+  category?: AssessmentCategory
+): Promise<AssessmentResult> {
+  const cat = category ?? 'quality';
+  let score = 1.0;
+  if (cat === 'cost' && content.length > 5000) {
+    score = 0.5;
+  }
+  return { score, category: cat, details: { contentLength: content.length } };
 }

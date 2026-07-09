@@ -307,11 +307,3 @@ server/src/scripts/profile-system-performance.ts @bastion
 docs/DEPLOYMENT.md                        @bastion
 docs/PRODUCTION_CHECKLIST.md              @bastion
 docs/DR_RUNBOOK.md                        @bastion
-
-# ---------------------------------------------------------------------------
-# LEADER catch-all (LAST-MATCH-WINS). Any file not explicitly owned above
-# (root scripts, stray artifacts, new dirs) defaults to LEADER ownership so
-# the CI CODEOWNERS-coverage gate always passes. Cross-namespace changes still
-# require the explicit owner's review per the fleet contract in AGENTS.md.
-# ---------------------------------------------------------------------------
-*                                        @leader

@@ -16,54 +16,6 @@ export interface Suggestion {
   score: number;
 }
 
-/* ─── Tag LRU cache (perfA: avoid repeated full-table tag scans per keystroke) ───
- * The live `suggest()` path queries `tagTaxonomy` (up to 200 rows) on every
- * keystroke. Tags change rarely, so we memoize per projectId with a short TTL and
- * an LRU eviction bound. Same shape as the LRU uses elsewhere in the server. */
-interface TagCacheEntry {
-  tags: string[];
-  expiresAt: number;
-}
-const TAG_TTL_MS = Number(process.env.NEXUS_TAG_CACHE_TTL_MS ?? 60_000);
-const TAG_CACHE_MAX = Number(process.env.NEXUS_TAG_CACHE_MAX ?? 64);
-const tagCache = new Map<string, TagCacheEntry>();
-
-function tagCacheGet(projectId: string): string[] | undefined {
-  const entry = tagCache.get(projectId);
-  if (!entry) return undefined;
-  if (Date.now() > entry.expiresAt) {
-    tagCache.delete(projectId);
-    return undefined;
-  }
-  // LRU touch
-  tagCache.delete(projectId);
-  tagCache.set(projectId, entry);
-  return entry.tags;
-}
-
-async function tagCacheGetOrLoad(projectId: string): Promise<string[]> {
-  const cached = tagCacheGet(projectId);
-  if (cached) return cached;
-  const tagRows = await db.select({ name: tagTaxonomy.name }).from(tagTaxonomy).limit(200);
-  const tags = tagRows.map((t: { name: string }) => t.name);
-  if (tagCache.size >= TAG_CACHE_MAX) {
-    const oldest = tagCache.keys().next().value;
-    if (oldest !== undefined) tagCache.delete(oldest);
-  }
-  tagCache.set(projectId, { tags, expiresAt: Date.now() + TAG_TTL_MS });
-  return tags;
-}
-
-/** Diagnostics: number of cached tag sets. */
-export function tagCacheSize(): number {
-  return tagCache.size;
-}
-
-/** Clear the tag LRU (used on tag writes / tests). */
-export function clearTagCache(): void {
-  tagCache.clear();
-}
-
 /**
  * Prefix autocomplete over tags + recent query history.
  * `limit` caps results; results are scored by frequency then recency.
@@ -126,7 +78,8 @@ export class MemorySuggester {
   }
 
   async suggest(prefix: string): Promise<Suggestion[]> {
-    const tags = await tagCacheGetOrLoad(this.projectId);
+    const tagRows = await db.select({ name: tagTaxonomy.name }).from(tagTaxonomy).limit(200);
+    const tags = tagRows.map((t: { name: string }) => t.name);
     return autocomplete(prefix, this.history, tags);
   }
 }

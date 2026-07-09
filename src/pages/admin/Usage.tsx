@@ -18,20 +18,13 @@ import {
  */
 export default function AdminUsage() {
   const orgId = useAuthStore((s) => s.user?.orgId ?? '');
-  const { data, isLoading, isError, error } = useQuery<UsageSummary>({
+  const { data, isLoading } = useQuery<UsageSummary>({
     queryKey: ['usage', orgId],
     queryFn: () => apiClient.getUsage(orgId, '30d'),
     enabled: !!orgId,
   });
 
-  if (isLoading) return <div className="text-zinc-500">Loading usage…</div>;
-  if (isError)
-    return (
-      <div className="text-red-400">
-        Failed to load usage: {error instanceof Error ? error.message : 'unknown error'}
-      </div>
-    );
-  if (!data) return <div className="text-zinc-500">No usage data.</div>;
+  if (isLoading || !data) return <div className="text-zinc-500">Loading usage…</div>;
 
   const chart = data.series.map((p) => ({
     ts: p.ts.slice(0, 10),

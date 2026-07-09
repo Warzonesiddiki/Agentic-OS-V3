@@ -297,7 +297,7 @@ export async function listRecentProofs(opts?: {
     limit: opts?.limit ?? 50,
   });
   if (opts?.topic) {
-    return rows.filter((r: { topicTags?: string[] | null }) => (r.topicTags ?? []).includes(opts.topic!));
+    return rows.filter((r: any) => (r.topicTags ?? []).includes(opts.topic!));
   }
   return rows;
 }
@@ -479,8 +479,6 @@ export interface RecallOptions {
   includeFederated?: boolean;
   minScore?: number;
   dedupeContent?: boolean;
-  /** When true, bypass the short-ttl result cache (used on write-invalidation paths). */
-  noCache?: boolean;
 }
 
 export interface RecallQuery {
@@ -708,20 +706,6 @@ export function listActiveSessions(): { sessionId: string; itemCount: number; ag
 
 export class FederatedRecall {
   readonly localCache = new LRUCache<string, RecallItem[]>(512, 30_000);
-  // perfA: result cache for identical (query+budget+filters) searches. Polling
-  // dashboards and repeated agent recalls hammer the same query; serving from a
-  // short-ttl LRU avoids the semantic-embed + contradiction + audit DB round-trips.
-  private readonly resultCache = new LRUCache<string, RecallResult>(256, Number(process.env.NEXUS_RECALL_RESULT_TTL_MS ?? 5_000));
-
-  /** Number of cached recall results (diagnostics / tests). */
-  resultCacheSize(): number {
-    return this.resultCache.size;
-  }
-
-  /** Clear cached recall results (e.g. after a memory write invalidates them). */
-  clearResultCache(): void {
-    this.resultCache.clear();
-  }
 
   /**
    * Search across ALL sources: memories, skills, notes, and federated proofs.
@@ -732,21 +716,6 @@ export class FederatedRecall {
     const useSemantic = embeddingsAvailable();
     const actor = query.actor;
     const budget = query.budget;
-
-    // perfA: short-ttl result cache keyed by normalized query params.
-    const cacheKey = JSON.stringify({
-      t: query.text,
-      b: budget,
-      f: query.filters ?? null,
-      fed: query.options?.includeFederated !== false,
-      ded: query.options?.dedupeContent ?? true,
-      cur: query.options?.cursor ?? null,
-      min: query.options?.minScore ?? null,
-    });
-    if (!query.options?.noCache) {
-      const hit = this.resultCache.get(cacheKey);
-      if (hit) return hit;
-    }
 
     const [localResults, federatedResults] = await Promise.all([
       this.searchLocal(query.text, budget, useSemantic, query.filters),
@@ -764,11 +733,11 @@ export class FederatedRecall {
 
     let page = all;
     if (query.options?.cursor !== undefined) {
-      const cursorIdx = all.findIndex((i) => i.score < query.options!.cursor!);
+      const cursorIdx = all.findIndex((i: any) => i.score < query.options!.cursor!);
       page = cursorIdx >= 0 ? all.slice(cursorIdx) : [];
     }
     if (query.options?.minScore !== undefined) {
-      page = page.filter((i) => i.score >= query.options!.minScore!);
+      page = page.filter((i: any) => i.score >= query.options!.minScore!);
     }
     const { packed, tokensUsed, truncated } = packByBudget(page, budget);
 
@@ -785,7 +754,7 @@ export class FederatedRecall {
     );
 
     const contradictionEdges = await contradictionsAmong(packed.map((p) => p.id));
-    const result: RecallResult = {
+    return {
       query: query.text,
       returned: packed,
       tokensUsed,
@@ -800,8 +769,6 @@ export class FederatedRecall {
       })),
       nextCursor: packed.length > 0 ? packed[packed.length - 1]?.score : undefined,
     };
-    if (!query.options?.noCache) this.resultCache.set(cacheKey, result);
-    return result;
   }
 
   /**
@@ -1030,9 +997,9 @@ export class FederatedRecall {
         ]);
 
         const allSem = [
-          ...semMemResult.map((r: { id: string; distance: number }) => ({ id: r.id, distance: r.distance })),
-          ...semSkillResult.map((r: { id: string; distance: number }) => ({ id: r.id, distance: r.distance })),
-          ...semNoteResult.map((r: { id: string; distance: number }) => ({ id: r.id, distance: r.distance })),
+          ...semMemResult.map((r: any) => ({ id: r.id, distance: r.distance })),
+          ...semSkillResult.map((r: any) => ({ id: r.id, distance: r.distance })),
+          ...semNoteResult.map((r: any) => ({ id: r.id, distance: r.distance })),
         ].sort((a, b) => a.distance - b.distance);
 
         allSem.forEach((r, i) => {
@@ -1045,9 +1012,9 @@ export class FederatedRecall {
     }
 
     const bm25Candidates = new Set<string>([
-      ...bm25Mem.map((s: { id: string }) => s.id),
-      ...bm25Skill.map((s: { id: string }) => s.id),
-      ...bm25Note.map((s: { id: string }) => s.id),
+      ...bm25Mem.map((s: any) => s.id),
+      ...bm25Skill.map((s: any) => s.id),
+      ...bm25Note.map((s: any) => s.id),
     ]);
 
     const allCandidates = new Set([...bm25Candidates, ...semanticCandidates]);
@@ -1131,21 +1098,21 @@ export class FederatedRecall {
     });
 
     if (filters?.topicTags?.length) {
-      fedRows = fedRows.filter((r: { topicTags?: string[] | null }) =>
-        filters.topicTags!.some((t) => (r.topicTags ?? []).includes(t))
+      fedRows = fedRows.filter((r: any) =>
+        filters.topicTags!.some((t: any) => (r.topicTags ?? []).includes(t))
       );
     }
     if (filters?.since) {
-      fedRows = fedRows.filter((r: { receivedAt: number | string | Date }) => r.receivedAt >= filters.since!);
+      fedRows = fedRows.filter((r: any) => r.receivedAt >= filters.since!);
     }
     if (filters?.until) {
-      fedRows = fedRows.filter((r: { receivedAt: number | string | Date }) => r.receivedAt <= filters.until!);
+      fedRows = fedRows.filter((r: any) => r.receivedAt <= filters.until!);
     }
 
     if (!fedRows.length) return [];
 
     const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(
-      (t) => t.length > 1
+      (t: any) => t.length > 1
     );
     const queryEmbedding = useSemantic ? await embedQuery(query) : null;
 
@@ -1352,9 +1319,9 @@ export function composeAgentState(
   budget: number
 ): { items: RecallItem[]; expanded: string[]; tokens: number } {
   const queryTerms = (query.toLowerCase().match(/[a-z0-9]+/g) ?? []).filter(
-    (t) => t.length > 1
+    (t: any) => t.length > 1
   );
-  const scored = cards.map((c) => {
+  const scored = cards.map((c: any) => {
     const text = `${c.title} ${c.summary} ${c.body}`.toLowerCase();
     let bm25 = 0;
     for (const t of queryTerms) {
@@ -1370,7 +1337,7 @@ export function composeAgentState(
     };
   });
 
-  const sorted = scored.filter((s) => s.score > 0).sort((a, b) => b.score - a.score);
+  const sorted = scored.filter((s: any) => s.score > 0).sort((a, b) => b.score - a.score);
   const expanded: string[] = [];
   let tokens = 0;
   const items: RecallItem[] = [];

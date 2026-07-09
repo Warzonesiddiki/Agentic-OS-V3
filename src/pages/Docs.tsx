@@ -126,9 +126,9 @@ export default function Docs() {
           <table className="w-full text-left text-xs">
             <thead className="bg-slate-950/60 text-slate-500">
               <tr>
-                <th scope="col" className="px-3 py-2 font-medium">Method</th>
-                <th scope="col" className="px-3 py-2 font-medium">Path</th>
-                <th scope="col" className="px-3 py-2 font-medium">Scope / Auth</th>
+                <th className="px-3 py-2 font-medium">Method</th>
+                <th className="px-3 py-2 font-medium">Path</th>
+                <th className="px-3 py-2 font-medium">Scope / Auth</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-nexus-border">

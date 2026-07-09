@@ -8,7 +8,7 @@ export default function AdminBilling() {
   const orgId = useAuthStore((s) => s.user?.orgId ?? '');
   const qc = useQueryClient();
   const [pct, setPct] = useState(80);
-  const { data, isError, error } = useQuery<BillingMeter>({
+  const { data } = useQuery<BillingMeter>({
     queryKey: ['billing', orgId],
     queryFn: () => apiClient.getBilling(orgId),
     enabled: !!orgId,
@@ -21,11 +21,6 @@ export default function AdminBilling() {
   return (
     <div className="space-y-6">
       <h1 className="text-xl font-semibold">Billing</h1>
-      {isError && (
-        <div className="text-red-400">
-          Failed to load billing: {error instanceof Error ? error.message : 'unknown error'}
-        </div>
-      )}
       {data && (
         <div className="grid grid-cols-3 gap-4">
           <Stat label="Plan" value={data.plan} />

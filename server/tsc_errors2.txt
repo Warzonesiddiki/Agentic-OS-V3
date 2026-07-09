@@ -1,0 +1,191 @@
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+src/routes/marketplace-routes.ts(14,1): error TS2448: Block-scoped variable 'marketplace' used before its declaration.
+src/routes/marketplace-routes.ts(14,1): error TS2454: Variable 'marketplace' is used before being assigned.
+src/routes/meta.ts(22,8): error TS2307: Cannot find module '@agentic-os/sdk' or its corresponding type declarations.
+src/routes/meta.ts(23,10): error TS2724: '"../services/plugin-manifest.js"' has no exported member named 'pluginManifestSchema'. Did you mean 'PluginManifestSchema'?
+src/routes/meta.ts(94,27): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(c: Context<NexusEnv, "/openapi.json", BlankInput>) => Promise<Envelope<unknown> | (Response & TypedResponse<any, ContentfulStatusCode, "body">)>' is not assignable to parameter of type 'H<NexusEnv, "/openapi.json", BlankInput, HandlerResponse<any>>'.
+      Type '(c: Context<NexusEnv, "/openapi.json", BlankInput>) => Promise<Envelope<unknown> | (Response & TypedResponse<any, ContentfulStatusCode, "body">)>' is not assignable to type 'Handler<NexusEnv, "/openapi.json", BlankInput, HandlerResponse<any>>'.
+        Type 'Promise<Envelope<unknown> | (Response & TypedResponse<any, ContentfulStatusCode, "body">)>' is not assignable to type 'HandlerResponse<any>'.
+          Type 'Promise<Envelope<unknown> | (Response & TypedResponse<any, ContentfulStatusCode, "body">)>' is not assignable to type 'Promise<void>'.
+            Type 'Envelope<unknown> | (Response & TypedResponse<any, ContentfulStatusCode, "body">)' is not assignable to type 'void'.
+              Type 'Envelope<unknown>' is not assignable to type 'void'.
+src/routes/meta.ts(111,95): error TS2554: Expected 2-4 arguments, but got 5.
+src/routes/meta.ts(116,38): error TS2769: No overload matches this call.
+  The last overload gave the following error.
+    Argument of type '(c: Context<NexusEnv, "/schemas/plugin-manifest", BlankInput>) => Promise<Envelope<unknown> | JSONRespondReturn<Envelope<any>, ContentfulStatusCode>>' is not assignable to parameter of type 'H<NexusEnv, "/schemas/plugin-manifest", BlankInput, HandlerResponse<any>>'.
+      Type '(c: Context<NexusEnv, "/schemas/plugin-manifest", BlankInput>) => Promise<Envelope<unknown> | JSONRespondReturn<Envelope<any>, ContentfulStatusCode>>' is not assignable to type 'Handler<NexusEnv, "/schemas/plugin-manifest", BlankInput, HandlerResponse<any>>'.
+        Type 'Promise<Envelope<unknown> | JSONRespondReturn<Envelope<any>, ContentfulStatusCode>>' is not assignable to type 'HandlerResponse<any>'.
+          Type 'Promise<Envelope<unknown> | JSONRespondReturn<Envelope<any>, ContentfulStatusCode>>' is not assignable to type 'Promise<void>'.
+            Type 'Envelope<unknown> | JSONRespondReturn<Envelope<any>, ContentfulStatusCode>' is not assignable to type 'void'.
+              Type 'Envelope<unknown>' is not assignable to type 'void'.
+src/routes/meta.ts(121,94): error TS2554: Expected 2-4 arguments, but got 5.
+src/routes/self-opt.ts(80,76): error TS2345: Argument of type 'GuardrailGuard' is not assignable to parameter of type 'SimulateGuard'.
+  Types of property 'evaluate' are incompatible.
+    Type '(delta: TunerDelta) => EvaluateResult' is not assignable to type '(candidate: SimulateCandidate) => { allowed: boolean; reason?: string | undefined; }'.
+      Types of parameters 'delta' and 'candidate' are incompatible.
+        Type 'SimulateCandidate' is missing the following properties from type 'TunerDelta': tunerId, beforeJson, afterJson, reason
+src/services/deadlock-detector.ts(178,30): error TS2339: Property 'map' does not exist on type 'string | never[]'.
+  Property 'map' does not exist on type 'string'.
+src/services/deadlock-detector.ts(178,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/deadlock-detector.ts(179,24): error TS2339: Property 'agentId' does not exist on type 'WaitNode'.
+src/services/deadlock-detector.ts(193,19): error TS2339: Property 'nodes' does not exist on type 'GraphAnalysis'.
+src/services/deadlock-detector.ts(194,26): error TS2339: Property 'nodes' does not exist on type 'GraphAnalysis'.
+src/services/deadlock-detector.ts(194,38): error TS7006: Parameter 'x' implicitly has an 'any' type.
+src/services/deadlock-detector.ts(206,26): error TS2345: Argument of type 'string | undefined' is not assignable to parameter of type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/deadlock-detector.ts(215,60): error TS2339: Property 'fromAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(220,28): error TS2339: Property 'fromAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(220,57): error TS2339: Property 'toAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(221,38): error TS2339: Property 'fromAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(221,64): error TS2339: Property 'toAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(230,29): error TS2339: Property 'fromAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(230,49): error TS2339: Property 'toAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(230,67): error TS2339: Property 'resource' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(234,29): error TS2339: Property 'fromAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(235,27): error TS2339: Property 'toAgent' does not exist on type 'WaitEdge'.
+src/services/deadlock-detector.ts(236,28): error TS2339: Property 'resource' does not exist on type 'WaitEdge'.
+src/services/memory-multimodal.ts(301,55): error TS2339: Property 'caption' does not exist on type '{ id: string; projectId: string | null; createdAt: string; updatedAt: string; clusterId: string | null; confidence: number | null; kind: string; content: string; language: string | null; ... 15 more ...; embedding: string | null; } | { ...; }'.
+  Property 'caption' does not exist on type '{ id: string; projectId: string | null; createdAt: string; updatedAt: string; clusterId: string | null; confidence: number | null; kind: string; content: string; language: string | null; ... 15 more ...; embedding: string | null; }'.
+src/services/memory-multimodal.ts(303,107): error TS2345: Argument of type 'string | null' is not assignable to parameter of type 'string | undefined'.
+  Type 'null' is not assignable to type 'string | undefined'.
+src/services/memory-multimodal.ts(310,42): error TS2339: Property 'metadata' does not exist on type '{ id: string; projectId: string | null; createdAt: string; updatedAt: string; clusterId: string | null; confidence: number | null; kind: string; content: string; language: string | null; ... 15 more ...; embedding: string | null; } | { ...; }'.
+  Property 'metadata' does not exist on type '{ id: string; projectId: string | null; createdAt: string; updatedAt: string; clusterId: string | null; confidence: number | null; kind: string; content: string; language: string | null; ... 15 more ...; embedding: string | null; }'.
+src/services/plugin-manifest.ts(139,14): error TS2739: Type '{ schemaVersion: 1; name: string; version: string; description: string; ring: number; capabilities: ({ exact: string; limits: { maxFuelPerCall: number; maxCallsPerMin: number; }; } | { prefix: string; })[]; sandbox: { ...; }; tags: string[]; license: string; dependsOn: never[]; }' is missing the following properties from type '{ name: string; tags: string[]; description: string; version: string; ring: number; timeoutMs: number; author: string; sandbox: { maxFuel: number; maxWallMs: number; maxOutputBytes: number; allowNetwork: boolean; allowFilesystem: boolean; allowEnv: boolean; }; ... 6 more ...; license?: string | undefined; }': timeoutMs, author, maxFuel
+src/services/self-opt/adapters.ts(82,13): error TS2339: Property 'applyRecallBudget' does not exist on type 'typeof import("C:/Users/Tahir/OneDrive/Desktop/nexus-20-ai-agent-os (7)/Agentic OS V3/server/src/services/recall", { with: { "resolution-mode": "import" } }) | { applyRecallBudget: undefined; }'.
+src/services/self-opt/bootstrap.ts(2,10): error TS2305: Module '"../../db/schema.js"' has no exported member 'selfOptParams'.
+src/services/self-opt/controller.ts(4,27): error TS2459: Module '"./tuners.js"' declares 'SelfOptTuner' locally, but it is not exported.
+src/services/self-opt/controller.ts(111,59): error TS2554: Expected 3 arguments, but got 5.
+src/services/self-opt/controller.ts(150,17): error TS2304: Cannot find name 'pValue'.
+src/services/self-opt/controller.ts(151,22): error TS2304: Cannot find name 'metricDelta'.
+src/services/self-opt/gap-items.ts(36,17): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(36,28): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(36,40): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(36,52): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(36,64): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(36,76): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(37,11): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(37,22): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(37,34): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(37,46): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(41,18): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(41,29): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(41,41): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(41,53): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(41,65): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(41,77): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(42,11): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(42,22): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(42,34): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(42,46): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(46,15): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(46,26): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(46,38): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(46,50): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(46,62): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(46,74): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(47,10): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(47,21): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(47,33): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(47,45): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(47,57): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(77,18): error TS18048: 'worst' is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(77,39): error TS18048: 'worst' is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(77,60): error TS18048: 'worst' is possibly 'undefined'.
+src/services/self-opt/index.ts(68,3): error TS2459: Module '"./guardrail-guard.js"' declares 'DEFAULT_BOUNDS' locally, but it is not exported.
+src/services/self-opt/tuners.ts(2,3): error TS2305: Module '"./types.js"' has no exported member 'eq'.
+src/services/self-opt/tuners.ts(3,3): error TS2305: Module '"./types.js"' has no exported member 'desc'.
+src/services/self-opt/tuners.ts(16,10): error TS2305: Module '"../../db/schema.js"' has no exported member 'selfOptParams'.
+src/services/self-opt/tuners.ts(16,25): error TS2305: Module '"../../db/schema.js"' has no exported member 'selfOptMetrics'.
+src/services/self-opt/tuners.ts(30,17): error TS2323: Cannot redeclare exported variable 'twoProportionPValue'.
+src/services/self-opt/tuners.ts(41,17): error TS2323: Cannot redeclare exported variable 'twoSampleTTest'.
+src/services/self-opt/tuners.ts(50,17): error TS2323: Cannot redeclare exported variable 'mannWhitney'.
+src/services/self-opt/tuners.ts(56,17): error TS2323: Cannot redeclare exported variable 'effectSize'.
+src/services/self-opt/tuners.ts(191,25): error TS2353: Object literal may only specify known properties, and 'acceptRate' does not exist in type 'FeedbackTriple[]'.
+src/services/self-opt/tuners.ts(683,10): error TS2323: Cannot redeclare exported variable 'twoProportionPValue'.
+src/services/self-opt/tuners.ts(683,10): error TS2484: Export declaration conflicts with exported declaration of 'twoProportionPValue'.
+src/services/self-opt/tuners.ts(683,31): error TS2323: Cannot redeclare exported variable 'twoSampleTTest'.
+src/services/self-opt/tuners.ts(683,31): error TS2484: Export declaration conflicts with exported declaration of 'twoSampleTTest'.
+src/services/self-opt/tuners.ts(683,47): error TS2323: Cannot redeclare exported variable 'mannWhitney'.
+src/services/self-opt/tuners.ts(683,47): error TS2484: Export declaration conflicts with exported declaration of 'mannWhitney'.
+src/services/self-opt/tuners.ts(683,60): error TS2323: Cannot redeclare exported variable 'effectSize'.
+src/services/self-opt/tuners.ts(683,60): error TS2484: Export declaration conflicts with exported declaration of 'effectSize'.
+tests/deadlock-detector.test.ts(50,37): error TS2345: Argument of type '{ fromAgent: string; toAgent: string; resource: string; }[]' is not assignable to parameter of type 'WaitEdge[] | { nodes: WaitNode[]; }'.
+  Type '{ fromAgent: string; toAgent: string; resource: string; }[]' is not assignable to type 'WaitEdge[]'.
+    Type '{ fromAgent: string; toAgent: string; resource: string; }' is missing the following properties from type 'WaitEdge': from, to
+tests/deadlock-detector.test.ts(67,31): error TS2345: Argument of type '{ fromAgent: string; toAgent: string; resource: string; }[]' is not assignable to parameter of type 'WaitEdge[] | { nodes: WaitNode[]; }'.
+  Type '{ fromAgent: string; toAgent: string; resource: string; }[]' is not assignable to type 'WaitEdge[]'.
+    Type '{ fromAgent: string; toAgent: string; resource: string; }' is missing the following properties from type 'WaitEdge': from, to
+tests/forge-selfheal.test.ts(123,43): error TS2353: Object literal may only specify known properties, and 'cpuQuotaMs' does not exist in type 'QuotaLimits'.
+tests/forge-selfheal.test.ts(124,43): error TS2353: Object literal may only specify known properties, and 'cpuQuotaMs' does not exist in type 'QuotaLimits'.
+tests/forge-selfheal.test.ts(131,28): error TS2353: Object literal may only specify known properties, and 'cpuQuotaMs' does not exist in type 'QuotaLimits'.
+tests/forge-selfheal.test.ts(132,28): error TS2353: Object literal may only specify known properties, and 'cpuQuotaMs' does not exist in type 'QuotaLimits'.
+tests/forge-selfheal.test.ts(133,28): error TS2353: Object literal may only specify known properties, and 'cpuQuotaMs' does not exist in type 'QuotaLimits'.
+tests/forge-selfheal.test.ts(140,31): error TS2353: Object literal may only specify known properties, and 'cpuQuotaMs' does not exist in type 'QuotaLimits'.
+tests/phase14-security.test.ts(250,33): error TS2554: Expected 1 arguments, but got 2.
+tests/phase14-security.test.ts(252,62): error TS2339: Property 'status' does not exist on type 'ProbeResult'.
+tests/ranking-trainer.test.ts(43,12): error TS2532: Object is possibly 'undefined'.
+tests/self-opt-adapters.test.ts(64,21): error TS7015: Element implicitly has an 'any' type because index expression is not of type 'number'.
+tests/self-opt-gap-items.test.ts(22,15): error TS2554: Expected 3-4 arguments, but got 0.
+tests/self-opt-gap-items.test.ts(23,14): error TS2339: Property 'nPerArm' does not exist on type 'number'.
+tests/self-opt-gap-items.test.ts(24,14): error TS2339: Property 'alpha' does not exist on type 'number'.
+tests/self-opt-gap-items.test.ts(25,14): error TS2339: Property 'power' does not exist on type 'number'.
+tests/self-opt-gap-items.test.ts(29,36): error TS2353: Object literal may only specify known properties, and 'latency' does not exist in type 'TelemetrySnapshot'.
+tests/self-opt-gap-items.test.ts(34,31): error TS2345: Argument of type '{}' is not assignable to parameter of type 'TelemetrySnapshot'.
+  Type '{}' is missing the following properties from type 'TelemetrySnapshot': scheduler, recall, prompt, provider, and 5 more.
+tests/self-opt-gap-items.test.ts(39,34): error TS2554: Expected 1 arguments, but got 2.
+tests/self-opt-gap-items.test.ts(40,16): error TS2339: Property 'ok' does not exist on type '{ ratio: number; pass: boolean; }'.
+tests/self-opt-gap-items.test.ts(41,16): error TS2339: Property 'violating' does not exist on type '{ ratio: number; pass: boolean; }'.
+tests/self-opt-gap-items.test.ts(46,29): error TS2554: Expected 1 arguments, but got 2.
+tests/self-opt-gap-items.test.ts(46,47): error TS2339: Property 'ok' does not exist on type '{ ratio: number; pass: boolean; }'.
+tests/self-opt-gap-items.test.ts(52,14): error TS2339: Property 'globalCap' does not exist on type '{ remaining: number; exhausted: boolean; }'.
+tests/self-opt-gap-items.test.ts(53,14): error TS2339: Property 'globalUsed' does not exist on type '{ remaining: number; exhausted: boolean; }'.
+tests/self-opt-gap-items.test.ts(58,30): error TS2554: Expected 1 arguments, but got 2.
+tests/self-opt-gap-items.test.ts(59,30): error TS2554: Expected 1 arguments, but got 2.
+tests/self-opt-gap-items.test.ts(64,34): error TS2554: Expected 1 arguments, but got 2.
+tests/self-opt-tuners.test.ts(1,10): error TS2300: Duplicate identifier 'describe'.
+tests/self-opt-tuners.test.ts(1,20): error TS2300: Duplicate identifier 'it'.
+tests/self-opt-tuners.test.ts(1,24): error TS2300: Duplicate identifier 'expect'.
+tests/self-opt-tuners.test.ts(3,3): error TS2300: Duplicate identifier 'twoProportionPValue'.
+tests/self-opt-tuners.test.ts(4,3): error TS2300: Duplicate identifier 'expectedImprovement'.
+tests/self-opt-tuners.test.ts(4,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'expectedImprovement'.
+tests/self-opt-tuners.test.ts(5,3): error TS2300: Duplicate identifier 'nelderMeadStep'.
+tests/self-opt-tuners.test.ts(5,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'nelderMeadStep'.
+tests/self-opt-tuners.test.ts(6,3): error TS2300: Duplicate identifier 'mahalanobis'.
+tests/self-opt-tuners.test.ts(6,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'mahalanobis'.
+tests/self-opt-tuners.test.ts(7,3): error TS2300: Duplicate identifier 'prophetForecast'.
+tests/self-opt-tuners.test.ts(7,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'prophetForecast'.
+tests/self-opt-tuners.test.ts(8,3): error TS2300: Duplicate identifier 'normalCdf'.
+tests/self-opt-tuners.test.ts(8,3): error TS2459: Module '"../src/services/self-opt/tuners.js"' declares 'normalCdf' locally, but it is not exported.
+tests/self-opt-tuners.test.ts(58,18): error TS7006: Parameter 'v' implicitly has an 'any' type.
+tests/self-opt-tuners.test.ts(69,10): error TS2300: Duplicate identifier 'describe'.
+tests/self-opt-tuners.test.ts(69,20): error TS2300: Duplicate identifier 'it'.
+tests/self-opt-tuners.test.ts(69,24): error TS2300: Duplicate identifier 'expect'.
+tests/self-opt-tuners.test.ts(71,3): error TS2300: Duplicate identifier 'twoProportionPValue'.
+tests/self-opt-tuners.test.ts(72,3): error TS2300: Duplicate identifier 'expectedImprovement'.
+tests/self-opt-tuners.test.ts(72,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'expectedImprovement'.
+tests/self-opt-tuners.test.ts(73,3): error TS2300: Duplicate identifier 'nelderMeadStep'.
+tests/self-opt-tuners.test.ts(73,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'nelderMeadStep'.
+tests/self-opt-tuners.test.ts(74,3): error TS2300: Duplicate identifier 'mahalanobis'.
+tests/self-opt-tuners.test.ts(74,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'mahalanobis'.
+tests/self-opt-tuners.test.ts(75,3): error TS2300: Duplicate identifier 'prophetForecast'.
+tests/self-opt-tuners.test.ts(75,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'prophetForecast'.
+tests/self-opt-tuners.test.ts(76,3): error TS2300: Duplicate identifier 'normalCdf'.
+tests/self-opt-tuners.test.ts(76,3): error TS2459: Module '"../src/services/self-opt/tuners.js"' declares 'normalCdf' locally, but it is not exported.
+tests/self-opt-tuners.test.ts(77,3): error TS2724: '"../src/services/self-opt/tuners.js"' has no exported member named 'SchedulerPidTuner'. Did you mean 'TestSchedulerPidTuner'?
+tests/self-opt-tuners.test.ts(78,3): error TS2724: '"../src/services/self-opt/tuners.js"' has no exported member named 'RLSchedulingPolicy'. Did you mean 'TestRLSchedulingPolicy'?
+tests/self-opt-tuners.test.ts(79,3): error TS2724: '"../src/services/self-opt/tuners.js"' has no exported member named 'MemoryThresholdCalibrator'. Did you mean 'TestMemoryThresholdCalibrator'?
+tests/self-opt.test.ts(13,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'expectedImprovement'.
+tests/self-opt.test.ts(14,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'nelderMeadStep'.
+tests/self-opt.test.ts(15,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'mahalanobis'.
+tests/self-opt.test.ts(16,3): error TS2305: Module '"../src/services/self-opt/tuners.js"' has no exported member 'prophetForecast'.
+tests/self-opt.test.ts(17,3): error TS2459: Module '"../src/services/self-opt/tuners.js"' declares 'normalCdf' locally, but it is not exported.
+tests/self-opt.test.ts(53,60): error TS2353: Object literal may only specify known properties, and 'explorationBudgetPerTuner' does not exist in type 'GuardrailConfig'.
+tests/self-opt.test.ts(144,56): error TS2339: Property 'action' does not exist on type 'TunerCycleResult'.
+tests/self-opt.test.ts(152,15): error TS2339: Property 'nPerArm' does not exist on type 'number'.
+tests/self-opt.test.ts(157,34): error TS2554: Expected 1 arguments, but got 2.
+tests/self-opt.test.ts(158,16): error TS2339: Property 'ok' does not exist on type '{ ratio: number; pass: boolean; }'.
+tests/self-opt.test.ts(159,16): error TS2339: Property 'violating' does not exist on type '{ ratio: number; pass: boolean; }'.
+tests/self-opt.test.ts(163,36): error TS2353: Object literal may only specify known properties, and 'ndcg' does not exist in type 'TelemetrySnapshot'.

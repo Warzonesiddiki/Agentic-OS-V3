@@ -28,10 +28,6 @@ import type {
 let baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
 let apiKey = '';
 
-/** Default per-request timeout. Guards against hung sockets that would
- *  otherwise keep React Query hooks in `pending` forever (a memory/UX leak). */
-export const DEFAULT_REQUEST_TIMEOUT_MS = 30_000;
-
 export function configureClient(url: string, key: string): void {
   baseUrl = url;
   apiKey = key;
@@ -45,57 +41,17 @@ export function getApiKey(): string {
   return apiKey;
 }
 
-/** Merge a bounded timeout signal with any caller-supplied AbortSignal.
- *  Returns a single signal that fires if EITHER the timeout elapses or the
- *  caller aborts — so callers (e.g. useV3Query) can cancel in-flight work
- *  while we still cap runaway hung requests. */
-function withTimeout(
-  timeoutMs: number,
-  callerSignal?: AbortSignal
-): { signal: AbortSignal; clear: () => void } {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(new ApiTimeoutError(timeoutMs)), timeoutMs);
-  const onCallerAbort = () => controller.abort();
-  if (callerSignal && !callerSignal.aborted) {
-    callerSignal.addEventListener('abort', onCallerAbort, { once: true });
-  }
-  const clear = () => {
-    clearTimeout(timer);
-    if (callerSignal) callerSignal.removeEventListener('abort', onCallerAbort);
-  };
-  return { signal: controller.signal, clear };
-}
-
-/** Thrown when a request exceeds its timeout budget. React Query's retry
- *  policy treats it as transient (retryable). */
-export class ApiTimeoutError extends Error {
-  readonly timeoutMs: number;
-  constructor(timeoutMs: number) {
-    super(`Request timed out after ${timeoutMs}ms`);
-    this.name = 'ApiTimeoutError';
-    this.timeoutMs = timeoutMs;
-  }
-}
-
-async function request<T>(
-  path: string,
-  init?: RequestInit & { timeoutMs?: number }
-): Promise<T> {
+async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const headers = new Headers(init?.headers);
   headers.set('content-type', 'application/json');
   if (apiKey) {
     headers.set('authorization', `Bearer ${apiKey}`);
   }
 
-  const timeoutMs = init?.timeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const { signal, clear } = withTimeout(timeoutMs, init?.signal);
-  try {
-    const res = await fetch(`${baseUrl}${path}`, {
-      ...init,
-      method: init?.method ?? 'GET',
-      headers,
-      signal,
-    });
+  const res = await fetch(`${baseUrl}${path}`, {
+    ...init,
+    headers,
+  });
 
   const env: ApiEnvelope<T> = await res.json().catch(() => ({
     ok: false,
@@ -109,9 +65,6 @@ async function request<T>(
   }
 
   return env.data;
-  } finally {
-    clear();
-  }
 }
 
 export const apiClient = {

@@ -145,7 +145,7 @@ export async function renameTag(id: string, newName: string): Promise<void> {
   const oldName = tag.name;
   if (oldName === newName) return;
   const aliases = tag.aliases.includes(oldName) ? tag.aliases : [...tag.aliases, oldName];
-  await db.transaction(async (tx) => {
+  await db.transaction(async (tx: any) => {
     await tx
       .update(tagTaxonomy)
       .set({ name: newName, aliases, updatedAt: new Date() })
@@ -176,7 +176,7 @@ export async function mergeTags(sourceId: string, targetId: string): Promise<voi
   const target = await getTag(targetId);
   if (!source) throw new ApiError('NOT_FOUND', 'source tag not found');
   if (!target) throw new ApiError('NOT_FOUND', 'target tag not found');
-  await db.transaction(async (tx) => {
+  await db.transaction(async (tx: any) => {
     await tx.update(memoryTags).set({ tagId: targetId }).where(eq(memoryTags.tagId, sourceId));
     await tx
       .update(tagTaxonomy)
@@ -206,7 +206,7 @@ export async function mergeTags(sourceId: string, targetId: string): Promise<voi
 export async function deleteTag(id: string): Promise<void> {
   const tag = await getTag(id);
   if (!tag) throw new ApiError('NOT_FOUND', 'tag not found');
-  await db.transaction(async (tx) => {
+  await db.transaction(async (tx: any) => {
     await tx.delete(memoryTags).where(eq(memoryTags.tagId, id));
     await tx
       .update(tagTaxonomy)

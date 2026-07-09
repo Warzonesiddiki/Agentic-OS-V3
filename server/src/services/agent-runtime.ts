@@ -970,7 +970,7 @@ export async function runAgent(config: AgentConfig): Promise<AgentResult> {
         return { ok: true, answer, steps, iterations: i + 1, tokensUsed: totalTokens };
       }
 
-      const result = await agentDispatchPool.run(() => runtime.executeAction(toolName, toolInput));
+      const result = await runtime.executeAction(toolName, toolInput);
       const toolOutput = result.ok ? result.data : { error: result.error };
       steps.push({ iteration: i, thought, tool: toolName, toolInput, toolOutput });
 

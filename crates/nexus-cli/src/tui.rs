@@ -3,23 +3,22 @@
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode};
 use ratatui::{backend::CrosstermBackend, Terminal};
-use std::io;
 use std::time::Duration;
 
 use crate::api::{Client, Plugin};
 
 pub async fn run(client: Client) -> Result<()> {
-  let plugins: Vec<Plugin> = client.list_plugins(None, None, 50).await.unwrap_or_default();
+  let mut plugins: Vec<Plugin> = client.list_plugins(None, None, 50).await.unwrap_or_default();
   let mut selected = 0usize;
 
   let backend = CrosstermBackend::new(io::stdout());
   let mut term = Terminal::new(backend)?;
   crossterm::terminal::enable_raw_mode()?;
-  crossterm::execute!(io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
+  let _ = crossterm::execute!(io::stdout(), crossterm::terminal::EnterAlternateScreen)?;
 
   let result = loop {
     term.draw(|f| {
-      let size = f.area();
+      let size = f.area;
       let items: Vec<ratatui::widgets::ListItem> = plugins
         .iter()
         .enumerate()
@@ -53,7 +52,7 @@ pub async fn run(client: Client) -> Result<()> {
     }
   };
 
-  crossterm::execute!(io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
+  let _ = crossterm::execute!(io::stdout(), crossterm::terminal::LeaveAlternateScreen)?;
   crossterm::terminal::disable_raw_mode()?;
   result
 }

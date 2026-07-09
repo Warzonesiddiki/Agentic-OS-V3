@@ -5,6 +5,12 @@
  * `stdout` sink, or (b) validates + emits a debug log for network sinks
  * (splunk/elastic/datadog/webhook). No real HTTP is performed, so we mock
  * `log`/`sanitize` to capture behavior and verify queue/batch/flush logic.
+ *
+ * NOTE: `flush()` swallows send failures (logs `siem.forward.failed` and
+ * returns) so a downed SIEM cannot crash the OS. To exercise the failure path
+ * deterministically we use `batchSize: 1` so `forward()` itself triggers the
+ * synchronous flush (which then retries and logs the failure). `configureSiem`
+ * merges config, so every test explicitly sets `endpoint` to avoid leakage.
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
@@ -36,8 +42,8 @@ function ev(over: Record<string, unknown> = {}): any {
 
 beforeEach(() => {
   vi.clearAllMocks();
-  // Default to stdout sink so no endpoint is required.
-  configureSiem({ sink: 'stdout', batchSize: 3, flushMs: 10, maxRetries: 2 });
+  // Default to stdout sink so no endpoint is required (explicitly clear endpoint).
+  configureSiem({ sink: 'stdout', batchSize: 3, flushMs: 10, maxRetries: 2, endpoint: undefined });
 });
 
 describe('configureSiem', () => {
@@ -66,27 +72,25 @@ describe('forward + stdout sink', () => {
   });
 });
 
-describe('flush', () => {
+describe('flush (stdout)', () => {
   it('is a no-op on an empty queue', async () => {
     await flush();
     expect(mockedLog.info).not.toHaveBeenCalled();
   });
 
-  it('drops the queue after a stdout flush (each event already logged)', async () => {
-    configureSiem({ sink: 'stdout', batchSize: 1000, flushMs: 10 });
+  it('drops the queue after a flush (events already logged per-event)', async () => {
+    configureSiem({ sink: 'stdout', batchSize: 1000, flushMs: 10, maxRetries: 2, endpoint: undefined });
     await forward(ev());
     await forward(ev());
     await flush();
-    // stdout sink logs per-event; flush on an already-drained queue adds nothing.
     expect(mockedLog.info).toHaveBeenCalled();
   });
 });
 
 describe('network sinks (splunk/elastic/datadog/webhook)', () => {
   it('flushes successfully when an endpoint is present (debug log, no HTTP)', async () => {
-    configureSiem({ sink: 'datadog', endpoint: 'https://dd.test', batchSize: 1, flushMs: 10 });
+    configureSiem({ sink: 'datadog', endpoint: 'https://dd.test', batchSize: 1, flushMs: 10, maxRetries: 2 });
     await forward(ev({ kind: 'x', severity: 'error' }));
-    await flush();
     expect(mockedLog.debug).toHaveBeenCalled();
     const debugCall = mockedLog.debug.mock.calls.find((c) => c[0] === 'siem.send');
     expect(debugCall).toBeTruthy();
@@ -94,36 +98,29 @@ describe('network sinks (splunk/elastic/datadog/webhook)', () => {
   });
 
   it('records a failed-forward error when no endpoint configured (flush swallows it)', async () => {
-    configureSiem({ sink: 'splunk', batchSize: 1000, flushMs: 10, maxRetries: 2 });
-    await forward(ev());
-    await flush(); // never rejects; logs siem.forward.failed
+    configureSiem({ sink: 'splunk', batchSize: 1, flushMs: 10, maxRetries: 2, endpoint: undefined });
+    await forward(ev()); // batchSize=1 -> forward() triggers the flush inline
     expect(mockedLog.error).toHaveBeenCalledWith('siem.forward.failed', expect.any(Object));
   });
 
   it('records a failed-forward error for elastic sink without endpoint', async () => {
-    configureSiem({ sink: 'elastic', batchSize: 1000, flushMs: 10, maxRetries: 2 });
+    configureSiem({ sink: 'elastic', batchSize: 1, flushMs: 10, maxRetries: 2, endpoint: undefined });
     await forward(ev());
-    await flush();
     expect(mockedLog.error).toHaveBeenCalledWith('siem.forward.failed', expect.any(Object));
   });
 
   it('includes the SIEM_NO_ENDPOINT reason in the logged failure', async () => {
-    configureSiem({ sink: 'webhook', batchSize: 1000, flushMs: 10, maxRetries: 2 });
+    configureSiem({ sink: 'webhook', batchSize: 1, flushMs: 10, maxRetries: 2, endpoint: undefined });
     await forward(ev());
-    await flush();
     const err = mockedLog.error.mock.calls.find((c) => c[0] === 'siem.forward.failed');
     expect(err).toBeTruthy();
     expect((err![1] as any).error).toContain('SIEM_NO_ENDPOINT');
   });
 
-  it('retries then gives up for a reachable-but-failing endpoint (logs error)', async () => {
-    // Valid http scheme passes sendBatch validation, but we still simulate the
-    // "send" failing by... the forwarder only validates (no HTTP) so a valid
-    // endpoint succeeds. We instead assert the retry branch for a genuine throw
-    // by using a sink that will fail only when endpoint is missing (covered
-    // above). Here we confirm flush is resilient: a valid endpoint resolves.
-    configureSiem({ sink: 'datadog', endpoint: 'https://dd.test', batchSize: 1000, flushMs: 10 });
+  it('resolves cleanly when a valid endpoint is present (no error log)', async () => {
+    configureSiem({ sink: 'datadog', endpoint: 'https://dd.test', batchSize: 1000, flushMs: 10, maxRetries: 2 });
     await forward(ev());
     await expect(flush()).resolves.toBeUndefined();
+    expect(mockedLog.error).not.toHaveBeenCalled();
   });
 });

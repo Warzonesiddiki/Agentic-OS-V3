@@ -45,16 +45,10 @@ export function useV3Query<T>(path: string, deps: unknown[] = []): V3QueryResult
   const [error, setError] = useState<string | null>(null);
   const [tick, setTick] = useState(0);
   const hasLoaded = useRef(false);
-  // Monotonic request token. When deps change rapidly, two requests can be
-  // in flight at once; the LATER one must win and the EARLIER (stale) one must
-  // be ignored so we never overwrite fresh data with stale data.
-  const reqSeq = useRef(0);
 
   const refetch = useCallback(() => setTick(t => t + 1), []);
 
   useEffect(() => {
-    const myReq = ++reqSeq.current;
-    const controller = new AbortController();
     let cancelled = false;
     if (!hasLoaded.current) {
       setLoading(true);
@@ -62,36 +56,25 @@ export function useV3Query<T>(path: string, deps: unknown[] = []): V3QueryResult
       setIsRefetching(true);
     }
 
-    v3.call<T>(path, { signal: controller.signal })
-      .then(d => {
-        // Drop stale/out-of-order responses and post-unmount updates.
-        if (cancelled || myReq !== reqSeq.current) return;
-        hasLoaded.current = true;
-        if (d.ok) {
-          setData(d.data as T);
-          setError(null);
-        } else {
-          const msg = d.error?.message || "Failed to load";
-          setError(msg);
-          toast.danger(msg);
-        }
-      })
-      .catch((e: unknown) => {
-        // AbortError = intentional cancel (unmount/dep change) — swallow it.
-        if (cancelled || myReq !== reqSeq.current) return;
-        if (e instanceof DOMException && e.name === "AbortError") return;
-        const msg = e instanceof Error ? e.message : "Failed to load";
+    v3.call<T>(path).then(d => {
+      if (cancelled) return;
+      hasLoaded.current = true;
+      if (d.ok) {
+        setData(d.data as T);
+        setError(null);
+      } else {
+        const msg = d.error?.message || "Failed to load";
         setError(msg);
         toast.danger(msg);
-      })
-      .finally(() => {
-        if (!cancelled && myReq === reqSeq.current) {
-          setLoading(false);
-          setIsRefetching(false);
-        }
-      });
+      }
+    }).finally(() => {
+      if (!cancelled) {
+        setLoading(false);
+        setIsRefetching(false);
+      }
+    });
 
-    return () => { cancelled = true; controller.abort(); };
+    return () => { cancelled = true; };
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, ...deps]);
 

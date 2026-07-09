@@ -1,7 +1,6 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import type { ReactNode, ReactElement } from "react";
-import { cloneElement, isValidElement, useEffect, useId, useRef } from "react";
+import type { ReactNode } from "react";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -37,8 +36,6 @@ export function Button({
   type = "button",
   disabled,
   size = "md",
-  "aria-label": ariaLabel,
-  "aria-pressed": ariaPressed,
 }: {
   children: ReactNode;
   onClick?: () => void;
@@ -47,8 +44,6 @@ export function Button({
   type?: "button" | "submit";
   disabled?: boolean;
   size?: "sm" | "md";
-  "aria-label"?: string;
-  "aria-pressed"?: boolean;
 }) {
   const variants: Record<BtnVariant, string> = {
     primary: "bg-cyan-500 text-slate-950 hover:bg-cyan-400 border border-cyan-400/50 shadow-lg shadow-cyan-500/20",
@@ -62,10 +57,8 @@ export function Button({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      aria-label={ariaLabel}
-      aria-pressed={ariaPressed}
       className={cn(
-        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70",
+        "inline-flex items-center justify-center gap-2 rounded-lg font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
         size === "sm" ? "px-2.5 py-1.5 text-xs" : "px-3.5 py-2 text-sm",
         variants[variant],
         className
@@ -85,47 +78,33 @@ export function Badge({ children, tone = "slate", className }: { children: React
     rose: "bg-rose-500/10 text-rose-300 border-rose-500/30",
     violet: "bg-violet-500/10 text-violet-300 border-violet-500/30",
   };
-  return (
-    <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium", tones[tone], className)} aria-hidden={typeof children === "string" ? undefined : true}>
-      {children}
-    </span>
-  );
+  return <span className={cn("inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-medium", tones[tone], className)}>{children}</span>;
 }
 
 export function Tag({ children }: { children: ReactNode }) {
   return <span className="inline-flex items-center rounded border border-slate-700 bg-slate-900/60 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">#{children}</span>;
 }
 
-export function Field({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor?: string; children: ReactNode }) {
-  const autoId = useId();
-  const fieldId = htmlFor ?? autoId;
-  const linked =
-    isValidElement(children) && typeof children.props === "object"
-      ? cloneElement(children as ReactElement<{ id?: string }>, {
-          id: (children.props as { id?: string }).id ?? fieldId,
-        })
-      : children;
+export function Field({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="block">
+    <label className="block">
       <div className="mb-1 flex items-center justify-between">
-        <label htmlFor={fieldId} className="text-xs font-medium text-slate-300">{label}</label>
+        <span className="text-xs font-medium text-slate-300">{label}</span>
         {hint && <span className="text-[10px] text-slate-500">{hint}</span>}
       </div>
-      {linked}
-    </div>
+      {children}
+    </label>
   );
 }
 
 const inputCls =
-  "w-full rounded-lg border border-nexus-border bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30 focus-visible:ring-2 focus-visible:ring-cyan-400/70";
+  "w-full rounded-lg border border-nexus-border bg-slate-950/60 px-3 py-2 text-sm text-slate-100 placeholder:text-slate-600 outline-none focus:border-cyan-500/60 focus:ring-1 focus:ring-cyan-500/30";
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
-  const ariaLabel = props["aria-label"] ?? (props.id ? undefined : props.placeholder);
-  return <input {...props} aria-label={ariaLabel} className={cn(inputCls, props.className)} />;
+  return <input {...props} className={cn(inputCls, props.className)} />;
 }
 export function Textarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  const ariaLabel = props["aria-label"] ?? (props.id ? undefined : props.placeholder);
-  return <textarea {...props} aria-label={ariaLabel} className={cn(inputCls, "resize-y font-mono text-xs leading-relaxed", props.className)} />;
+  return <textarea {...props} className={cn(inputCls, "resize-y font-mono text-xs leading-relaxed", props.className)} />;
 }
 export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
   return <select {...props} className={cn(inputCls, "cursor-pointer", props.className)} />;
@@ -141,7 +120,7 @@ export function CodeBlock({ children, className }: { children: ReactNode; classN
 
 export function EmptyState({ title, hint }: { title: string; hint?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-nexus-border py-12 text-center" role="status">
+    <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-nexus-border py-12 text-center">
       <div className="text-sm font-medium text-slate-400">{title}</div>
       {hint && <div className="mt-1 text-xs text-slate-600">{hint}</div>}
     </div>
@@ -166,77 +145,14 @@ export function Stat({ label, value, sub, tone = "cyan" }: { label: string; valu
 }
 
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
-  const titleId = useId();
-  const panelRef = useRef<HTMLDivElement>(null);
-  const previouslyFocused = useRef<HTMLElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    previouslyFocused.current = (document.activeElement as HTMLElement) ?? null;
-    const panel = panelRef.current;
-    const getFocusable = () =>
-      panel
-        ? Array.from(
-            panel.querySelectorAll<HTMLElement>(
-              'a[href],button:not([disabled]),textarea,input,select,[tabindex]:not([tabindex="-1"])'
-            )
-          ).filter((el) => el.offsetParent !== null)
-        : [];
-    const focusable = getFocusable();
-    (focusable[0] ?? panel)?.focus();
-
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        e.stopPropagation();
-        onClose();
-        return;
-      }
-      if (e.key === "Tab") {
-        const nodes = getFocusable();
-        if (nodes.length === 0) {
-          e.preventDefault();
-          panel?.focus();
-          return;
-        }
-        const first = nodes[0];
-        const last = nodes[nodes.length - 1];
-        if (e.shiftKey && document.activeElement === first) {
-          e.preventDefault();
-          last.focus();
-        } else if (!e.shiftKey && document.activeElement === last) {
-          e.preventDefault();
-          first.focus();
-        }
-      }
-    }
-
-    document.addEventListener("keydown", onKeyDown, true);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown, true);
-      previouslyFocused.current?.focus?.();
-    };
-  }, [open, onClose]);
-
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} aria-hidden="true" />
-      <div
-        ref={panelRef}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby={titleId}
-        tabIndex={-1}
-        className={cn("nexus-fade relative z-10 max-h-[88vh] w-full overflow-auto rounded-xl border border-nexus-border bg-nexus-panel shadow-2xl outline-none", wide ? "max-w-3xl" : "max-w-lg")}
-      >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={onClose} />
+      <div className={cn("nexus-fade relative z-10 max-h-[88vh] w-full overflow-auto rounded-xl border border-nexus-border bg-nexus-panel shadow-2xl", wide ? "max-w-3xl" : "max-w-lg")}>
         <div className="sticky top-0 flex items-center justify-between border-b border-nexus-border bg-nexus-panel/95 px-4 py-3 backdrop-blur">
-          <h3 id={titleId} className="text-sm font-semibold text-slate-100">{title}</h3>
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close dialog"
-            className="rounded-md px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
-          >✕</button>
+          <h3 className="text-sm font-semibold text-slate-100">{title}</h3>
+          <button onClick={onClose} className="rounded-md px-2 py-1 text-slate-400 hover:bg-slate-800 hover:text-slate-200">✕</button>
         </div>
         <div className="p-4">{children}</div>
       </div>

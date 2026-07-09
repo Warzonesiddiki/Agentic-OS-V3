@@ -266,7 +266,7 @@ function LogPanel({
           <span className={cn("h-2 w-2 rounded-full", HEALTH_META[agent.health].dot)} />
           <span className="truncate text-sm font-medium text-slate-100">{agent.name}</span>
         </div>
-        <button onClick={onClose} aria-label="Close process explorer" className="rounded px-1.5 py-0.5 text-slate-500 hover:bg-slate-800 hover:text-slate-200">✕</button>
+        <button onClick={onClose} className="rounded px-1.5 py-0.5 text-slate-500 hover:bg-slate-800 hover:text-slate-200">✕</button>
       </div>
 
       <div className="flex-1 overflow-y-auto p-3">

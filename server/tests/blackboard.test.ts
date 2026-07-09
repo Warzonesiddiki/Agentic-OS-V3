@@ -9,7 +9,7 @@ vi.mock('../lib/env.js', () => ({
 
 vi.mock('../src/services/kernel.js', () => ({ publishKernelEvent: vi.fn() }));
 vi.mock('../src/services/agent-runtime.js', () => ({ runAgent: vi.fn() }));
-vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn() }));
+vi.mock('../lib/audit.js', () => ({ appendAudit: vi.fn() }));
 vi.mock('../src/db/client.js', () => {
   // Self-returning chainable stub: any method returns itself, except execute/catch resolve.
   const chain: Record<string, unknown> = new Proxy(

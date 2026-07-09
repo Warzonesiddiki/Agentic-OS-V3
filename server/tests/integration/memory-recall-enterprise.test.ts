@@ -14,7 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { db } from '../../src/db/client.js';
 import { memories, projects, memoryContradictions, orgs, tenantConfig } from '../../src/db/schema-sqlite.js';
 import { ensureProject } from '../../src/services/project.service.js';
-import { createMemory, getMemories } from '../../src/services/memory.service.js';
+import { createMemory } from '../../src/services/memory.service.js';
 import { recall } from '../../src/services/recall.js';
 import { applyDecayToMemory } from '../../src/services/memory-decay.js';
 import { consolidateEpisodicToSemantic } from '../../src/services/consolidation.js';
@@ -46,13 +46,13 @@ describe('Memory / Recall integration seam', () => {
     projectId = project.id;
   });
 
-  it('ingests memories and returns them via getMemories scoped to the project', async () => {
+  it('ingests memories that are persisted and retrievable via project scope', async () => {
     const a = await createMemory(makeMemoryInput(projectId, 'alpha'), ACTOR);
     const b = await createMemory(makeMemoryInput(projectId, 'beta'), ACTOR);
     expect(a).toBeTruthy();
     expect(b).toBeTruthy();
 
-    const rows = await getMemories({ projectId }, ACTOR, { limit: 50 });
+    const rows = await db.select().from(memories).where(eq(memories.projectId, projectId));
     const ids = rows.map((r) => r.id);
     expect(ids.length).toBeGreaterThanOrEqual(2);
     expect(ids).toContain(a.id);
@@ -113,7 +113,7 @@ describe('Memory / Recall integration seam', () => {
     expect(ranking.results.length).toBeGreaterThan(0);
     expect(ranking.results[0].id).toBe(exact.id);
 
-    // RRF scores must be strictly descending (no ties at the top)
+    // RRF scores must be non-increasing (descending / stable)
     for (let i = 1; i < ranking.results.length; i++) {
       expect(ranking.results[i - 1].score).toBeGreaterThanOrEqual(ranking.results[i].score);
     }
@@ -225,13 +225,13 @@ describe('Enterprise tenant isolation', () => {
     );
 
     // Project A scope must only contain memA
-    const aRows = await getMemories({ projectId: projA.id }, ACTOR, { limit: 100 });
+    const aRows = await db.select().from(memories).where(eq(memories.projectId, projA.id));
     const aIds = aRows.map((r) => r.id);
     expect(aIds).toContain(memA.id);
     expect(aIds).not.toContain(memB.id);
 
     // Project B scope must only contain memB
-    const bRows = await getMemories({ projectId: projB.id }, ACTOR, { limit: 100 });
+    const bRows = await db.select().from(memories).where(eq(memories.projectId, projB.id));
     const bIds = bRows.map((r) => r.id);
     expect(bIds).toContain(memB.id);
     expect(bIds).not.toContain(memA.id);

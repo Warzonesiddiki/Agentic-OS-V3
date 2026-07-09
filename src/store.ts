@@ -61,12 +61,6 @@ function route<T>(local: () => T, remoteFn: () => Promise<unknown>): T {
  * Call from the top-level App component.
  * Probes the server on first call — if reachable, auto-enables remote.
  */
-/** Named handler so it can be removed on stopRemoteSync (an anonymous handler
- *  can never be detached → permanent listener leak across remounts/HMR). */
-function handleVisibilitySync(): void {
-  if (document.visibilityState === 'visible' && remoteEnabled()) syncFromRemote();
-}
-
 export async function startRemoteSync(): Promise<void> {
   if (syncTimer) return;
   await autoDetect();
@@ -76,20 +70,9 @@ export async function startRemoteSync(): Promise<void> {
     if (remoteEnabled()) syncFromRemote();
   }, 30_000);
   // Also sync when the user returns to the tab
-  document.addEventListener('visibilitychange', handleVisibilitySync);
-}
-
-/**
- * Tear down the background sync loop and listener.
- * MUST be called on app unmount (or before a second startRemoteSync in tests)
- * to avoid leaking a timer + a global event listener.
- */
-export function stopRemoteSync(): void {
-  if (syncTimer) {
-    clearInterval(syncTimer);
-    syncTimer = null;
-  }
-  document.removeEventListener('visibilitychange', handleVisibilitySync);
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && remoteEnabled()) syncFromRemote();
+  });
 }
 
 /**

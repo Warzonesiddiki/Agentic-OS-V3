@@ -25,12 +25,7 @@ export function registerControls(controls: ComplianceControl[]): void {
 export async function generateReport(): Promise<{
   generatedAt: number;
   controls: ComplianceControl[];
-  summary: {
-    implemented: number;
-    partial: number;
-    missing: number;
-    notApplicable: number;
-  };
+  summary: { implemented: number; partial: number; missing: number };
   openIncidents: number;
 }> {
   const metrics = await metricSnapshot();
@@ -46,11 +41,11 @@ export async function generateReport(): Promise<{
             ? 'partial'
             : c.status === 'missing'
               ? 'missing'
-              : 'notApplicable'
+              : 'implemented'
       ]++;
       return acc;
     },
-    { implemented: 0, partial: 0, missing: 0, notApplicable: 0 }
+    { implemented: 0, partial: 0, missing: 0 }
   );
   void metrics;
   return {

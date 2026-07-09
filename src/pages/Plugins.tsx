@@ -386,12 +386,12 @@ export default function Plugins() {
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
-                <th scope="col" className="pb-2">Plugin</th>
-                <th scope="col" className="pb-2">Capability</th>
-                <th scope="col" className="pb-2">Exit</th>
-                <th scope="col" className="pb-2">Fuel</th>
-                <th scope="col" className="pb-2">Duration</th>
-                <th scope="col" className="pb-2">Auth</th>
+                <th className="pb-2">Plugin</th>
+                <th className="pb-2">Capability</th>
+                <th className="pb-2">Exit</th>
+                <th className="pb-2">Fuel</th>
+                <th className="pb-2">Duration</th>
+                <th className="pb-2">Auth</th>
               </tr>
             </thead>
             <tbody>

@@ -23,7 +23,7 @@ function stableStringify(value: unknown): string {
   return "{" + Object.keys(obj).sort().map((k) => JSON.stringify(k) + ":" + stableStringify(obj[k])).join(",") + "}";
 }
 
-// ── Worker thread entry point ───────────────────────────���──────
+// ── Worker thread entry point ──────────────────────────────────
 
 if (!isMainThread && parentPort) {
   // We are inside the worker — listen for hash requests.
@@ -138,61 +138,4 @@ export async function terminateAuditWorker(): Promise<void> {
     await _worker.terminate();
     _worker = null;
   }
-}
-
-// ── Idempotent audit ingestion ────────────────────────────────
-//
-// The audit_log.id column is UNIQUE. By deriving the id deterministically from
-// the event's natural key (actor | action | payload digest | bucketed timestamp)
-// instead of a random UUID, the same logical event delivered twice maps to the
-// SAME id. Combined with the appendAudit contract this gives end-to-end
-// idempotency for the worker WITHOUT changing the frozen schema.
-
-/** Bucket window (ms) for idempotency keying — 1s granularity. */
-const IDEMPOTENCY_BUCKET_MS = 1000;
-
-export interface AuditEventInput {
-  actor: string;
-  action: string;
-  payload: unknown;
-  createdAtMs?: number;
-}
-
-/** Derive the deterministic, unique audit entry id for an event. */
-export function deriveAuditId(ev: AuditEventInput): string {
-  const bucket = Math.floor((ev.createdAtMs ?? Date.now()) / IDEMPOTENCY_BUCKET_MS);
-  const payloadDigest = createHash("sha256")
-    .update(stableStringify(ev.payload))
-    .digest("hex")
-    .slice(0, 32);
-  const naturalKey = `${ev.actor}|${ev.action}|${payloadDigest}|${bucket}`;
-  return "aud_" + createHash("sha256").update(naturalKey, "utf8").digest("hex").slice(0, 32);
-}
-
-// findAuditById is supplied by the lib layer; declared here to keep the worker
-// self-contained and overridable in tests.
-let _findAuditById: ((id: string) => Promise<unknown>) | null = null;
-export function setAuditLookup(fn: ((id: string) => Promise<unknown>) | null): void {
-  _findAuditById = fn;
-}
-async function findAuditById(id: string): Promise<unknown> {
-  if (_findAuditById) return _findAuditById(id);
-  return null;
-}
-
-/**
- * Idempotent audit record: maps a logical event to a deterministic id and
- * checks for a prior record before appending. Returns whether the record was
- * newly inserted or a duplicate was suppressed.
- */
-export async function recordAuditEventIdempotent(
-  ev: AuditEventInput
-): Promise<{ recorded: boolean; id: string }> {
-  const id = deriveAuditId(ev);
-  const existing = await findAuditById(id);
-  if (existing) {
-    return { recorded: false, id };
-  }
-  await (await import("../lib/audit.js")).appendAudit(ev.action, ev.payload, ev.actor);
-  return { recorded: true, id };
 }

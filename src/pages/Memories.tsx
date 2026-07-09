@@ -17,6 +17,7 @@ import {
 import { timeAgo } from '../lib/core';
 import { MEMORY_KINDS, type Memory, type MemoryInput } from '../lib/types';
 import { DataList } from '../components/DataList';
+import { SectionErrorBoundary } from '../components/SectionErrorBoundary';
 
 const KIND_TONE: Record<string, 'violet' | 'cyan' | 'emerald' | 'amber' | 'rose'> = {
   episodic: 'violet',
@@ -103,6 +104,7 @@ export default function Memories() {
         }
       />
 
+      <SectionErrorBoundary sectionName="Memories">
       <DataList
         items={s.memories}
         filteredItems={filtered}

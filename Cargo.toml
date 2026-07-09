@@ -10,7 +10,6 @@ members = [
     "crates/tools",
     "crates/observability",
     "crates/nexus-search",
-    "crates/nexus-cli",
 ]
 resolver = "3"
 

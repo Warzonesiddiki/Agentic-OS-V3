@@ -66,80 +66,11 @@ interface RawItem {
 
 const MAX_CORPUS = env.NEXUS_MAX_RECALL_CORPUS;
 
-/* ─── Feedback bonus cache (perfA) ───────────────────────────────────────────
- * The lexical/semantic hot path previously issued `feedback.findMany({ limit: 5000 })`
- * on EVERY recall() call — a full-table scan that dominates latency for repeated
- * queries. Feedback changes infrequently, so we memoize the derived helpful/total
- * maps behind a short TTL and an LRU bound keyed by table row-count freshness.
- * This is a read-side cache; it is invalidated on every feedback write by
- * `invalidateFeedbackCache()` (called from the feedback routes / memory-write path). */
-interface FeedbackCacheEntry {
-  helpful: Map<string, number>;
-  total: Map<string, number>;
-  expiresAt: number;
-}
-let feedbackCache: FeedbackCacheEntry | undefined;
-function feedbackTtlMs(): number {
-  const v = Number(process.env.NEXUS_FEEDBACK_CACHE_TTL_MS ?? 30_000);
-  return Number.isFinite(v) ? v : 30_000;
-}
-
-export function invalidateFeedbackCache(): void {
-  feedbackCache = undefined;
-}
-
-async function loadFeedbackBonus(_opts?: { noFeedbackCache?: boolean }): Promise<{ helpful: Map<string, number>; total: Map<string, number> }> {
-  const now = Date.now();
-  if (!_opts?.noFeedbackCache && feedbackCache && now <= feedbackCache.expiresAt) {
-    return { helpful: feedbackCache.helpful, total: feedbackCache.total };
-  }
-  // Memoized behind a short TTL to avoid a full-table scan on every recall().
-  const rows = await db.query.feedback.findMany({ limit: 5_000 });
-  const helpful = new Map<string, number>();
-  const total = new Map<string, number>();
-  for (const f of rows) {
-    total.set(f.itemId, (total.get(f.itemId) ?? 0) + 1);
-    if (f.helpful) helpful.set(f.itemId, (helpful.get(f.itemId) ?? 0) + 1);
-  }
-  feedbackCache = { helpful, total, expiresAt: now + feedbackTtlMs() };
-  return { helpful, total };
-}
-
-/**
- * Pure Reciprocal Rank Fusion over two rank maps.
- * Exported for benchmarking + reuse (no DB, no side effects).
- *   RRF(d) = 1/(k + rank_lexical(d)) + 1/(k + rank_semantic(d))
- */
-export function rrfFuse(
-  lexicalRank: Map<string, number>,
-  semanticRank: Map<string, number>,
-  k = RRF_K
-): Map<string, number> {
-  const candidates = new Set([...lexicalRank.keys(), ...semanticRank.keys()]);
-  const out = new Map<string, number>();
-  for (const id of candidates) {
-    let rrf = 0;
-    const lr = lexicalRank.get(id);
-    if (lr !== undefined) rrf += 1 / (k + lr + 1);
-    const sr = semanticRank.get(id);
-    if (sr !== undefined) rrf += 1 / (k + sr + 1);
-    out.set(id, rrf);
-  }
-  return out;
-}
-
-export interface RecallOptions {
-  cursor?: number;
-  limit?: number;
-  /** When true, bypass the feedback-bonus cache (forces a fresh full-table scan). */
-  noFeedbackCache?: boolean;
-}
-
 export async function recall(
   query: string,
   budget: number,
   actor: string,
-  opts?: RecallOptions
+  opts?: { cursor?: number; limit?: number }
 ): Promise<RecallResult> {
   const useSemantic = embeddingsAvailable();
 
@@ -230,13 +161,11 @@ export async function recall(
         .filter(Boolean);
       if (sanitized.length > 0) {
         const ftsMatchExpr = sanitized.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' OR ');
-        const ftsRows: unknown = await db.execute(sql`
+        const ftsRows: any = await db.execute(sql`
           SELECT id FROM memories_fts WHERE memories_fts MATCH ${ftsMatchExpr} ORDER BY rank LIMIT 100
         `);
-        const rowArr = Array.isArray(ftsRows)
-          ? (ftsRows as Array<{ id?: unknown }>)
-          : (((ftsRows as { rows?: Array<{ id?: unknown }> })?.rows) ?? []);
-        rowArr.forEach((r, idx: number) => {
+        const rowArr = Array.isArray(ftsRows) ? ftsRows : (ftsRows?.rows ?? []);
+        rowArr.forEach((r: any, idx: number) => {
           if (r && r.id) {
             ftsMemRank.set(String(r.id), idx);
           }
@@ -415,7 +344,13 @@ export async function recall(
 
   // ---- Feedback bonus lookup ----
   // Cap feedback at 5k rows (the top-N by item frequency dominates the bonus).
-  const { helpful, total } = await loadFeedbackBonus({ noFeedbackCache: opts?.noFeedbackCache });
+  const fbRows = await db.query.feedback.findMany({ limit: 5_000 });
+  const helpful = new Map<string, number>();
+  const total = new Map<string, number>();
+  for (const f of fbRows) {
+    total.set(f.itemId, (total.get(f.itemId) ?? 0) + 1);
+    if (f.helpful) helpful.set(f.itemId, (helpful.get(f.itemId) ?? 0) + 1);
+  }
   const fbBonus = (id: string) => {
     const t = total.get(id) ?? 0;
     return t ? ((helpful.get(id) ?? 0) / t) * 0.15 : 0;
@@ -520,7 +455,7 @@ export async function recall(
 
   // ---- Side effects: bump recallCount + ledger ----
   const memIds = packed.filter((p) => p.type === 'memory').map((p) => p.id);
-  await db.transaction(async (tx: typeof db) => {
+  await db.transaction(async (tx: any) => {
     if (memIds.length) {
       await tx
         .update(memories)

@@ -269,12 +269,7 @@ export async function executePlan(plan: RunPlan, opts: ExecutorOptions = {}): Pr
     if (prior && prior.length > 0) {
       for (const r of prior) {
         results.set(r.stepId, r);
-        if (r.ok) {
-          done.add(r.stepId);
-          // Restored steps must also leave the active queue so they are not
-          // re-dispatched by the scheduling loop.
-          queue.delete(r.stepId);
-        }
+        if (r.ok) done.add(r.stepId);
       }
       log.info('dag.executor.resume', {
         runId,

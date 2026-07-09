@@ -68,7 +68,7 @@ export default function Federated() {
               {f === "all" ? "All" : f === "materialized" ? "✓ Materialized" : "✗ Rejected"}
             </Button>
           ))}
-          {topicFilter && <Badge tone="cyan">topic: {topicFilter} <button aria-label="Clear topic filter" className="ml-1 text-slate-500 hover:text-slate-300" onClick={() => setTopicFilter("")}>×</button></Badge>}
+          {topicFilter && <Badge tone="cyan">topic: {topicFilter} <button className="ml-1 text-slate-500 hover:text-slate-300" onClick={() => setTopicFilter("")}>×</button></Badge>}
           <span className="ml-auto text-xs text-slate-500">{proofs.length} proofs</span>
         </div>
       </Card>

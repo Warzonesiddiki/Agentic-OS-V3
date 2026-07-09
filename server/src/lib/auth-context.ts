@@ -2,12 +2,7 @@
  * auth-context.ts — per-request principal + scope enforcement.
  */
 import type { Context } from 'hono';
-import {
-  authenticate,
-  hasScope,
-  type Principal,
-  type Scope,
-} from './security.js';
+import { authenticate, type Principal, type Scope } from './security.js';
 export type { Scope } from './security.js';
 import { db } from '../db/client.js';
 import { err } from './envelope.js';
@@ -30,7 +25,7 @@ export async function resolvePrincipal(c: Context<NexusEnv>): Promise<Principal 
 export async function requireScope(c: Context, scope: Scope) {
   const principal = await resolvePrincipal(c);
   if (!principal) throw new ApiError('UNAUTHORIZED', 'Authentication required.');
-  if (!hasScope(principal.scopes, scope))
+  if (!principal.scopes.includes(scope))
     throw new ApiError('FORBIDDEN', `Missing required scope: ${scope}`);
   return principal;
 }

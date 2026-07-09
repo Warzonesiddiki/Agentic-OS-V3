@@ -10,7 +10,7 @@ export default function AdminSiem() {
   const [kind, setKind] = useState<'splunk' | 'datadog' | 'elastic' | 'webhook'>('webhook');
   const [endpoint, setEndpoint] = useState('');
 
-  const { data, isError, error } = useQuery<SiemSink[]>({
+  const { data } = useQuery<SiemSink[]>({
     queryKey: ['siem', orgId],
     queryFn: () => apiClient.listSiemSinks(orgId),
     enabled: !!orgId,
@@ -53,21 +53,16 @@ export default function AdminSiem() {
           Add sink
         </button>
       </form>
-      {isError && (
-        <div className="text-red-400">
-          Failed to load SIEM sinks: {error instanceof Error ? error.message : 'unknown error'}
-        </div>
-      )}
       <table className="w-full text-sm">
         <thead className="text-left text-zinc-400">
           <tr>
-            <th scope="col" className="py-2">Kind</th>
-            <th scope="col">Endpoint</th>
-            <th scope="col">Enabled</th>
+            <th className="py-2">Kind</th>
+            <th>Endpoint</th>
+            <th>Enabled</th>
           </tr>
         </thead>
         <tbody>
-          {(data ?? []).map((s) => (
+          {data?.map((s) => (
             <tr key={s.id} className="border-t border-zinc-800">
               <td className="py-2">{s.kind}</td>
               <td>{s.endpoint}</td>

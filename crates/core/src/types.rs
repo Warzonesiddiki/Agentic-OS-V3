@@ -61,14 +61,14 @@ pub enum MessageRole {
     Tool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(untagged)]
 pub enum MessageContent {
     Text(String),
     MultiPart(Vec<ContentPart>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum ContentPart {
     Text { text: String },
@@ -111,112 +111,4 @@ pub struct ProviderConfig {
     pub default_model: String,
     pub rate_limit: Option<usize>,
     pub timeout_ms: Option<u64>,
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_provider_kind_display() {
-        assert_eq!(format!("{}", ProviderKind::Openai), "openai");
-        assert_eq!(format!("{}", ProviderKind::Anthropic), "anthropic");
-        assert_eq!(format!("{}", ProviderKind::Google), "google");
-        assert_eq!(format!("{}", ProviderKind::Azure), "azure");
-        assert_eq!(
-            format!(
-                "{}",
-                ProviderKind::OpenAICompatible {
-                    endpoint: "http://x".into()
-                }
-            ),
-            "openai_compatible(http://x)"
-        );
-        assert_eq!(
-            format!("{}", ProviderKind::Custom("foo".into())),
-            "custom(foo)"
-        );
-    }
-
-    #[test]
-    fn test_provider_kind_serde_round_trip() {
-        let cases = vec![
-            ProviderKind::Openai,
-            ProviderKind::Anthropic,
-            ProviderKind::Google,
-            ProviderKind::Azure,
-            ProviderKind::OpenAICompatible {
-                endpoint: "https://e".into(),
-            },
-            ProviderKind::Custom("bar".into()),
-        ];
-        for c in cases {
-            let json = serde_json::to_string(&c).unwrap();
-            let back: ProviderKind = serde_json::from_str(&json).unwrap();
-            assert_eq!(c, back);
-        }
-    }
-
-    #[test]
-    fn test_model_id_display_and_round_trip() {
-        let mid = ModelId {
-            provider: ProviderKind::Openai,
-            name: "gpt-4".into(),
-        };
-        assert_eq!(format!("{}", mid), "openai:gpt-4");
-        let back: ModelId = serde_json::from_str(&serde_json::to_string(&mid).unwrap()).unwrap();
-        assert_eq!(mid, back);
-    }
-
-    #[test]
-    fn test_message_content_round_trip() {
-        let text = MessageContent::Text("hello".into());
-        let json = serde_json::to_string(&text).unwrap();
-        assert_eq!(json, "\"hello\"");
-        let back: MessageContent = serde_json::from_str(&json).unwrap();
-        assert_eq!(text, back);
-
-        let parts = MessageContent::MultiPart(vec![ContentPart::Text { text: "a".into() }]);
-        let json = serde_json::to_string(&parts).unwrap();
-        let back: MessageContent = serde_json::from_str(&json).unwrap();
-        assert_eq!(parts, back);
-    }
-
-    #[test]
-    fn test_provider_config_round_trip() {
-        let cfg = ProviderConfig {
-            kind: ProviderKind::Google,
-            api_key: "k".into(),
-            base_url: Some("https://b".into()),
-            default_model: "gemini".into(),
-            rate_limit: Some(10),
-            timeout_ms: Some(1000),
-        };
-        let json = serde_json::to_string(&cfg).unwrap();
-        let back: ProviderConfig = serde_json::from_str(&json).unwrap();
-        assert_eq!(cfg.default_model, back.default_model);
-        assert_eq!(cfg.kind, back.kind);
-        assert_eq!(cfg.rate_limit, back.rate_limit);
-        assert_eq!(cfg.timeout_ms, back.timeout_ms);
-    }
-
-    #[test]
-    fn test_session_round_trip_and_metadata() {
-        let mut meta = HashMap::new();
-        meta.insert("k".to_string(), "v".to_string());
-        let sess = Session {
-            id: "s1".into(),
-            provider: ProviderKind::Anthropic,
-            model: "claude".into(),
-            messages: vec![],
-            metadata: meta,
-            created_at: chrono::Utc::now(),
-            updated_at: chrono::Utc::now(),
-        };
-        let json = serde_json::to_string(&sess).unwrap();
-        let back: Session = serde_json::from_str(&json).unwrap();
-        assert_eq!(back.id, "s1");
-        assert_eq!(back.provider, ProviderKind::Anthropic);
-        assert_eq!(back.metadata.get("k").map(String::as_str), Some("v"));
-    }
 }

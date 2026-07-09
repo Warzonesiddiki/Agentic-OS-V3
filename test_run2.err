@@ -1,4 +1,0 @@
-    Blocking waiting for file lock on build directory
-    Finished `test` profile [unoptimized + debuginfo] target(s) in 2m 32s
-     Running unittests src\lib.rs (target\debug\deps\agentic_os_provider_types-86a4794a3fb05fac.exe)
-error: test failed, to rerun pass `-p agentic-os-provider-types --lib`

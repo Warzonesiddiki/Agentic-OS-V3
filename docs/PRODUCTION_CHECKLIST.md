@@ -119,34 +119,6 @@ prerequisites for later ones.
 
 ---
 
-## Build & Validation Gate (Perfection Bar)
-
-The single source-of-truth gate for every release is the root script
-`pnpm run validate`, which runs, in order:
-
-```
-pnpm run rebuild:native   # rebuild better-sqlite3 against the runner Node ABI
-pnpm -r lint              # ESLint across all workspace members (0 errors)
-pnpm -r typecheck         # tsc --noEmit per member (fresh, --incremental false)
-pnpm -r test              # vitest unit tests per member
-pnpm -r build             # server tsc + dashboard vite build
-```
-
-- [ ] `pnpm run validate` passes end-to-end on a clean checkout (exit 0).
-- [ ] Fresh TypeScript compile is clean: `rm -f *.tsbuildinfo && npx tsc --noEmit --incremental false` returns **0 errors** (no stale `.tsbuildinfo` masking).
-- [ ] ESLint reports **0 problems** (`pnpm -r lint` red-free).
-- [ ] Unit tests green (`pnpm -r test`); `server` enforces >=80% coverage on changed modules.
-- [ ] Production build succeeds (`pnpm -r build`): server `dist/` and dashboard `dist/`.
-- [ ] CI workflow `.github/workflows/ci.yml` runs the canonical gate via the
-      `validate-gate` job (`pnpm run validate`) plus integration (`server-validate`),
-      Rust (`rust`), and CODEOWNERS coverage (`codeowners`) jobs — all green on the merge commit.
-- [ ] Multi-stage `Dockerfile` verified: builds with pnpm (this is a pnpm workspace with
-      `workspace:*` deps), builds shared `packages/*` before the server, and runs as
-      non-root `USER node` with a `/api/v1/health` healthcheck.
-
-> NOTE: `tsc --noEmit` (default incremental) can return 0 while real errors exist because
-> stale `.tsbuildinfo` masks them. Always measure with `--incremental false` (what the
-> `typecheck`/CI gate does) before claiming a clean compile.
 ## Monitoring
 
 - [ ] Health endpoint (`/api/v1/health`) monitored externally (uptime check every 60s).

@@ -4,31 +4,30 @@
 
 | Document                           | Description                                                     |
 | ---------------------------------- | --------------------------------------------------------------- |
-| `ARCHITECTURE.md`                  | System architecture — C4 model, containers, components _(planned)_ |
-| `AGENTIC_OS.md`                    | Agentic OS kernel reference — syscalls, scheduler, memory graph _(planned)_ |
-| `AUDIT_PLAN.md`                    | No-compromise codebase audit plan _(planned)_ |
-| `AGENT_DEV_GUIDE.md`               | Agent development guide                                         |
-| `CONTROL_PLANE_UX_SPEC.md`         | Control plane UX specification (draft) _(planned)_ |
-| `DEPLOYMENT.md`                    | Production deployment guide _(planned)_ |
+| `ARCHITECTURE.md`                  | System architecture — C4 model, containers, components          |
+| `AGENTIC_OS.md`                    | Agentic OS kernel reference — syscalls, scheduler, memory graph |
+| `AUDIT_PLAN.md`                    | No-compromise codebase audit plan                               |
+| `CONTROL_PLANE_UX_SPEC.md`         | Control plane UX specification (draft)                          |
+| `DEPLOYMENT.md`                    | Production deployment guide                                     |
 | `OBSERVABILITY_GUIDE.md`           | Observability, metrics, tracing, alerting                       |
 | `DEPRECATION_POLICY.md`            | Deprecation & removal policy for APIs/features                  |
 | `ERROR_CODES.md`                   | Canonical error-code reference                                  |
 | `CONFIG_REFERENCE.md`              | Configuration & env reference                                   |
 | `DR_RUNBOOK.md`                    | Disaster recovery runbook                                       |
-| `PLUGIN_DEV_GUIDE.md`              | Plugin development guide _(planned)_ |
-| `CONTRIBUTING.md`                  | Contributor quickstart (build/test/validate + fresh-tsc gate warning) |
+| `PLUGIN_DEV_GUIDE.md`              | Plugin development guide                                        |
+| `AGENT_DEV_GUIDE.md`               | Agent development guide                                         |
 | `PERSONA_REGISTRY.md`              | Persona & agent taxonomy registry                               |
 | `PLAN_TRACKER.md`                  | Plan-tracking index (Phases 11–20 → owner/status)               |
-| `HERMES.md`                        | Hermes agent integration guide _(planned)_ |
-| `MCP.md`                           | MCP protocol integration _(planned)_ |
-| `REDEMPTION_PLAN.md`               | Zero-compromise engineering master plan (20 phases) _(planned)_ |
-| `SECURITY.md`                      | Threat model and security hardening _(planned)_ |
-| `TESTING.md`                       | Testing strategy and coverage _(planned)_ |
-| `A2A_PROTOCOL.md`                  | Google A2A inter-agent protocol _(planned)_ |
-| `PRODUCTION_CHECKLIST.md`          | Production readiness checklist _(planned)_ |
+| `HERMES.md`                        | Hermes agent integration guide                                  |
+| `MCP.md`                           | MCP protocol integration                                        |
+| `REDEMPTION_PLAN.md`               | Zero-compromise engineering master plan (20 phases)             |
+| `SECURITY.md`                      | Threat model and security hardening                             |
+| `TESTING.md`                       | Testing strategy and coverage                                   |
+| `A2A_PROTOCOL.md`                  | Google A2A inter-agent protocol                                 |
+| `PRODUCTION_CHECKLIST.md`          | Production readiness checklist                                  |
 | `skill-registry-design.md`         | Skill registry design document                                  |
 | `phase-13-orchestration-design.md` | Phase 13 orchestration architecture (design)                    |
-| `adr/`                             | Architecture Decision Records (ADR-0001 … ADR-0030 — index in `adr/README.md`) |
+| `adr/`                             | Architecture Decision Records (ADR-0001 … ADR-0009)             |
 | `migration-guide.md`               | Migration guide                                                 |
 | `upgrade-notes.md`                 | Upgrade notes                                                   |
 

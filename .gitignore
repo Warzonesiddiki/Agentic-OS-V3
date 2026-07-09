@@ -10,6 +10,21 @@ coverage/
 *.tsbuildinfo.*
 server/dist/
 
+# --- Local tooling / measurement artifacts (never commit) ---
+*.ps1
+*.err
+build_pid.txt
+server/_probe*.js
+server/_probe*.mjs
+server/scripts/lint-tests.json
+server/scripts/measure-lint.cjs
+server/scripts/probe-markers.cjs
+*.db
+*.db-wal
+*.db-shm
+agentic-os.db
+server/data/*.sqlite*
+
 # Rust build artifacts
 target/
 **/target/

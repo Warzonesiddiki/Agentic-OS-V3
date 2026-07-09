@@ -1,10 +1,10 @@
 #!/bin/sh
 set -e
 
-# Run auto-migrations if DATABASE_URL is set (drizzle-kit is installed as a dev dep)
+# Run auto-migrations if DATABASE_URL is set
 if [ -n "$DATABASE_URL" ]; then
   echo "[NEXUS ENTRYPOINT] Executing database migrations..."
-  pnpm exec drizzle-kit migrate || echo "[NEXUS ENTRYPOINT] Migration warning: continuing boot..."
+  npx drizzle-kit migrate || echo "[NEXUS ENTRYPOINT] Migration warning: continuous boot..."
 fi
 
 exec "$@"

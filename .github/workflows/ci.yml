@@ -29,7 +29,7 @@ permissions:
 
 jobs:
   validate:
-    name: Canonical validate gate (pnpm run validate)
+    name: Lint / Typecheck / Test / Build (TS workspace)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -46,10 +46,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # Single source of truth: the root `validate` script runs
-      # rebuild:native -> lint -> typecheck -> test -> build in order.
-      - name: Perfection-Bar gate (rebuild:native + lint + typecheck + test + build)
-        run: pnpm run validate
+      - name: Rebuild native modules for runner Node (better-sqlite3 ABI)
+        run: pnpm rebuild better-sqlite3
+
+      - name: Lint (workspace)
+        run: pnpm -r lint
+
+      - name: TypeScript typecheck (fresh, no incremental cache)
+        run: pnpm -r typecheck
+
+      - name: Unit tests
+        run: pnpm -r test
+
+      - name: Build (server tsc + dashboard vite build)
+        run: pnpm -r build
 
   server-validate:
     name: Server validate (fresh tsc + tests + integration gate)
@@ -91,7 +101,6 @@ jobs:
 
       - name: Server validate (lint + fresh typecheck + unit + integration gate + build)
         run: cd server && npm run validate
-
 
   rust:
     name: Rust (build / clippy / test)

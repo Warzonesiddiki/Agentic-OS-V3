@@ -3,8 +3,9 @@
 use anyhow::{anyhow, Result};
 use serde::Deserialize;
 
+use crate::api::PluginKind;
+
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct Plugin {
   pub id: String,
   pub slug: String,
@@ -32,46 +33,30 @@ pub enum PluginKind {
   Integration,
 }
 
-impl std::fmt::Display for PluginKind {
-  fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-    let s = match self {
-      PluginKind::Plugin => "plugin",
-      PluginKind::Agent => "agent",
-      PluginKind::Memory => "memory",
-      PluginKind::Widget => "widget",
-      PluginKind::Tool => "tool",
-      PluginKind::Integration => "integration",
-    };
-    f.write_str(s)
-  }
-}
-
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 pub struct Agent {
   pub id: String,
   pub status: String,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct Envelope<T> {
   ok: bool,
   #[serde(default)]
   request_id: String,
+  #[serde(default)]
   result: Option<T>,
+  #[serde(default)]
   error: Option<ApiError>,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct ApiError {
   code: String,
   message: String,
 }
 
 #[derive(Debug, Deserialize)]
-#[allow(dead_code)]
 struct Page<T> {
   items: Vec<T>,
   #[serde(default)]

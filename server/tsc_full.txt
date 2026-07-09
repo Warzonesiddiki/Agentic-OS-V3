@@ -1,0 +1,155 @@
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+src/app.ts(25,3): error TS2305: Module '"./services/tracing.js"' has no exported member 'runWithTraceContext'.
+src/app.ts(26,3): error TS2305: Module '"./services/tracing.js"' has no exported member 'parseTraceparent'.
+src/app.ts(27,3): error TS2305: Module '"./services/tracing.js"' has no exported member 'formatTraceparent'.
+src/app.ts(28,3): error TS2305: Module '"./services/tracing.js"' has no exported member 'generateTraceId'.
+src/app.ts(29,3): error TS2305: Module '"./services/tracing.js"' has no exported member 'generateSpanId'.
+src/app.ts(30,3): error TS2459: Module '"./services/tracing.js"' declares 'getTracer' locally, but it is not exported.
+src/db/client.ts(32,10): error TS2305: Module '"../services/tracing.js"' has no exported member 'startToolSpan'.
+src/db/client.ts(32,25): error TS2305: Module '"../services/tracing.js"' has no exported member 'endTracedSpan'.
+src/db/client.ts(32,40): error TS2305: Module '"../services/tracing.js"' has no exported member 'recordSpanError'.
+src/lib/http.ts(10,10): error TS2305: Module '"../services/tracing.js"' has no exported member 'injectTraceparent'.
+src/mcp.ts(26,10): error TS2305: Module '"./lib/lru-cache.js"' has no exported member 'statsCache'.
+src/routes.ts(48,10): error TS2614: Module '"./routes/analytics.js"' has no exported member 'analyticsRouter'. Did you mean to use 'import analyticsRouter from "./routes/analytics.js"' instead?
+src/routes/self-opt.ts(104,30): error TS2339: Property 'targetInterface' does not exist on type 'SelfOptTuner'.
+src/services/llm.ts(15,10): error TS2305: Module '"./tracing.js"' has no exported member 'startLLMSpan'.
+src/services/llm.ts(15,24): error TS2305: Module '"./tracing.js"' has no exported member 'recordTokenUsage'.
+src/services/llm.ts(15,42): error TS2305: Module '"./tracing.js"' has no exported member 'recordSpanError'.
+src/services/llm.ts(15,59): error TS2305: Module '"./tracing.js"' has no exported member 'endTracedSpan'.
+src/services/overhead-accounting.ts(58,3): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/services/overhead-accounting.ts(138,17): error TS2532: Object is possibly 'undefined'.
+src/services/propagation.ts(1,15): error TS2305: Module '"./span-context.js"' has no exported member 'TraceContext'.
+src/services/propagation.ts(2,10): error TS2305: Module '"./span-context.js"' has no exported member 'getTraceContext'.
+src/services/self-opt/bootstrap.ts(92,21): error TS2304: Cannot find name 'createLiveWriteAdapter'.
+src/services/self-opt/gap-items.ts(45,17): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,28): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,40): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,52): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,64): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,76): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,88): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,99): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,111): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(45,123): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,17): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,28): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,40): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,52): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,64): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,76): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,93): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,104): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,116): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,128): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(50,140): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,16): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,27): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,39): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,51): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,63): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,75): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,87): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,98): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,110): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(53,122): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(85,21): error TS2532: Object is possibly 'undefined'.
+src/services/self-opt/gap-items.ts(85,31): error TS18048: 'base' is possibly 'undefined'.
+src/services/shadow-daemon.ts(337,3): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+src/services/shadow-daemon.ts(361,30): error TS2339: Property 'strategy' does not exist on type 'SQLiteTableWithColumns<{ name: "agent_tasks"; schema: undefined; columns: { id: SQLiteColumn<{ name: "id"; tableName: "agent_tasks"; dataType: "string"; columnType: "SQLiteText"; data: string; driverParam: string; notNull: true; ... 7 more ...; generated: undefined; }, {}, { ...; }>; ... 20 more ...; estimatedDurati...'.
+  Property 'strategy' does not exist on type 'SQLiteTableWithColumns<{ name: "agent_tasks"; schema: undefined; columns: { id: SQLiteColumn<{ name: "id"; tableName: "agent_tasks"; dataType: "string"; columnType: "SQLiteText"; data: string; driverParam: string; notNull: true; ... 7 more ...; generated: undefined; }, {}, { ...; }>; ... 20 more ...; estimatedDurati...'.
+src/services/shadow-daemon.ts(365,38): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/shadow-daemon.ts(366,35): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/shadow-daemon.ts(367,31): error TS7006: Parameter 'r' implicitly has an 'any' type.
+src/services/shadow-daemon.ts(372,48): error TS7006: Parameter 'a' implicitly has an 'any' type.
+src/services/shadow-daemon.ts(372,51): error TS7006: Parameter 'b' implicitly has an 'any' type.
+src/services/span-context.ts(27,12): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/span-context.ts(27,27): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/span-context.ts(27,42): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/span-context.ts(27,56): error TS2322: Type 'string | undefined' is not assignable to type 'string'.
+  Type 'undefined' is not assignable to type 'string'.
+src/services/task-worker.ts(263,49): error TS2339: Property 'preemptionStuckMs' does not exist on type 'WorkerOptions'.
+src/services/tracing.ts(12,25): error TS2835: Relative import paths need explicit file extensions in ECMAScript imports when '--moduleResolution' is 'node16' or 'nodenext'. Did you mean './overhead-accounting.js'?
+tests/forge-selfheal.test.ts(20,3): error TS2305: Module '"../src/services/scheduler.js"' has no exported member 'QuotaRegistry'.
+tests/forge-selfheal.test.ts(21,3): error TS2305: Module '"../src/services/scheduler.js"' has no exported member 'resetQuotaRegistry'.
+tests/metrics-validation.test.ts(2,10): error TS2724: '"../src/services/metrics-validation.js"' has no exported member named 'validateMetrics'. Did you mean 'validateMetricName'?
+tests/metrics-validation.test.ts(11,44): error TS7006: Parameter 'r' implicitly has an 'any' type.
+tests/metrics-validation.test.ts(15,45): error TS7006: Parameter 'r' implicitly has an 'any' type.
+tests/overhead-accounting.test.ts(3,3): error TS2305: Module '"../src/services/overhead-accounting.js"' has no exported member 'OverheadAccountant'.
+tests/overhead-accounting.test.ts(4,3): error TS2305: Module '"../src/services/overhead-accounting.js"' has no exported member 'overheadAccountant'.
+tests/overhead-accounting.test.ts(5,3): error TS2305: Module '"../src/services/overhead-accounting.js"' has no exported member 'accountOverhead'.
+tests/overhead-accounting.test.ts(6,3): error TS2724: '"../src/services/overhead-accounting.js"' has no exported member named 'getOverhead'. Did you mean 'resetOverhead'?
+tests/phase14-security.test.ts(250,33): error TS2554: Expected 1 arguments, but got 2.
+tests/phase14-security.test.ts(252,62): error TS2339: Property 'status' does not exist on type 'ProbeResult'.
+tests/ranking-trainer.test.ts(43,12): error TS2532: Object is possibly 'undefined'.
+tests/self-opt-gap-items.test.ts(29,36): error TS2353: Object literal may only specify known properties, and 'latency' does not exist in type 'TelemetrySnapshot'.
+tests/self-opt-gap-items.test.ts(34,31): error TS2345: Argument of type '{}' is not assignable to parameter of type 'TelemetrySnapshot'.
+  Type '{}' is missing the following properties from type 'TelemetrySnapshot': scheduler, recall, prompt, provider, and 4 more.
+tests/self-opt-gap-items.test.ts(40,16): error TS2339: Property 'ok' does not exist on type '{ passed: boolean; gaps: FairnessGaps[]; recommendations: string[]; }'.
+tests/self-opt-gap-items.test.ts(41,16): error TS2339: Property 'violating' does not exist on type '{ passed: boolean; gaps: FairnessGaps[]; recommendations: string[]; }'.
+tests/self-opt-gap-items.test.ts(46,47): error TS2339: Property 'ok' does not exist on type '{ passed: boolean; gaps: FairnessGaps[]; recommendations: string[]; }'.
+tests/self-opt-gap-items.test.ts(52,14): error TS2339: Property 'globalCap' does not exist on type '{ used: number; budget: number; remaining: number; exhausted: boolean; }'.
+tests/self-opt-gap-items.test.ts(53,14): error TS2339: Property 'globalUsed' does not exist on type '{ used: number; budget: number; remaining: number; exhausted: boolean; }'.
+tests/self-opt-gap-items.test.ts(64,36): error TS2353: Object literal may only specify known properties, and 'significanceAlpha' does not exist in type '{ horizonCycles?: number | undefined; targetMetric?: string | undefined; optimizationGoal?: "max" | "min" | undefined; }'.
+tests/self-opt-guardrail.test.ts(23,36): error TS2353: Object literal may only specify known properties, and 'dryRunDefault' does not exist in type 'Partial<GuardrailBounds>'.
+tests/self-opt-guardrail.test.ts(26,29): error TS2339: Property 'shadowWindowSeconds' does not exist on type 'EvaluateResult'.
+tests/self-opt-guardrail.test.ts(30,36): error TS2353: Object literal may only specify known properties, and 'dryRunDefault' does not exist in type 'Partial<GuardrailBounds>'.
+tests/self-opt-guardrail.test.ts(31,26): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+tests/self-opt-guardrail.test.ts(38,36): error TS2353: Object literal may only specify known properties, and 'dryRunDefault' does not exist in type 'Partial<GuardrailBounds>'.
+tests/self-opt-guardrail.test.ts(46,36): error TS2353: Object literal may only specify known properties, and 'dryRunDefault' does not exist in type 'Partial<GuardrailBounds>'.
+tests/self-opt-guardrail.test.ts(53,36): error TS2353: Object literal may only specify known properties, and 'dryRunDefault' does not exist in type 'Partial<GuardrailBounds>'.
+tests/self-opt-guardrail.test.ts(60,36): error TS2353: Object literal may only specify known properties, and 'dryRunDefault' does not exist in type 'Partial<GuardrailBounds>'.
+tests/self-opt-guardrail.test.ts(68,36): error TS2353: Object literal may only specify known properties, and 'dryRunDefault' does not exist in type 'Partial<GuardrailBounds>'.
+tests/self-opt-guardrail.test.ts(71,29): error TS2339: Property 'shadowWindowSeconds' does not exist on type 'EvaluateResult'.
+tests/self-opt-guardrail.test.ts(75,36): error TS2561: Object literal may only specify known properties, but 'costKillSwitchUsdPer1k' does not exist in type 'Partial<GuardrailBounds>'. Did you mean to write 'costKillSwitchUsd'?
+tests/self-opt-guardrail.test.ts(76,34): error TS2345: Argument of type 'number' is not assignable to parameter of type '{ costUsd: number; budgetUsd?: number | undefined; }'.
+tests/self-opt-guardrail.test.ts(77,34): error TS2345: Argument of type 'number' is not assignable to parameter of type '{ costUsd: number; budgetUsd?: number | undefined; }'.
+tests/self-opt-telemetry.test.ts(20,21): error TS2339: Property 'rrfK' does not exist on type '{ ndcg10: number; weights: { rrf: number; lexical: number; vector: number; }; missRate: number; }'.
+tests/self-opt-tuners.test.ts(1,10): error TS2300: Duplicate identifier 'describe'.
+tests/self-opt-tuners.test.ts(1,20): error TS2300: Duplicate identifier 'it'.
+tests/self-opt-tuners.test.ts(1,24): error TS2300: Duplicate identifier 'expect'.
+tests/self-opt-tuners.test.ts(3,3): error TS2300: Duplicate identifier 'SchedulerPidTuner'.
+tests/self-opt-tuners.test.ts(4,3): error TS2300: Duplicate identifier 'RLSchedulingPolicy'.
+tests/self-opt-tuners.test.ts(5,3): error TS2300: Duplicate identifier 'MemoryThresholdCalibrator'.
+tests/self-opt-tuners.test.ts(6,3): error TS2300: Duplicate identifier 'twoProportionPValue'.
+tests/self-opt-tuners.test.ts(7,3): error TS2300: Duplicate identifier 'expectedImprovement'.
+tests/self-opt-tuners.test.ts(8,3): error TS2300: Duplicate identifier 'nelderMeadStep'.
+tests/self-opt-tuners.test.ts(9,3): error TS2300: Duplicate identifier 'mahalanobis'.
+tests/self-opt-tuners.test.ts(10,3): error TS2300: Duplicate identifier 'prophetForecast'.
+tests/self-opt-tuners.test.ts(11,3): error TS2300: Duplicate identifier 'normalCdf'.
+tests/self-opt-tuners.test.ts(72,10): error TS2300: Duplicate identifier 'describe'.
+tests/self-opt-tuners.test.ts(72,20): error TS2300: Duplicate identifier 'it'.
+tests/self-opt-tuners.test.ts(72,24): error TS2300: Duplicate identifier 'expect'.
+tests/self-opt-tuners.test.ts(74,3): error TS2300: Duplicate identifier 'SchedulerPidTuner'.
+tests/self-opt-tuners.test.ts(75,3): error TS2300: Duplicate identifier 'RLSchedulingPolicy'.
+tests/self-opt-tuners.test.ts(76,3): error TS2300: Duplicate identifier 'MemoryThresholdCalibrator'.
+tests/self-opt-tuners.test.ts(77,3): error TS2300: Duplicate identifier 'twoProportionPValue'.
+tests/self-opt-tuners.test.ts(78,3): error TS2300: Duplicate identifier 'expectedImprovement'.
+tests/self-opt-tuners.test.ts(79,3): error TS2300: Duplicate identifier 'nelderMeadStep'.
+tests/self-opt-tuners.test.ts(80,3): error TS2300: Duplicate identifier 'mahalanobis'.
+tests/self-opt-tuners.test.ts(81,3): error TS2300: Duplicate identifier 'prophetForecast'.
+tests/self-opt-tuners.test.ts(82,3): error TS2300: Duplicate identifier 'normalCdf'.
+tests/self-opt-tuners.test.ts(83,3): error TS2300: Duplicate identifier 'SchedulerPidTuner'.
+tests/self-opt-tuners.test.ts(84,3): error TS2300: Duplicate identifier 'RLSchedulingPolicy'.
+tests/self-opt-tuners.test.ts(85,3): error TS2300: Duplicate identifier 'MemoryThresholdCalibrator'.
+tests/self-opt-tuners.test.ts(101,110): error TS2353: Object literal may only specify known properties, and 'boostMs' does not exist in type '{ pid: { kp: number; ki: number; kd: number; }; queueWaitMs: number; queueRejectRate: number; queueDepth: number; policy: "mlfq" | "edf" | "fairshare"; }'.
+tests/self-opt-tuners.test.ts(102,65): error TS2353: Object literal may only specify known properties, and 'importance' does not exist in type '{ rrf: number; lexical: number; vector: number; }'.
+tests/self-opt-tuners.test.ts(104,46): error TS2353: Object literal may only specify known properties, and 'failoverCount' does not exist in type '{ p99Ms: number; errorRate: number; }'.
+tests/self-opt-tuners.test.ts(107,40): error TS2353: Object literal may only specify known properties, and 'falsePositive' does not exist in type '{ violationRate: number; }'.
+tests/self-opt-tuners.test.ts(160,112): error TS2353: Object literal may only specify known properties, and 'boostMs' does not exist in type '{ pid: { kp: number; ki: number; kd: number; }; queueWaitMs: number; queueRejectRate: number; queueDepth: number; policy: "mlfq" | "edf" | "fairshare"; }'.
+tests/self-opt-tuners.test.ts(170,112): error TS2353: Object literal may only specify known properties, and 'boostMs' does not exist in type '{ pid: { kp: number; ki: number; kd: number; }; queueWaitMs: number; queueRejectRate: number; queueDepth: number; policy: "mlfq" | "edf" | "fairshare"; }'.
+tests/self-opt-tuners.test.ts(185,112): error TS2353: Object literal may only specify known properties, and 'boostMs' does not exist in type '{ pid: { kp: number; ki: number; kd: number; }; queueWaitMs: number; queueRejectRate: number; queueDepth: number; policy: "mlfq" | "edf" | "fairshare"; }'.
+tests/self-opt.test.ts(46,26): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+tests/self-opt.test.ts(53,60): error TS2353: Object literal may only specify known properties, and 'explorationBudgetPerTuner' does not exist in type 'Partial<GuardrailBounds>'.
+tests/self-opt.test.ts(83,26): error TS2345: Argument of type 'number' is not assignable to parameter of type 'string'.
+tests/self-opt.test.ts(126,32): error TS2339: Property 'snapshot' does not exist on type '{ lastSnapshot: TelemetrySnapshot | undefined; record: (snapshot: TelemetrySnapshot) => void; }'.
+tests/self-opt.test.ts(133,26): error TS2339: Property 'snapshot' does not exist on type '{ lastSnapshot: TelemetrySnapshot | undefined; record: (snapshot: TelemetrySnapshot) => void; }'.
+tests/self-opt.test.ts(158,16): error TS2339: Property 'ok' does not exist on type '{ passed: boolean; gaps: FairnessGaps[]; recommendations: string[]; }'.
+tests/self-opt.test.ts(159,16): error TS2339: Property 'violating' does not exist on type '{ passed: boolean; gaps: FairnessGaps[]; recommendations: string[]; }'.
+tests/self-opt.test.ts(163,36): error TS2353: Object literal may only specify known properties, and 'ndcg' does not exist in type 'TelemetrySnapshot'.
+tests/smoke-new-services.test.ts(73,10): error TS2305: Module '"../src/services/tracing.js"' has no exported member 'getTraceProvider'.
