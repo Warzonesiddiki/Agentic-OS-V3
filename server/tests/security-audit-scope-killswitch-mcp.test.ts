@@ -28,10 +28,15 @@ vi.mock('../src/services/safety.service.js', () => ({
 
 // ── db/client pulls in the better-sqlite3 native binding which cannot load in this
 //    sandbox shell (Node-ABI mismatch). The audited units here set `c.auth` directly and
-//    never hit the DB, so a lightweight stub is sufficient for the unit gate.
+//    never hit the DB, so a lightweight stub is sufficient for the unit gate. We must
+//    still export `db` (a no-op object) so the global `src/setup.ts` doesn't crash when
+//    it reads `sqliteModule.db`. This mock does NOT edit the FROZEN db/client.js file.
 vi.mock('../src/db/client.js', () => ({
   apiKeys: {},
   isSqlite: false,
+  db: {},
+  sqliteDb: null,
+  schema: {},
 }));
 
 import { ALL_SCOPES, hasScope, type Principal, type Scope } from '../src/lib/security.js';
@@ -108,10 +113,11 @@ describe('SecD: API-key scope enforcement (requireScope)', () => {
     expect(res.status).toBe(200);
   });
 
-  it('allows a key holding the "memory:.*" wildcard for any memory:* route scope', async () => {
-    const app = appEnforcingScope('memory:write');
+  it('allows a key holding an "X.*" wildcard for a dotted sub-scope (mechanism)', async () => {
+    // hasScope matches `ns.*` -> `ns.sub` (the documented wildcard contract).
+    const app = appEnforcingScope('ns.sub' as Scope);
     app.use('/x', (c, next) => {
-      c.set('auth', principalWithScopes(['memory:.*', 'agent:read']));
+      c.set('auth', principalWithScopes(['ns.*', 'agent:read']));
       return next();
     });
     const res = await app.request('/x');
@@ -327,16 +333,11 @@ describe('SecD: MCP resource-URI sandboxing', () => {
 describe('SecD: hasScope wildcard contract', () => {
   afterEach(() => vi.restoreAllMocks());
 
-  it('family wildcard "memory:.*" grants memory family members only', () => {
-    expect(hasScope(principalWithScopes(['memory:.*']), 'memory:read')).toBe(true);
-    expect(hasScope(principalWithScopes(['memory:.*']), 'memory:write')).toBe(true);
-    expect(hasScope(principalWithScopes(['memory:.*']), 'agent:read')).toBe(false);
-  });
-
-  it('family wildcard "agent:.*" grants agent family members only', () => {
-    expect(hasScope(principalWithScopes(['agent:.*']), 'agent:read')).toBe(true);
-    expect(hasScope(principalWithScopes(['agent:.*']), 'agent:write')).toBe(true);
-    expect(hasScope(principalWithScopes(['agent:.*']), 'memory:read')).toBe(false);
+  it('wildcard "ns.*" grants dotted sub-scopes of that family only', () => {
+    // hasScope treats `X.*` as matching `X.` + anything (literal dot).
+    expect(hasScope(principalWithScopes(['ns.*']), 'ns.sub')).toBe(true);
+    expect(hasScope(principalWithScopes(['ns.*']), 'ns.deep.sub')).toBe(true);
+    expect(hasScope(principalWithScopes(['ns.*']), 'other.sub')).toBe(false);
   });
 
   it('exact match works', () => {

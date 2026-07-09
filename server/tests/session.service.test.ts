@@ -4,32 +4,34 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const chain = (rows: unknown[] = [{ enabled: false, reason: 'r', setAt: 1, setBy: 'x' }]) => {
-  const o: any = {};
-  o.from = () => o;
-  o.where = () => o;
-  o.limit = () => Promise.resolve(rows);
-  o.findFirst = () => Promise.resolve(rows[0] ?? null);
-  o.findMany = () => Promise.resolve(rows);
-  return o;
-};
-const updMock = () => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) }) }));
-const txMock: any = {
-  select: vi.fn(() => chain()),
-  update: vi.fn(() => updMock()),
-  query: { killSwitch: { findFirst: vi.fn(() => Promise.resolve({ enabled: false })) } },
-};
-const dbMock: any = {
-  select: vi.fn(() => chain()),
-  update: vi.fn(() => updMock()),
-  query: {
-    killSwitch: { findFirst: vi.fn(() => Promise.resolve({ enabled: false })) },
-    agents: { findFirst: vi.fn(() => Promise.resolve(null)) },
-    agentProcesses: { findFirst: vi.fn(() => Promise.resolve(null)) },
-  },
-  transaction: vi.fn((fn: any) => fn(txMock)),
-};
-vi.mock('../src/db/client.js', () => ({ db: dbMock, isSqlite: false, isPg: true }));
+vi.mock('../src/db/client.js', () => {
+  const chain = (rows: unknown[] = [{ enabled: false, reason: 'r', setAt: 1, setBy: 'x' }]) => {
+    const o: any = {};
+    o.from = () => o;
+    o.where = () => o;
+    o.limit = () => Promise.resolve(rows);
+    o.findFirst = () => Promise.resolve(rows[0] ?? null);
+    o.findMany = () => Promise.resolve(rows);
+    return o;
+  };
+  const upd = () => ({ set: () => ({ where: () => Promise.resolve() }) });
+  const txMock: any = {
+    select: vi.fn(() => chain()),
+    update: vi.fn(() => upd()),
+    query: { killSwitch: { findFirst: vi.fn(() => Promise.resolve({ enabled: false })) } },
+  };
+  const dbMock: any = {
+    select: vi.fn(() => chain()),
+    update: vi.fn(() => upd()),
+    query: {
+      killSwitch: { findFirst: vi.fn(() => Promise.resolve({ enabled: false })) },
+      agents: { findFirst: vi.fn(() => Promise.resolve(null)) },
+      agentProcesses: { findFirst: vi.fn(() => Promise.resolve(null)) },
+    },
+    transaction: vi.fn((fn: any) => fn(txMock)),
+  };
+  return { db: dbMock, isSqlite: false, isPg: true };
+});
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/services/safety.service.js', () => ({
   assertOperational: vi.fn(() => Promise.resolve()),
@@ -44,6 +46,7 @@ describe('session.service kill switch', () => {
   it('setKillSwitch engages within a transaction', async () => {
     const r = await setKillSwitch(true, 'incident', 'op_1');
     expect(r.enabled).toBe(true);
+    const dbMock = (await import('../src/db/client.js')).db as any;
     expect(dbMock.transaction).toHaveBeenCalled();
   });
 

@@ -4,36 +4,21 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const chain = (rows: unknown[] = []) => {
-  const o: any = {};
-  o.from = () => o;
-  o.where = () => o;
-  o.innerJoin = () => o;
-  o.orderBy = () => o;
-  o.limit = () => Promise.resolve(rows);
-  o.findFirst = () => Promise.resolve(rows[0] ?? null);
-  o.findMany = () => Promise.resolve(rows);
-  return o;
-};
-const returningChain = (rows: unknown[] = [{}]) => {
-  const p: any = Promise.resolve(rows);
-  p.$dynamic = () => Promise.resolve(rows);
-  return p;
-};
-const dbMock: any = {
-  select: vi.fn(() => chain()),
-  insert: vi.fn(() => ({
-    values: vi.fn(() => ({
-      onConflictDoNothing: vi.fn(() => Promise.resolve()),
-      returning: vi.fn(() => returningChain([{ id: 'cmp_1' }])),
-    })),
-  })),
-  update: vi.fn(() => ({
-    set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })),
-  })),
-  query: { compiledScripts: chain(), agentTasks: chain(), trajectoryLogs: chain() },
-};
-vi.mock('../src/db/client.js', () => ({ db: dbMock, env: {}, isSqlite: false, isPg: true }));
+vi.mock('../src/db/client.js', () => ({
+  db: {
+    select: vi.fn(() => ({ from: vi.fn(() => ({ where: vi.fn(() => ({ orderBy: vi.fn(() => ({ limit: vi.fn(() => Promise.resolve([])) })) })) }))),
+    insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => Promise.resolve()), returning: vi.fn(() => Promise.resolve([{ id: 'cmp_1' }])) })) })),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) }),
+    query: {
+      compiledScripts: { findFirst: vi.fn(() => Promise.resolve(null)), findMany: vi.fn(() => Promise.resolve([])) },
+      agentTasks: { findMany: vi.fn(() => Promise.resolve([])) },
+      trajectoryLogs: { findMany: vi.fn(() => Promise.resolve([])) },
+    },
+  },
+  env: {},
+  isSqlite: false,
+  isPg: true,
+}));
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/lib/env.js', () => ({ env: {} }));
 vi.mock('../src/lib/metrics.js', () => ({ skillCompilationsTotal: { inc: vi.fn() } }));

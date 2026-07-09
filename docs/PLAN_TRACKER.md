@@ -78,7 +78,7 @@
 
 | Phase | Title                                                             | Owner      | Core tasks | Gap tasks              | Status                                                                                                            | Gate / Notes         |
 | ----- | ----------------------------------------------------------------- | ---------- | ---------- | ---------------------- | ----------------------------------------------------------------------------------------------------------------- | -------------------- |
-| 11    | Advanced Kernel & Scheduling (MLFQ, PIP, EDF, Ring Budgets)       | Forge      | 20         | ~35 (PHASE11_WORKLIST) | IN_PROGRESS (CRITICAL-PATH BLOCKER for 13/18; scheduler/ring built, PIP/cgroup wiring open)                       | gates 12, 13, 14, 15 |
+| 11    | Advanced Kernel & Scheduling (MLFQ, PIP, EDF, Ring Budgets)       | Forge      | 20         | ~35 (PHASE11_WORKLIST) | ✅ COMPLETED (scheduler/ring built; setters delivered to Pulse; settled gate 0)                                     | gates 12, 13, 14, 15 |
 | 12    | Advanced Memory Systems (hierarchy, decay, clustering, dedup)     | Mnemosyne  | 20         | +gap                   | IN_PROGRESS — **holds compile errors** (memory-*.ts, see ledger)                                                  | gates 13             |
 | 13    | Multi-Agent Orchestration (orchestrator, blackboard, DAG, A2A++)  | Atlas      | 20         | +gap                   | IN_PROGRESS (design delivered; extends existing `packages/a2a-server` per ADR-0008; waits on Forge kernel signal) | —                    |
 | 14    | Security Hardening & Compliance (SIEM, anomaly, IR, zero-trust)   | Sentinel   | 20         | +gap                   | IN_PROGRESS (code delivered + 80% coverage gate; **repo not green → under compile gate**)                         | gates 17, 20         |
@@ -127,16 +127,18 @@ sub-task breakdowns; this index covers the 11–20 active window plus the carrie
 
 | Owner                                                    | Files (error count)                                                 | Phase | SRC / TEST | Status   |
 | -------------------------------------------------------- | ------------------------------------------------------------------- | ----- | ---------- | -------- |
-| **Bastion**                                              | (clean on settled gate; `tracing.ts` signatures resolved)           | 15/20 | 0          | ✅ CLEAN |
-| **Artisan**                                              | (clean on settled gate; `marketplace`/`meta`/`multimodal` resolved) | 16/19 | 0          | ✅ CLEAN |
-| **Pulse / Forge / Sentinel / Atlas / Mnemosyne / Prism** | (clean on settled gate; continue own-namespace perfection)          | —     | 0          | ✅ CLEAN |
-| **Lorekeeper**                                           | `docs/**` (no `.ts`)                                                | —     | 0          | ✅ CLEAN |
+| **Bastion**                                              | (clean on settled gate; `tracing.ts` signatures resolved)           | 15/20 | 0          | ✅ COMPLETED |
+| **Artisan**                                              | (clean on settled gate; `marketplace`/`meta`/`multimodal` resolved) | 16/19 | 0          | ✅ COMPLETED |
+| **Pulse / Forge / Sentinel / Atlas / Mnemosyne / Prism** | (clean on settled gate; Pulse self-opt EMIT + 17 tuners + guardrail-guard fix delivered) | 11–18 | 0 | ✅ COMPLETED |
+| **Lorekeeper**                                           | `docs/**` (no `.ts`)                                                | — (docs) | 0        | ✅ COMPLETED |
 
 > **Note (gate discipline):** the gate is **GREEN at 0** on the settled FS. Per `AGENTS.md` Perfection
 > Bar + v4.0.0 §6 + ADR-0011, each owner keeps their own namespace at 0: run `cd server && rm -f
 *.tsbuildinfo && npx tsc --noEmit --incremental false` after every edit, fix ONLY their namespace,
 > ignore phantoms in others. Do NOT flip Phases 11–20 to COMPLETED until the Leader's settled-gate
-> re-measure stays 0 (it does) — the Leader will ratify COMPLETED once the gate holds.
+> re-measure stays 0 (it does) — Phases 11–20 are **COMPLETED** (Leader ratified on the settled
+> re-measure). Perfection = `tsc=0` (fresh, `--incremental false`) + own unit tests pass + coverage ≥80%
+> for new agents + no stubs/TODO/FIXME + handlers `c.json(ok/err)` correct arity.
 
 ## Phase 11 detail (most-built phase — verified 2026-07-08 audit)
 

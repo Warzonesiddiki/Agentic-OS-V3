@@ -32,6 +32,8 @@ import {
   is5xxOrTransientError,
   isProviderHealthy,
 } from './omniroute-bridge.js';
+import { defaultLLMCache, type LLMCacheRequest } from './unified-gateway/llm-cache.js';
+import { defaultConnectionPool } from './unified-gateway/connection-pool.js';
 
 /* ─── Provider contract ──────────────────────────────────────────────────── */
 
@@ -496,12 +498,25 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
       };
 
       try {
-        const resp = await adapter.invoke(candidateReq, {
+        const cacheReq: LLMCacheRequest = {
+          provider: candidate.provider,
+          model: candidate.model,
+          messages: candidateReq.messages.map((m) => ({ role: m.role, content: m.content })),
+          temperature: candidateReq.temperature,
+          maxTokens: candidateReq.maxTokens,
+          topP: (candidateReq as Record<string, number | undefined>).topP,
+          stop: candidateReq.stopSequences,
+        };
+        const resp = await defaultLLMCache.getOrCompute(cacheReq, () =>
+          defaultConnectionPool.run(() =>
+            adapter.invoke(candidateReq, {
           apiKey,
           baseUrl:
             String(
               (env as Record<string, unknown>)[`${candidate.provider.toUpperCase()}_BASE_URL`] ?? ''
             ) || void 0,
+        }))
+        );
         });
 
         shouldCleanupProbe = false; // Handled by recordSuccess

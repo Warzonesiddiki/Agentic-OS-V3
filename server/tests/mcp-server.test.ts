@@ -342,6 +342,39 @@ describe('Nexus MCP server — resources', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Resource sandboxing (no path traversal)
+// ---------------------------------------------------------------------------
+describe('Nexus MCP server — resource sandbox', () => {
+  it('resolves only the registered nexus://brain/* URIs', async () => {
+    const { resources } = await client.listResources();
+    const uris = resources.map((r) => r.uri);
+    expect(uris.sort()).toEqual(
+      ['nexus://brain/ambient', 'nexus://brain/health', 'nexus://brain/stats'].sort()
+    );
+  });
+
+  it('rejects a path-traversal style URI (does not escape the scheme)', async () => {
+    // The handlers are keyed on exact URI strings; a traversal attempt must
+    // NOT be silently resolved to a real file/system resource.
+    await expect(
+      client.readResource({ uri: 'nexus://brain/../../../etc/passwd' })
+    ).rejects.toThrow();
+  });
+
+  it('rejects an unknown resource URI', async () => {
+    await expect(
+      client.readResource({ uri: 'nexus://brain/secrets' })
+    ).rejects.toThrow();
+  });
+
+  it('rejects an out-of-scheme URI', async () => {
+    await expect(
+      client.readResource({ uri: 'file:///etc/passwd' })
+    ).rejects.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Prompts
 // ---------------------------------------------------------------------------
 describe('Nexus MCP server — prompts', () => {

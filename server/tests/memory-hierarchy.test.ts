@@ -44,7 +44,7 @@ describe('cosineSimilarity', () => {
     expect(cosineSimilarity([], [])).toBe(0);
   });
   it('treats missing entries as zero', () => {
-    expect(cosineSimilarity([1, , 3], [1, 0, 3])).toBeCloseTo(1, 10);
+    expect(cosineSimilarity([1, 0, 3], [1, 0, 3])).toBeCloseTo(1, 10);
   });
   it('is symmetric', () => {
     expect(cosineSimilarity([1, 2], [2, -1])).toBeCloseTo(cosineSimilarity([2, -1], [1, 2]), 10);

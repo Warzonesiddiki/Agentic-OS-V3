@@ -79,12 +79,12 @@ export default function AdminAudit() {
         <table className="w-full text-sm">
           <thead className="text-left text-zinc-400">
             <tr>
-              <th className="py-2">Time</th>
-              <th>Actor</th>
-              <th>Action</th>
-              <th>Resource</th>
-              <th>Outcome</th>
-              <th>IP</th>
+              <th scope="col" className="py-2">Time</th>
+              <th scope="col">Actor</th>
+              <th scope="col">Action</th>
+              <th scope="col">Resource</th>
+              <th scope="col">Outcome</th>
+              <th scope="col">IP</th>
             </tr>
           </thead>
           <tbody>

@@ -104,3 +104,6 @@ Dockerfile.frontend
 # Vendored third-party source — will be extracted in Phase 13 then removed
 /gemini-cli/
 .aider*
+
+target-rusta/
+/target-rusta/**

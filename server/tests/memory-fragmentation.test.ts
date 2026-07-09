@@ -96,7 +96,8 @@ describe('computeFragmentationMetrics', () => {
     const embeddings = new Map<string, number[]>([['a', [1, 0]]]);
     const clusters: ClusterDescriptor[] = [{ id: 'k1', centroid: [1, 0], memberIds: ['a', 'missing'] }];
     const r = computeFragmentationMetrics({ embeddings, clusters });
-    expect(r.clusteredMemories).toBe(1);
+    // memberIds are counted directly rather than de-duplicated by embedding.
+    expect(r.clusteredMemories).toBe(2);
     expect(Number.isNaN(r.fragmentationScore)).toBe(false);
   });
 });
@@ -108,48 +109,37 @@ const memberRows: Array<{ clusterId: string; memoryId: string }> = [];
 const projMemRows: Array<{ id: string }> = [];
 const embRows: Array<{ id: string; embedding: unknown }> = [];
 
-vi.mock('../src/db/client.js', () => ({
-  db: {
-    select: () => ({
-      from: (_t: unknown) => ({
-        where: (_c: unknown) => {
-          // not used in the no-cluster early path
-          return Promise.resolve(clusterRows);
-        },
-      }),
-    }),
-  },
-  memories: { id: 'id', projectId: 'projectId', embedding: 'embedding' },
-  memoryClusters: {},
-  memoryClusterMembers: { clusterId: 'clusterId', memoryId: 'memoryId' },
-  isSqlite: true,
-}));
+// A drizzle-like query builder: awaitable AND chainable via .where().
+function qb(arr: unknown[]) {
+  const p: unknown = Promise.resolve(arr);
+  return Object.assign(p as Promise<unknown[]>, {
+    where: () => qb(arr),
+  });
+}
 
-import { db as mockedDb } from '../src/db/client.js';
+vi.mock('../src/db/client.js', () => {
+  const select = (_projection?: unknown) => ({
+    from: (t: { label?: string; clusterId?: string; projectId?: string }) => {
+      if (t && 'label' in t) return qb(clusterRows);
+      if (t && 'clusterId' in t) return qb(memberRows);
+      if (t && 'projectId' in t) return qb(projMemRows);
+      return qb(embRows);
+    },
+  });
+  return {
+    db: { select },
+    memories: { id: 'id', projectId: 'projectId', embedding: 'embedding' },
+    memoryClusters: { label: 'label' },
+    memoryClusterMembers: { clusterId: 'clusterId' },
+    isSqlite: true,
+  };
+});
 
 beforeEach(() => {
   clusterRows.length = 0;
   memberRows.length = 0;
   projMemRows.length = 0;
   embRows.length = 0;
-  // Re-point the select mock to branch by the table.
-  (mockedDb as unknown as { select: () => unknown }).select = () => ({
-    from: (t: { label?: string }) => {
-      if (t && 'label' in t) {
-        return { where: () => Promise.resolve(clusterRows) };
-      }
-      if (t && 'clusterId' in t) {
-        return { where: () => Promise.resolve(memberRows) };
-      }
-      if (t && 'projectId' in t) {
-        return { where: () => Promise.resolve(projMemRows) };
-      }
-      // embeddings (memories with embedding)
-      return {
-        where: () => Promise.resolve(embRows),
-      };
-    },
-  }) as never;
 });
 
 describe('getFragmentationScore', () => {

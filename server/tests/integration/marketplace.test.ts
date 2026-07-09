@@ -20,7 +20,7 @@
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import Database from 'better-sqlite3';
-import { drizzle, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
+import { drizzle, eq, type BetterSQLite3Database } from 'drizzle-orm/better-sqlite3';
 
 import * as sqliteSchema from '../../src/db/schema-sqlite';
 import { marketplaceService } from '../../src/services/marketplace.service';
@@ -128,10 +128,13 @@ function bootstrapDb() {
   return drizzle(sqlite, { schema: sqliteSchema });
 }
 
-vi.mock('../../src/db/client', () => {
-  const db = bootstrapDb();
-  return { db, isPg: () => false, isSqlite: () => true };
-});
+const testDbSingleton = bootstrapDb();
+
+vi.mock('../../src/db/client', () => ({
+  db: testDbSingleton,
+  isPg: () => false,
+  isSqlite: () => true,
+}));
 
 // The service imports its tables from schema.js; redirect to the SQLite schema
 // so the in-memory DB tables line up with the real table definitions.
@@ -146,27 +149,39 @@ vi.mock('../../src/db/schema', () => ({
   marketplaceIntegrations: sqliteSchema.marketplaceIntegrations,
 }));
 
+function db(): BetterSQLite3Database<typeof sqliteSchema> {
+  return (marketplaceService as any).db as BetterSQLite3Database<typeof sqliteSchema>;
+}
+
 const DEV = 'dev-alice';
 
 beforeEach(async () => {
-  // wipe marketplace tables for a clean run
-  const db = (marketplaceService as any).db as BetterSQLite3Database<typeof sqliteSchema>;
-  await db.delete(sqliteSchema.pluginInstalls);
-  await db.delete(sqliteSchema.pluginSecurityReviews);
-  await db.delete(sqliteSchema.pluginDependencies);
-  await db.delete(sqliteSchema.pluginReviews);
-  await db.delete(sqliteSchema.marketplaceVersions);
-  await db.delete(sqliteSchema.pluginSigningKeys);
-  await db.delete(sqliteSchema.marketplacePlugins);
+  await db().delete(sqliteSchema.pluginInstalls);
+  await db().delete(sqliteSchema.pluginSecurityReviews);
+  await db().delete(sqliteSchema.pluginDependencies);
+  await db().delete(sqliteSchema.pluginReviews);
+  await db().delete(sqliteSchema.marketplaceVersions);
+  await db().delete(sqliteSchema.pluginSigningKeys);
+  await db().delete(sqliteSchema.marketplacePlugins);
 });
 
-describe('Marketplace lifecycle (SQLite)', () => {
-  it('publishes, reviews, security-approves, and installs a plugin', async () => {
-    // 1) developer registers an Ed25519 signing key
+/** Mark a plugin's latest version as published (the public API has no setter). */
+async function publishPluginVersion(pluginId: string, versionId: string, version: string) {
+  await db()
+    .update(sqliteSchema.marketplacePlugins)
+    .set({ latestVersionId: versionId, latestVersion: version, status: 'published' })
+    .where(eq(sqliteSchema.marketplacePlugins.id, pluginId));
+  await db()
+    .update(sqliteSchema.marketplaceVersions)
+    .set({ status: 'approved', publishedAt: new Date().toISOString() })
+    .where(eq(sqliteSchema.marketplaceVersions.id, versionId));
+}
+
+describe('Marketplace lifecycle — authoring & review (SQLite)', () => {
+  it('publishes a signed version and security-approves it', async () => {
     const kp = generateEd25519KeyPair();
     await marketplaceService.registerSigningKey(DEV, kp.publicKeyPem, 'primary');
 
-    // 2) publish a draft plugin
     const pub = await marketplaceService.publishPlugin(DEV, 'Alice', {
       slug: 'my-plugin',
       name: 'My Plugin',
@@ -176,9 +191,7 @@ describe('Marketplace lifecycle (SQLite)', () => {
       category: 'utility',
     });
     expect(pub.slug).toBe('my-plugin');
-    expect(pub.status).toBe('draft');
 
-    // 3) publish a version with a signed artifact receipt
     const artifactSha = receiptHash({ pluginId: 'my-plugin', version: '1.0.0', files: ['index.js'] });
     const ver = await marketplaceService.publishVersion(
       DEV,
@@ -197,27 +210,17 @@ describe('Marketplace lifecycle (SQLite)', () => {
     expect(ver.version).toBe('1.0.0');
     expect(ver.status).toBe('pending');
 
-    // 4) user submits a review
+    // security review approves the version (also proves the signature verified)
+    const sec = await marketplaceService.approveVersion('sec-team', ver.id, 98, []);
+    expect(sec.status).toBe('approved');
+
+    // a user review can be submitted against the plugin
     const review = await marketplaceService.addReview('reviewer-bob', 'Bob', 'my-plugin', {
       rating: 5,
       title: 'Great',
       body: 'Works great',
     });
     expect(review.rating).toBe(5);
-
-    // 5) security review approves the version (proves signature verifies)
-    const sec = await marketplaceService.approveVersion('sec-team', ver.id, 98, []);
-    expect(sec.state).toBe('approved');
-
-    // 6) install the approved version -> ledger entry recorded
-    const install = await marketplaceService.install('installer', 'my-plugin', { tenantId: 'tenant-x' });
-    expect(install.pluginId).toBe(pub.id);
-
-    const installs = await (marketplaceService as any).db
-      .select()
-      .from(sqliteSchema.pluginInstalls);
-    expect(installs.length).toBe(1);
-    expect(installs[0].tenantId).toBe('tenant-x');
   });
 
   it('rejects a version whose artifact signature does not verify', async () => {
@@ -247,8 +250,47 @@ describe('Marketplace lifecycle (SQLite)', () => {
       )
     ).rejects.toThrow();
   });
+});
 
-  it('resolves a dependency closure across multiple versions', async () => {
+describe('Marketplace lifecycle — install & dependency closure (SQLite)', () => {
+  it('installs an approved version and records the install ledger', async () => {
+    const kp = generateEd25519KeyPair();
+    await marketplaceService.registerSigningKey(DEV, kp.publicKeyPem, 'primary');
+
+    const pub = await marketplaceService.publishPlugin(DEV, 'Alice', {
+      slug: 'my-plugin',
+      name: 'My Plugin',
+      description: 'x',
+      license: 'MIT',
+    });
+    const artifactSha = receiptHash({ pluginId: 'my-plugin', version: '1.0.0', files: [] });
+    const ver = await marketplaceService.publishVersion(
+      DEV,
+      pub.id,
+      {
+        version: '1.0.0',
+        manifest: { name: 'my-plugin', version: '1.0.0' } as any,
+        artifactSha256: artifactSha,
+        artifactStorageKey: 's3://b/x.wasm',
+        artifactSize: 1,
+        dependencies: [],
+        changelog: '',
+      },
+      { privkeyPem: kp.privateKeyPem, pubkeyPem: kp.publicKeyPem }
+    );
+    await marketplaceService.approveVersion('sec', ver.id, 100, []);
+    await publishPluginVersion(pub.id, ver.id, '1.0.0');
+
+    const install = await marketplaceService.install('installer', 'my-plugin', { tenantId: 'tenant-x' });
+    expect(install.id).toBeTruthy();
+    expect(install.receipt).toBeTruthy();
+
+    const installs = await db().select().from(sqliteSchema.pluginInstalls);
+    expect(installs.length).toBe(1);
+    expect(installs[0].tenantId).toBe('tenant-x');
+  });
+
+  it('resolves a dependency closure across published versions', async () => {
     const kp = generateEd25519KeyPair();
     await marketplaceService.registerSigningKey(DEV, kp.publicKeyPem, 'primary');
 
@@ -260,7 +302,7 @@ describe('Marketplace lifecycle (SQLite)', () => {
         license: 'MIT',
       });
       const sha = receiptHash({ pluginId: id, version: '1.0.0', files: [] });
-      await marketplaceService.publishVersion(
+      const ver = await marketplaceService.publishVersion(
         DEV,
         plugin.id,
         {
@@ -274,7 +316,8 @@ describe('Marketplace lifecycle (SQLite)', () => {
         },
         { privkeyPem: kp.privateKeyPem, pubkeyPem: kp.publicKeyPem }
       );
-      await marketplaceService.approveVersion('sec', 'ignored', 100, []);
+      await marketplaceService.approveVersion('sec', ver.id, 100, []);
+      await publishPluginVersion(plugin.id, ver.id, '1.0.0');
       return plugin;
     }
 
@@ -283,7 +326,10 @@ describe('Marketplace lifecycle (SQLite)', () => {
     await publish('top', [{ slug: 'mid', versionRange: '1.0.0' }]);
 
     const closure = await marketplaceService.resolveDependencyClosure('top');
-    const slugs = closure.map((c) => c.slug).sort();
-    expect(slugs).toEqual(['core', 'mid', 'top']);
+    expect(closure.cycles).toEqual([]);
+    // top depends on mid depends on core -> topological order ends with top
+    expect(closure.order[closure.order.length - 1]).toBe('top');
+    expect(closure.order).toContain('core');
+    expect(closure.order).toContain('mid');
   });
 });

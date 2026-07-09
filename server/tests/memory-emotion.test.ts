@@ -11,7 +11,7 @@ const stored: Array<Record<string, unknown>> = [];
 
 vi.mock('../src/db/client.js', () => ({
   db: {
-    insert: (table: unknown) => ({
+    insert: () => ({
       values: (row: Record<string, unknown>) => {
         stored.push(row);
         return Promise.resolve(undefined);
@@ -25,9 +25,8 @@ vi.mock('../src/db/schema.js', () => ({
   memoryEmotions: { _kind: 'table' },
 }));
 
-vi.mock('./llm-client.js', () => ({
-  callLLMStructuredWithTrajectory: (sys: string, content: string) => {
-    // deterministic classification based only on content length parity
+vi.mock('../src/services/llm-client.js', () => ({
+  callLLMStructuredWithTrajectory: (_sys: string, content: string) => {
     const hot = content.includes('love') || content.includes('joy');
     const bad = content.includes('fear') || content.includes('angry');
     return Promise.resolve({
@@ -48,7 +47,6 @@ import {
   normalizeEmotionVector,
   classifyMemoryEmotion,
   storeMemoryEmotion,
-  type EmotionVector,
 } from '../src/services/memory-emotion.js';
 
 describe('EMOTIONS', () => {
@@ -83,7 +81,10 @@ describe('normalizeEmotionVector', () => {
   it('treats NaN/Infinity as 0', () => {
     const v = normalizeEmotionVector({ joy: NaN, trust: Infinity });
     expect(v.joy).toBe(0);
-    expect(v.trust).toBe(1);
+    expect(v.trust).toBe(0);
+  });
+  it('clamps finite values above 1 down to 1', () => {
+    expect(normalizeEmotionVector({ joy: 5 }).joy).toBe(1);
   });
   it('produces a complete vector across all 8 emotions', () => {
     const v = normalizeEmotionVector({});

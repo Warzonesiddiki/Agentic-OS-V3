@@ -37,7 +37,7 @@ pub struct ModelId {
 }
 
 impl std::fmt::Display for ModelId {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}:{}", self.provider, self.name)
     }
 }
@@ -61,14 +61,14 @@ pub enum MessageRole {
     Tool,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(untagged)]
 pub enum MessageContent {
     Text(String),
     MultiPart(Vec<ContentPart>),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
 pub enum ContentPart {
     Text { text: String },
@@ -77,14 +77,14 @@ pub enum ContentPart {
 }
 
 /// A tool call from the model
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolCall {
     pub id: String,
     pub function: ToolFunction,
     pub index: Option<u32>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ToolFunction {
     pub name: String,
     pub arguments: serde_json::Value,

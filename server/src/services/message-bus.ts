@@ -11,6 +11,14 @@
  *
  * Integrates with the client-side OS kernel via shared types and
  * exposes a Node.js EventEmitter for service-to-service communication.
+ *
+ * PERF (PerfB): hot-path allocation avoidance.
+ *   - Each subscription caches its pre-split topic pattern segments at
+ *     subscribe time (BusSubscription.segments). publish() reuses them via
+ *     topicMatchSegments() so it never re-splits every pattern on every
+ *     event. This keeps per-event work O(N) over matched subscribers with
+ *     zero per-call regex/string churn.
+ *   - publish() iterates this.subscriptions directly (no Array.from copy).
  */
 import { randomUUID } from "node:crypto";
 import { EventEmitter } from "node:events";
@@ -43,6 +51,8 @@ export interface BusSubscription {
   id: string;
   subscriberId: string;
   topicPattern: string;
+  /** Pre-split pattern segments cached at subscribe time (hot-path reuse). */
+  segments: string[];
   queue?: string;
   createdAt: number;
 }
@@ -86,9 +96,13 @@ export interface MessageFilter {
 
 // ── Topic Matching ────────────────────────────────────────────
 
-function topicMatch(pattern: string, topic: string): boolean {
-  const p = pattern.split("/");
-  const t = topic.split("/");
+/**
+ * Fast segment-based topic matcher. Reuses pre-split pattern + topic segments
+ * so callers (publish) don't re-split strings on the hot path.
+ */
+function topicMatchSegments(patternSegments: string[], topicSegments: string[]): boolean {
+  const p = patternSegments;
+  const t = topicSegments;
   let pi = 0;
   for (let ti = 0; ti < t.length; ti++) {
     if (pi >= p.length) return false;
@@ -100,6 +114,10 @@ function topicMatch(pattern: string, topic: string): boolean {
     return false;
   }
   return pi === p.length;
+}
+
+function topicMatch(pattern: string, topic: string): boolean {
+  return topicMatchSegments(pattern.split("/"), topic.split("/"));
 }
 
 function createId(prefix: string): string {
@@ -184,19 +202,20 @@ export class MessageBus extends EventEmitter {
       }
     }
 
-    for (const [, sub] of this.subscriptions) {
-      if (topicMatch(sub.topicPattern, topicStr)) {
-        const subHandlers = this.subscriptionHandlers.get(sub.id);
-        if (subHandlers) {
-          for (const fn of subHandlers) {
-            try {
-              fn(msg);
-              this.stats.messagesDelivered++;
-              msg.deliveries++;
-            } catch (e) {
-              this.handleDeliveryError(msg, sub, e);
-            }
-          }
+    // Hot path: iterate subscriptions directly (no Array.from copy) and reuse
+    // pre-split pattern segments + a single topic split.
+    const topicSegments = topicStr.split("/");
+    for (const sub of this.subscriptions.values()) {
+      if (!topicMatchSegments(sub.segments, topicSegments)) continue;
+      const subHandlers = this.subscriptionHandlers.get(sub.id);
+      if (!subHandlers) continue;
+      for (const fn of subHandlers) {
+        try {
+          fn(msg);
+          this.stats.messagesDelivered++;
+          msg.deliveries++;
+        } catch (e) {
+          this.handleDeliveryError(msg, sub, e);
         }
       }
     }
@@ -238,6 +257,7 @@ export class MessageBus extends EventEmitter {
       id: createId("sub"),
       subscriberId,
       topicPattern,
+      segments: topicPattern.split("/"),
       createdAt: Date.now(),
     };
 

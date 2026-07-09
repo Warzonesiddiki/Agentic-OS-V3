@@ -1,154 +1,187 @@
-import { describe, it, expect } from 'vitest';
-import {
-  validateMemoryAgainstTemplate,
-  applyTemplateToMemory,
-  type MemoryTemplate,
-  type MemoryTemplateSchema,
-  type MemoryTemplateMemoryInput,
-} from '../src/services/memory-templates.js';
-import {
-  renameTagInList,
-  buildTagTree,
-  detectOrphanTagNodes,
-  type TagNode,
-} from '../src/services/memory-tag-taxonomy.js';
-import {
-  hashMemory,
-  computeExport,
-  applyDiffToStore,
-  type MemoryDiffSourceRow,
-} from '../src/services/memory-diff-sync.js';
-import { MemorySuggester } from '../src/routes/memory-search-suggest.js';
+/**
+ * Tests for server/src/services/memory-templates.ts
+ *
+ * Memory template CRUD + interpolation. DB is mocked (insert/select/update/delete).
+ */
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-describe('memory templates', () => {
-  const schema: MemoryTemplateSchema = {
-    type: 'object',
-    required: ['title', 'content'],
-    properties: {
-      title: { type: 'string', minLength: 3 },
-      content: { type: 'string' },
-      kind: { type: 'string' },
-      importance: { type: 'number', default: 0.9 },
-      language: { type: 'string', default: 'en' },
-    },
+type Tpl = {
+  id: string;
+  name: string;
+  ownerAgentId: string;
+  template: string;
+  variables: string[];
+  usageCount: number;
+  isPublic: boolean;
+};
+
+const store = new Map<string, Tpl>();
+let lastId = 0;
+
+function makeDb() {
+  return {
+    insert: () => ({
+      values: (row: Tpl) => ({
+        returning: () => {
+          const id = 'tpl-' + ++lastId;
+          const full = { ...row, id };
+          store.set(id, full);
+          return Promise.resolve([full]);
+        },
+      }),
+    }),
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          orderBy: () => Promise.resolve([...store.values()]),
+        }),
+      }),
+    }),
+    update: () => ({
+      set: (patch: Partial<Tpl>) => ({
+        where: (cond: { id?: string }) => {
+          const id = cond?.id;
+          if (id) store.set(id, { ...store.get(id)!, ...patch, id });
+          return Promise.resolve(undefined);
+        },
+      }),
+    }),
+    delete: () => ({
+      where: (cond: { id?: string }) => {
+        if (cond?.id) store.delete(cond.id);
+        return Promise.resolve(undefined);
+      },
+    }),
   };
+}
 
-  it('validates a memory against a template', () => {
-    const result = validateMemoryAgainstTemplate(schema, { title: 'abc', content: 'hello' });
-    expect(result.valid).toBe(true);
-    const bad = validateMemoryAgainstTemplate(schema, { title: 'ab', content: 5 });
-    expect(bad.valid).toBe(false);
-    expect(bad.errors.length).toBeGreaterThan(0);
+vi.mock('../src/db/client.js', () => ({
+  db: makeDb(),
+  memoryTemplates: {},
+  isSqlite: true,
+}));
+
+vi.mock('../lib/errors.js', () => ({
+  ApiError: class ApiError extends Error {
+    code: string;
+    constructor(code: string, message: string) {
+      super(message);
+      this.code = code;
+    }
+  },
+}));
+
+import {
+  createMemoryTemplate,
+  applyTemplate,
+  updateMemoryTemplate,
+  deleteMemoryTemplate,
+  listMemoryTemplates,
+} from '../src/services/memory-templates.js';
+
+beforeEach(() => {
+  store.clear();
+  lastId = 0;
+});
+
+describe('createMemoryTemplate', () => {
+  it('creates a template with auto-detected variables', async () => {
+    const t = await createMemoryTemplate('agent-1', 'Greeting', 'Hello {{name}}, welcome to {{topic}}');
+    expect(t.name).toBe('Greeting');
+    expect(t.variables.sort()).toEqual(['name', 'topic']);
+    expect(t.usageCount).toBe(0);
   });
 
-  it('applies defaults when structuring a memory', () => {
-    const template: MemoryTemplate = {
-      id: 'mt_1',
-      name: 'note',
-      description: '',
-      schema,
-      isDefault: false,
-      createdAt: '2024-01-01T00:00:00.000Z',
-      updatedAt: '2024-01-01T00:00:00.000Z',
-    };
-    const input: MemoryTemplateMemoryInput = {
-      kind: 'fact',
-      title: 'valid title',
-      content: 'body',
-    };
-    const out = applyTemplateToMemory(template, input);
-    expect(out.valid).toBe(true);
-    expect(out.structured.importance).toBe(0.9);
-    expect(out.structured.language).toBe('en');
-    expect(out.structured.tags).toEqual([]);
+  it('accepts explicit variables', async () => {
+    const t = await createMemoryTemplate('agent-1', 'T', 'Body', ['x']);
+    expect(t.variables).toEqual(['x']);
+  });
+
+  it('defaults isPublic to false', async () => {
+    const t = await createMemoryTemplate('agent-1', 'T', 'B');
+    expect(t.isPublic).toBe(false);
+  });
+
+  it('enforces a non-empty name', async () => {
+    await expect(createMemoryTemplate('a', '', 'b')).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+  });
+
+  it('rejects a template with no variable references and no variables', async () => {
+    await expect(createMemoryTemplate('a', 'T', 'static body')).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 });
 
-describe('tag taxonomy', () => {
-  it('renames a tag within a memory tag list (cascade transform)', () => {
-    const list = ['a', 'b', 'a', 'c'];
-    expect(renameTagInList(list, 'a', 'x')).toEqual(['x', 'b', 'c']);
+describe('applyTemplate', () => {
+  it('interpolates provided variables', async () => {
+    const t = await createMemoryTemplate('agent-1', 'G', 'Hi {{name}}');
+    const out = await applyTemplate(t.id, { name: 'Ada' });
+    expect(out).toBe('Hi Ada');
+    expect(store.get(t.id)!.usageCount).toBe(1);
   });
 
-  it('builds a tag tree from flat nodes', () => {
-    const nodes: TagNode[] = [
-      { id: '1', name: 'root', parentId: null, aliases: [], createdAt: '', updatedAt: '' },
-      { id: '2', name: 'child', parentId: '1', aliases: [], createdAt: '', updatedAt: '' },
-      { id: '3', name: 'orphan', parentId: 'missing', aliases: [], createdAt: '', updatedAt: '' },
-    ];
-    const tree = buildTagTree(nodes);
-    expect(tree).toHaveLength(2);
-    const root = tree.find((n) => n.id === '1');
-    expect(root?.children).toHaveLength(1);
-    expect(root?.children[0]?.id).toBe('2');
+  it('throws when a required variable is missing', async () => {
+    const t = await createMemoryTemplate('agent-1', 'G', 'Hi {{name}}');
+    await expect(applyTemplate(t.id, {})).rejects.toMatchObject({ code: 'BAD_REQUEST' });
   });
 
-  it('detects orphan tags', () => {
-    const nodes: TagNode[] = [
-      { id: '1', name: 'used', parentId: null, aliases: [], createdAt: '', updatedAt: '' },
-      { id: '2', name: 'unused', parentId: null, aliases: [], createdAt: '', updatedAt: '' },
-    ];
-    const orphans = detectOrphanTagNodes(nodes, new Set(['used']), new Set(['1']));
-    expect(orphans.map((n) => n.id)).toEqual(['2']);
-  });
-});
-
-describe('diff sync', () => {
-  it('round-trips an export and apply', () => {
-    const sources: MemoryDiffSourceRow[] = [
-      {
-        id: 'm1',
-        title: 'A',
-        content: 'x',
-        kind: 'fact',
-        tags: ['t'],
-        updatedAt: new Date('2024-01-02T00:00:00Z'),
-      },
-      {
-        id: 'm2',
-        title: 'B',
-        content: 'y',
-        kind: 'fact',
-        tags: [],
-        updatedAt: new Date('2024-01-10T00:00:00Z'),
-      },
-    ];
-    const since = new Date('2024-01-05T00:00:00Z');
-    const diff = computeExport(sources, ['m0'], since);
-    expect(diff.memories.map((m) => m.id)).toEqual(['m2']);
-    expect(diff.deletedIds).toEqual(['m0']);
-
-    const store = new Map<string, { id: string; updatedAt: string }>();
-    store.set('m2', { id: 'm2', updatedAt: '2024-01-01T00:00:00Z' });
-    store.set('m0', { id: 'm0', updatedAt: '2024-01-01T00:00:00Z' });
-    const result = applyDiffToStore(store, diff);
-    expect(result.upserted).toBe(1);
-    expect(result.deleted).toBe(1);
-    expect(store.has('m0')).toBe(false);
-    expect(store.has('m2')).toBe(true);
+  it('throws for an unknown template', async () => {
+    await expect(applyTemplate('nope', {})).rejects.toMatchObject({ code: 'NOT_FOUND' });
   });
 
-  it('hashes memory content deterministically', () => {
-    const a = hashMemory({ title: 'T', content: 'C', tags: ['x'], kind: 'fact' });
-    const b = hashMemory({ title: 'T', content: 'C', tags: ['x'], kind: 'fact' });
-    expect(a).toBe(b);
+  it('increments usageCount on each apply', async () => {
+    const t = await createMemoryTemplate('agent-1', 'G', 'Hi {{name}}');
+    await applyTemplate(t.id, { name: 'x' });
+    await applyTemplate(t.id, { name: 'y' });
+    expect(store.get(t.id)!.usageCount).toBe(2);
+  });
+
+  it('drops extra (unused) variables without error', async () => {
+    const t = await createMemoryTemplate('agent-1', 'G', 'Hi {{name}}');
+    const out = await applyTemplate(t.id, { name: 'z', extra: 'ignored' });
+    expect(out).toBe('Hi z');
   });
 });
 
-describe('suggest trie', () => {
-  it('suggests titles by prefix with frequency boost', () => {
-    const s = new MemorySuggester();
-    s.insert('Project Alpha planning', 1);
-    s.insert('Project Alpha budget', 5);
-    s.insert('Project Beta', 1);
-    const out = s.suggest('project alpha');
-    expect(out.length).toBeGreaterThan(0);
-    expect(out[0]?.title).toBe('Project Alpha budget');
+describe('updateMemoryTemplate', () => {
+  it('updates the template body and re-derives variables', async () => {
+    const t = await createMemoryTemplate('agent-1', 'G', 'Hi {{name}}');
+    const u = await updateMemoryTemplate(t.id, { template: 'Bye {{who}}' });
+    expect(u.template).toBe('Bye {{who}}');
+    expect(u.variables).toEqual(['who']);
   });
 
-  it('returns empty for unknown prefix', () => {
-    const s = new MemorySuggester();
-    s.insert('Hello World', 1);
-    expect(s.suggest('zzz')).toEqual([]);
+  it('renames a template', async () => {
+    const t = await createMemoryTemplate('agent-1', 'G', 'Hi {{name}}');
+    const u = await updateMemoryTemplate(t.id, { name: 'Renamed' });
+    expect(u.name).toBe('Renamed');
+  });
+
+  it('throws for an unknown template', async () => {
+    await expect(updateMemoryTemplate('nope', { name: 'x' })).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('deleteMemoryTemplate', () => {
+  it('removes a template', async () => {
+    const t = await createMemoryTemplate('agent-1', 'G', 'Hi {{name}}');
+    await deleteMemoryTemplate(t.id);
+    expect(store.has(t.id)).toBe(false);
+  });
+
+  it('throws for an unknown template', async () => {
+    await expect(deleteMemoryTemplate('nope')).rejects.toMatchObject({ code: 'NOT_FOUND' });
+  });
+});
+
+describe('listMemoryTemplates', () => {
+  it('returns all created templates', async () => {
+    await createMemoryTemplate('agent-1', 'A', 'Hi {{name}}');
+    await createMemoryTemplate('agent-1', 'B', 'Yo {{x}}');
+    const list = await listMemoryTemplates();
+    expect(list).toHaveLength(2);
+  });
+
+  it('returns empty when none exist', async () => {
+    expect(await listMemoryTemplates()).toEqual([]);
   });
 });

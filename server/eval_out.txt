@@ -4,70 +4,30 @@ npm warn Unknown project config "strict-peer-dependencies". This will stop worki
 [1m[46m RUN [49m[22m [36mv3.2.6 [39m[90mC:/Users/Tahir/OneDrive/Desktop/nexus-20-ai-agent-os (7)/Agentic OS V3/server[39m
 
 [90mstdout[2m | tests/memory-recall-eval.test.ts
-[22m[39m◇ injected env (0) from .env // tip: ⌘ enable debugging { debug: true }
+[22m[39m◇ injected env (0) from .env // tip: ⌁ auth for agents [www.vestauth.com]
 
-[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[31mx[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[31mx[39m[33m[39m[31mx[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[31mx[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m[33m[39m[32m·[39m
+stderr | tests/memory-recall-eval.test.ts > budget packing (top-N fits token budget) > never exceeds the token budget and reports truncated count
+DEBUG budget result: {"returned":[],"tokensUsed":0,"truncated":0}
 
-⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[31mx[39m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m[33m[39m[2m[90m-[39m[22m
 
- FAIL  tests/memory-recall-eval.test.ts > contradiction-edge inclusion in recall results > wires contradictionEdges among returned hits when a conflict exists
-AssertionError: expected undefined to be defined
- ❯ tests/memory-recall-eval.test.ts:243:18
-    241|     expect(result.contradictionEdges).toBeDefined();
-    242|     const edge = result.contradictionEdges!.find((e) => e.memoryA === …
-    243|     expect(edge).toBeDefined();
-       |                  ^
-    244|     expect(edge!.classification).toBe('contradictory');
-    245|   });
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/4]⎯
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
 
  FAIL  tests/memory-recall-eval.test.ts > budget packing (top-N fits token budget) > never exceeds the token budget and reports truncated count
 AssertionError: expected [] to include 'm1'
- ❯ tests/memory-recall-eval.test.ts:304:17
-    302|     expect(result.returned.length).toBeLessThanOrEqual(2);
-    303|     const ids = result.returned.map((r) => r.id);
-    304|     expect(ids).toContain('m1');
+ ❯ tests/memory-recall-eval.test.ts:306:17
+    304|     expect(result.returned.length).toBeLessThanOrEqual(2);
+    305|     const ids = result.returned.map((r) => r.id);
+    306|     expect(ids).toContain('m1');
        |                 ^
-    305|     expect(ids).toContain('m2');
-    306|     expect(result.truncated).toBeGreaterThan(0);
+    307|     expect(ids).toContain('m2');
+    308|     expect(result.truncated).toBeGreaterThan(0);
 
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/4]⎯
-
- FAIL  tests/memory-recall-eval.test.ts > budget packing (top-N fits token budget) > fits the whole set when budget is large
-AssertionError: expected +0 to be 2 // Object.is equality
-
-- Expected
-+ Received
-
-- 2
-+ 0
-
- ❯ tests/memory-recall-eval.test.ts:322:36
-    320|     const result = await fr.search({ text: 'x', budget: 10_000, actor:…
-    321|     expect(result.truncated).toBe(0);
-    322|     expect(result.returned.length).toBe(2);
-       |                                    ^
-    323|     expect(result.tokensUsed).toBe(100);
-    324|   });
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/4]⎯
-
- FAIL  tests/memory-recall-eval.test.ts > ML-003 adaptive weights > adapts but clamps multipliers within [0.5, 1.5]
-ReferenceError: getAdaptiveWeights is not defined
- ❯ tests/memory-recall-eval.test.ts:350:15
-    348|     for (let i = 0; i < 20; i++) recordRecallFeedback('quality-test', …
-    349|     for (let i = 0; i < 20; i++) recordRecallFeedback('quality-test', …
-    350|     const m = getAdaptiveWeights(); // clamped multipliers
-       |               ^
-    351|     expect(m.rrf).toBeGreaterThanOrEqual(0.5 - 1e-9);
-    352|     expect(m.rrf).toBeLessThanOrEqual(1.5 + 1e-9);
-
-⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/4]⎯
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
 
 
 [2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
-[2m      Tests [22m [1m[31m4 failed[39m[22m[2m | [22m[1m[32m24 passed[39m[22m[90m (28)[39m
-[2m   Start at [22m 22:33:29
-[2m   Duration [22m 22.38s[2m (transform 10.63s, setup 0ms, collect 17.02s, tests 518ms, environment 0ms, prepare 830ms)[22m
+[2m      Tests [22m [1m[31m1 failed[39m[22m[2m | [22m[33m27 skipped[39m[90m (28)[39m
+[2m   Start at [22m 22:42:26
+[2m   Duration [22m 51.17s[2m (transform 23.18s, setup 0ms, collect 39.75s, tests 547ms, environment 256ms, prepare 4.79s)[22m
 

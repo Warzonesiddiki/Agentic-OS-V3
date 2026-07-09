@@ -508,7 +508,7 @@ export const remote = {
   // ── Approvals ──
   async resolveApproval(taskIdOrId: string, approved: boolean, by?: string): Promise<unknown> {
     if (by !== undefined) {
-      return call(/api/v1/approvals/, {
+      return call(`/api/v1/approvals/${encodeURIComponent(taskIdOrId)}`, {
         method: 'POST',
         body: JSON.stringify({ decision: approved ? 'approve' : 'deny', decidedBy: by }),
       });

@@ -17,7 +17,7 @@ describe('message-bus publish hot-path benchmark', () => {
     const N = 50;
     for (let i = 0; i < N; i++) {
       const slot = i;
-      await bus.subscribe(`sub-${i}`, 'metrics/agent/**', (msg) => {
+      await bus.subscribe(`sub-${i}`, 'metrics/agent/**', () => {
         deliveries[slot] = (deliveries[slot] ?? 0) + 1;
       });
     }

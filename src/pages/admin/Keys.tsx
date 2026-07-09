@@ -68,12 +68,12 @@ export default function AdminKeys() {
       <table className="w-full text-sm">
         <thead className="text-left text-zinc-400">
           <tr>
-            <th className="py-2">Label</th>
-            <th>Prefix</th>
-            <th>Tier</th>
-            <th>RPM</th>
-            <th>Last used</th>
-            <th></th>
+            <th scope="col" className="py-2">Label</th>
+            <th scope="col">Prefix</th>
+            <th scope="col">Tier</th>
+            <th scope="col">RPM</th>
+            <th scope="col">Last used</th>
+            <th scope="col" aria-label="Actions"></th>
           </tr>
         </thead>
         <tbody>

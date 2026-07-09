@@ -102,7 +102,7 @@ export default function Pipelines() {
           <div className="mt-3 overflow-x-auto">
             <table className="w-full text-xs">
               <thead><tr className="text-left text-[10px] uppercase tracking-wider text-slate-500">
-                <th className="pb-2">Status</th><th className="pb-2">Duration</th><th className="pb-2">Triggered by</th><th className="pb-2">Error</th>
+                <th scope="col" className="pb-2">Status</th><th scope="col" className="pb-2">Duration</th><th scope="col" className="pb-2">Triggered by</th><th scope="col" className="pb-2">Error</th>
               </tr></thead>
               <tbody>
                 {loadingRuns && Array.from({ length: 3 }).map((_, i) => (

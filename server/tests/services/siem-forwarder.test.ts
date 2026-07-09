@@ -109,12 +109,12 @@ describe('network sinks (splunk/elastic/datadog/webhook)', () => {
     expect(mockedLog.error).toHaveBeenCalledWith('siem.forward.failed', expect.any(Object));
   });
 
-  it('includes the SIEM_NO_ENDPOINT reason in the logged failure', async () => {
+  it('includes the missing-endpoint reason in the logged failure', async () => {
     configureSiem({ sink: 'webhook', batchSize: 1, flushMs: 10, maxRetries: 2, endpoint: undefined });
     await forward(ev());
     const err = mockedLog.error.mock.calls.find((c) => c[0] === 'siem.forward.failed');
     expect(err).toBeTruthy();
-    expect((err![1] as any).error).toContain('SIEM_NO_ENDPOINT');
+    expect((err![1] as any).error).toContain('requires an endpoint');
   });
 
   it('resolves cleanly when a valid endpoint is present (no error log)', async () => {

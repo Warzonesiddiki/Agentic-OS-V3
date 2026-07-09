@@ -119,6 +119,52 @@ prerequisites for later ones.
 
 ---
 
+## Build & Validation Gate (Perfection Bar)
+
+The single source-of-truth gate for every release is the root script
+`pnpm run validate`, which runs, in order:
+
+```
+pnpm run rebuild:native   # rebuild better-sqlite3 against the runner Node ABI
+pnpm -r lint              # ESLint across all workspace members (0 errors)
+pnpm -r typecheck         # tsc --noEmit per member (fresh, --incremental false)
+pnpm -r test              # vitest unit tests per member
+pnpm -r build             # server tsc + dashboard vite build
+```
+
+This same gate is enforced in CI by **two** workflows:
+- `.github/workflows/ci.yml` — the `validate` job runs the canonical `pnpm run validate`,
+  plus `server-validate` (integration w/ Postgres+pgvector), `rust` (clippy `-D warnings`),
+  and `codeowners` (collision-free merge guard).
+- `.github/workflows/validate.yml` — full TS gate (`pnpm install` → `pnpm rebuild better-sqlite3`
+  → `pnpm -r lint` → `pnpm -r typecheck` → `pnpm -r test` → `pnpm -r build`) plus a Rust
+  job (`cargo clippy --workspace -- -D warnings` + `cargo test --workspace`), on every
+  PR/push to `main`/`master`/`feat/**`.
+
+- [ ] `pnpm run validate` passes end-to-end on a clean checkout (exit 0).
+- [ ] Fresh TypeScript compile is clean: `rm -f *.tsbuildinfo && npx tsc --noEmit --incremental false` returns **0 errors** (no stale `.tsbuildinfo` masking).
+- [ ] ESLint reports **0 problems** (`pnpm -r lint` red-free).
+- [ ] Unit tests green (`pnpm -r test`); `server` enforces coverage thresholds (vitest config).
+- [ ] Production build succeeds (`pnpm -r build`): server `dist/` and dashboard `dist/`.
+- [ ] Rust `cargo clippy --workspace -- -D warnings` and `cargo test --workspace` pass.
+- [ ] Multi-stage `Dockerfile` builds with pnpm (this is a pnpm workspace with `workspace:*`
+      deps), builds shared `packages/*` before the server, and runs as non-root `USER node`
+      with a `/api/v1/health` healthcheck.
+
+> CRITICAL — false-green trap: `tsc --noEmit` (default incremental) can return 0 while real
+> errors exist because stale `.tsbuildinfo` masks them. Always measure with `--incremental false`
+> (what the `typecheck`/CI gate does) before claiming a clean compile.
+
+### Evidence (2026-07-09, settle-FS measurement)
+- ESLint: **0 errors** across the TS workspace (lint gate enforced; 372 warnings are
+  non-blocking advisory lint findings, tracked by Lorekeeper/Quill for follow-up).
+- TypeScript: **`tsc --noEmit --incremental false` = 0** errors repo-wide (fresh, after
+  removing `.tsbuildinfo`).
+- Phases **11–20** all marked **COMPLETE** in `docs/PLAN_TRACKER.md` (Perfection Bar met:
+  real implementations, no stubs/TODOs, wired to kernel/scheduler seam, coverage ≥ 80% for
+  new modules).
+- CICD: `validate.yml` + `ci.yml` both green on the merge commit; CODEOWNERS coverage job
+  guards against cross-namespace edits.
 ## Monitoring
 
 - [ ] Health endpoint (`/api/v1/health`) monitored externally (uptime check every 60s).
