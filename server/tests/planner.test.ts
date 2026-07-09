@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const appendAudit = vi.fn(async () => {});
 vi.mock("../src/lib/audit.js", () => ({

@@ -260,10 +260,12 @@ describe('contradiction-edge inclusion in recall results', () => {
   it('contradictionsAmong filters edges whose endpoints are both in the id set', async () => {
     const now = new Date();
     mockLocalRows([
-      { id: 'c1', memoryA: 'm1', memoryB: 'm2', classification: 'contradictory', summary: '', strategy: 'highest_importance', resolutionOf: null, resolvedAt: null, createdAt: now },
-      { id: 'c2', memoryA: 'm1', memoryB: 'mOutside', classification: 'contradictory', summary: '', strategy: 'highest_importance', resolutionOf: null, resolvedAt: null, createdAt: now },
+      { id: 'c1', memoryA: 'm1', memoryB: 'm2', relation: 'contradictory', summary: '', strategy: 'highest_importance', resolutionOf: null, resolvedAt: null, createdAt: now },
+      { id: 'c2', memoryA: 'm1', memoryB: 'mOutside', relation: 'contradictory', summary: '', strategy: 'highest_importance', resolutionOf: null, resolvedAt: null, createdAt: now },
     ]);
     const edges = await contradictionsAmong(['m1', 'm2']);
+    // eslint-disable-next-line no-console
+    console.error('DEBUG contradictionsAmong:', JSON.stringify(edges));
     expect(edges).toHaveLength(1);
     expect(edges[0]!.memoryB).toBe('m2');
   });
@@ -290,13 +292,13 @@ describe('budget packing (top-N fits token budget)', () => {
       mkItem('m3', 100, 0.7),
       mkItem('m4', 100, 0.6),
       mkItem('m5', 100, 0.5),
-    ].map((it) => ({ ...it, kind: 'note', title: it.id, content: 'x '.repeat(it.tokenCost * 4), tags: [], importance: it.score, source: 's', updatedAt: now }));
+    ].map((it) => ({ ...it, kind: 'note', title: it.id, content: 'xx '.repeat(it.tokenCost * 4), tags: [], importance: it.score, source: 's', updatedAt: now }));
 
     mockLocalRows(rows);
-    vi.spyOn(contradictionModule, 'listContradictions').mockResolvedValue([] as any);
+    vi.spyOn(contradictionModule, 'contradictionsAmong').mockResolvedValue([] as any);
 
     const fr = new FederatedRecall();
-    const result = await fr.search({ text: 'x', budget: 250, actor: 'tester', options: { noCache: true } });
+    const result = await fr.search({ text: 'xx', budget: 250, actor: 'tester', options: { noCache: true } });
     // eslint-disable-next-line no-console
     console.error('DEBUG budget result:', JSON.stringify({ returned: result.returned.map((r) => r.id), tokensUsed: result.tokensUsed, truncated: result.truncated }));
 
@@ -313,13 +315,13 @@ describe('budget packing (top-N fits token budget)', () => {
     const rows = [
       mkItem('m1', 50, 0.9),
       mkItem('m2', 50, 0.8),
-    ].map((it) => ({ ...it, kind: 'note', title: it.id, content: 'x '.repeat(it.tokenCost * 4), tags: [], importance: it.score, source: 's', updatedAt: now }));
+    ].map((it) => ({ ...it, kind: 'note', title: it.id, content: 'xx '.repeat(it.tokenCost * 4), tags: [], importance: it.score, source: 's', updatedAt: now }));
 
     mockLocalRows(rows);
-    vi.spyOn(contradictionModule, 'listContradictions').mockResolvedValue([] as any);
+    vi.spyOn(contradictionModule, 'contradictionsAmong').mockResolvedValue([] as any);
 
     const fr = new FederatedRecall();
-    const result = await fr.search({ text: 'x', budget: 10_000, actor: 'tester', options: { noCache: true } });
+    const result = await fr.search({ text: 'xx', budget: 10_000, actor: 'tester', options: { noCache: true } });
     expect(result.truncated).toBe(0);
     expect(result.returned.length).toBe(2);
     expect(result.tokensUsed).toBe(100);

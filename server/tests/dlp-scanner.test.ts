@@ -9,6 +9,13 @@
 
 import { describe, it, expect, vi } from 'vitest';
 
+// Mirror the green phase14-security harness: stub the DB / audit side-effects so
+// the suite stays in the unit tier (no live Postgres required).
+vi.mock('../src/db/client.js', () => ({ db: {}, systemMeta: {}, auditLog: {} }));
+vi.mock('../src/lib/audit.js', () => ({
+  appendAudit: vi.fn(async () => {}),
+  Tx: class {},
+}));
 vi.mock('../src/services/siem-forwarder.js', () => ({ forward: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/lib/logging.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },

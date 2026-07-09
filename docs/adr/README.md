@@ -1,17 +1,20 @@
-# ADR Index — NEXUS 2.0 Architecture Decision Records
+# ADR Index — NEXUS 2.0 / Agentic OS V3
 
-**Owner:** Lorekeeper (docs namespace). **Last reconciled:** 2026-07-09 against `AGENTS.md`
-"Current Reality" + the live `server/` tree.
+> Architecture Decision Records for the NEXUS 2.0 Agentic OS. Each ADR records a
+> significant architecture decision with Context / Decision / Consequences, and is
+> reviewed against `AGENTS.md` "Current Reality" at every Lorekeeper loop.
+> Last reconciled: 2026-07-09 (DocA + Lorekeeper).
 
-## Status of the ADR set
+## Existence note (reconciliation)
 
 `AGENTS.md` references `docs/adr/0001`–`docs/adr/0009`; **ADR-0010** (FROZEN sign-off) and
-**ADR-0011** (gate discipline) were added 2026-07-09. **All eleven exist on disk and have been
-reconciled** — none are absent. (Earlier planning notes claiming "ADR 0002/0003/0006 absent" or
-"docs/adr/* does NOT exist" were **stale/incorrect**; glob-verified on 2026-07-09.) No duplicate or
-placeholder ADRs were authored.
+**ADR-0011** (gate discipline) were added 2026-07-09; **ADR-0012–0030** (Phase 11–20 design
+ratifications + post-Phase-20 roadmap) were authored 2026-07-09 by DocA. **All thirty exist on
+disk and have been reconciled** — none are absent. (Earlier planning notes claiming "ADR
+0002/0003/0006 absent" or "docs/adr/* does NOT exist" were **stale/incorrect**; glob-verified on
+2026-07-09.) No duplicate or placeholder ADRs were authored.
 
-## The nine ADRs (ratified)
+## The ADRs (ratified — 0001–0030)
 
 | ADR  | File                               | Title                                                                           | Status   | Reconciliation note                                                                                                                                                                                                                                                   |
 | ---- | ---------------------------------- | ------------------------------------------------------------------------------- | -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -26,6 +29,34 @@ placeholder ADRs were authored.
 | 0009 | `0009-mlfq-scheduler-design.md`    | MLFQ Scheduler Design (Phase 11)                                                | Accepted | Confirms `MLFQPolicy` (Q0–Q4), `EDFPolicy`, `FairSharePolicy`, swappable via `setSchedulingPolicy`.                                                                                                                                                                   |
 | 0010 | `0010-frozen-routes-signoff.md`    | FROZEN Core / `routes.ts` Sign-off Protocol                                     | Accepted | Ratifies the FROZEN file list + import-signature rule (fix YOUR signature, never the FROZEN caller) + sign-off-for-real-FROZEN-changes + phantom-error rule.                                                                                                          |
 | 0011 | `0011-phantom-gate-discipline.md`  | Compile-Gate Discipline (False-Green Trap, Phantom Errors, Serial/Parallel Fix) | Accepted | Ratifies the ONE TRUE GATE command, settled-FS authoritative snapshot, phantom-ignore rule, one-file→one-gate edit loop, FROZEN rule (ADR-0010).                                                                                                                      |
+| 0012 | `0012-federated-recall.md`         | Federated Recall (cross-namespace / multi-tenant retrieval)                      | Accepted | `server/src/services/federated-recall.ts` layers RRF+weighting (`recall.ts`) across agent/project/tenant/blackboard scopes; `local`/`mesh` modes; tenant-isolation by `recall:federate` capability. (DocA)                                                          |
+| 0013 | `0013-a2a-signed-rpc.md`           | Agent-to-Agent Signed RPC (Ed25519 envelopes)                                    | Accepted | Extends `packages/a2a-server` (`auth.ts`, `types.ts`) with `signEnvelope`/`verifyEnvelope`, nonce+timestamp replay protection; mesh-edge rejects unsigned. Complements ADR-0008. (DocA)                                                                              |
+| 0014 | `0014-self-improvement-harness.md` | AI-Native Self-Improvement Harness (Phase 18)                                    | Accepted | `server/src/services/self-opt/**` + `self-improvement-harness.ts` + `ranking-trainer.ts`; ADVISORY-by-default; guardrail seam `setGuardrailThreshold`; learns via `(state,change,outcome)`. Realized seam = `configureWorker`/`setSchedulingPolicy`/`hotpatchModule`. (DocA)                       |
+| 0015 | `0015-pipeline-builder.md`         | Visual Pipeline Builder & DAG Executor                                          | Accepted | `pipeline-executor.ts` wave executor (compensation/rollback) + Prism builder → `packages/sdk` `PipelineDef` → `routes/automation.ts`. Single source of truth = SDK schema. (DocA)                                                                                    |
+| 0016 | `0016-voice-ui.md`                 | Voice UI (Speech In / Speech Out)                                                | Accepted (design ratified; impl pending) | Edge adapter only — STT→text→existing path, TTS via `llm-gateway-v2.ts` SSE; no core changes; `voice:use` capability pending. No `voice*` module exists yet (session-recorder is text-only). (DocA)                                   |
+| 0017 | `0017-plugin-marketplace.md`       | Plugin Marketplace (real backend, reviews, WASM sandbox)                        | Accepted | `marketplace.service.ts` publish/resolveDependencyClosure/review/install; integrity (crypto-suite) + supply-chain scan → quarantine. Runs via ADR-0019 WASM runtime. (DocA)                                                                                           |
+| 0018 | `0018-multi-provider-gateway-v2.md`| Multi-Provider LLM Gateway v2                                                    | Accepted | `llm-gateway-v2.ts` `ProviderAdapter` + `llm-router.ts`/`omniroute*` selection+failover; `unified-gateway/portkey` single traced seam (`startLLMSpan`); token accounting (Metron). Per ADR-0007, Rust `crates/providers` stays dormant. (DocA)                      |
+| 0019 | `0019-wasm-plugin-runtime.md`      | WASM Plugin Runtime (sandboxed execution)                                        | Accepted | `wasm-plugin-runtime.ts`: allow-listed host imports, integrity gate, `resource-fuse` quarantine, fail-closed capability deny; plugin effects route via kernel `enqueueTask` seam. Closes Phase 19 sandbox item. (DocA)                                              |
+| 0020 | `0020-chaos-engineering.md`        | Production Reliability & Chaos Engineering (Phase 20)                           | Accepted | `reliability/**` + Aegis suite: SLO/burn-rate, `chaos.ts` experiments (kill-switch-safe), self-healing via Pulse live setters. No kernel edits. (DocA)                                                                                                               |
+| 0021 | `0021-tauri-desktop-shell.md`      | Tauri Desktop Shell Architecture                                                | Accepted | `nexus-tauri/` (Rust `src-tauri/src/` host + reuses web dashboard); thin Tauri `invoke` commands; no FFI into `crates/` (ADR-0007). (DocA)                                                                                                                            |
+| 0022 | `0022-skill-compiler-capability-model.md` | Skill-Compiler Capability Model                                       | Accepted | `skill-compiler.ts` neural compile (threshold+eval-match) runs generated code in `node:vm` + `checkCapability` deny (WASM model); `appendAudit` + hash; `sanitizeForComment()` closes comment-injection RCE. (DocA)                                                 |
+| 0023 | `0023-audit-hash-chain.md`         | Audit Hash-Chain (append-only, tamper-evident)                               | Accepted | `audit-engine.ts` `prevHash`/`hash` chain; `appendAudit` atomic; `verifyChain`/`audit-watchdog` detect tamper; all autonomous actions recorded. (DocA)                                                                                                              |
+| 0024 | `0024-multi-tenant-rls.md`         | Multi-Tenant Row-Level Security (RLS)                                         | Accepted | `enterprise.service.ts` injects session-derived `tenantId`; re-asserted in recall/audit; federation capability-gated (Helix). Complements ADR-0002. (DocA)                                                                                                          |
+| 0025 | `0025-observability-otel.md`       | Observability & OpenTelemetry (OTEL)                                          | Accepted | `lib/otel.ts` (`isOtelEnabled`/`initOtel`), `tracing.ts` span surface (FROZEN-imported), `metrics.ts`/`overhead-accounting.ts`; opt-in via env. (DocA)                                                                                                              |
+| 0026 | `0026-sdk-design.md`               | SDK Design (`@agentic-os/sdk`)                                                | Accepted | `packages/sdk` barrel (`acp`,`client`,`openapi`,`webhooks`,`types`); OpenAPI-derived bindings; no `ts-rs` (ADR-0007); consumed via path alias. (DocA)                                                                                                                |
+| 0027 | `0027-cicd-pipeline.md`            | CI/CD Pipeline                                                                | Accepted | `.github/workflows/` `pnpm -r` gate + `server npm run validate` (Quill merge gate) + Rust `cargo` + Tauri build; husky pre-push lint. (DocA)                                                                                                                        |
+| 0028 | `0028-devtools.md`                 | Developer Tools (`@agentic-os/devtools`)                                     | Accepted | `packages/devtools` (Artisan) wraps `@agentic-os/sdk`; read-only/sandboxed helpers (scaffold, inspect, replay on `session-recorder`); dev-only, not in prod bundle. (DocA)                                                                                          |
+| 0029 | `0029-benchmarking-harness.md`     | Benchmarking Harness                                                          | Accepted | `scripts/profile-system-performance.ts` + `verify-system-readiness.ts`; reads `metrics.ts`/`tracing.ts` (ADR-0025); feeds `ranking-trainer` + CI regression gate. (DocA)                                                                                            |
+| 0030 | `0030-future-roadmap.md`           | Future Roadmap (post-Phase-20)                                                | Accepted (direction ratified; items tracked as gaps) | Voice UI impl (ADR-0016), edge runtime, federated learning, ACTIVE self-opt (ADR-0014), marketplace GA; build only on ratified seams. Next ADRs = 0031+. (DocA)                                                                     |
+
+## Reserved / upcoming ADRs (0031+)
+
+The ADR index now spans **ADR-0001 through ADR-0030** (all authored on disk, 2026-07-09;
+ADR-0012–0030 by DocA, indexed above). The next free slot is **ADR-0031**:
+- **ADR-0031+ (reserved):** open slots for future follow-on decisions (e.g. Voice UI impl, edge runtime,
+  federated learning, ACTIVE self-opt, marketplace GA — see ADR-0030 roadmap). Lorekeeper **indexes
+  only**; the owning agent (or DocA) authors the content. When a `00XX-*.md` ships, add a register row
+  and update "last reconciled".
 
 ## Reconciliation rule (going forward)
 

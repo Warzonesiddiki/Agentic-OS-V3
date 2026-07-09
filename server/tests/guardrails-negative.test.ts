@@ -22,7 +22,15 @@
  */
 
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createHmac } from 'node:crypto';
 
+// Mirror the green phase14-security harness: stub the DB / audit side-effects so
+// the suite stays in the unit tier (no live Postgres required).
+vi.mock('../src/db/client.js', () => ({ db: {}, systemMeta: {}, auditLog: {} }));
+vi.mock('../src/lib/audit.js', () => ({
+  appendAudit: vi.fn(async () => {}),
+  Tx: class {},
+}));
 vi.mock('../src/services/siem-forwarder.js', () => ({ forward: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/lib/logging.js', () => ({
   log: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
@@ -129,27 +137,32 @@ describe('[SecA] guardrails: malformed / expired MFA token rejected (fail-closed
     expect(verifyTotp(secret, '0000000')).toBe(false);
   });
 
-  it('accepts the genuinely correct code within the drift window', () => {
-    // Compute the real current-window code for `secret` and assert verification.
-    // We reconstruct via the same hotp path by sampling the function output:
-    // instead of duplicating hotp, we confirm a freshly minted valid code works
-    // by using verifyTotp against itself through a known-good derivation.
-    // Simpler: generate a code, then verify it is accepted (round-trip fails
-    // because we don't export hotp; instead assert the empty/known-bad path and
-    // that a code derived from the secret via a fresh verify loop matches).
-    // Use the exported surface: try the code family for the current window.
-    let accepted = false;
-    const now = Date.now();
-    for (let c = -1; c <= 1 && !accepted; c++) {
-      // exhaustively probe is impractical; we instead assert the reject path is
-      // airtight and trust hotp correctness via the backup-code round trip below.
-    }
-    // The strong, deterministic guarantee we CAN prove: backup codes.
+  it('accepts a genuinely correct code and rejects a wrong one (RFC6238 round-trip)', () => {
+    // Re-derive a valid current-window TOTP using the SAME algorithm mfa.ts uses
+    // (HMAC-SHA1 hotp, 6 digits, 30s step) so we can prove a real code is
+    // accepted while a wrong code is rejected — fail-closed on the bad side.
+    const STEP_SECONDS = 30;
+    const hotp = (secretHex: string, counter: number): string => {
+      const buf = Buffer.alloc(8);
+      buf.writeBigUInt64BE(BigInt(counter));
+      const hmac = createHmac('sha1', Buffer.from(secretHex, 'hex')).update(buf).digest();
+      const offset = hmac[hmac.length - 1]! & 0xf;
+      const code =
+        ((hmac[offset]! & 0x7f) << 24) |
+        ((hmac[offset + 1]! & 0xff) << 16) |
+        ((hmac[offset + 2]! & 0xff) << 8) |
+        (hmac[offset + 3]! & 0xff);
+      return (code % 1_000_000).toString().padStart(6, '0');
+    };
+    const counter = Math.floor(Date.now() / 1000 / STEP_SECONDS);
+    const valid = hotp(secret, counter);
+    expect(verifyTotp(secret, valid)).toBe(true); // accepted
+    expect(verifyTotp(secret, '000000')).toBe(false); // wrong rejected
+
+    // Backup codes: valid consumed, unknown rejected, case-insensitive match.
     const { plain, hashes } = generateBackupCodes(5);
-    expect(consumeBackupCode(plain[0]!, hashes)).toBe(true); // valid
-    expect(consumeBackupCode('ZZZZZZ', hashes)).toBe(false); // unknown -> rejected
-    expect(consumeBackupCode(plain[0]!, hashes)).toBe(true); // re-check (note: storage layer enforces single-use)
-    // Case-insensitivity
+    expect(consumeBackupCode(plain[0]!, hashes)).toBe(true);
+    expect(consumeBackupCode('ZZZZZZ', hashes)).toBe(false);
     expect(consumeBackupCode(plain[1]!.toLowerCase(), hashes)).toBe(true);
   });
 

@@ -56,9 +56,9 @@ export default function AdminSiem() {
       <table className="w-full text-sm">
         <thead className="text-left text-zinc-400">
           <tr>
-            <th className="py-2">Kind</th>
-            <th>Endpoint</th>
-            <th>Enabled</th>
+            <th scope="col" className="py-2">Kind</th>
+            <th scope="col">Endpoint</th>
+            <th scope="col">Enabled</th>
           </tr>
         </thead>
         <tbody>

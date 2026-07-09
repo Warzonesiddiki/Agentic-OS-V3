@@ -114,6 +114,10 @@ export class GuardrailGuard {
     this.circuitResetAt = 0;
   }
 
+  resetBudget(): void {
+    this.writesApplied = 0;
+  }
+
   recordSatisfaction(_tunerId: string, score: number): void {
     if (score < 0) this.negativeSatisfaction = true;
   }
@@ -172,9 +176,13 @@ export class GuardrailGuard {
       };
     }
 
-    // L0 — global write budget
+    // L0 — global write budget.
+    // Honor BOTH an explicit constructor cap AND the runtime-mutable global
+    // DEFAULT_BOUNDS (setGuardrailBounds) so the singleton guardrailGuard used
+    // by the controller respects live budget changes made after construction.
+    const maxWrites = Math.min(this.cfg.maxWriteApplyPerDay, DEFAULT_BOUNDS.maxWriteApplyPerDay);
     if (!dryRun && !delta.force) {
-      if (this.writesApplied >= this.cfg.maxWriteApplyPerDay) {
+      if (this.writesApplied >= maxWrites) {
         return {
           allowed: false,
           layer: 'L0_BUDGET',

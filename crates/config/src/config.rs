@@ -198,4 +198,68 @@ mod tests {
 
         std::fs::remove_file(&path).unwrap();
     }
+
+    #[test]
+    fn env_override_precedence_over_file_value() {
+        // When both the file AND the env var set a value, the env var must win.
+        let _guard = env_lock::lock_env([("AGENTIC_OS_LOG_LEVEL", Some("warn"))]);
+        let toml = r#"
+        log_level = "debug"
+        "#;
+        let mut cfg = Config::from_toml(toml).unwrap();
+        assert_eq!(cfg.log_level, "debug");
+        cfg.apply_env_overrides();
+        assert_eq!(cfg.log_level, "warn");
+    }
+
+    #[test]
+    fn env_override_ignored_when_unset() {
+        // No env var set: the file (or default) value must be preserved.
+        let _guard = env_lock::lock_env([("AGENTIC_OS_LOG_LEVEL", None::<&str>)]);
+        let toml = r#"
+        log_level = "debug"
+        "#;
+        let mut cfg = Config::from_toml(toml).unwrap();
+        cfg.apply_env_overrides();
+        assert_eq!(cfg.log_level, "debug");
+    }
+
+    #[test]
+    fn parse_error_on_malformed_toml() {
+        let err = Config::from_toml("this is [[[ not valid toml").unwrap_err();
+        assert!(matches!(err, ConfigError::Parse(_)), "expected Parse error, got {err}");
+    }
+
+    #[test]
+    fn parse_error_on_type_mismatch() {
+        // max_retries (in engine) is an integer; a string must fail to parse.
+        let toml = r#"
+        [engine]
+        max_retries = "not-a-number"
+        "#;
+        let err = Config::from_toml(toml).unwrap_err();
+        assert!(matches!(err, ConfigError::Parse(_)), "expected Parse error, got {err}");
+    }
+
+    #[test]
+    fn parse_error_on_bare_key_without_table() {
+        // Referencing a nested field without its parent table is invalid TOML.
+        let toml = r#"
+        engine.strategy = "latency"
+        "#;
+        let err = Config::from_toml(toml).unwrap_err();
+        assert!(matches!(err, ConfigError::Parse(_)), "expected Parse error, got {err}");
+    }
+
+    #[test]
+    fn defaults_applied_when_sections_absent() {
+        let cfg = Config::from_toml("").unwrap();
+        assert_eq!(cfg.app_name, "agentic-os");
+        assert_eq!(cfg.log_level, "info");
+        assert_eq!(cfg.engine.strategy, "round-robin");
+        assert_eq!(cfg.engine.max_retries, 3);
+        assert!(!cfg.skill.lazy_load);
+        assert_eq!(cfg.skill.cache_size, 64);
+        assert!(cfg.providers.is_empty());
+    }
 }

@@ -103,8 +103,86 @@ export function costKillSwitch(_controller: unknown, x: number): boolean {
   return x > threshold;
 }
 
-export function metaOptimize(_controller: unknown, _opts: Record<string, unknown> = {}): void {
-  return;
+export interface MetaOptimizeResult {
+  converged: boolean;
+  iterations: number;
+  best: Record<string, number>;
+  score: number;
+}
+
+/**
+ * ML-003 meta-loop coordinate-ascent optimizer over a target objective.
+ *
+ * Objective: f(w) = -Σ_k (w[k] - target[k])²  (maximized when w == target).
+ * Coordinate ascent moves each weight independently by ±lr until the per-axis
+ * step no longer improves the objective, then re-checks convergence against the
+ * configured tolerance. Deterministic and allocation-light (one candidate copy
+ * per axis probe), so it is safe to call every control cycle.
+ */
+export function metaOptimize(
+  _controller: unknown,
+  _opts: Record<string, unknown> = {}
+): MetaOptimizeResult {
+  const target = (_opts.target as Record<string, number>) ?? {
+    recall: 0.9,
+    satisfaction: 0.8,
+    perf: 0.7,
+  };
+  const maxIter = typeof _opts.iterations === 'number' ? (_opts.iterations as number) : 50;
+  const lr = typeof _opts.lr === 'number' ? (_opts.lr as number) : 0.2;
+  const tol = typeof _opts.tol === 'number' ? (_opts.tol as number) : 1e-6;
+
+  const keys = Object.keys(target);
+  const w: Record<string, number> = {};
+  for (const k of keys) w[k] = 0;
+
+  const objective = (cand: Record<string, number>): number => {
+    let s = 0;
+    for (const k of keys) {
+      const d = (cand[k] ?? 0) - (target[k] ?? 0);
+      s -= d * d;
+    }
+    return s;
+  };
+
+  let best = objective(w);
+  let iters = 0;
+  let converged = false;
+
+  for (let it = 0; it < maxIter; it++) {
+    iters = it + 1;
+    let improved = false;
+    for (const k of keys) {
+      const cur = objective(w);
+      const up: Record<string, number> = { ...w, [k]: (w[k] ?? 0) + lr };
+      const down: Record<string, number> = { ...w, [k]: (w[k] ?? 0) - lr };
+      const oUp = objective(up);
+      const oDown = objective(down);
+      if (oUp > cur + tol) {
+        w[k] = up[k];
+        best = oUp;
+        improved = true;
+      } else if (oDown > cur + tol) {
+        w[k] = down[k];
+        best = oDown;
+        improved = true;
+      }
+    }
+    if (!improved) {
+      converged = best > -1e-4;
+      break;
+    }
+    // Global convergence check: total squared error below tolerance.
+    const err = -best;
+    if (err < 1e-3) {
+      converged = true;
+      break;
+    }
+  }
+
+  const finalBest: Record<string, number> = {};
+  for (const k of keys) finalBest[k] = w[k] ?? 0;
+  return { converged, iterations: iters, best: finalBest, score: best };
 }
 
 export function simulateCycle(

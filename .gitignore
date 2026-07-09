@@ -107,3 +107,18 @@ Dockerfile.frontend
 
 target-rusta/
 /target-rusta/**
+
+# --- Stray debug/measurement artifacts (agents) ---
+server/__*.cjs
+server/__*.mjs
+server/_*.js
+server/_*.mjs
+server/_*.txt
+server/eslint_*.txt
+server/s-*.txt
+server/s-out.txt
+server/__tsc_err.cjs
+server/tests/zz-debug.test.ts
+server/tests/services/probe.tmp.ts
+server/vitest.config.secd-audit.ts
+server/_probe*

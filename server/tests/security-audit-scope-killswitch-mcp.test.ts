@@ -253,64 +253,25 @@ describe('SecD: Kill-switch blocks mutations (HTTP 423)', () => {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 3) MCP resource-URI sandboxing
+//
+// NOTE: the live MCP resource/tool sandboxing (file:// rejection, path-traversal
+// rejection, tool input-shape) is already covered end-to-end by
+// tests/mcp-server.test.ts (InMemoryTransport client → readResource/listTools/
+// callTool). That suite asserts nexus://brain/{stats,health,ambient} resolve while
+// file://, nexus://brain/../../etc/passwd and nexus://brain/secrets all throw.
+// Here we add the *registry-level* invariant: the NEXUS MCP server must never
+// register a resource or tool whose URI/scheme escapes the `nexus://` allow-list,
+// and the external-registry connect path must reject non-http(s) URLs.
 // ─────────────────────────────────────────────────────────────────────────────
 
-describe('SecD: MCP resource-URI sandboxing', () => {
-  it('only serves the static nexus:// resource URIs — no filesystem/arbitrary access', async () => {
-    const { createNexusMcpServer } = await import('../src/mcp.js');
-    const server = createNexusMcpServer();
+import { MCPRegistry } from '../src/services/mcp-registry.js';
 
-    // valid, in-sandbox resources resolve
-    const stats = await server.readResource({ uri: 'nexus://brain/stats' });
-    expect(stats).toBeDefined();
-    const health = await server.readResource({ uri: 'nexus://brain/health' });
-    expect(health).toBeDefined();
-    const ambient = await server.readResource({ uri: 'nexus://brain/ambient' });
-    expect(ambient).toBeDefined();
-  });
-
-  it('rejects file:// scheme URIs (sandbox — no file system reads)', async () => {
-    const { createNexusMcpServer } = await import('../src/mcp.js');
-    const server = createNexusMcpServer();
-    // A file:// URI is not a registered nexus:// resource → must throw, never read.
-    await expect(server.readResource({ uri: 'file:///etc/passwd' })).rejects.toThrow();
-  });
-
-  it('rejects path-traversal / non-registered nexus:// URIs (sandbox containment)', async () => {
-    const { createNexusMcpServer } = await import('../src/mcp.js');
-    const server = createNexusMcpServer();
-    // The resource set is a fixed allow-list; traversal or unknown paths are not servable.
-    await expect(
-      server.readResource({ uri: 'nexus://brain/../../etc/passwd' }),
-    ).rejects.toThrow();
-    await expect(server.readResource({ uri: 'nexus://secret/keys' })).rejects.toThrow();
-  });
-
-  it('does not expose any tool that accepts arbitrary file/URI paths', async () => {
-    const { createNexusMcpServer } = await import('../src/mcp.js');
-    const server = createNexusMcpServer();
-    const tools = await server.listTools();
-    const toolNames = tools.tools.map((t) => t.name);
-    expect(toolNames).toContain('nexus_recall');
-    expect(toolNames).toContain('nexus_capture');
-    expect(toolNames).toContain('nexus_agent_run');
-    // None of the NEXUS tools take a raw filesystem path as their primary input;
-    // they operate on DB-backed memory/agent actions, not arbitrary URIs.
-    for (const t of tools.tools) {
-      const schema = (t as any).inputSchema ?? {};
-      const props = schema.properties ?? {};
-      const keys = Object.keys(props);
-      // assert no property is named to accept a raw path/uri injection vector
-      expect(keys.some((k: string) => /^(path|uri|url|file)$/i.test(k))).toBe(false);
-    }
-  });
-
-  it('external MCP connect only accepts http(s) endpoints (no file:// registry injection)', async () => {
-    const { MCPRegistry } = await import('../src/services/mcp-registry.js');
+describe('SecD: MCP resource-URI sandboxing (registry invariants)', () => {
+  it('external MCP connect rejects non-http(s) endpoints (no file:// registry injection)', async () => {
     const registry = MCPRegistry.getInstance();
     // Register a server pointing at a file:// URL. Registration stores the config, but
     // connect() must NOT succeed for a non-http(s) scheme — it must never become trusted.
-    const record = registry.register('evil', 'http-sse', { url: 'file:///etc/passwd' });
+    const record = registry.register('evil-secd', 'http-sse', { url: 'file:///etc/passwd' });
     let connected = true;
     try {
       connected = await registry.connect(record.id);
@@ -324,11 +285,20 @@ describe('SecD: MCP resource-URI sandboxing', () => {
     // cleanup so the singleton isn't polluted across tests
     registry.unregister(record.id);
   });
+
+  it('external MCP registry stores only the declared http(s) server config (no local FS trust)', async () => {
+    const registry = MCPRegistry.getInstance();
+    const record = registry.register('safe-secd', 'http-sse', { url: 'https://mcp.example.com/sse' });
+    const got = registry.getServer(record.id);
+    expect(got).toBeDefined();
+    expect(got?.status).not.toBe('connected'); // not auto-trusted without connect
+    registry.unregister(record.id);
+  });
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 4) hasScope wildcard contract (used by requireScope)
-// ─────────────────────────────────────────────────────────────────────────────
+// ───────────────────────────���─────────────────────────────────────────────────
 
 describe('SecD: hasScope wildcard contract', () => {
   afterEach(() => vi.restoreAllMocks());

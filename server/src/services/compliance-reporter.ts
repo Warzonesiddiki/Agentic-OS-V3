@@ -41,11 +41,11 @@ export async function generateReport(): Promise<{
             ? 'partial'
             : c.status === 'missing'
               ? 'missing'
-              : 'implemented'
+              : 'notApplicable'
       ]++;
       return acc;
     },
-    { implemented: 0, partial: 0, missing: 0 }
+    { implemented: 0, partial: 0, missing: 0, notApplicable: 0 }
   );
   void metrics;
   return {

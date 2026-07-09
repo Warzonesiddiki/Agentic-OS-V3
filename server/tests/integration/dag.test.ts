@@ -57,24 +57,25 @@ beforeEach(() => {
 describe('DAG executor — wave execution (diamond)', () => {
   it('compiles into topological waves and invokes them in order', async () => {
     const dagId = createDAG(`${NS}-diamond`, { maxConcurrency: 4, failFast: false });
-    addNode(dagId, { agentId: 'a', goal: 'g-a', actor: 'tester' });
-    addNode(dagId, { agentId: 'b', goal: 'g-b', actor: 'tester' });
-    addNode(dagId, { agentId: 'c', goal: 'g-c', actor: 'tester' });
-    addNode(dagId, { agentId: 'd', goal: 'g-d', actor: 'tester' });
-    addEdge(dagId, 'a', 'b');
-    addEdge(dagId, 'a', 'c');
-    addEdge(dagId, 'b', 'd');
-    addEdge(dagId, 'c', 'd');
+    const a = addNode(dagId, { agentId: 'a', goal: 'g-a', actor: 'tester' });
+    const b = addNode(dagId, { agentId: 'b', goal: 'g-b', actor: 'tester' });
+    const c = addNode(dagId, { agentId: 'c', goal: 'g-c', actor: 'tester' });
+    const d = addNode(dagId, { agentId: 'd', goal: 'g-d', actor: 'tester' });
+    addEdge(dagId, a, b);
+    addEdge(dagId, a, c);
+    addEdge(dagId, b, d);
+    addEdge(dagId, c, d);
 
     const waves = compile(dagId);
     // a in wave 0; b,c in wave 1; d in wave 2
     expect(waves.length).toBe(3);
-    expect(waves[0]).toEqual(['a']);
-    expect(waves[2]).toEqual(['d']);
+    expect(waves[0]).toEqual([a]);
+    expect(waves[1].sort()).toEqual([b, c].sort());
+    expect(waves[2]).toEqual([d]);
 
     const res = await invoke(dagId, { seed: 1 }, 'tester');
     expect(res.ok).toBe(true);
-    expect(Object.keys(res.nodeResults).sort()).toEqual(['a', 'b', 'c', 'd']);
+    expect(Object.keys(res.nodeResults).sort()).toEqual([a, b, c, d].sort());
     for (const r of Object.values(res.nodeResults)) {
       expect(r.status).toBe('ok');
     }
@@ -85,29 +86,29 @@ describe('DAG executor — wave execution (diamond)', () => {
 
   it('runs upstream before downstream (topological invariant)', async () => {
     const dagId = createDAG(`${NS}-chain`, {});
-    addNode(dagId, { agentId: 'n1', goal: 'g', actor: 'tester' });
-    addNode(dagId, { agentId: 'n2', goal: 'g', actor: 'tester' });
-    addNode(dagId, { agentId: 'n3', goal: 'g', actor: 'tester' });
-    addEdge(dagId, 'n1', 'n2');
-    addEdge(dagId, 'n2', 'n3');
+    const n1 = addNode(dagId, { agentId: 'n1', goal: 'g', actor: 'tester' });
+    const n2 = addNode(dagId, { agentId: 'n2', goal: 'g', actor: 'tester' });
+    const n3 = addNode(dagId, { agentId: 'n3', goal: 'g', actor: 'tester' });
+    addEdge(dagId, n1, n2);
+    addEdge(dagId, n2, n3);
     const waves = compile(dagId);
     const flat = waves.flat();
-    expect(flat.indexOf('n1')).toBeLessThan(flat.indexOf('n2'));
-    expect(flat.indexOf('n2')).toBeLessThan(flat.indexOf('n3'));
+    expect(flat.indexOf(n1)).toBeLessThan(flat.indexOf(n2));
+    expect(flat.indexOf(n2)).toBeLessThan(flat.indexOf(n3));
   });
 });
 
 describe('DAG executor — failure + compensation', () => {
   it('marks the run failed when a node errors, skips downstream, runs compensation', async () => {
     const dagId = createDAG(`${NS}-fail`, {});
-    addNode(dagId, { agentId: 'okNode', goal: 'g', actor: 'tester' });
-    addNode(dagId, {
+    const okNode = addNode(dagId, { agentId: 'okNode', goal: 'g', actor: 'tester' });
+    const badNode = addNode(dagId, {
       agentId: 'badNode',
       goal: 'g',
       actor: 'tester',
       compensation: { goal: 'undo badNode', context: { reason: 'rollback' } },
     });
-    addEdge(dagId, 'okNode', 'badNode');
+    addEdge(dagId, okNode, badNode);
 
     runAgentMock
       .mockResolvedValueOnce({ ok: true, answer: 'ok', output: {}, tokens: 1 })
@@ -115,7 +116,7 @@ describe('DAG executor — failure + compensation', () => {
 
     const res = await invoke(dagId, {}, 'tester');
     expect(res.ok).toBe(false);
-    expect(res.nodeResults['badNode'].status).toBe('failed');
+    expect(res.nodeResults[badNode].status).toBe('failed');
     expect(res.errors.join('\n')).toContain('boom');
     // badNode failed so a compensation agent was invoked for it
     expect(runAgentMock).toHaveBeenCalledTimes(3);

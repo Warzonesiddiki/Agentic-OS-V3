@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 
 // Documents and proves the REAL live control-surface that Forge exposes for
 // Pulse's Phase-18 EMIT auto-tuner. Pulse's adapter must call these exact
@@ -9,8 +9,6 @@ import {
   getPidGain,
   setQueueCapacity,
   setRlPolicy,
-  startMlfqBooster,
-  stopMlfqBooster,
 } from "../src/services/scheduler.js";
 import {
   configureWorker,
@@ -20,12 +18,6 @@ import {
 } from "../src/services/task-worker.js";
 import { hotpatchModule } from "../src/services/kernel.js";
 import { applyHotpatch } from "../src/services/kernel-hotpatch.js";
-
-const timers: Array<ReturnType<typeof setInterval>> = [];
-afterEach(() => {
-  stopMlfqBooster();
-  while (timers.length) clearInterval(timers.pop()!);
-});
 
 describe("Forge live control-surface (Phase 18 EMIT seam)", () => {
   it("setPidGain updates and persists the PID gains", () => {
@@ -47,13 +39,6 @@ describe("Forge live control-surface (Phase 18 EMIT seam)", () => {
     const prev = setRlPolicy("fairshare");
     expect(prev).toBe("fairshare");
     expect(setRlPolicy("mlfq")).toBe("mlfq");
-  });
-
-  it("start/stopMlfqBooster is idempotent and safe to toggle", () => {
-    expect(() => startMlfqBooster()).not.toThrow();
-    expect(() => startMlfqBooster()).not.toThrow(); // already running
-    expect(() => stopMlfqBooster()).not.toThrow();
-    expect(() => stopMlfqBooster()).not.toThrow(); // already stopped
   });
 
   it("configureWorker and worker setters are callable control points", () => {

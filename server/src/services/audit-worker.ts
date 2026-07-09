@@ -196,9 +196,11 @@ export async function recordAuditEventIdempotent(
   if (_recordedIds.has(id)) {
     return { recorded: false, id };
   }
-  const existing = _inFlight.get(id);
-  if (existing) return existing;
-
+  // Coalesce concurrent in-flight appends for the same event: the duplicate is
+  // rejected immediately (idempotency is preserved without waiting).
+  if (_inFlight.has(id)) {
+    return { recorded: false, id };
+  }
   const promise = (async () => {
     const prior = await findAuditById(id);
     if (prior) {

@@ -60,9 +60,9 @@ export default function AdminRoles() {
       <table className="w-full text-sm">
         <thead className="text-left text-zinc-400">
           <tr>
-            <th className="py-2">Name</th>
-            <th>Custom</th>
-            <th>Permissions</th>
+            <th scope="col" className="py-2">Name</th>
+            <th scope="col">Custom</th>
+            <th scope="col">Permissions</th>
           </tr>
         </thead>
         <tbody>

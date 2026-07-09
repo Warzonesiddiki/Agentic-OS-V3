@@ -26,11 +26,11 @@ describe('message-bus publish hot-path benchmark', () => {
     const latencies: number[] = [];
     for (let i = 0; i < iterations; i++) {
       const start = performance.now();
-      await bus.publish('metrics/agent/cpu', { v: i });
+      await bus.publish('cpu', `agent-${i}`, undefined, { v: i }, 'event', 'metrics/agent/cpu');
       latencies.push(performance.now() - start);
     }
 
-    // Every subscriber matched the '#' wildcard pattern.
+    // Every subscriber matched the '**' wildcard pattern.
     for (let i = 0; i < N; i++) {
       expect(deliveries[i]).toBe(iterations);
     }
@@ -48,11 +48,8 @@ describe('message-bus publish hot-path benchmark', () => {
 
   it('does not allocate a per-publish array copy of subscribers', async () => {
     const bus = new MessageBus();
-    await bus.subscribe('a', 'x/#', () => {});
-    // A publish with a topic that matches nothing still exercises the
-    // iteration loop; the key assertion is that it completes without error
-    // and that no exception escapes from the hot path.
-    await bus.publish('y/z', { hello: 'world' });
+    await bus.subscribe('a', 'x/**', () => {});
+    await bus.publish('y', 'z', undefined, { hello: 'world' }, 'event', 'y/z');
     expect(true).toBe(true);
   });
 });
