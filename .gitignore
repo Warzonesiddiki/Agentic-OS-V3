@@ -1,131 +1,54 @@
-# dependencies
+# Dependencies
 node_modules/
 .pnpm-store/
 
-# build artifacts — NEVER commit
+# Build outputs
 dist/
-.next/
-out/
-coverage/
+build/
 *.tsbuildinfo
-*.tsbuildinfo.*
 
-# Local tooling / measurement artifacts (never commit)
-*.ps1
-*.err
-*.log
-*.tmp
-build_pid.txt
-nexus-port*.txt
-tsc_errors.txt
-s-*.txt
-tsc*.txt
-
-server/_probe*
-server/scripts/lint-tests.json
-server/scripts/measure-lint.cjs
-server/scripts/probe-markers.cjs
-server/scripts/lint-*.txt
-server/multi_out.txt
-server/eslint_*.txt
-
-# Databases (local runtime data — never commit)
+# Database
 *.db
+*.db-journal
 *.db-wal
 *.db-shm
-*.sqlite
-*.sqlite-shm
-*.sqlite-wal
-agentic-os.db
-server/data/*.sqlite*
 
-# --- All Rust build output (never commit) ---
-target/
-target-*/
-**/target/
-**/target-*/
+# Environment
+.env
+.env.local
+.env.*.local
 
-# env / secrets — NEVER commit
-**/.env
-**/.env.*
-!.env.example
-!server/.env.example
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 
-# editor / OS / AI scratch
-.DS_Store
+# IDE
 .vscode/
 .idea/
-.claude/
 *.swp
 *.swo
-*.bak
+*~
+
+# OS
+.DS_Store
 Thumbs.db
-*.tgz
 
-# Tauri resources (generated at build time)
-nexus-tauri/src-tauri/resources/backend/
+# Test coverage
+coverage/
+.nyc_output/
 
-# OS temp files & scratch
-.server_tests_tmp
+# Docker
+.dockerignore
 
-# Python Cache
-*.pyc
-__pycache__/
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+tmp/
 
-# Foreign AI assistant config — not part of the project
-.aionr/
-.aionrs/
-.zai/
-.agentic-os-rules.md
-
-# Debug / temp scripts from clean-up (never commit)
-_fix_*.py
-fix_*.py
-*_raw.txt
-compile_*.ps1
-_compile_parts.ps1
-errors.txt
-out.txt
-test.txt
-all_backtick_names.txt
-analyze_crates.py
-bootstrap-monorepo.sh
-crates_raw.txt
-crates_section_debug.txt
-crates_section_exact.txt
-debug_hex.py
-debug_output.txt
-HANDOVER.md
-brutal_project_audit.md
-faked_features_report.md
-ARCHITECTURE_ANALYSIS.md
-Dockerfile.backend
-Dockerfile.frontend
-
-# Redemption plan moved to docs/
-/reports/
-
-# Vendored third-party source — will be extracted in Phase 13 then removed
-/gemini-cli/
-.aider*
-
-# --- Stray debug/measurement artifacts from agents (never commit) ---
-server/__*.cjs
-server/__*.mjs
-server/__*.py
-server/_*.js
-server/_*.mjs
-server/_*.cjs
-server/_*.txt
-server/_*.py
-server/__gen_perf.py
-server/_verify_stub_loader.cjs
-server/__tsc_err.cjs
-server/tests/zz-debug.test.ts
-server/tests/services/probe.tmp.ts
-server/vitest.config.secd-audit.ts
-
-# Fleet control-plane tooling (committed on purpose)
-!fleet/
-!fleet/**
-
+# Locks
+package-lock.json
+pnpm-lock.yaml
+yarn.lock

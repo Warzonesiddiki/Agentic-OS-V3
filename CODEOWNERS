@@ -307,3 +307,11 @@ server/src/scripts/profile-system-performance.ts @bastion
 docs/DEPLOYMENT.md                        @bastion
 docs/PRODUCTION_CHECKLIST.md              @bastion
 docs/DR_RUNBOOK.md                        @bastion
+
+# Development & Tooling
+scripts/ @Warzonesiddiki
+*.config.* @Warzonesiddiki
+*.sh @Warzonesiddiki
+DEVELOPMENT.md @Warzonesiddiki
+BENCHMARK.md @Warzonesiddiki
+TROUBLESHOOTING.md @Warzonesiddiki

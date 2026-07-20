@@ -1,0 +1,541 @@
+# BMAD sprint status for NEXUS 2.0 / Agentic OS V3
+# Source of truth for Phase 4 implementation tracking.
+# Allowed status: backlog | ready | in_progress | review | done | blocked | deferred
+workflow:
+  method: bmad
+  phase: 4
+  phase_name: implementation
+  release: R1-governed-agent-workbench
+  current_sprint: sprint-1
+  last_updated: 2026-07-21
+  owner: solo-developer
+  status_file: docs/bmad/sprint-status.yaml
+  story_catalog: docs/bmad/07-epics-and-stories.md
+
+sprints:
+  sprint-1:
+    name: safe-skeleton
+    goal: Establish typed contracts, validation baseline, service boundaries, project isolation, and idempotent task creation.
+    capacity_points: 21
+    status: ready
+    committed:
+      - E0-S1
+      - E0-S2
+      - E0-S3
+      - E1-S1
+      - E3-S1
+    exit_demo:
+      - Run and record repository validation baseline.
+      - Initialize two isolated local projects.
+      - Return one task for duplicate idempotency-key submissions.
+      - Reject cross-project task access.
+      - Show task state and correlation ID through the typed API.
+
+  sprint-2:
+    name: local-context-and-evidence
+    goal: Persist local memory and foundational audit/evidence with export dry-run.
+    capacity_points: 20
+    status: planned
+    committed: []
+
+  sprint-3:
+    name: recall-and-checkpoints
+    goal: Add governed recall and worker recovery from checkpoints.
+    capacity_points: 18
+    status: planned
+    committed: []
+
+  sprint-4:
+    name: governed-side-effects
+    goal: Complete a bounded local tool action with durable approval, receipts, and recovery.
+    capacity_points: 21
+    status: planned
+    committed: []
+
+  sprint-5:
+    name: usable-golden-path
+    goal: Make the complete workflow understandable and recoverable in the control plane.
+    capacity_points: 24
+    status: planned
+    committed: []
+
+  sprint-6:
+    name: production-gate
+    goal: Validate, harden, and document R1 before optional protocol breadth.
+    capacity_points: 21
+    status: planned
+    committed: []
+
+stories:
+  E0-S1:
+    epic: E0
+    title: Establish repository validation baseline
+    points: 3
+    priority: P0
+    status: blocked
+    sprint: sprint-1
+    dependencies: []
+    implementation_owner: arena-agent
+    review_owner: senior-review
+    blocker: Full lifecycle install is blocked by better-sqlite3 TLS/native build failure; lint, typecheck, tests, and Rust checks remain non-green and require follow-up stories.
+    evidence:
+      - docs/bmad/baseline-2026-07-21.md
+      - docs/bmad/stories/E0-S1-establish-repository-validation-baseline.md
+      - docs/bmad/reviews/E0-S1-code-review.md
+      - DEVELOPMENT.md
+
+  E0-S2:
+    epic: E0
+    title: Define shared R1 domain types and state enums
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-1
+    dependencies:
+      - E0-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E0-S3:
+    epic: E0
+    title: Introduce repository/service boundaries
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-1
+    dependencies:
+      - E0-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E1-S1:
+    epic: E1
+    title: Initialize and inspect a project scope
+    points: 3
+    priority: P0
+    status: backlog
+    sprint: sprint-1
+    dependencies:
+      - E0-S2
+      - E0-S3
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E1-S2:
+    epic: E1
+    title: Implement local persistence adapter
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-2
+    dependencies:
+      - E0-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E1-S3:
+    epic: E1
+    title: Project export/import dry run
+    points: 3
+    priority: P1
+    status: backlog
+    sprint: sprint-2
+    dependencies:
+      - E1-S1
+      - E0-S3
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E2-S1:
+    epic: E2
+    title: Create and manage provenance-backed memories
+    points: 5
+    priority: P1
+    status: backlog
+    sprint: sprint-2
+    dependencies:
+      - E1-S1
+      - E0-S3
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E2-S2:
+    epic: E2
+    title: Implement token-budgeted hybrid recall
+    points: 5
+    priority: P1
+    status: backlog
+    sprint: sprint-3
+    dependencies:
+      - E2-S1
+      - E1-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E2-S3:
+    epic: E2
+    title: Add recall feedback and contradiction signals
+    points: 3
+    priority: P2
+    status: backlog
+    sprint: sprint-5
+    dependencies:
+      - E2-S2
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E3-S1:
+    epic: E3
+    title: Create durable tasks with idempotency
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-1
+    dependencies:
+      - E0-S2
+      - E0-S3
+      - E1-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E3-S2:
+    epic: E3
+    title: Implement checkpointed worker execution
+    points: 8
+    priority: P0
+    status: backlog
+    sprint: sprint-3
+    dependencies:
+      - E3-S1
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E3-S3:
+    epic: E3
+    title: Retry, timeout, cancellation, and recovery
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-4
+    dependencies:
+      - E3-S2
+      - E4-S2
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E3-S4:
+    epic: E3
+    title: Task event stream and replay cursor
+    points: 3
+    priority: P1
+    status: backlog
+    sprint: sprint-4
+    dependencies:
+      - E3-S1
+      - E5-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E4-S1:
+    epic: E4
+    title: Capability inventory and policy evaluation
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-3
+    dependencies:
+      - E0-S2
+      - E1-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E4-S2:
+    epic: E4
+    title: Durable approval requests and decisions
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-4
+    dependencies:
+      - E4-S1
+      - E3-S2
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E4-S3:
+    epic: E4
+    title: Bounded native tool gateway
+    points: 8
+    priority: P0
+    status: backlog
+    sprint: sprint-4
+    dependencies:
+      - E4-S1
+      - E4-S2
+      - E3-S2
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E4-S4:
+    epic: E4
+    title: Kill switch and quarantine enforcement
+    points: 3
+    priority: P0
+    status: backlog
+    sprint: sprint-4
+    dependencies:
+      - E4-S1
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E5-S1:
+    epic: E5
+    title: Append-only audit and action receipts
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-2
+    dependencies:
+      - E0-S2
+      - E1-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E5-S2:
+    epic: E5
+    title: OTel-compatible task/model/tool telemetry
+    points: 5
+    priority: P1
+    status: backlog
+    sprint: sprint-5
+    dependencies:
+      - E3-S1
+      - E4-S3
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E5-S3:
+    epic: E5
+    title: Evidence timeline and safe export
+    points: 5
+    priority: P1
+    status: backlog
+    sprint: sprint-5
+    dependencies:
+      - E5-S1
+      - E5-S2
+      - E1-S3
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E6-S1:
+    epic: E6
+    title: R1 dashboard and project setup UX
+    points: 5
+    priority: P1
+    status: backlog
+    sprint: sprint-5
+    dependencies:
+      - E1-S1
+      - E6-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E6-S2:
+    epic: E6
+    title: Task start and detail experience
+    points: 8
+    priority: P1
+    status: backlog
+    sprint: sprint-5
+    dependencies:
+      - E3-S1
+      - E3-S4
+      - E5-S3
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E6-S3:
+    epic: E6
+    title: Approval inbox and safe decision UX
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-5
+    dependencies:
+      - E4-S2
+      - E6-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E6-S4:
+    epic: E6
+    title: Memory and evidence workbench
+    points: 5
+    priority: P1
+    status: backlog
+    sprint: sprint-5
+    dependencies:
+      - E2-S1
+      - E2-S2
+      - E5-S3
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E7-S1:
+    epic: E7
+    title: Versioned MCP capability adapter
+    points: 8
+    priority: P2
+    status: deferred
+    sprint: null
+    dependencies:
+      - E4-S1
+      - E4-S3
+      - E5-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E7-S2:
+    epic: E7
+    title: Versioned A2A task adapter
+    points: 8
+    priority: P2
+    status: deferred
+    sprint: null
+    dependencies:
+      - E4-S1
+      - E3-S2
+      - E5-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E7-S3:
+    epic: E7
+    title: Explicit one-project sync
+    points: 8
+    priority: P2
+    status: deferred
+    sprint: null
+    dependencies:
+      - E1-S3
+      - E5-S1
+      - E6-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E8-S1:
+    epic: E8
+    title: Security and isolation verification
+    points: 8
+    priority: P0
+    status: backlog
+    sprint: sprint-6
+    dependencies:
+      - E4-S3
+      - E4-S4
+      - E5-S1
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E8-S2:
+    epic: E8
+    title: Performance and reliability acceptance suite
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-6
+    dependencies:
+      - E2-S2
+      - E3-S2
+      - E3-S4
+      - E6-S2
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+  E8-S3:
+    epic: E8
+    title: R1 release gate and operational documentation
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-6
+    dependencies:
+      - all-r1-must-stories
+    implementation_owner: unassigned
+    review_owner: unassigned
+    blocker: null
+    evidence: []
+
+status_legend:
+  backlog: Identified but not refined for immediate work.
+  ready: Dependencies and acceptance criteria are sufficient to start.
+  in_progress: Actively being implemented; normally only one story at a time.
+  review: Implementation complete and awaiting adversarial senior review.
+  done: Acceptance, tests, validation, and review passed.
+  blocked: Cannot proceed; blocker and next action required.
+  deferred: Intentionally outside the current release or sprint.

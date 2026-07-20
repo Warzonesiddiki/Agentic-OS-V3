@@ -1,13 +1,53 @@
 /**
- * Logger re-export shim.
- *
- * `logging.ts` is the canonical structured-logger implementation. Some
- * modules import from `../lib/logger.js`; this thin module re-exports the
- * public surface so both import forms resolve.
+ * logger.ts — Centralized logging for NEXUS 2.0
  */
 
-import { log, redact, fatal } from './logging.js';
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
-export { log, redact, fatal };
-/** Alias used by orchestration modules. */
-export const logger = { log, redact, fatal };
+const LOG_LEVELS: Record<LogLevel, number> = {
+  debug: 0,
+  info: 1,
+  warn: 2,
+  error: 3,
+};
+
+const currentLevel = (process.env.NEXUS_LOG_LEVEL as LogLevel) || 'info';
+
+function shouldLog(level: LogLevel): boolean {
+  return LOG_LEVELS[level] >= LOG_LEVELS[currentLevel];
+}
+
+function formatMessage(level: LogLevel, message: string, meta?: Record<string, unknown>): string {
+  const timestamp = new Date().toISOString();
+  const metaStr = meta ? ` ${JSON.stringify(meta)}` : '';
+  return `[${timestamp}] [${level.toUpperCase()}] ${message}${metaStr}`;
+}
+
+export const log = {
+  debug(message: string, meta?: Record<string, unknown>): void {
+    if (shouldLog('debug')) {
+      console.debug(formatMessage('debug', message, meta));
+    }
+  },
+
+  info(message: string, meta?: Record<string, unknown>): void {
+    if (shouldLog('info')) {
+      console.info(formatMessage('info', message, meta));
+    }
+  },
+
+  warn(message: string, meta?: Record<string, unknown>): void {
+    if (shouldLog('warn')) {
+      console.warn(formatMessage('warn', message, meta));
+    }
+  },
+
+  error(message: string, error?: Error | unknown, meta?: Record<string, unknown>): void {
+    if (shouldLog('error')) {
+      const errorMeta = error instanceof Error
+        ? { error: error.message, stack: error.stack, ...meta }
+        : { error: String(error), ...meta };
+      console.error(formatMessage('error', message, errorMeta));
+    }
+  },
+};

@@ -93,3 +93,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Dead npm dependencies (drizzle-orm-sqlite, better-sqlite3, pkg, nexe)
 - Unused Rust import (tauri::path::PathResolver)
 - 12 debug/utility JS files from server root
+
+## [2.1.0] - 2024-07-21
+
+### Added
+- Complete database migration with 140+ indexes for performance
+- Centralized error types (`ApiError`, `ValidationError`, etc.)
+- Environment variable validation with Zod schema
+- Logging utility with log levels
+- Health check endpoints with Prometheus metrics
+- Development Docker Compose configuration
+- API documentation template
+- Architecture diagram documentation
+- Troubleshooting guide
+- Development guide
+- Performance benchmark documentation
+- Health check shell script
+
+### Changed
+- Simplified server package.json (removed workspace dependencies)
+- Created standalone TypeScript configuration
+- Updated Vitest and ESLint configurations
+
+### Fixed
+- npm workspace protocol compatibility
+- Missing JSDoc documentation in kernel.ts
