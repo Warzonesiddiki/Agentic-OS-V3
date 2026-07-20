@@ -8,6 +8,17 @@
 
 ## Quick Start
 
+### Install dependencies (workspace)
+
+The repository is a pnpm workspace and the committed `pnpm-lock.yaml` is the canonical lockfile. Install from the repository root before running any workspace command:
+
+```bash
+corepack enable
+pnpm install --frozen-lockfile
+```
+
+If Corepack is unavailable, install a pnpm release compatible with lockfile version 9, then run the same command. Do not mix a generated server-only `package-lock.json` into the workspace.
+
 ### Option 1: Development with Docker
 
 ```bash
@@ -15,26 +26,20 @@
 docker compose -f docker-compose.dev.yml up -d
 
 # Run the server in development mode
-cd server
-npm run dev
+pnpm --dir server dev
 
-# Run the frontend
-cd ..
-npm run dev:frontend
+# Run the frontend from another terminal
+pnpm dev:frontend
 ```
 
 ### Option 2: Standalone Development
 
 ```bash
-# Install server dependencies
-cd server
-npm install
-
 # Start the server (uses SQLite by default)
-npm run dev
+pnpm --dir server dev
 
 # Run tests
-npm test
+pnpm test
 ```
 
 ## Project Structure

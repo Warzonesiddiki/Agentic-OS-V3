@@ -8,9 +8,9 @@
   "author": "Warzonesiddiki",
   "scripts": {
     "dev": "cd server && npm run dev",
-    "dev:frontend": "npx vite",
+    "dev:frontend": "vite",
     "build": "cd server && npm run build",
-    "build:frontend": "npx vite build",
+    "build:frontend": "vite build",
     "test": "cd server && npm test",
     "test:watch": "cd server && npm run test:watch",
     "test:integration": "cd server && npm run test:integration",
@@ -20,6 +20,38 @@
     "docker:up": "docker compose up -d",
     "docker:down": "docker compose down",
     "docker:logs": "docker compose logs -f"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.62.0",
+    "@tanstack/react-virtual": "^3.14.5",
+    "@xyflow/react": "^12.11.2",
+    "clsx": "^2.1.1",
+    "hash-wasm": "^4.12.0",
+    "jotai": "^2.10.0",
+    "motion": "^12.42.2",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.28.0",
+    "recharts": "^2.13.0",
+    "tailwind-merge": "^3.6.0",
+    "zod": "^3.25.76",
+    "zustand": "^5.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.2",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.3",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8",
+    "prettier": "^3.3",
+    "tsx": "^4.19",
+    "typescript": "^5.8",
+    "vite": "^5.4.0",
+    "vite-plugin-singlefile": "^2.3.3",
+    "vitest": "^3.1"
   },
   "engines": {
     "node": ">=20"
