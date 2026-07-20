@@ -105,6 +105,8 @@ These are provisional and will be re-estimated after Sprint 1.
 - E8-S1 Security/isolation verification
 - E8-S2 Performance/reliability acceptance suite
 - E8-S3 R1 release gate and operational documentation
+- **E9-S1** Serena Parity — Semantic Code Intelligence core (MUST)
+- **E9-S2** Serena Parity — Edit & refactor tools with governance (MUST)
 - E7-S1 MCP adapter, E7-S2 A2A adapter, or E7-S3 sync only after explicit prioritization
 
 ## 4. Definition of ready

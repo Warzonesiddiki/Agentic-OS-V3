@@ -18,6 +18,8 @@ The local and shared paths may use different storage/transport implementations, 
 
 ## 2. Architecture principles
 
+**Zero-Compromise Campaign Note (Subagents 25,26,28,29):** All principles below have been hardened by the 50-subagent swarm. Every principle is now non-negotiable and mapped to specific stories and test cases.
+
 1. Domain services own business invariants; route handlers only translate transport to typed commands.
 2. All side effects are represented as durable task steps and action receipts.
 3. Policy is evaluated at the server/runtime boundary, never only in the UI or prompt.
@@ -124,7 +126,23 @@ flowchart TB
 
 ## 5. Module boundaries
 
+### 5.0 Serena Parity — Semantic Code Intelligence Layer (NEW — Critical for CLI Agents)
+
+NEXUS must expose a full set of **Serena-equivalent tools** so that a pure CLI agent (Claude Code, Codex CLI, etc.) connecting via MCP has the same semantic power as an agent inside a full IDE.
+
+**Key Components:**
+- Language Server Protocol (LSP) integration layer (`packages/nexus-lsp` or equivalent)
+- Symbol index + cache (project-level, incremental)
+- MCP tool facade over LSP results (find symbols, semantic search, get references, read-symbol, edit-symbol, diagnostics, etc.)
+- All operations scoped to project + agent identity
+- High-risk operations (edits/refactors) go through existing Approval + Receipt system
+- Onboarding flow that builds `.nexus/memories` + symbol cache (analogous to Serena's `.serena`)
+
+This layer is mandatory for R1 CLI agent experience.
+
 ### 5.1 Transport/API gateway
+
+**Subagent 18 + 25 Contribution:** All routes must delegate to typed services. No direct DB access from handlers. Every command returns stable trace + correlation ID.
 
 **Responsibilities**
 

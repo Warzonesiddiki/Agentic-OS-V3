@@ -1,11 +1,12 @@
 # BMAD Product Brief — NEXUS 2.0 / Agentic OS V3
 
 **Date:** 2026-07-21  
-**Status:** Draft for PRD  
+**Status:** Draft for PRD (Zero-Compromise Expanded)  
 **Product type:** Local-first, hybrid Agentic OS and developer control plane  
 **Primary user:** Solo developer  
 **Initial deployment:** Local-first with optional shared backend  
-**Product vision:** Integrated platform across memory, orchestration, governance, interoperability, and developer operations
+**Product vision:** Integrated platform across memory, orchestration, governance, interoperability, and developer operations  
+**Master BMAD Doc:** `docs/bmad/README.md` — Full workflow, checklists, and perfection target
 
 ## 1. Product vision
 
@@ -79,6 +80,8 @@ A developer can ask an AI agent to do work, but cannot reliably make that work p
 This is the first user-visible definition of "Agentic OS". It is intentionally narrow enough to test end to end.
 
 ## 7. Product pillars
+
+**New Strategic Pillar (Serena Parity):** NEXUS must give CLI agentic AIs the full power of modern IDE code intelligence (symbol navigation, semantic search, precise refactoring) through MCP. This is now a core requirement for any serious agentic OS.
 
 ### Pillar 1 — Trusted Agent Memory
 
