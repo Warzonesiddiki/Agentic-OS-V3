@@ -24,3 +24,10 @@
   "include": ["packages/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["server/src/**/*.ts"]
+}
