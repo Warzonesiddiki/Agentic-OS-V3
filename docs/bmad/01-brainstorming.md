@@ -1,9 +1,9 @@
 # BMAD Brainstorming — NEXUS 2.0 / Agentic OS V3
 
 **Date:** 2026-07-21  
-**Status:** Discovery in progress  
-**Workflow:** Full BMAD workflow  
-**Outcome target:** Production-ready system
+**Status:** Discovery in progress (Zero-Compromise)  
+**Workflow:** Full BMAD workflow (see `docs/bmad/README.md`)  
+**Outcome target:** Production-ready system with perfect traceability
 
 ## 1. Product context
 

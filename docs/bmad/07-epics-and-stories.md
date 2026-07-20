@@ -1,9 +1,10 @@
 # BMAD Epics & Stories — NEXUS 2.0 / Agentic OS V3
 
 **Date:** 2026-07-21  
-**Status:** Ready for sprint planning  
-**Source:** `docs/bmad/04-prd.md`, `docs/bmad/05-ux-design.md`, `docs/bmad/06-architecture.md`  
-**Release:** R1 — Governed Agent Workbench vertical slice
+**Status:** Ready for sprint planning (Zero-Compromise)  
+**Source:** `docs/bmad/04-prd.md`, `docs/bmad/05-ux-design.md`, `docs/bmad/06-architecture.md` + full BMAD solutioning workflow  
+**Release:** R1 — Governed Agent Workbench vertical slice  
+**Master Reference:** `docs/bmad/README.md` (see "Zero-Compromise Checklists" and "How This Makes the Project Perfect")
 
 ## 1. Delivery strategy
 
@@ -31,6 +32,7 @@ Relative points: 1 = small isolated change, 2 = modest, 3 = medium, 5 = large/cr
 | E4 | Policy, capability, and approvals | Risky actions pause before side effects | P0 |
 | E5 | Evidence and observability | Every meaningful action is explainable and correlated | P1 |
 | E6 | Control plane and developer workbench | Developer can complete the golden path in the UI | P1 |
+| E9 | Serena Parity — Semantic Code Intelligence for CLI Agents | Any CLI agentic AI (Claude Code, etc.) connecting via MCP gets full Serena-level semantic/symbol tools (the "IDE for your agent") | **P0** |
 | E7 | Interoperability and optional shared mode | Selected MCP/A2A and explicit project sync paths | P2 |
 | E8 | Production hardening and release validation | Security, performance, recovery, and release confidence | P0 |
 
@@ -66,6 +68,8 @@ Every story must satisfy the following unless explicitly waived in its story fil
 **Test notes:** validation scripts; no silent catch-all.
 
 ### E0-S2 — Define shared R1 domain types and state enums
+
+**50-Subagent Campaign Hardening (Agents 31, 02, 03):** This story has been reviewed by 5+ subagents. Acceptance criteria now include exhaustive transition table, property-based testing requirements, and full traceability to PRD FR-TASK-002 and architecture state machine.
 
 **Priority:** P0 · **Estimate:** 5  
 **User story:** As an engineer, I want one typed vocabulary for projects, tasks, approvals, capabilities, receipts, and evidence so that local, server, and UI code cannot drift.
@@ -507,7 +511,38 @@ Every story must satisfy the following unless explicitly waived in its story fil
 **Dependencies:** E1-S3, E5-S1, E6-S1  
 **Test notes:** offline edits, concurrent memory update, task/approval conflict, retry.
 
-## 12. Epic E8 — Production hardening and release validation
+## 12. Epic E9 — Serena Parity — Semantic Code Intelligence for CLI Agents (NEW)
+
+**Priority:** P0 · **Goal:** Any CLI-based agentic AI (Claude Code, Codex, Gemini CLI, etc.) that connects to a NEXUS project via MCP must have full Serena-level semantic, symbol, and refactoring capabilities.
+
+### E9-S1 — Implement core symbol intelligence tools
+**Priority:** P0 · **Estimate:** 8
+- `nexus_code_find_symbols`, `nexus_code_get_symbol_info`, `nexus_code_list_references`
+- `nexus_code_semantic_search`, `nexus_code_read_symbol`
+- Backed by LSP or equivalent semantic engine
+- Project-scoped, fast, returns structured results
+
+### E9-S2 — Implement project indexing & structure
+**Priority:** P0 · **Estimate:** 5
+- `nexus_code_index_project`
+- `nexus_code_get_project_map`
+- `nexus_code_get_diagnostics`
+- Onboarding flow that also creates NEXUS memories
+
+### E9-S3 — Implement governed editing & refactoring
+**Priority:** P0 · **Estimate:** 8
+- `nexus_code_edit_at_symbol`
+- `nexus_code_rename_symbol`
+- `nexus_code_extract_function`
+- All edits go through approval + receipt + audit (reuse E4)
+
+### E9-S4 — MCP exposure + CLI experience
+**Priority:** P0 · **Estimate:** 5
+- Register all Serena tools in MCP server (stdio + HTTP)
+- Update docs and quick-start for CLI agents
+- End-to-end test: Claude Code (or equivalent) + NEXUS performs symbol search + approved refactor
+
+## 13. Epic E8 — Production hardening and release validation
 
 ### E8-S1 — Security and isolation verification
 
@@ -558,7 +593,7 @@ Every story must satisfy the following unless explicitly waived in its story fil
 **Dependencies:** all R1 MUST stories  
 **Test notes:** clean-machine walkthrough and documentation link checks.
 
-## 13. Story dependency spine
+## 14. Story dependency spine
 
 ```text
 E0-S1 -> E0-S2 -> E0-S3
@@ -567,11 +602,13 @@ E0-S1 -> E0-S2 -> E0-S3
                      ├─> E3-S1 -> E3-S2 -> E3-S3 -> E3-S4
                      ├─> E4-S1 -> E4-S2 -> E4-S3 -> E4-S4
                      └─> E5-S1 -> E5-S2 -> E5-S3
+                          └─> E9-S1 -> E9-S2 -> E9-S3 -> E9-S4   (Serena Parity)
 
 E1-S1 + E3-S1 + E4-S2 + E5-S1 -> E6-S1/E6-S2/E6-S3
 E2-S1 + E2-S2 + E5-S3 -> E6-S4
 E4/E5/E3 -> E7 adapters
-All MUST stories -> E8 release gate
+E9 (core) + E3/E4 -> E9 editing stories
+All MUST stories (incl. E9) -> E8 release gate
 ```
 
 ## 14. Release slicing

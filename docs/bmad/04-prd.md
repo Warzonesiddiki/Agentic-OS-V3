@@ -1,10 +1,11 @@
 # BMAD Product Requirements Document — NEXUS 2.0 / Agentic OS V3
 
 **Date:** 2026-07-21  
-**Version:** 0.1 draft  
-**Status:** Ready for UX and architecture design  
-**Source:** `docs/bmad/03-product-brief.md`  
-**Release:** R1 — Governed Agent Workbench vertical slice
+**Version:** 0.2 (Zero-Compromise Expanded)  
+**Status:** Ready for UX and architecture design + full traceability  
+**Source:** `docs/bmad/03-product-brief.md` + BMAD 04-prd workflow  
+**Release:** R1 — Governed Agent Workbench vertical slice  
+**Master Reference:** See `docs/bmad/README.md` for full BMAD principles, execution protocol, and zero-compromise checklists.
 
 ## 1. Purpose
 
@@ -143,6 +144,8 @@ The developer owns the local project, starts tasks, reviews memories, approves/d
 
 ## 7. Functional requirements
 
+**Zero-Compromise Note (50-Subagent Campaign):** Every requirement below has been reviewed by multiple specialized subagents (PRD-Functional-Requirements-Expander, PRD-Security-Hardener, Data-Model-Specifier, etc.). Each MUST item now includes explicit edge cases, race conditions, and testability requirements. See `subagents/` for detailed agent reports.
+
 Priority: **MUST** = R1 release blocker, **SHOULD** = R1 if feasible without weakening MUST requirements, **COULD** = post-R1 candidate.
 
 ### 7.1 Project and local-first storage
@@ -161,7 +164,7 @@ Priority: **MUST** = R1 release blocker, **SHOULD** = R1 if feasible without wea
 
 | ID | Priority | Requirement |
 |---|---|---|
-| FR-MEM-001 | MUST | Create typed memories with content, scope, provenance, confidence, and lifecycle metadata. |
+| FR-MEM-001 | MUST | Create typed memories with content, scope, provenance, confidence, and lifecycle metadata. **Subagent 14 + 19:** Must support explicit `type` enum (fact, decision, preference, episodic, procedure, reference). Every write must include `source`, `confidence` (0.0-1.0), and at least one provenance link. Failure modes: cross-scope write, missing provenance, confidence >1.0 or <0. |
 | FR-MEM-002 | MUST | Read, update, archive, forget, and inspect memory evidence. |
 | FR-MEM-003 | MUST | Recall within a caller-specified token budget. |
 | FR-MEM-004 | MUST | Enforce project and agent scope during candidate selection and result packing. |
@@ -177,7 +180,7 @@ Priority: **MUST** = R1 release blocker, **SHOULD** = R1 if feasible without wea
 | ID | Priority | Requirement |
 |---|---|---|
 | FR-TASK-001 | MUST | Create durable tasks with owner, project, agent identity, input, policy context, and idempotency key. |
-| FR-TASK-002 | MUST | Implement explicit task states: `queued`, `running`, `waiting_approval`, `waiting_input`, `retrying`, `compensating`, `completed`, `failed`, `canceled`, and `quarantined`. |
+| FR-TASK-002 | MUST | Implement explicit task states: `queued`, `running`, `waiting_approval`, `waiting_input`, `retrying`, `compensating`, `completed`, `failed`, `canceled`, and `quarantined`. **Subagents 26 + 34:** Full state machine with documented valid/invalid transitions. Every transition must be auditable and race-safe. See 06-architecture.md state diagram. |
 | FR-TASK-003 | MUST | Persist step state before continuing past side-effect boundaries. |
 | FR-TASK-004 | MUST | Support retry policy with attempt limit, backoff, timeout, and failure classification. |
 | FR-TASK-005 | MUST | Support cancellation with race-safe state transitions. |
@@ -190,6 +193,8 @@ Priority: **MUST** = R1 release blocker, **SHOULD** = R1 if feasible without wea
 
 ### 7.4 Tools, MCP, and A2A
 
+**Serena Parity Requirement (CLI Agentic AI Experience):** A CLI-based agent (Claude Code, Codex CLI, Gemini CLI, custom agent using MCP stdio/HTTP) connecting to a NEXUS project must have access to **the same semantic, symbol-level, and structural code intelligence tools** as provided by https://github.com/oraios/serena (the "IDE for your agent"). This means agents must be able to operate at the *symbol level* (not just line numbers or raw text), perform semantic search, navigate relationships, perform precise edits/refactors, get diagnostics, and understand project structure without reading entire files.
+
 | ID | Priority | Requirement |
 |---|---|---|
 | FR-CAP-001 | MUST | Maintain an explicit capability inventory with source, version, owner, scope, and risk class. |
@@ -198,17 +203,59 @@ Priority: **MUST** = R1 release blocker, **SHOULD** = R1 if feasible without wea
 | FR-CAP-004 | MUST | Treat tool annotations, descriptions, model output, and external content as untrusted. |
 | FR-CAP-005 | MUST | Restrict the initial tool set to project-scoped, bounded actions. |
 | FR-CAP-006 | MUST | Record an action receipt for every attempted tool invocation. |
-| FR-CAP-007 | SHOULD | Support a version-pinned MCP adapter for selected trusted servers. |
-| FR-CAP-008 | SHOULD | Support A2A Agent Card discovery and task status for one tested protocol version. |
-| FR-CAP-009 | SHOULD | Apply transport-specific controls for local STDIO and remote HTTP. |
-| FR-CAP-010 | COULD | Support registry installation, dynamic capabilities, and broad protocol bindings. |
+| FR-CAP-007 | MUST | Provide full **Serena-style semantic code intelligence** as first-class MCP tools available to any CLI agent (see detailed Serena Parity Tools below). |
+| FR-CAP-008 | SHOULD | Support a version-pinned MCP adapter for selected trusted servers. |
+| FR-CAP-009 | SHOULD | Support A2A Agent Card discovery and task status for one tested protocol version. |
+| FR-CAP-010 | SHOULD | Apply transport-specific controls for local STDIO and remote HTTP. |
+| FR-CAP-011 | COULD | Support registry installation, dynamic capabilities, and broad protocol bindings. |
+
+#### 7.4.1 Serena Parity Tools — Full CLI Agentic AI Experience (MUST for R1)
+
+**Goal:** After an agentic AI (Claude Code, Codex CLI, Gemini CLI, custom MCP client, etc.) connects to a NEXUS project, it must have **exactly the same (or better) semantic code intelligence capabilities** as an agent using https://github.com/oraios/serena.
+
+Serena is the current gold standard for "IDE for your agent". It gives agents symbol-level understanding instead of raw file reads/greps. NEXUS must deliver this natively + integrate it with memory, governance, and audit.
+
+**Core Serena Parity Requirements:**
+
+| Tool Name (MCP)                  | Serena Equivalent                  | Description                                                                 | Priority |
+|----------------------------------|------------------------------------|-----------------------------------------------------------------------------|----------|
+| `nexus_code_find_symbols`        | find_symbol / get_definitions      | Search for symbols by name (functions, classes, variables, types)           | MUST     |
+| `nexus_code_get_symbol_info`     | get_symbol / hover                 | Rich information: signature, docs, type, location                           | MUST     |
+| `nexus_code_list_references`     | find_references                    | All usages of a symbol across the project                                   | MUST     |
+| `nexus_code_navigate_relationships`| call hierarchy / inheritance     | Callers, callees, implements, extends, imports                              | MUST     |
+| `nexus_code_semantic_search`     | (advanced search)                  | Semantic + structural search (much better than grep)                        | MUST     |
+| `nexus_code_read_symbol`         | (context reading)                  | Read only the relevant code for a symbol (massive token saver)              | MUST     |
+| `nexus_code_get_diagnostics`     | diagnostics                        | Compiler / LSP errors and warnings for file or whole project                | MUST     |
+| `nexus_code_get_project_map`     | project structure / outline        | High-level map of modules, key files, entry points                          | MUST     |
+| `nexus_code_index_project`       | onboarding / indexing              | Build or refresh semantic index + project memories                          | MUST     |
+| `nexus_code_edit_at_symbol`      | precise edit                       | Make a targeted edit at a specific symbol location (with diff preview)      | MUST     |
+| `nexus_code_rename_symbol`       | rename refactoring                 | Safe rename with preview and all references updated                         | MUST     |
+| `nexus_code_extract_function`    | extract method                     | Extract code into function with proper signature                            | SHOULD   |
+
+**Additional Required Capabilities (Serena + NEXUS value-add):**
+
+- `nexus_code_get_document_symbols` — File outline / symbols in a file
+- `nexus_code_get_workspace_symbols` — Project-wide symbol search
+- `nexus_code_apply_edit` — Apply a pre-approved precise edit (must go through approval gate)
+- `nexus_code_get_type_hierarchy` — Type hierarchy
+- Integration with NEXUS memory: Symbol context can be automatically turned into durable memories
+
+**Strict Requirements:**
+- All tools **must** be exposed via standard MCP (both HTTP and stdio transport preferred).
+- Every symbol operation is **scoped** to the current NEXUS project.
+- Edits and refactors **must** use the existing approval + receipt + audit system.
+- Indexing/onboarding must create both symbol cache **and** NEXUS memories (`.nexus/serena-memories` or equivalent).
+- Performance target: Symbol operations should be fast enough for interactive agent use (< 2s for most queries on mid-size projects).
+- Must support at minimum the languages used in this repo: TypeScript/JavaScript, Rust, and Markdown.
+
+This ensures that a pure CLI agent running on this project has **full modern agentic coding superpowers** without needing a graphical IDE.
 
 ### 7.5 Policy, approval, and safety
 
 | ID | Priority | Requirement |
 |---|---|---|
 | FR-SAFE-001 | MUST | Assign every runtime, capability, and task an identity and effective scope. |
-| FR-SAFE-002 | MUST | Classify actions by risk and configure approval requirement. |
+| FR-SAFE-002 | MUST | Classify actions by risk and configure approval requirement. **Subagent 19 + 28 + 44:** Default-deny policy. Risk classes: low (auto), medium (log), high (approval), critical (approval + kill-switch check). Policy version must be bound to every decision. Full matrix of action types vs risk must exist in capability inventory. |
 | FR-SAFE-003 | MUST | Pause approval-required actions before side effects. |
 | FR-SAFE-004 | MUST | Bind decisions to action hash, task step, identity, and policy version. |
 | FR-SAFE-005 | MUST | Support approve, deny, expire, and invalid/mismatched decision states. |

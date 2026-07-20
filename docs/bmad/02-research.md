@@ -1,11 +1,12 @@
 # BMAD Research — NEXUS 2.0 / Agentic OS V3
 
 **Date:** 2026-07-21  
-**Status:** Research complete for product-brief input  
+**Status:** Research complete for product-brief input (Zero-Compromise)  
 **Product direction:** Integrated Agentic OS  
 **Initial user:** Solo developer  
 **Initial deployment:** Hybrid local-first with optional shared backend  
-**Research scope:** Agent memory, orchestration, interoperability, security/governance, observability, local-first storage, and repository readiness
+**Research scope:** Agent memory, orchestration, interoperability, security/governance, observability, local-first storage, and repository readiness  
+**See:** `docs/bmad/README.md` for full BMAD protocol and zero-compromise principles
 
 ## 1. Executive summary
 
@@ -140,6 +141,8 @@ The following is a baseline inspection of the repository at commit `01ed48c82c30
 - `server/src/`, `src/`, `packages/`, and `crates/` — implementation footprint and domain inventory.
 
 ## 4. Competitive and strategic positioning
+
+**Critical Reference (2026):** https://github.com/oraios/serena — "The IDE for your agent". Serena is the gold standard for giving CLI-based agentic AIs (Claude Code, etc.) true semantic, symbol-level code intelligence via MCP + LSP. NEXUS **must** achieve Serena parity (and better integration with memory/governance) so that any agent connecting to a NEXUS project via CLI has the same (or superior) power.
 
 | Alternative/category | Strong point | NEXUS opportunity |
 |---|---|---|
