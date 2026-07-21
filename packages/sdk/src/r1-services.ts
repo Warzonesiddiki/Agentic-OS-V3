@@ -132,6 +132,13 @@ export class R1Service {
     return this.repositories.evidence.listForTask(projectId, taskId);
   }
 
+  async appendActionReceipt(projectId: string, receipt: ActionReceipt): Promise<ActionReceipt> {
+    if (receipt.projectId !== projectId) {
+      return Promise.reject(new R1ServiceError('PROJECT_SCOPE_VIOLATION', 'Resource is outside the project scope.'));
+    }
+    return this.repositories.receipts.append(receipt);
+  }
+
   async listTaskReceipts(projectId: string, taskId: string): Promise<readonly ActionReceipt[]> {
     return this.repositories.receipts.listForTask(projectId, taskId);
   }

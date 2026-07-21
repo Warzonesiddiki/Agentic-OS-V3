@@ -34,6 +34,20 @@ describe('governed R1 routes', () => {
     await expect(inspect.json()).resolves.toMatchObject({ status: { mode: 'local' } });
   });
 
+  it('appends a validated receipt through the governed route', async () => {
+    const app = createApp();
+    const receipt = {
+      id: '77777777-7777-4777-8777-777777777777', projectId: project.id,
+      kind: 'tool_call', correlationId: task.correlationId, actor: 'agent',
+      decision: 'allow', payload: { taskId: task.id }, createdAt: new Date(0).toISOString(),
+    };
+    const response = await app.request(`/api/v1/r1/projects/${project.id}/receipts`, {
+      method: 'POST', body: JSON.stringify(receipt), headers: { 'content-type': 'application/json' },
+    });
+    expect(response.status).toBe(201);
+    await expect(response.json()).resolves.toMatchObject({ id: receipt.id, projectId: project.id });
+  });
+
   it('rejects cross-project task payloads before service mutation', async () => {
     const app = createApp();
     const response = await app.request('/api/v1/r1/projects/88888888-8888-4888-8888-888888888888/tasks', {
