@@ -5,6 +5,7 @@ import {
   CapabilityRequestSchema,
   GovernedCapabilitySchema,
   parseActionReceipt,
+  parseProvenanceMemory,
   parseProject,
   parseTask,
   toR1ApiError,
@@ -71,6 +72,30 @@ export function createR1Router(runtime: R1Runtime): Hono<NexusEnv> {
       const apiError = toR1ApiError(error);
       return c.json({ error: apiError }, apiError.code === 'TASK_NOT_FOUND' ? 404 : 400);
     }
+  });
+
+  router.get('/projects/:projectId/memories', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json({ memories: await runtime.service.listProvenanceMemories(c.req.param('projectId')) }, 200);
+  });
+
+  router.post('/projects/:projectId/memories', async (c) => {
+    const principal = await requireScope(c, 'memory:write');
+    const memory = parseProvenanceMemory(await c.req.json());
+    if (memory.projectId !== c.req.param('projectId')) {
+      return c.json({ error: { code: 'PROJECT_SCOPE_VIOLATION', message: 'Resource is outside the project scope.' } }, 403);
+    }
+    const provenanceAgent = memory.metadata.provenance.agentId;
+    if (provenanceAgent !== undefined && provenanceAgent !== principal.id) {
+      return c.json({ error: { code: 'PROJECT_SCOPE_VIOLATION', message: 'Resource is outside the project scope.' } }, 403);
+    }
+    return c.json(await runtime.service.saveProvenanceMemory(memory), 201);
+  });
+
+  router.delete('/projects/:projectId/memories/:memoryId', async (c) => {
+    await requireScope(c, 'memory:write');
+    await runtime.service.archiveMemory(c.req.param('projectId'), c.req.param('memoryId'));
+    return c.body(null, 204);
   });
 
   router.post('/projects/:projectId/tasks', async (c) => {

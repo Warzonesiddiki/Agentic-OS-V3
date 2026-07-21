@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSqlR1Repositories, SqlCapabilityGovernanceStore } from '@agentic-os/sdk';
+import { createSqlR1Repositories, R1Service, SqlCapabilityGovernanceStore } from '@agentic-os/sdk';
 
 const migration = [
   readFileSync(new URL('../src/db/migrations/0049_r1_contracts.sqlite.sql', import.meta.url), 'utf8'),
@@ -41,8 +41,20 @@ describe('R1 SQLite application-client contract', () => {
     const client = await import('../src/db/client.js');
     await client.executeApplicationSql(migration);
     const repositories = createSqlR1Repositories(client.createApplicationSqlExecutor());
+    const service = new R1Service(repositories);
 
     await expect(repositories.projects.create(project)).resolves.toEqual(project);
+    const memoryEvidenceId = '99999999-9999-4999-8999-999999999999';
+    await repositories.evidence.append({
+      id: memoryEvidenceId, projectId: project.id, kind: 'source', source: 'contract-test',
+      contentHash: 'b'.repeat(64), metadata: {}, createdAt: timestamp,
+    });
+    const provenanceMemory = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', projectId: project.id, content: 'Persisted provenance memory.',
+      metadata: { provenance: { type: 'fact' as const, source: 'contract-test', confidence: 1, lifecycle: 'active' as const, evidenceIds: [memoryEvidenceId] } },
+      evidenceIds: [memoryEvidenceId], createdAt: timestamp, updatedAt: timestamp,
+    };
+    await expect(service.saveProvenanceMemory(provenanceMemory)).resolves.toEqual(provenanceMemory);
 
     const governance = new SqlCapabilityGovernanceStore(client.createApplicationSqlExecutor());
     const governedCapability = {

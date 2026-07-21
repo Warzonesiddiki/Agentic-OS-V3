@@ -311,6 +311,17 @@ export const MemoryProvenanceSchema = z.object({
 });
 export type MemoryProvenance = z.infer<typeof MemoryProvenanceSchema>;
 
+export const ProvenanceMemorySchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  content: z.string().min(1).max(100_000),
+  metadata: z.object({ provenance: MemoryProvenanceSchema }).catchall(z.unknown()),
+  evidenceIds: z.array(z.string().uuid()).min(1).max(100),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type ProvenanceMemory = z.infer<typeof ProvenanceMemorySchema>;
+
 /* ------------------------------------------------------------------ *
  * Boundary parsers — the only sanctioned way to ingest untrusted JSON.
  * Each throws a zod ZodError on malformed input rather than silently
@@ -323,6 +334,7 @@ export const parseTask = (input: unknown): Task => TaskSchema.parse(input);
 export const parseTaskStep = (input: unknown): TaskStep => TaskStepSchema.parse(input);
 export const parseEvidence = (input: unknown): Evidence => EvidenceSchema.parse(input);
 export const parseMemoryProvenance = (input: unknown): MemoryProvenance => MemoryProvenanceSchema.parse(input);
+export const parseProvenanceMemory = (input: unknown): ProvenanceMemory => ProvenanceMemorySchema.parse(input);
 export const parseTaskState = (input: unknown): TaskState => TaskStateSchema.parse(input);
 export const parseApprovalState = (input: unknown): ApprovalState =>
   ApprovalStateSchema.parse(input);
