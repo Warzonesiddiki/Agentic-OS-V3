@@ -34,7 +34,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: ${{ startsWith(github.ref, 'refs/tags/v') || secrets.REGISTRY_URL != '' }}
