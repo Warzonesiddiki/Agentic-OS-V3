@@ -294,6 +294,24 @@ export const EvidenceSchema = z.object({
 export type Evidence = z.infer<typeof EvidenceSchema>;
 
 /* ------------------------------------------------------------------ *
+ * Provenance-backed memory metadata (E2-S1)
+ * ------------------------------------------------------------------ */
+
+export const MemoryLifecycleSchema = z.enum(['candidate', 'active', 'archived', 'forgotten']);
+export type MemoryLifecycle = z.infer<typeof MemoryLifecycleSchema>;
+
+/** Metadata that turns retained text into an attributable, policy-reviewable memory. */
+export const MemoryProvenanceSchema = z.object({
+  type: z.enum(['fact', 'preference', 'decision', 'summary', 'instruction']),
+  source: z.string().min(1).max(255),
+  confidence: z.number().min(0).max(1),
+  lifecycle: MemoryLifecycleSchema,
+  agentId: z.string().min(1).max(255).optional(),
+  evidenceIds: z.array(z.string().uuid()).min(1).max(100),
+});
+export type MemoryProvenance = z.infer<typeof MemoryProvenanceSchema>;
+
+/* ------------------------------------------------------------------ *
  * Boundary parsers — the only sanctioned way to ingest untrusted JSON.
  * Each throws a zod ZodError on malformed input rather than silently
  * coercing. Pair these with the `Schema` validators above.
@@ -304,6 +322,7 @@ export const parseCapability = (input: unknown): Capability => CapabilitySchema.
 export const parseTask = (input: unknown): Task => TaskSchema.parse(input);
 export const parseTaskStep = (input: unknown): TaskStep => TaskStepSchema.parse(input);
 export const parseEvidence = (input: unknown): Evidence => EvidenceSchema.parse(input);
+export const parseMemoryProvenance = (input: unknown): MemoryProvenance => MemoryProvenanceSchema.parse(input);
 export const parseTaskState = (input: unknown): TaskState => TaskStateSchema.parse(input);
 export const parseApprovalState = (input: unknown): ApprovalState =>
   ApprovalStateSchema.parse(input);

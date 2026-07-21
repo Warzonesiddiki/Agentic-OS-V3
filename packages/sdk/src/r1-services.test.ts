@@ -94,6 +94,25 @@ describe('R1Service', () => {
       .rejects.toMatchObject({ code: 'PROJECT_SCOPE_VIOLATION' });
   });
 
+  it('persists a memory only when its provenance evidence belongs to the project', async () => {
+    const repositories = new InMemoryR1Repositories();
+    const service = new R1Service(repositories);
+    await service.initializeProject(project);
+    const evidenceId = '99999999-9999-4999-8999-999999999999';
+    await service.appendEvidence(project.id, {
+      id: evidenceId, projectId: project.id, kind: 'source', source: 'test', contentHash: 'a'.repeat(64), metadata: {}, createdAt: task.createdAt,
+    });
+    const memory = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', projectId: project.id, content: 'A provenance-backed fact.',
+      metadata: { provenance: { type: 'fact', source: 'test', confidence: 0.9, lifecycle: 'active', evidenceIds: [evidenceId] } },
+      evidenceIds: [evidenceId], createdAt: task.createdAt, updatedAt: task.updatedAt,
+    };
+    await expect(service.saveProvenanceMemory(memory)).resolves.toEqual(memory);
+    await expect(service.listProvenanceMemories(project.id)).resolves.toEqual([memory]);
+    await expect(service.saveProvenanceMemory({ ...memory, id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', evidenceIds: ['cccccccc-cccc-4ccc-8ccc-cccccccccccc'] }))
+      .rejects.toMatchObject({ code: 'R1_INTERNAL_ERROR' });
+  });
+
   it('rejects evidence from another project', async () => {
     const service = new R1Service(new InMemoryR1Repositories());
     await expect(service.appendEvidence(project.id, {
