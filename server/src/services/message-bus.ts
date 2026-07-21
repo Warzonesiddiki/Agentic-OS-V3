@@ -116,10 +116,6 @@ function topicMatchSegments(patternSegments: string[], topicSegments: string[]):
   return pi === p.length;
 }
 
-function topicMatch(pattern: string, topic: string): boolean {
-  return topicMatchSegments(pattern.split("/"), topic.split("/"));
-}
-
 function createId(prefix: string): string {
   return `${prefix}_${randomUUID()}`;
 }

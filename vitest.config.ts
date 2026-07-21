@@ -1,4 +1,5 @@
 import { defineConfig } from 'vitest/config';
+import react from '@vitejs/plugin-react';
 
 /**
  * Frontend (dashboard) vitest config.
@@ -12,6 +13,7 @@ import { defineConfig } from 'vitest/config';
  * install jsdom/happy-dom in this runtime.
  */
 export default defineConfig({
+  plugins: [react()],
   test: {
     environment: 'node',
     globals: true,

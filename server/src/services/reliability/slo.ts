@@ -17,8 +17,9 @@ export interface Slo {
 }
 
 export function errorBudget(slo: Slo): number {
-  const remaining = slo.objective - goodRatio(slo);
-  return Math.max(0, remaining); // fraction of requests still permitted to fail
+  // Remaining reliability headroom above the objective. For a 99% objective
+  // and 99.5% observed good ratio, 0.5% of the request population remains.
+  return Math.max(0, goodRatio(slo) - slo.objective);
 }
 
 export function goodRatio(slo: Slo): number {
@@ -44,7 +45,7 @@ export function registerSlo(
 }
 
 export function assertBudgetAvailable(slo: Slo, minBudget = 0): void {
-  if (errorBudget(slo) < minBudget) {
+  if (isBreached(slo) || errorBudget(slo) < minBudget) {
     throw new ApiError(
       'SLO_BUDGET_EXHAUSTED',
       `SLO ${slo.id} error budget exhausted; releases gated.`

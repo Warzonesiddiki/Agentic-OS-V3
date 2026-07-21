@@ -48,6 +48,8 @@ export interface GuardrailConfig {
 
 export interface ContentFilterResult {
   matched: boolean;
+  /** True when at least one matching rule has a blocking action. */
+  blocked: boolean;
   pattern: string;
   matches: string[];
   redacted: string;

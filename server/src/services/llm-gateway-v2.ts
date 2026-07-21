@@ -504,7 +504,6 @@ export async function callLLMGateway(call: GatewayCall): Promise<ProviderRespons
           messages: candidateReq.messages.map((m) => ({ role: m.role, content: m.content })),
           temperature: candidateReq.temperature,
           maxTokens: candidateReq.maxTokens,
-          topP: (candidateReq as Record<string, number | undefined>).topP,
           stop: candidateReq.stopSequences,
         };
         const resp = await defaultLLMCache.getOrCompute(cacheReq, () =>

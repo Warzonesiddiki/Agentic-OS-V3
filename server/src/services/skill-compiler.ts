@@ -178,6 +178,10 @@ function isDeterministicTransformation(inputs: unknown[], outputs: unknown[]): b
 
 // ── Script Generation ─────────────────────────────────────────
 
+function sanitizeForComment(value: string): string {
+  return value.replaceAll('*/', '* /').replace(/[\r\n\u2028\u2029]+/g, ' ');
+}
+
 export interface GeneratedScript {
   signature: string;
   taskLabel: string;
@@ -227,7 +231,7 @@ function compiledTask(input) {
 }
 
 // Self-test: verify against historical samples
-const testResults = ${sanitizeForComment(JSON.stringify((pattern.sampleOutputs || []).slice(0, 3), null, 2))};
+const testResults = ${JSON.stringify((pattern.sampleOutputs || []).slice(0, 3), null, 2)};
 
 module.exports = { compiledTask, testResults };
 `;

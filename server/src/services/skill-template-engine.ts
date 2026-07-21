@@ -85,8 +85,8 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
     if (tasks.length < COMPILATION_THRESHOLD) continue;
 
     // Extract input/output shapes from samples
-    const sampleInputs = tasks.slice(0, 10).map((t: any) => t.input);
-    const sampleOutputs = tasks.slice(0, 10).map((t: any) => t.output);
+    const sampleInputs = tasks.slice(0, 10).map((task: { input: unknown }) => task.input);
+    const sampleOutputs = tasks.slice(0, 10).map((task: { output: unknown }) => task.output);
 
     // Check if outputs are structurally similar (deterministic transformation)
     const inputShape = extractShape(sampleInputs[0]);
@@ -103,11 +103,17 @@ export async function detectRepetitivePatterns(): Promise<DetectedPattern[]> {
       .where(and(eq(agentTasks.label, tasks[0]!.label), eq(agentTasks.status, 'succeeded')))
       .limit(tasks.length);
 
-    const totalTokens = tokenUsages.reduce((sum: number, t: any) => {
-      const usage = t.tokenUsage as { total?: number } | null;
-      return sum + (usage?.total ?? 0);
-    }, 0);
-    const totalLatency = tokenUsages.reduce((sum: number, t: any) => sum + t.latencyMs, 0);
+    const totalTokens = tokenUsages.reduce(
+      (sum: number, item: { tokenUsage: unknown }) => {
+        const usage = item.tokenUsage as { total?: number } | null;
+        return sum + (usage?.total ?? 0);
+      },
+      0,
+    );
+    const totalLatency = tokenUsages.reduce(
+      (sum: number, item: { latencyMs: number }) => sum + item.latencyMs,
+      0,
+    );
 
     patterns.push({
       signature: createHash('sha256').update(normalizedLabel).digest('hex').slice(0, 16),
@@ -214,14 +220,14 @@ export function generateScript(pattern: DetectedPattern): GeneratedScript {
  */
 function compiledTask(input) {
   // Extract input fields
-  ${inputKeys.map((k: any) => `const ${k.replace(/[^a-zA-Z0-9_]/g, '_')} = input["${k}"];`).join('\n  ')}
+  ${inputKeys.map((key) => `const ${key.replace(/[^a-zA-Z0-9_]/g, '_')} = input["${key}"];`).join('\n  ')}
 
   // Deterministic transformation (extracted from pattern analysis)
   // NOTE: This is a structural mapping. If the task involves complex
   // reasoning that varies per input, this compiled function should be
   // deprecated and the LLM call restored.
   const output = {
-    ${outputKeys.map((k: any) => `"${k}": ${inferOutputExpression(k, inputKeys, pattern)}`).join(',\n    ')}
+    ${outputKeys.map((key) => `"${key}": ${inferOutputExpression(key, inputKeys, pattern)}`).join(',\n    ')}
   };
 
   return output;
@@ -252,19 +258,69 @@ function inferOutputExpression(
   inputKeys: string[],
   pattern: DetectedPattern
 ): string {
-  // Check if output key matches an input key (direct mapping)
+  // Infer common deterministic string transforms before falling back to a
+  // direct field mapping. This keeps generated scripts honest for patterns
+  // such as normalization rather than blindly echoing the input.
   if (inputKeys.includes(outputKey)) {
-    return outputKey.replace(/[^a-zA-Z0-9_]/g, '_');
+    const variable = outputKey.replace(/[^a-zA-Z0-9_]/g, '_');
+    const pairs = pattern.sampleInputs.map((input, index) => ({
+      input:
+        input && typeof input === 'object'
+          ? (input as Record<string, unknown>)[outputKey]
+          : undefined,
+      output:
+        pattern.sampleOutputs[index] && typeof pattern.sampleOutputs[index] === 'object'
+          ? (pattern.sampleOutputs[index] as Record<string, unknown>)[outputKey]
+          : undefined,
+    }));
+    if (pairs.length > 0 && pairs.every((pair) => pair.output === pair.input)) return variable;
+    if (
+      pairs.length > 0 &&
+      pairs.every(
+        (pair) =>
+          typeof pair.input === 'string' &&
+          typeof pair.output === 'string' &&
+          pair.output === pair.input.toLowerCase(),
+      )
+    ) {
+      return `String(${variable}).toLowerCase()`;
+    }
+    if (
+      pairs.length > 0 &&
+      pairs.every(
+        (pair) =>
+          typeof pair.input === 'string' &&
+          typeof pair.output === 'string' &&
+          pair.output === pair.input.toUpperCase(),
+      )
+    ) {
+      return `String(${variable}).toUpperCase()`;
+    }
+    if (
+      pairs.length > 0 &&
+      pairs.every(
+        (pair) =>
+          typeof pair.input === 'string' &&
+          typeof pair.output === 'string' &&
+          pair.output === pair.input.trim(),
+      )
+    ) {
+      return `String(${variable}).trim()`;
+    }
   }
 
   // Check if the output values are constant across all samples
   const outputValues = pattern.sampleOutputs
-    .map((o: any) => (o as Record<string, unknown>)?.[outputKey])
-    .filter((v: any) => v !== undefined);
+    .map((output) =>
+      output && typeof output === 'object'
+        ? (output as Record<string, unknown>)[outputKey]
+        : undefined,
+    )
+    .filter((value): value is Exclude<unknown, undefined> => value !== undefined);
 
   if (outputValues.length >= 2) {
     const allSame = outputValues.every(
-      (v: any) => JSON.stringify(v) === JSON.stringify(outputValues[0])
+      (value) => JSON.stringify(value) === JSON.stringify(outputValues[0]),
     );
     if (allSame) {
       return JSON.stringify(outputValues[0]);

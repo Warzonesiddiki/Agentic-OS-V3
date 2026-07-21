@@ -89,8 +89,8 @@ export async function runConsensusBenchmark(n = 5000): Promise<BenchResult> {
     weight: 1,
   }));
   const start = Date.now();
-  const r1 = tallyConsensus('weighted', votes);
-  const r2 = tallyBFT(votes, { threshold: 2 / 3 });
+  tallyConsensus('weighted', votes);
+  tallyBFT(votes, { threshold: 2 / 3 });
   const totalMs = Date.now() - start;
   return {
     name: `consensus (n=${n})`,
@@ -112,7 +112,6 @@ if (isMain) {
   runAllBenchmarks()
     .then((results) => {
       for (const r of results) {
-        // eslint-disable-next-line no-console
         console.log(
           `${r.name}: ${r.iterations} ops in ${r.totalMs}ms (${r.perOpMs.toFixed(3)}ms/op)` +
             (r.speedup ? ` speedup~${r.speedup.toFixed(1)}x` : '')
@@ -120,7 +119,6 @@ if (isMain) {
       }
     })
     .catch((e) => {
-      // eslint-disable-next-line no-console
       console.error(e);
       process.exit(1);
     });

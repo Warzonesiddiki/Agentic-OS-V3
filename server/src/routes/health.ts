@@ -39,9 +39,9 @@ router.get('/api/v1/metrics', async (c) => {
   // Prometheus metrics endpoint
   const { metricsOutput } = await import('../services/metrics.js');
   const metrics = await metricsOutput();
-  
-  c.header('Content-Type', metrics.contentType);
-  return c.body(metrics.body);
+
+  c.header('Content-Type', 'text/plain; version=0.0.4; charset=utf-8');
+  return c.body(metrics);
 });
 
 router.get('/api/v1/system', async (c) => {

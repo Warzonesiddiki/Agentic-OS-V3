@@ -18,7 +18,7 @@ import { inArray, sql, isNotNull, desc } from 'drizzle-orm';
 import { db, isSqlite } from '../db/client.js';
 import { memories, skills, tokenLedger, notes } from '../db/client.js';
 import { bm25, estimateTokens, packByBudget } from '../lib/tokens.js';
-import { appendAudit } from '../lib/audit.js';
+import { appendAudit, type Tx } from '../lib/audit.js';
 import { embedQuery, embeddingsAvailable } from './embeddings.js';
 import { randomUUID } from 'node:crypto';
 import { truncate } from '../lib/strings.js';
@@ -161,13 +161,15 @@ export async function recall(
         .filter(Boolean);
       if (sanitized.length > 0) {
         const ftsMatchExpr = sanitized.map((t) => `"${t.replace(/"/g, '""')}"*`).join(' OR ');
-        const ftsRows: any = await db.execute(sql`
+        const ftsRows = await db.execute(sql`
           SELECT id FROM memories_fts WHERE memories_fts MATCH ${ftsMatchExpr} ORDER BY rank LIMIT 100
         `);
-        const rowArr = Array.isArray(ftsRows) ? ftsRows : (ftsRows?.rows ?? []);
-        rowArr.forEach((r: any, idx: number) => {
-          if (r && r.id) {
-            ftsMemRank.set(String(r.id), idx);
+        type FtsRow = { id?: unknown };
+        const result = ftsRows as unknown as FtsRow[] | { rows?: FtsRow[] };
+        const rowArr = Array.isArray(result) ? result : (result.rows ?? []);
+        rowArr.forEach((row, index) => {
+          if (row.id) {
+            ftsMemRank.set(String(row.id), index);
           }
         });
       }
@@ -455,7 +457,7 @@ export async function recall(
 
   // ---- Side effects: bump recallCount + ledger ----
   const memIds = packed.filter((p) => p.type === 'memory').map((p) => p.id);
-  await db.transaction(async (tx: any) => {
+  await db.transaction(async (tx: Tx) => {
     if (memIds.length) {
       await tx
         .update(memories)

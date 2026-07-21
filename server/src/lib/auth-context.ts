@@ -26,7 +26,7 @@ export async function resolvePrincipal(c: Context<NexusEnv>): Promise<Principal 
 export async function requireScope(c: Context, scope: Scope) {
   const principal = await resolvePrincipal(c);
   if (!principal) throw new ApiError('UNAUTHORIZED', 'Authentication required.');
-  if (!hasScope(principal.scopes, scope))
+  if (!hasScope(principal, scope))
     throw new ApiError('FORBIDDEN', `Missing required scope: ${scope}`);
   return principal;
 }

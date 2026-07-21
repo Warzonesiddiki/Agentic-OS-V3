@@ -10,7 +10,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { AcpClient, AcpRequest, AcpResponse } from '../src/acp.js';
 
-function makeResponse(id: string, result: unknown): AcpResponse {
+function makeResponse(id: AcpResponse['id'], result: unknown): AcpResponse {
   return { jsonrpc: '2.0', id, result };
 }
 

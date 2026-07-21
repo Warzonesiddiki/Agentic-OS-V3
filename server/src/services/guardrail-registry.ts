@@ -431,7 +431,7 @@ export function resetGuardrailReport(): void {
 
 export async function sanitizeText(
   text: string,
-  ctx: GuardrailContext
+  ctx: GuardrailContext = { sessionId: 'anonymous' },
 ): Promise<{ safe: boolean; text: string; violations: string[] }> {
   const inputResult = await applyInputGuardrails(text, ctx);
 

@@ -32,8 +32,7 @@ import { setSelfOptParam } from '../services/self-opt/bootstrap.js';
 
 export const selfOptRouter = new Hono();
 
-const liveFlag = (): boolean =>
-  env.NEXUS_SELF_OPT_LIVE_WRITE === true || env.NEXUS_SELF_OPT_LIVE_WRITE === 'true';
+const liveFlag = (): boolean => env.NEXUS_SELF_OPT_LIVE_WRITE;
 
 selfOptRouter.get('/state', (c) => {
   return c.json(
