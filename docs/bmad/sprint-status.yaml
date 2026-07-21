@@ -285,6 +285,7 @@ stories:
       - server/src/db/migrations/0050_r1_durable_task_metadata.sqlite.sql
       - server/tests/r1-application-sqlite-contract.test.ts
       - server/tests/r1-routes.test.ts
+      - docs/bmad/reviews/E3-S1-code-review.md
 
   E3-S2:
     epic: E3

@@ -9,11 +9,11 @@
 
 ## Acceptance criteria
 
-- [ ] Store the project, principal, agent, goal, capabilities, policy version, input reference, and idempotency key for every task.
-- [ ] Return the originally persisted task for repeated project/idempotency-key submissions.
-- [ ] Start tasks in `queued` and record a committed creation event.
-- [ ] Provide scoped task list/detail APIs with state, current step, timestamps, and correlation IDs.
-- [ ] Reject cross-project task access before exposing task state.
+- [x] Store the project, principal, agent, goal, capabilities, policy version, input reference, and idempotency key for every task.
+- [x] Return the originally persisted task for repeated project/idempotency-key submissions.
+- [x] Start tasks in `queued` and record a committed creation event.
+- [x] Provide scoped task list/detail APIs with state, current step, timestamps, and correlation IDs.
+- [x] Reject unauthenticated, cross-project, and principal-impersonating task requests before exposing or mutating task state.
 
 ## Implementation plan
 
@@ -25,4 +25,4 @@
 
 ## Completion gate
 
-SQLite application-client contract tests must pass. PostgreSQL migration/adapter execution remains a release-environment gate and requires `DATABASE_URL`.
+SQLite application-client contract tests pass, including idempotency, a database-triggered committed creation event, restart persistence, and scoped HTTP route controls. PostgreSQL migration/adapter execution remains a release-environment gate and requires `DATABASE_URL`.
