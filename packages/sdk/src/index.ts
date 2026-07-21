@@ -5,6 +5,7 @@
 
 export * from './acp.js';
 export * from './types.js';
+export * from './r1-types.js';
 export * from './bindings.js';
 
 // Phase 16 — Developer Experience surface

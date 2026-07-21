@@ -1,0 +1,9 @@
+$ vitest run
+[31m⎯⎯⎯⎯⎯⎯[1m[7m Failed Suites 1 [27m[22m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[31m[1m[7m FAIL [27m[22m[39m src/r1-types.test.ts[2m [ src/r1-types.test.ts ][22m
+[31m[1mError[22m: Failed to load url C:/Users/Tahir/Documents/Agentic-OS-V3/packages/sdk/src/test/setup.ts (resolved id: C:/Users/Tahir/Documents/Agentic-OS-V3/packages/sdk/src/test/setup.ts). Does the file exist?[39m
+[90m [2m❯[22m loadAndTransform ../../node_modules/.pnpm/vite@5.4.21_@types+node@22.20.0_lightningcss@1.32.0/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:[2m51969:17[22m[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯[22m[39m
+

@@ -93,14 +93,15 @@ stories:
     title: Establish repository validation baseline
     points: 3
     priority: P0
-    status: blocked
+    status: in_progress
     sprint: sprint-1
     dependencies: []
     implementation_owner: arena-agent
     review_owner: senior-review
-    blocker: Full lifecycle install is blocked by better-sqlite3 TLS/native build failure; lint, typecheck, tests, and Rust checks remain non-green and require follow-up stories.
+    blocker: Full native install still blocked by better-sqlite3 TLS/header download (network), blocking runtime unit tests; pnpm 11.13.0 now present so install PATH is unblocked; remaining typecheck(96)/lint(536) failures are pre-existing defects enumerated in baseline-2026-07-21-verified.md.
     evidence:
       - docs/bmad/baseline-2026-07-21.md
+      - docs/bmad/baseline-2026-07-21-verified.md
       - docs/bmad/stories/E0-S1-establish-repository-validation-baseline.md
       - docs/bmad/reviews/E0-S1-code-review.md
       - DEVELOPMENT.md
@@ -110,14 +111,17 @@ stories:
     title: Define shared R1 domain types and state enums
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-1
     dependencies:
       - E0-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
+    implementation_owner: bmad-master
+    review_owner: senior-review
     blocker: null
-    evidence: []
+    evidence:
+      - packages/sdk/src/r1-types.ts
+      - packages/sdk/src/r1-types.test.ts
+      - packages/sdk/src/index.ts
 
   E0-S3:
     epic: E0
