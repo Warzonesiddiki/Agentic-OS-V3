@@ -13,7 +13,7 @@
 - [x] Expose append and project-scoped task-list operations through the repository contract.
 - [x] Route receipt writes through the R1 service boundary with project-scope enforcement.
 - [x] Prevent raw persistence errors from becoming public service errors.
-- [ ] Execute PostgreSQL and SQLite adapter tests in the native dependency environment.
+- [ ] Execute PostgreSQL and SQLite adapter tests in the native dependency environment (SQLite passed; PostgreSQL requires a configured `DATABASE_URL`).
 
 ## Threat controls
 

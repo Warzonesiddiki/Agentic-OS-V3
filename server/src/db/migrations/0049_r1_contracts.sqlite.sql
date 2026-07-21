@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS r1_evidence (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   task_id TEXT REFERENCES r1_tasks(id) ON DELETE SET NULL,
-  kind TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('provenance', 'trace', 'receipt', 'approval', 'source')),
   source TEXT NOT NULL,
   content_hash TEXT NOT NULL CHECK (length(content_hash) = 64),
   metadata TEXT NOT NULL DEFAULT '{}',
@@ -78,9 +78,9 @@ CREATE TABLE IF NOT EXISTS r1_action_receipts (
   id TEXT PRIMARY KEY,
   project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
   correlation_id TEXT NOT NULL,
-  kind TEXT NOT NULL,
+  kind TEXT NOT NULL CHECK (kind IN ('tool_call', 'file_write', 'db_write', 'approval', 'external_request')),
   actor TEXT NOT NULL,
-  decision TEXT NOT NULL,
+  decision TEXT NOT NULL CHECK (decision IN ('allow', 'deny', 'require_approval')),
   payload TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL
 );

@@ -42,13 +42,60 @@ export class SqlRepositoryError extends Error {
 const one = <T>(rows: readonly T[]): T | null => rows[0] ?? null;
 const projectColumns = 'id, name, mode, scope, idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt"';
 
+/** PostgreSQL returns JSON/boolean values natively; SQLite returns their TEXT/INTEGER representation. */
+function jsonValue(value: unknown, fallback: Record<string, unknown> | readonly string[] = {}): Record<string, unknown> | readonly string[] {
+  if (typeof value !== 'string') return (value ?? fallback) as Record<string, unknown> | readonly string[];
+  try {
+    return JSON.parse(value) as Record<string, unknown> | readonly string[];
+  } catch {
+    throw new SqlRepositoryError('NOT_FOUND', 'Stored R1 JSON is malformed.');
+  }
+}
+
+function stringRecord(value: unknown): Record<string, string> {
+  const decoded = jsonValue(value, {});
+  if (Array.isArray(decoded) || Object.values(decoded).some((entry) => typeof entry !== 'string')) {
+    throw new SqlRepositoryError('NOT_FOUND', 'Stored R1 scope is malformed.');
+  }
+  return decoded as Record<string, string>;
+}
+
+function projectFromRow(row: Project): Project {
+  return { ...row, scope: stringRecord(row.scope) };
+}
+
+function evidenceFromRow(row: Evidence): Evidence {
+  return { ...row, metadata: jsonValue(row.metadata, {}) as Record<string, unknown> };
+}
+
+function memoryFromRow(row: MemoryRecord): MemoryRecord {
+  return {
+    ...row,
+    metadata: jsonValue(row.metadata, {}) as Record<string, unknown>,
+    evidenceIds: jsonValue(row.evidenceIds, []) as readonly string[],
+  };
+}
+
+function capabilityFromRow(row: Capability): Capability {
+  return {
+    ...row,
+    scope: stringRecord(row.scope),
+    enabled: row.enabled === true || (row.enabled as unknown) === 1,
+  };
+}
+
+function receiptFromRow(row: ActionReceipt): ActionReceipt {
+  return { ...row, payload: jsonValue(row.payload, {}) as Record<string, unknown> };
+}
+
 class SqlProjects implements ProjectRepository {
   constructor(private readonly sql: SqlExecutor) {}
   async get(id: string): Promise<Project | null> {
-    return one(await this.sql.query<Project>(`SELECT ${projectColumns} FROM projects WHERE id = $1`, [id]));
+    const project = one(await this.sql.query<Project>(`SELECT ${projectColumns} FROM projects WHERE id = $1`, [id]));
+    return project ? projectFromRow(project) : null;
   }
   async list(): Promise<readonly Project[]> {
-    return this.sql.query<Project>(`SELECT ${projectColumns} FROM projects ORDER BY created_at`);
+    return (await this.sql.query<Project>(`SELECT ${projectColumns} FROM projects ORDER BY created_at`)).map(projectFromRow);
   }
   async create(project: Project): Promise<Project> {
     const result = await this.sql.query<Project>(
@@ -58,7 +105,7 @@ class SqlProjects implements ProjectRepository {
     );
     const created = one(result);
     if (!created) throw new SqlRepositoryError('ALREADY_EXISTS', 'Project could not be created.');
-    return created;
+    return projectFromRow(created);
   }
   async update(project: Project): Promise<Project> {
     const result = await this.sql.query<Project>(
@@ -67,7 +114,7 @@ class SqlProjects implements ProjectRepository {
     );
     const updated = one(result);
     if (!updated) throw new SqlRepositoryError('NOT_FOUND', 'Project not found.');
-    return updated;
+    return projectFromRow(updated);
   }
 }
 
@@ -123,10 +170,14 @@ class SqlEvidence implements EvidenceRepository {
     const result = await this.sql.query<Evidence>(`INSERT INTO r1_evidence (id, project_id, task_id, kind, source, content_hash, metadata, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, project_id AS "projectId", task_id AS "taskId", kind, source, content_hash AS "contentHash", metadata, created_at AS "createdAt"`, [evidence.id, evidence.projectId, evidence.taskId ?? null, evidence.kind, evidence.source, evidence.contentHash, JSON.stringify(evidence.metadata), evidence.createdAt]);
     const saved = one(result);
     if (!saved) throw new SqlRepositoryError('ALREADY_EXISTS', 'Evidence could not be appended.');
-    return saved;
+    return evidenceFromRow(saved);
   }
-  async listForProject(projectId: string): Promise<readonly Evidence[]> { return this.sql.query<Evidence>(`SELECT id, project_id AS "projectId", task_id AS "taskId", kind, source, content_hash AS "contentHash", metadata, created_at AS "createdAt" FROM r1_evidence WHERE project_id=$1 ORDER BY created_at`, [projectId]); }
-  async listForTask(projectId: string, taskId: string): Promise<readonly Evidence[]> { return this.sql.query<Evidence>(`SELECT id, project_id AS "projectId", task_id AS "taskId", kind, source, content_hash AS "contentHash", metadata, created_at AS "createdAt" FROM r1_evidence WHERE project_id=$1 AND task_id=$2 ORDER BY created_at`, [projectId, taskId]); }
+  async listForProject(projectId: string): Promise<readonly Evidence[]> {
+    return (await this.sql.query<Evidence>(`SELECT id, project_id AS "projectId", task_id AS "taskId", kind, source, content_hash AS "contentHash", metadata, created_at AS "createdAt" FROM r1_evidence WHERE project_id=$1 ORDER BY created_at`, [projectId])).map(evidenceFromRow);
+  }
+  async listForTask(projectId: string, taskId: string): Promise<readonly Evidence[]> {
+    return (await this.sql.query<Evidence>(`SELECT id, project_id AS "projectId", task_id AS "taskId", kind, source, content_hash AS "contentHash", metadata, created_at AS "createdAt" FROM r1_evidence WHERE project_id=$1 AND task_id=$2 ORDER BY created_at`, [projectId, taskId])).map(evidenceFromRow);
+  }
 }
 
 class SqlMemories implements MemoryRepository {
@@ -134,12 +185,16 @@ class SqlMemories implements MemoryRepository {
   async get(projectId: string, memoryId: string): Promise<MemoryRecord | null> {
     const memory = one(await this.sql.query<MemoryRecord>(`SELECT id, project_id AS "projectId", content, metadata, evidence_ids AS "evidenceIds", created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_memories WHERE id=$1`, [memoryId]));
     if (memory && memory.projectId !== projectId) throw new SqlRepositoryError('PROJECT_SCOPE_VIOLATION', 'Resource is outside the project scope.');
-    return memory;
+    return memory ? memoryFromRow(memory) : null;
   }
-  async list(projectId: string): Promise<readonly MemoryRecord[]> { return this.sql.query<MemoryRecord>(`SELECT id, project_id AS "projectId", content, metadata, evidence_ids AS "evidenceIds", created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_memories WHERE project_id=$1 ORDER BY updated_at`, [projectId]); }
+  async list(projectId: string): Promise<readonly MemoryRecord[]> {
+    return (await this.sql.query<MemoryRecord>(`SELECT id, project_id AS "projectId", content, metadata, evidence_ids AS "evidenceIds", created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_memories WHERE project_id=$1 ORDER BY updated_at`, [projectId])).map(memoryFromRow);
+  }
   async save(memory: MemoryRecord): Promise<MemoryRecord> {
     const result = await this.sql.query<MemoryRecord>(`INSERT INTO r1_memories (id, project_id, content, metadata, evidence_ids, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET content=$3, metadata=$4, evidence_ids=$5, updated_at=$7 RETURNING id, project_id AS "projectId", content, metadata, evidence_ids AS "evidenceIds", created_at AS "createdAt", updated_at AS "updatedAt"`, [memory.id, memory.projectId, memory.content, JSON.stringify(memory.metadata), JSON.stringify(memory.evidenceIds), memory.createdAt, memory.updatedAt]);
-    const saved = one(result); if (!saved) throw new SqlRepositoryError('ALREADY_EXISTS', 'Memory could not be saved.'); return saved;
+    const saved = one(result);
+    if (!saved) throw new SqlRepositoryError('ALREADY_EXISTS', 'Memory could not be saved.');
+    return memoryFromRow(saved);
   }
   async archive(projectId: string, memoryId: string): Promise<void> {
     await this.get(projectId, memoryId);
@@ -161,15 +216,32 @@ class SqlApprovals implements ApprovalRepository {
 
 class SqlCapabilities implements CapabilityRepository {
   constructor(private readonly sql: SqlExecutor) {}
-  async get(capabilityId: string): Promise<Capability | null> { return one(await this.sql.query<Capability>(`SELECT id, name, source, version, owner, scope, risk, enabled FROM r1_capabilities WHERE id=$1`, [capabilityId])); }
-  async list(): Promise<readonly Capability[]> { return this.sql.query<Capability>('SELECT id, name, source, version, owner, scope, risk, enabled FROM r1_capabilities ORDER BY id'); }
-  async save(capability: Capability): Promise<Capability> { const result = await this.sql.query<Capability>(`INSERT INTO r1_capabilities (id, name, source, version, owner, scope, risk, enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO UPDATE SET name=$2, version=$4, owner=$5, scope=$6, risk=$7, enabled=$8 RETURNING id, name, source, version, owner, scope, risk, enabled`, [capability.id, capability.name, capability.source, capability.version, capability.owner, JSON.stringify(capability.scope), capability.risk, capability.enabled]); const saved = one(result); if (!saved) throw new SqlRepositoryError('ALREADY_EXISTS', 'Capability could not be saved.'); return saved; }
+  async get(capabilityId: string): Promise<Capability | null> {
+    const capability = one(await this.sql.query<Capability>(`SELECT id, name, source, version, owner, scope, risk, enabled FROM r1_capabilities WHERE id=$1`, [capabilityId]));
+    return capability ? capabilityFromRow(capability) : null;
+  }
+  async list(): Promise<readonly Capability[]> {
+    return (await this.sql.query<Capability>('SELECT id, name, source, version, owner, scope, risk, enabled FROM r1_capabilities ORDER BY id')).map(capabilityFromRow);
+  }
+  async save(capability: Capability): Promise<Capability> {
+    const result = await this.sql.query<Capability>(`INSERT INTO r1_capabilities (id, name, source, version, owner, scope, risk, enabled) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) ON CONFLICT (id) DO UPDATE SET name=$2, version=$4, owner=$5, scope=$6, risk=$7, enabled=$8 RETURNING id, name, source, version, owner, scope, risk, enabled`, [capability.id, capability.name, capability.source, capability.version, capability.owner, JSON.stringify(capability.scope), capability.risk, capability.enabled]);
+    const saved = one(result);
+    if (!saved) throw new SqlRepositoryError('ALREADY_EXISTS', 'Capability could not be saved.');
+    return capabilityFromRow(saved);
+  }
 }
 
 class SqlReceipts implements ReceiptRepository {
   constructor(private readonly sql: SqlExecutor) {}
-  async append(receipt: ActionReceipt): Promise<ActionReceipt> { const result = await this.sql.query<ActionReceipt>(`INSERT INTO r1_action_receipts (id, project_id, correlation_id, kind, actor, decision, payload, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, project_id AS "projectId", correlation_id AS "correlationId", kind, actor, decision, payload, created_at AS "createdAt"`, [receipt.id, receipt.projectId, receipt.correlationId, receipt.kind, receipt.actor, receipt.decision, JSON.stringify(receipt.payload), receipt.createdAt]); const saved = one(result); if (!saved) throw new SqlRepositoryError('ALREADY_EXISTS', 'Receipt could not be appended.'); return saved; }
-  async listForTask(projectId: string, taskId: string): Promise<readonly ActionReceipt[]> { return this.sql.query<ActionReceipt>(`SELECT id, project_id AS "projectId", correlation_id AS "correlationId", kind, actor, decision, payload, created_at AS "createdAt" FROM r1_action_receipts WHERE project_id=$1 AND payload->>'taskId'=$2 ORDER BY created_at`, [projectId, taskId]); }
+  async append(receipt: ActionReceipt): Promise<ActionReceipt> {
+    const result = await this.sql.query<ActionReceipt>(`INSERT INTO r1_action_receipts (id, project_id, correlation_id, kind, actor, decision, payload, created_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, project_id AS "projectId", correlation_id AS "correlationId", kind, actor, decision, payload, created_at AS "createdAt"`, [receipt.id, receipt.projectId, receipt.correlationId, receipt.kind, receipt.actor, receipt.decision, JSON.stringify(receipt.payload), receipt.createdAt]);
+    const saved = one(result);
+    if (!saved) throw new SqlRepositoryError('ALREADY_EXISTS', 'Receipt could not be appended.');
+    return receiptFromRow(saved);
+  }
+  async listForTask(projectId: string, taskId: string): Promise<readonly ActionReceipt[]> {
+    return (await this.sql.query<ActionReceipt>(`SELECT id, project_id AS "projectId", correlation_id AS "correlationId", kind, actor, decision, payload, created_at AS "createdAt" FROM r1_action_receipts WHERE project_id=$1 AND payload->>'taskId'=$2 ORDER BY created_at`, [projectId, taskId])).map(receiptFromRow);
+  }
 }
 
 /**

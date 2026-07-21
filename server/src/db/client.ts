@@ -70,7 +70,7 @@ function sleep(ms: number): Promise<void> {
 
 function createSqliteDb() {
   const Database = require('better-sqlite3');
-  const conn = new Database('./agentic-os.db');
+  const conn = new Database(getEnv().NEXUS_SQLITE_PATH);
   conn.pragma('journal_mode = WAL');
   conn.pragma('foreign_keys = ON');
   conn.pragma('busy_timeout = 5000');
@@ -174,6 +174,71 @@ export { db };
 
 export function getPgClient(): Sql | null {
   return _pgClient;
+}
+
+/**
+ * Minimal parameterized SQL boundary for the R1 repository adapter.
+ *
+ * R1 uses PostgreSQL-style `$1` placeholders. SQLite's native driver expects
+ * `?` placeholders, so translation occurs only here, where the active driver
+ * is known. Values are always passed separately and are never interpolated
+ * into the statement.
+ */
+export interface ApplicationSqlExecutor {
+  query<T extends object>(statement: string, parameters?: readonly unknown[]): Promise<readonly T[]>;
+}
+
+function sqliteStatement(statement: string, parameters: readonly unknown[]): { statement: string; parameters: unknown[] } {
+  const sqliteParameters: unknown[] = [];
+  const translated = statement.replace(/\$(\d+)/g, (_placeholder, position: string) => {
+    const index = Number(position) - 1;
+    if (!Number.isSafeInteger(index) || index < 0 || index >= parameters.length) {
+      throw new Error(`SQL placeholder $${position} has no matching parameter.`);
+    }
+    sqliteParameters.push(parameters[index]);
+    return '?';
+  });
+  return { statement: translated, parameters: sqliteParameters };
+}
+
+export function createApplicationSqlExecutor(): ApplicationSqlExecutor {
+  if (isSqlite) {
+    const connection = _sqlite;
+    if (!connection) throw new Error('SQLite client was not initialized.');
+    return {
+      async query<T extends object>(statement: string, parameters: readonly unknown[] = []): Promise<readonly T[]> {
+        const translated = sqliteStatement(statement, parameters);
+        const prepared = connection.prepare(translated.statement);
+        // SELECT and DML statements with RETURNING are readers. Plain DML must
+        // use run(), which also lets SQLite append-only triggers surface their
+        // own rejection instead of a misleading "does not return data" error.
+        if (prepared.reader) {
+          return prepared.all(...translated.parameters) as T[];
+        }
+        prepared.run(...translated.parameters as never[]);
+        return [];
+      },
+    };
+  }
+
+  const connection = _pgClient;
+  if (!connection) throw new Error('PostgreSQL client was not initialized.');
+  return {
+    async query<T extends object>(statement: string, parameters: readonly unknown[] = []): Promise<readonly T[]> {
+      return (await connection.unsafe(statement, [...parameters] as never[])) as T[];
+    },
+  };
+}
+
+/** Execute an application-owned migration against the active native client. */
+export async function executeApplicationSql(statement: string): Promise<void> {
+  if (isSqlite) {
+    if (!_sqlite) throw new Error('SQLite client was not initialized.');
+    _sqlite.exec(statement);
+    return;
+  }
+  if (!_pgClient) throw new Error('PostgreSQL client was not initialized.');
+  await _pgClient.unsafe(statement);
 }
 
 export async function getDbLockStatus() {

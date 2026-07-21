@@ -21,6 +21,8 @@ const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
 
   DATABASE_URL: optionalString,
+  /** Local SQLite path. Kept out of request-controlled inputs for durable local mode. */
+  NEXUS_SQLITE_PATH: z.string().min(1).default('./agentic-os.db'),
   NEXUS_DB_POOL_MAX: integer(20, 1),
   NEXUS_QUERY_TIMEOUT_MS: integer(15_000, 1),
 
