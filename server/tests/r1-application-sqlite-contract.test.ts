@@ -4,10 +4,10 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createSqlR1Repositories } from '@agentic-os/sdk';
 
-const migration = readFileSync(
-  new URL('../src/db/migrations/0049_r1_contracts.sqlite.sql', import.meta.url),
-  'utf8',
-);
+const migration = [
+  readFileSync(new URL('../src/db/migrations/0049_r1_contracts.sqlite.sql', import.meta.url), 'utf8'),
+  readFileSync(new URL('../src/db/migrations/0050_r1_durable_task_metadata.sqlite.sql', import.meta.url), 'utf8'),
+].join('\n');
 const timestamp = '2026-07-21T00:00:00.000Z';
 const project = {
   id: '11111111-1111-4111-8111-111111111111',
@@ -48,12 +48,21 @@ describe('R1 SQLite application-client contract', () => {
       projectId: project.id,
       state: 'queued' as const,
       title: 'original task',
-      correlationId: '33333333-3333-4333-8333-333333333333',
+      principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: '33333333-3333-4333-8333-333333333333',
       idempotencyKey: 'same-submission',
       createdAt: timestamp,
       updatedAt: timestamp,
     };
     await expect(repositories.tasks.create(originalTask)).resolves.toEqual(originalTask);
+    await expect(repositories.tasks.listEvents(project.id, originalTask.id)).resolves.toEqual([{
+      id: `${originalTask.id}:created`,
+      projectId: project.id,
+      taskId: originalTask.id,
+      event: 'created',
+      state: 'queued',
+      sequence: 0,
+      createdAt: timestamp,
+    }]);
     await expect(repositories.tasks.create({
       ...originalTask,
       id: '44444444-4444-4444-8444-444444444444',
@@ -114,7 +123,7 @@ describe('R1 SQLite application-client contract', () => {
       projectId: project.id,
       state: 'queued' as const,
       title: 'durable application task',
-      correlationId: '88888888-8888-4888-8888-888888888888',
+      principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: '88888888-8888-4888-8888-888888888888',
       idempotencyKey: 'durable-submission',
       createdAt: timestamp,
       updatedAt: timestamp,
@@ -124,7 +133,6 @@ describe('R1 SQLite application-client contract', () => {
 
     vi.resetModules();
     const restartedClient = await import('../src/db/client.js');
-    await restartedClient.executeApplicationSql(migration);
     const restartedRepositories = createSqlR1Repositories(restartedClient.createApplicationSqlExecutor());
     await expect(restartedRepositories.projects.get(project.id)).resolves.toEqual(project);
     await expect(restartedRepositories.tasks.get(project.id, task.id)).resolves.toEqual(task);

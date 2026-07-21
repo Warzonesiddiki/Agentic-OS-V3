@@ -12,7 +12,7 @@ const project = {
 
 const task = {
   id: '55555555-5555-4555-8555-555555555555', projectId: project.id,
-  state: 'queued', title: 'Inspect', correlationId: '66666666-6666-4666-8666-666666666666',
+  state: 'queued', title: 'Inspect', principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: '66666666-6666-4666-8666-666666666666',
   idempotencyKey: 'request-1', createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(),
 };
 
@@ -32,6 +32,26 @@ describe('governed R1 routes', () => {
     const inspect = await app.request(`/api/v1/r1/projects/${project.id}`);
     expect(inspect.status).toBe(200);
     await expect(inspect.json()).resolves.toMatchObject({ status: { mode: 'local' } });
+  });
+
+  it('creates a queued task and exposes scoped list/detail event views', async () => {
+    const app = createApp();
+    await app.request('/api/v1/r1/projects', {
+      method: 'POST', body: JSON.stringify(project), headers: { 'content-type': 'application/json' },
+    });
+    const create = await app.request(`/api/v1/r1/projects/${project.id}/tasks`, {
+      method: 'POST', body: JSON.stringify(task), headers: { 'content-type': 'application/json' },
+    });
+    expect(create.status).toBe(201);
+    await expect(create.json()).resolves.toMatchObject({
+      id: task.id, state: 'queued', correlationId: task.correlationId, goal: task.goal,
+    });
+    const listed = await app.request(`/api/v1/r1/projects/${project.id}/tasks`);
+    await expect(listed.json()).resolves.toMatchObject({ tasks: [expect.objectContaining({ id: task.id })] });
+    const events = await app.request(`/api/v1/r1/projects/${project.id}/tasks/${task.id}/events`);
+    await expect(events.json()).resolves.toMatchObject({
+      events: [expect.objectContaining({ event: 'created', sequence: 0 })],
+    });
   });
 
   it('appends a validated receipt through the governed route', async () => {

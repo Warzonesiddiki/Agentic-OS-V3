@@ -28,10 +28,29 @@ export function createR1Router(runtime: R1Runtime): Hono {
     }
   });
 
+  router.get('/projects/:projectId/tasks', async (c) => {
+    try {
+      return c.json({ tasks: await runtime.service.listTasks(c.req.param('projectId')) }, 200);
+    } catch (error) {
+      const apiError = toR1ApiError(error);
+      return c.json({ error: apiError }, apiError.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
+    }
+  });
+
   router.get('/projects/:projectId/tasks/:taskId', async (c) => {
     const task = await runtime.service.getTask(c.req.param('projectId'), c.req.param('taskId'));
     if (!task) return c.json({ error: { code: 'TASK_NOT_FOUND', message: 'Task not found.' } }, 404);
     return c.json(task, 200);
+  });
+
+  router.get('/projects/:projectId/tasks/:taskId/events', async (c) => {
+    try {
+      const events = await runtime.service.listTaskEvents(c.req.param('projectId'), c.req.param('taskId'));
+      return c.json({ events }, 200);
+    } catch (error) {
+      const apiError = toR1ApiError(error);
+      return c.json({ error: apiError }, apiError.code === 'TASK_NOT_FOUND' ? 404 : 400);
+    }
   });
 
   router.post('/projects/:projectId/tasks', async (c) => {

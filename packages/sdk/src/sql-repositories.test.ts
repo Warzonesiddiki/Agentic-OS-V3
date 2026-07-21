@@ -30,7 +30,7 @@ describe('SQL R1 repository adapter', () => {
     const calls: string[] = [];
     const existingTask = {
       id: '55555555-5555-4555-8555-555555555555', projectId: project.id,
-      state: 'running' as const, title: 'original', correlationId: 'corr-1',
+      state: 'running' as const, title: 'original', principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: 'corr-1',
       idempotencyKey: 'task-1', createdAt: project.createdAt, updatedAt: project.updatedAt,
     };
     const executor: SqlExecutor = {

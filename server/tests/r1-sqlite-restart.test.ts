@@ -4,10 +4,10 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const migration = readFileSync(
-  new URL('../src/db/migrations/0049_r1_contracts.sqlite.sql', import.meta.url),
-  'utf8',
-);
+const migration = [
+  readFileSync(new URL('../src/db/migrations/0049_r1_contracts.sqlite.sql', import.meta.url), 'utf8'),
+  readFileSync(new URL('../src/db/migrations/0050_r1_durable_task_metadata.sqlite.sql', import.meta.url), 'utf8'),
+].join('\n');
 
 const project = {
   id: '44444444-4444-4444-8444-444444444444',

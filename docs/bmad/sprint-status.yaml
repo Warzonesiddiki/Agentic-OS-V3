@@ -268,16 +268,23 @@ stories:
     title: Create durable tasks with idempotency
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-1
     dependencies:
       - E0-S2
       - E0-S3
       - E1-S1
-    implementation_owner: unassigned
+    implementation_owner: arena-agent
     review_owner: unassigned
-    blocker: null
-    evidence: []
+    blocker: "PostgreSQL migration/adapter verification requires DATABASE_URL."
+    evidence:
+      - docs/bmad/stories/E3-S1-create-durable-tasks-with-idempotency.md
+      - packages/sdk/src/r1-types.ts
+      - packages/sdk/src/repositories.ts
+      - server/src/db/migrations/0050_r1_durable_task_metadata.sql
+      - server/src/db/migrations/0050_r1_durable_task_metadata.sqlite.sql
+      - server/tests/r1-application-sqlite-contract.test.ts
+      - server/tests/r1-routes.test.ts
 
   E3-S2:
     epic: E3

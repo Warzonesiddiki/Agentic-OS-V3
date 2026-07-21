@@ -9,6 +9,7 @@ import type {
   Evidence,
   Project,
   Task,
+  TaskRecordEvent,
   TaskStep,
 } from './r1-types.js';
 import type {
@@ -86,6 +87,7 @@ class MemoryMemories implements MemoryRepository {
 
 class MemoryTasks implements TaskRepository {
   private readonly values = new Map<string, Task>();
+  private readonly events = new Map<string, TaskRecordEvent[]>();
   private readonly steps = new Map<string, TaskStep>();
   async get(projectId: string, taskId: string): Promise<Task | null> {
     const value = this.values.get(taskId);
@@ -101,12 +103,27 @@ class MemoryTasks implements TaskRepository {
     );
     if (duplicate) return duplicate;
     if (this.values.has(task.id)) throw new RepositoryError('ALREADY_EXISTS', 'Task already exists.');
-    this.values.set(task.id, task); return task;
+    this.values.set(task.id, task);
+    this.events.set(task.id, [{
+      id: `${task.id}:created`,
+      projectId: task.projectId,
+      taskId: task.id,
+      event: 'created',
+      state: task.state,
+      sequence: 0,
+      createdAt: task.createdAt,
+    }]);
+    return task;
   }
   async update(task: Task): Promise<Task> {
     const existing = this.values.get(task.id);
     if (!existing) throw new RepositoryError('NOT_FOUND', 'Task not found.');
     scoped(task.projectId, existing.projectId); this.values.set(task.id, task); return task;
+  }
+  async listEvents(projectId: string, taskId: string): Promise<readonly TaskRecordEvent[]> {
+    const task = await this.get(projectId, taskId);
+    if (!task) return [];
+    return this.events.get(task.id) ?? [];
   }
   async listSteps(projectId: string, taskId: string): Promise<readonly TaskStep[]> {
     const task = await this.get(projectId, taskId);

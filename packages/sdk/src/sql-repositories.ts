@@ -12,6 +12,7 @@ import type {
   Evidence,
   Project,
   Task,
+  TaskRecordEvent,
   TaskStep,
 } from './r1-types.js';
 import type {
@@ -118,39 +119,65 @@ class SqlProjects implements ProjectRepository {
   }
 }
 
+const taskColumns = `id, project_id AS "projectId", principal_id AS "principalId", agent_id AS "agentId",
+  state, title, goal, capability_ids AS "capabilityIds", policy_version AS "policyVersion",
+  input_reference AS "inputReference", current_step_id AS "currentStepId",
+  correlation_id AS "correlationId", idempotency_key AS "idempotencyKey",
+  created_at AS "createdAt", updated_at AS "updatedAt"`;
+
+function taskFromRow(row: Task): Task {
+  // SQLite returns NULL for an absent optional step while the domain contract
+  // represents absence as an omitted property.
+  const { currentStepId, ...task } = row;
+  const normalized = { ...task, capabilityIds: jsonValue(row.capabilityIds, []) as string[] };
+  return currentStepId == null ? normalized : { ...normalized, currentStepId };
+}
+
 class SqlTasks implements TaskRepository {
   constructor(private readonly sql: SqlExecutor) {}
   async get(projectId: string, taskId: string): Promise<Task | null> {
-    const task = one(await this.sql.query<Task>(
-      `SELECT id, project_id AS "projectId", state, title, correlation_id AS "correlationId",
-              idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt"
-       FROM r1_tasks WHERE id = $1`, [taskId],
-    ));
+    const task = one(await this.sql.query<Task>(`SELECT ${taskColumns} FROM r1_tasks WHERE id = $1`, [taskId]));
     if (task && task.projectId !== projectId) throw new SqlRepositoryError('PROJECT_SCOPE_VIOLATION', 'Resource is outside the project scope.');
-    return task;
+    return task ? taskFromRow(task) : null;
   }
   async list(projectId: string): Promise<readonly Task[]> {
-    return this.sql.query<Task>(`SELECT id, project_id AS "projectId", state, title, correlation_id AS "correlationId", idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_tasks WHERE project_id = $1 ORDER BY created_at`, [projectId]);
+    return (await this.sql.query<Task>(`SELECT ${taskColumns} FROM r1_tasks WHERE project_id = $1 ORDER BY created_at`, [projectId])).map(taskFromRow);
   }
   async create(task: Task): Promise<Task> {
     // The unique project/idempotency constraint and this upsert form one
     // atomic operation. A read-then-insert sequence is racy when two workers
     // submit the same key concurrently and can incorrectly reject one caller.
-    const result = await this.sql.query<Task>(`INSERT INTO r1_tasks (id, project_id, state, title, correlation_id, idempotency_key, created_at, updated_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
-       ON CONFLICT (project_id, idempotency_key) DO UPDATE
-         SET idempotency_key = r1_tasks.idempotency_key
-       RETURNING id, project_id AS "projectId", state, title, correlation_id AS "correlationId", idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt"`,
-      [task.id, task.projectId, task.state, task.title, task.correlationId, task.idempotencyKey, task.createdAt, task.updatedAt]);
+    const result = await this.sql.query<Task>(`INSERT INTO r1_tasks (
+       id, project_id, principal_id, agent_id, state, title, goal, capability_ids,
+       policy_version, input_reference, current_step_id, correlation_id,
+       idempotency_key, created_at, updated_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
+     ON CONFLICT (project_id, idempotency_key) DO UPDATE
+       SET idempotency_key = r1_tasks.idempotency_key
+     RETURNING ${taskColumns}`,
+      [task.id, task.projectId, task.principalId, task.agentId, task.state, task.title,
+        task.goal, JSON.stringify(task.capabilityIds), task.policyVersion, task.inputReference,
+        task.currentStepId ?? null, task.correlationId, task.idempotencyKey, task.createdAt, task.updatedAt]);
     const created = one(result);
     if (!created) throw new SqlRepositoryError('ALREADY_EXISTS', 'Task could not be created.');
-    return created;
+    return taskFromRow(created);
   }
   async update(task: Task): Promise<Task> {
-    const result = await this.sql.query<Task>(`UPDATE r1_tasks SET state=$3, title=$4, updated_at=$5 WHERE id=$1 AND project_id=$2 RETURNING id, project_id AS "projectId", state, title, correlation_id AS "correlationId", idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt"`, [task.id, task.projectId, task.state, task.title, task.updatedAt]);
+    const result = await this.sql.query<Task>(`UPDATE r1_tasks
+       SET state=$3, title=$4, goal=$5, capability_ids=$6, policy_version=$7,
+           input_reference=$8, current_step_id=$9, updated_at=$10
+       WHERE id=$1 AND project_id=$2 RETURNING ${taskColumns}`,
+      [task.id, task.projectId, task.state, task.title, task.goal, JSON.stringify(task.capabilityIds),
+        task.policyVersion, task.inputReference, task.currentStepId ?? null, task.updatedAt]);
     const updated = one(result);
     if (!updated) throw new SqlRepositoryError('NOT_FOUND', 'Task not found.');
-    return updated;
+    return taskFromRow(updated);
+  }
+  async listEvents(projectId: string, taskId: string): Promise<readonly TaskRecordEvent[]> {
+    await this.get(projectId, taskId);
+    return this.sql.query<TaskRecordEvent>(`SELECT id, project_id AS "projectId", task_id AS "taskId",
+      event, state, sequence, created_at AS "createdAt" FROM r1_task_events
+      WHERE project_id=$1 AND task_id=$2 ORDER BY sequence`, [projectId, taskId]);
   }
   async listSteps(projectId: string, taskId: string): Promise<readonly TaskStep[]> {
     await this.get(projectId, taskId);
@@ -261,4 +288,4 @@ export function createSqlR1Repositories(sql: SqlExecutor): R1Repositories {
 }
 
 export type { ApprovalRepository, ApprovalRequest, CapabilityRepository, MemoryRecord, MemoryRepository, ProjectRepository, ReceiptRepository, TaskRepository };
-export type { ActionReceipt, ApprovalState, Capability, Evidence, Project, Task, TaskStep };
+export type { ActionReceipt, ApprovalState, Capability, Evidence, Project, Task, TaskRecordEvent, TaskStep };

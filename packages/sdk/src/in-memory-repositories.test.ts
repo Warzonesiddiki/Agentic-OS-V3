@@ -16,7 +16,7 @@ const task = (id: string, projectId: string, idempotencyKey: string): Task => ({
   projectId,
   state: 'queued',
   title: 'Inspect repository',
-  correlationId: '66666666-6666-4666-8666-666666666666',
+  principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: '66666666-6666-4666-8666-666666666666',
   idempotencyKey,
   createdAt: new Date(0).toISOString(),
   updatedAt: new Date(0).toISOString(),

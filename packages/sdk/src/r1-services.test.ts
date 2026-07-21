@@ -17,7 +17,7 @@ const task: Task = {
   projectId: project.id,
   state: 'queued',
   title: 'Inspect',
-  correlationId: '66666666-6666-4666-8666-666666666666',
+  principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: '66666666-6666-4666-8666-666666666666',
   idempotencyKey: 'request-1',
   createdAt: new Date(0).toISOString(),
   updatedAt: new Date(0).toISOString(),
@@ -44,6 +44,16 @@ describe('R1Service', () => {
     const service = new R1Service(repositories, { now: () => '2026-07-21T00:00:00.000Z' });
     await service.initializeProject(project);
     await service.createTask(task);
+
+    await expect(service.listTaskEvents(project.id, task.id)).resolves.toEqual([{
+      id: `${task.id}:created`,
+      projectId: project.id,
+      taskId: task.id,
+      event: 'created',
+      state: 'queued',
+      sequence: 0,
+      createdAt: task.createdAt,
+    }]);
 
     const transitioned = await service.transitionTask(project.id, task.id, 'admit');
     expect(transitioned.state).toBe('running');
@@ -73,7 +83,7 @@ describe('R1Service', () => {
       id: '77777777-7777-4777-8777-777777777777',
       projectId: project.id,
       kind: 'tool_call' as const,
-      correlationId: task.correlationId,
+      principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: task.correlationId,
       actor: 'agent',
       decision: 'allow' as const,
       payload: { taskId: task.id },

@@ -223,14 +223,36 @@ export type TaskStep = z.infer<typeof TaskStepSchema>;
 export const TaskSchema = z.object({
   id: z.string().uuid(),
   projectId: z.string().uuid(),
+  /** Authenticated principal that submitted the durable work request. */
+  principalId: z.string().min(1).max(255),
+  /** Explicit agent identity; task execution must not infer this from input. */
+  agentId: z.string().min(1).max(255),
   state: TaskStateSchema,
   title: z.string().min(1).max(500),
+  goal: z.string().min(1).max(20_000),
+  capabilityIds: z.array(z.string().min(1).max(255)).max(100),
+  policyVersion: z.string().min(1).max(100),
+  /** Opaque reference to validated input; raw secret-bearing input is not stored here. */
+  inputReference: z.string().min(1).max(1_000),
+  currentStepId: z.string().uuid().optional(),
   correlationId: z.string().uuid(),
   idempotencyKey: z.string().min(1).max(255),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
 export type Task = z.infer<typeof TaskSchema>;
+
+/** Immutable event emitted by the database when a task is created or changes state. */
+export const TaskRecordEventSchema = z.object({
+  id: z.string().min(1).max(300),
+  projectId: z.string().uuid(),
+  taskId: z.string().uuid(),
+  event: z.enum(['created', 'admit', 'require_approval', 'approve', 'deny', 'complete', 'fail', 'cancel']),
+  state: TaskStateSchema,
+  sequence: z.number().int().nonnegative(),
+  createdAt: z.string().datetime(),
+});
+export type TaskRecordEvent = z.infer<typeof TaskRecordEventSchema>;
 
 /* ------------------------------------------------------------------ *
  * Action receipts and evidence

@@ -15,6 +15,7 @@ import {
   type ProjectStatus,
   type Task,
   type TaskEvent,
+  type TaskRecordEvent,
 } from './r1-types.js';
 import type { ApprovalRequest, R1Repositories } from './repositories.js';
 
@@ -97,6 +98,18 @@ export class R1Service {
 
   async getTask(projectId: string, taskId: string): Promise<Task | null> {
     return this.repositories.tasks.get(projectId, taskId);
+  }
+
+  async listTasks(projectId: string): Promise<readonly Task[]> {
+    const project = await this.repositories.projects.get(projectId);
+    if (!project) return Promise.reject(new R1ServiceError('PROJECT_NOT_FOUND', 'Project not found.'));
+    return this.repositories.tasks.list(projectId);
+  }
+
+  async listTaskEvents(projectId: string, taskId: string): Promise<readonly TaskRecordEvent[]> {
+    const task = await this.repositories.tasks.get(projectId, taskId);
+    if (!task) return Promise.reject(new R1ServiceError('TASK_NOT_FOUND', 'Task not found.'));
+    return this.repositories.tasks.listEvents(projectId, taskId);
   }
 
   async transitionTask(projectId: string, taskId: string, event: TaskEvent): Promise<Task> {
