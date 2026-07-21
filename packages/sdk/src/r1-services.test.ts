@@ -66,6 +66,24 @@ describe('R1Service', () => {
     });
   });
 
+  it('appends receipts only within the requested project scope', async () => {
+    const repositories = new InMemoryR1Repositories();
+    const service = new R1Service(repositories);
+    const receipt = {
+      id: '77777777-7777-4777-8777-777777777777',
+      projectId: project.id,
+      kind: 'tool_call' as const,
+      correlationId: task.correlationId,
+      actor: 'agent',
+      decision: 'allow' as const,
+      payload: { taskId: task.id },
+      createdAt: new Date(0).toISOString(),
+    };
+    await expect(service.appendActionReceipt(project.id, receipt)).resolves.toEqual(receipt);
+    await expect(service.appendActionReceipt('88888888-8888-4888-8888-888888888888', receipt))
+      .rejects.toMatchObject({ code: 'PROJECT_SCOPE_VIOLATION' });
+  });
+
   it('rejects evidence from another project', async () => {
     const service = new R1Service(new InMemoryR1Repositories());
     await expect(service.appendEvidence(project.id, {

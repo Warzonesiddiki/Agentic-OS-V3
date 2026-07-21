@@ -86,9 +86,15 @@ class SqlTasks implements TaskRepository {
     return this.sql.query<Task>(`SELECT id, project_id AS "projectId", state, title, correlation_id AS "correlationId", idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_tasks WHERE project_id = $1 ORDER BY created_at`, [projectId]);
   }
   async create(task: Task): Promise<Task> {
-    const existing = one(await this.sql.query<Task>(`SELECT id, project_id AS "projectId", state, title, correlation_id AS "correlationId", idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_tasks WHERE project_id = $1 AND idempotency_key = $2`, [task.projectId, task.idempotencyKey]));
-    if (existing) return existing;
-    const result = await this.sql.query<Task>(`INSERT INTO r1_tasks (id, project_id, state, title, correlation_id, idempotency_key, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, project_id AS "projectId", state, title, correlation_id AS "correlationId", idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt"`, [task.id, task.projectId, task.state, task.title, task.correlationId, task.idempotencyKey, task.createdAt, task.updatedAt]);
+    // The unique project/idempotency constraint and this upsert form one
+    // atomic operation. A read-then-insert sequence is racy when two workers
+    // submit the same key concurrently and can incorrectly reject one caller.
+    const result = await this.sql.query<Task>(`INSERT INTO r1_tasks (id, project_id, state, title, correlation_id, idempotency_key, created_at, updated_at)
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+       ON CONFLICT (project_id, idempotency_key) DO UPDATE
+         SET idempotency_key = r1_tasks.idempotency_key
+       RETURNING id, project_id AS "projectId", state, title, correlation_id AS "correlationId", idempotency_key AS "idempotencyKey", created_at AS "createdAt", updated_at AS "updatedAt"`,
+      [task.id, task.projectId, task.state, task.title, task.correlationId, task.idempotencyKey, task.createdAt, task.updatedAt]);
     const created = one(result);
     if (!created) throw new SqlRepositoryError('ALREADY_EXISTS', 'Task could not be created.');
     return created;

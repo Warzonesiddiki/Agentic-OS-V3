@@ -1,0 +1,33 @@
+# Build the Vite dashboard in an isolated image, then serve it with nginx.
+FROM node:20-alpine AS build
+
+RUN corepack enable
+WORKDIR /app
+
+# Copy manifests first so dependency installation remains cacheable.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Workspace manifests are copied before source so the lockfile layer is cacheable.
+COPY packages ./packages
+COPY server/package.json server/package.json
+
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm run build:frontend
+
+FROM nginx:1.27-alpine AS runtime
+
+COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=build /app/dist /usr/share/nginx/html
+
+# Keep the container self-checking and avoid running a shell as the health probe.
+RUN printf '%s\n' \
+  '#!/bin/sh' \
+  'wget -q -O /dev/null http://127.0.0.1/ || exit 1' \
+  > /usr/local/bin/healthcheck.sh \
+  && chmod +x /usr/local/bin/healthcheck.sh
+
+EXPOSE 80
+HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 CMD /usr/local/bin/healthcheck.sh
+
+CMD ["nginx", "-g", "daemon off;"]
