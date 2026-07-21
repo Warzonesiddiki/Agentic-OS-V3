@@ -201,7 +201,7 @@ export function createNexusMcpServer(actor: string, scopes: Scope[]): McpServer 
         orderBy: desc(memories.importance),
         limit: 6,
       });
-      const lines = ['# NEXUS ambient context', ...top.map((m: any) => `- ${m.title}`)];
+      const lines = ['# NEXUS ambient context', ...top.map((memory: { title: string }) => `- ${memory.title}`)];
       const text = lines.join('\n');
       return { contents: [{ uri: 'nexus://brain/ambient', mimeType: 'text/markdown', text }] };
     }

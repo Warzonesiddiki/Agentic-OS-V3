@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any -- The unified runtime adapter intentionally erases incompatible Drizzle SQLite/Postgres generic types at this single boundary. */
 /**
  * client.ts — Unified SQLite (default) / PostgreSQL client with auto-detection.
  *

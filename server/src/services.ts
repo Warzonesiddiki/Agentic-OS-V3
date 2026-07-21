@@ -14,7 +14,7 @@ import { ApiError } from './lib/errors.js';
 // Shared types are defined locally below and re-exported.
 // The frontend imports these via shared/types.ts.
 
-export async function isKillSwitchOn(tx?: any): Promise<boolean> {
+export async function isKillSwitchOn(tx?: Tx): Promise<boolean> {
   const client = tx || db;
   let query = client.select().from(systemMeta).where(eq(systemMeta.key, 'killSwitch'));
   if (tx) {
@@ -27,7 +27,7 @@ export async function isKillSwitchOn(tx?: any): Promise<boolean> {
   return row?.value === '1';
 }
 
-export async function assertOperational(tx?: any): Promise<void> {
+export async function assertOperational(tx?: Tx): Promise<void> {
   if (await isKillSwitchOn(tx))
     throw new ApiError('SAFETY_KILL_SWITCH', 'Kill switch is engaged — mutations are blocked.');
 }

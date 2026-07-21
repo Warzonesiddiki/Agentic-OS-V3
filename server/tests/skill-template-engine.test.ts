@@ -37,7 +37,34 @@ vi.mock('../src/db/client.js', () => {
       trajectoryLogs: { findMany: vi.fn(() => Promise.resolve([])) },
     },
   };
-  return { db: mockDb, env: {}, isSqlite: false, isPg: true };
+  const agentTasks = {
+    id: 'agent_tasks.id',
+    label: 'agent_tasks.label',
+    input: 'agent_tasks.input',
+    output: 'agent_tasks.output',
+    status: 'agent_tasks.status',
+    createdAt: 'agent_tasks.created_at',
+  };
+  const trajectoryLogs = {
+    tokenUsage: 'trajectory_logs.token_usage',
+    latencyMs: 'trajectory_logs.latency_ms',
+    auditSequence: 'trajectory_logs.audit_sequence',
+  };
+  const compiledScripts = {
+    id: 'compiled_scripts.id',
+    patternSignature: 'compiled_scripts.pattern_signature',
+    status: 'compiled_scripts.status',
+    compiledAt: 'compiled_scripts.compiled_at',
+  };
+  return {
+    db: mockDb,
+    agentTasks,
+    trajectoryLogs,
+    compiledScripts,
+    env: {},
+    isSqlite: false,
+    isPg: true,
+  };
 });
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/lib/env.js', () => ({ env: {} }));

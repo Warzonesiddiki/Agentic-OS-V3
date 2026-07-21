@@ -85,20 +85,22 @@ async function detectAnomalies(): Promise<ShadowInsight[]> {
 
   for (const [, group] of byContent) {
     if (group.length < 2) continue;
-    const kinds = new Set(group.map((m: any) => m.kind));
+    const kinds = new Set(group.map((memory: { kind: string }) => memory.kind));
     if (kinds.size > 2) {
       insights.push({
         type: 'anomaly',
         severity: 'warning',
         title: 'Contradictory memory cluster detected',
         detail: `${group.length} memories about "${group[0]!.title}" span ${kinds.size} different kinds (${[...kinds].join(', ')}). Possible fragment overlap.`,
-        relatedIds: group.map((m: any) => m.id),
+        relatedIds: group.map((memory: { id: string }) => memory.id),
       });
     }
   }
 
   // 2. Check for memory decay — many very low importance memories
-  const lowImportance = recentMemories.filter((m: any) => (m.importance ?? 0.5) < 0.15);
+  const lowImportance = recentMemories.filter(
+    (memory: { importance?: number | null }) => (memory.importance ?? 0.5) < 0.15,
+  );
   if (lowImportance.length > 20) {
     insights.push({
       type: 'anomaly',
@@ -126,22 +128,22 @@ async function trackTrends(): Promise<ShadowInsight[]> {
         .select({ id: agentTasks.id })
         .from(agentTasks)
         .where(gte(agentTasks.createdAt, SEVEN_DAYS_AGO))
-        .then((r: any) => r.length),
+        .then((rows: Array<{ id: string }>) => rows.length),
       // Tasks in last 30 days
       db
         .select({ id: agentTasks.id })
         .from(agentTasks)
         .where(gte(agentTasks.createdAt, THIRTY_DAYS_AGO))
-        .then((r: any) => r.length),
+        .then((rows: Array<{ id: string }>) => rows.length),
       // Audit entries in last 7 days
       db
         .select({ id: auditLog.id, actor: auditLog.actor })
         .from(auditLog)
         .where(gte(auditLog.createdAt, SEVEN_DAYS_AGO))
         .limit(100)
-        .then((r: any) => ({
-          count: r.length,
-          uniqueActors: new Set(r.map((x: { actor: string }) => x.actor)).size,
+        .then((rows: Array<{ id: string; actor: string }>) => ({
+          count: rows.length,
+          uniqueActors: new Set(rows.map((row) => row.actor)).size,
         })),
       // Most frequent action in last 7 days
       (async () => {
@@ -170,12 +172,12 @@ async function trackTrends(): Promise<ShadowInsight[]> {
           .select({ id: agentTasks.id })
           .from(agentTasks)
           .where(and(gte(agentTasks.createdAt, SEVEN_DAYS_AGO), eq(agentTasks.status, 'succeeded')))
-          .then((r: any) => r.length);
+          .then((rows: Array<{ id: string }>) => rows.length);
         const failed = await db
           .select({ id: agentTasks.id })
           .from(agentTasks)
           .where(and(gte(agentTasks.createdAt, SEVEN_DAYS_AGO), eq(agentTasks.status, 'failed')))
-          .then((r: any) => r.length);
+          .then((rows: Array<{ id: string }>) => rows.length);
         const total = success + failed;
         return total > 0 ? success / total : 1;
       })(),
@@ -363,11 +365,11 @@ export async function runShadowCanaryAnalysis(
         .limit(5000);
       const n = rows.length;
       if (n === 0) return { successRate: 0, p95LatencyMs: 0, samples: 0, meanCost: 0 };
-      const successes = rows.filter((r: any) => r.status === 'succeeded').length;
+      const successes = rows.filter((row: { status: string }) => row.status === 'succeeded').length;
       const latencies = rows
-        .map((r: any) => {
-          const start = r.startedAt ? new Date(r.startedAt).getTime() : 0;
-          const end = r.finishedAt ? new Date(r.finishedAt).getTime() : 0;
+        .map((row: { startedAt?: string | Date | null; finishedAt?: string | Date | null }) => {
+          const start = row.startedAt ? new Date(row.startedAt).getTime() : 0;
+          const end = row.finishedAt ? new Date(row.finishedAt).getTime() : 0;
           return end > start ? end - start : 0;
         })
         .filter((v: number) => v > 0);

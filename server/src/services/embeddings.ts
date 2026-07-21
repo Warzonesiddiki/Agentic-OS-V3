@@ -166,7 +166,7 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
 
     for (let i = 0; i < memsToEmbed.length; i += BATCH_SIZE) {
       const batch = memsToEmbed.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((m: any) => m.text.slice(0, 8000)); // cap input length
+      const texts = batch.map((memory: { text: string }) => memory.text.slice(0, 8000)); // cap input length
       const embeddings = await embedBatch(texts);
       for (let j = 0; j < batch.length; j++) {
         await updateMemoryEmbedding(batch[j]!.id, embeddings[j]!);
@@ -187,7 +187,7 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
 
     for (let i = 0; i < skillsToEmbed.length; i += BATCH_SIZE) {
       const batch = skillsToEmbed.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((s: any) => s.text.slice(0, 8000));
+      const texts = batch.map((skill: { text: string }) => skill.text.slice(0, 8000));
       const embeddings = await embedBatch(texts);
       for (let j = 0; j < batch.length; j++) {
         await updateSkillEmbedding(batch[j]!.id, embeddings[j]!);
@@ -208,7 +208,7 @@ export async function rebuildEmbeddings(): Promise<EmbeddingsReport> {
 
     for (let i = 0; i < notesToEmbed.length; i += BATCH_SIZE) {
       const batch = notesToEmbed.slice(i, i + BATCH_SIZE);
-      const texts = batch.map((n: any) => n.text.slice(0, 8000));
+      const texts = batch.map((note: { text: string }) => note.text.slice(0, 8000));
       const embeddings = await embedBatch(texts);
       for (let j = 0; j < batch.length; j++) {
         await updateNoteEmbedding(batch[j]!.id, embeddings[j]!);

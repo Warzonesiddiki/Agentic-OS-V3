@@ -31,7 +31,7 @@ export function acquire(tenantId: string): void {
   }
   throw new ApiError(
     'BULKHEAD_FULL',
-    `Tenant ${tenantId} bulkhead is full (active=${b.active}, queue=${b.queue}).`
+    `BULKHEAD_FULL: tenant ${tenantId} is full (active=${b.active}, queue=${b.queue}).`
   );
 }
 

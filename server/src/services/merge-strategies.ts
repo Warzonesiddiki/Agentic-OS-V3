@@ -115,7 +115,13 @@ function stableStringify(v: unknown): string {
     val && typeof val === 'object'
       ? Object.keys(val)
           .sort()
-          .reduce((o, k) => ((o[k] = (val as any)[k]), o), {} as Record<string, unknown>)
+          .reduce(
+            (output, key) => {
+              output[key] = (val as Record<string, unknown>)[key];
+              return output;
+            },
+            {} as Record<string, unknown>,
+          )
       : val
   );
 }

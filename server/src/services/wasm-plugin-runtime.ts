@@ -89,7 +89,7 @@ let _manifestCacheStamp = 0;
 const TRUSTED_PUBLISHERS = new Set<string>([
   // populated from env: NEXUS_PLUGIN_PUBLISHER_PUBKEYS=pk1,pk2,pk3
   ...(process.env.NEXUS_PLUGIN_PUBLISHER_PUBKEYS?.split(',')
-    .map((s: any) => s.trim())
+    .map((publisherKey) => publisherKey.trim())
     .filter(Boolean) ?? []),
 ]);
 
@@ -629,18 +629,18 @@ export async function listReceipts(opts?: {
     orderBy: [desc(pluginReceipts.createdAt)],
     limit: opts?.limit ?? 100,
   });
-  return rows.map((r: any) => ({
-    id: r.id,
-    pluginId: r.pluginId,
-    installId: r.installId,
-    agentId: r.agentId,
-    capability: r.capability,
-    inputSha256: r.inputSha256,
-    outputSha256: r.outputSha256,
-    exitCode: r.exitCode,
-    fuelUsed: Number(r.fuelUsed),
-    durationMs: r.durationMs,
-    authorized: r.authorized,
+  return rows.map((receipt: PluginReceipt) => ({
+    id: receipt.id,
+    pluginId: receipt.pluginId,
+    installId: receipt.installId,
+    agentId: receipt.agentId,
+    capability: receipt.capability,
+    inputSha256: receipt.inputSha256,
+    outputSha256: receipt.outputSha256,
+    exitCode: receipt.exitCode,
+    fuelUsed: Number(receipt.fuelUsed),
+    durationMs: receipt.durationMs,
+    authorized: receipt.authorized,
   }));
 }
 

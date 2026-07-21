@@ -10,6 +10,7 @@ import { db } from '../db/client.js';
 import { memories, memoryTags, tagTaxonomy } from '../db/client.js';
 import { and, eq, inArray, isNull } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
+import type { Tx } from '../lib/audit.js';
 
 export type BatchOp =
   | { op: 'create'; id: string; kind: string; text: string; projectId: string; importance?: number }
@@ -64,7 +65,7 @@ export async function applyBatch(
   for (let i = 0; i < ops.length; i += chunk) {
     const slice = ops.slice(i, i + chunk);
     try {
-      await db.transaction(async (tx: any) => {
+      await db.transaction(async (tx: Tx) => {
         for (const o of slice) {
           if (o.op === 'create') {
             await tx.insert(memories).values({

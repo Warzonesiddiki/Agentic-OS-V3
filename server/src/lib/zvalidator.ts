@@ -12,7 +12,8 @@ import { type ZodTypeAny } from 'zod';
 
 declare module 'hono' {
   interface HonoRequest {
-    /** Returns the validated payload for the given target. */
+    /** Returns runtime-Zod-validated data; Hono's augmentation requires an erased return type. */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Compatibility boundary mirrors Hono's target-dependent valid() API.
     valid(target: keyof ValidationTargets): any;
   }
 }

@@ -15,7 +15,7 @@ import { desc, asc, sql, and, gte, lte, gt } from 'drizzle-orm';
 // // import { log } from "./logging.js"; // removed unused import
 
 /** A Drizzle transaction (or the db itself) — both expose query + execute + insert. */
-export type Tx = any;
+export type Tx = typeof db;
 
 export const GENESIS_HASH = '0'.repeat(64);
 const HASH_SEP = '|';
@@ -50,7 +50,7 @@ export function stableStringify(value: unknown): string {
     '{' +
     Object.keys(obj)
       .sort()
-      .map((k: any) => JSON.stringify(k) + ':' + stableStringify(obj[k]))
+      .map((key) => JSON.stringify(key) + ':' + stableStringify(obj[key]))
       .join(',') +
     '}'
   );

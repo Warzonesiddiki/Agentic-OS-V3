@@ -188,20 +188,21 @@ async function gracefulShutdown(signal: string): Promise<void> {
 
   // 3. Close the HTTP server with a 10s connection drain timeout.
   if (server) {
+    const closingServer = server;
     await new Promise<void>((resolve) => {
       const drainTimer = setTimeout(() => {
         log.warn('shutdown_drain_timeout_forcing_close');
-        if (typeof (server as any).closeAllConnections === 'function') {
-          (server as any).closeAllConnections();
+        if (typeof closingServer.closeAllConnections === 'function') {
+          closingServer.closeAllConnections();
         }
         resolve();
       }, 10000);
 
-      if (typeof (server as any).closeIdleConnections === 'function') {
-        (server as any).closeIdleConnections();
+      if (typeof closingServer.closeIdleConnections === 'function') {
+        closingServer.closeIdleConnections();
       }
 
-      server!.close((err) => {
+      closingServer.close((err) => {
         clearTimeout(drainTimer);
         if (err) {
           log.error('server_close_error', { error: err.message });

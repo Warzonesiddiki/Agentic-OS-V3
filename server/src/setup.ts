@@ -13,6 +13,7 @@
  */
 
 import { getEnv } from './lib/env.js';
+import { db } from './db/client.js';
 import { sql } from 'drizzle-orm';
 import { log, fatal } from './lib/logging.js';
 import { execSync } from 'node:child_process';
@@ -23,15 +24,9 @@ import { fileURLToPath } from 'node:url';
 const rawUrl = (getEnv().DATABASE_URL || '').trim();
 export const isSqlite = !(rawUrl.startsWith('postgres://') || rawUrl.startsWith('postgresql://'));
 
-let db: any;
-
 if (isSqlite) {
-  const sqliteModule = await import('./db/client.js');
-  db = sqliteModule.db;
   log.info('db_backend', { backend: 'sqlite', path: './agentic-os.db' });
 } else {
-  const pgModule = await import('./db/client.js');
-  db = pgModule.db;
   log.info('db_backend', { backend: 'postgresql', url: rawUrl.replace(/\/\/.*@/, '//***@') });
 }
 
@@ -78,7 +73,7 @@ export async function ensureSchema(): Promise<
 
     let present: string[];
     if (isSqlite) {
-      const rows: any = await db.execute(sql`
+      const rows = await db.execute(sql`
         SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_%'
       `);
       const existing = new Set(
@@ -89,7 +84,7 @@ export async function ensureSchema(): Promise<
       );
       present = requiredTables.filter((t) => existing.has(t));
     } else {
-      const rows: any = await db.execute(sql`
+      const rows = await db.execute(sql`
         SELECT table_name FROM information_schema.tables
         WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
       `);
@@ -243,7 +238,7 @@ export async function ensureSchemaOrDie(): Promise<void> {
 export async function isPgvectorInstalled(): Promise<boolean> {
   if (isSqlite) return false;
   try {
-    const rows: any = await db.execute(sql`
+    const rows = await db.execute(sql`
       SELECT extname FROM pg_extension WHERE extname = 'vector'
     `);
     return (Array.isArray(rows) ? rows : []).some((r: unknown) => {

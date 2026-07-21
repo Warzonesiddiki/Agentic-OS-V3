@@ -26,7 +26,6 @@ let dispatcherError = false;
 
 function debugLog(_msg: string, _ctx?: Record<string, unknown>): void {
   if (process.env.NEXUS_DEBUG) {
-    // eslint-disable-next-line no-console
     console.debug(`[conn-pool] ${_msg}`, _ctx ?? '');
   }
 }

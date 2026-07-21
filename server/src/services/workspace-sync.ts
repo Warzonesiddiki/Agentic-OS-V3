@@ -42,7 +42,7 @@ async function extractConventions(): Promise<string> {
   for (const m of top) {
     lines.push(`## ${m.title}`);
     lines.push(m.content);
-    if (m.tags.length) lines.push(`\n*Tags: ${m.tags.map((t: any) => `#${t}`).join(' ')}*`);
+    if (m.tags.length) lines.push(`\n*Tags: ${m.tags.map((tag: string) => `#${tag}`).join(' ')}*`);
     lines.push('');
   }
 

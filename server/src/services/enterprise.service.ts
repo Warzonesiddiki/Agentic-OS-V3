@@ -9,8 +9,8 @@
  * tamper-evident audit + SIEM events via Sentinel's security barrel.
  */
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
-import { db } from '../db/client.js';
+import { and, desc, eq } from 'drizzle-orm';
+import { db, auditLog as auditLogTable } from '../db/client.js';
 import {
   orgs,
   workspaces,
@@ -34,7 +34,7 @@ async function auditLog(e: {
   resource: string;
   resourceId: string;
   outcome: string;
-  meta: any;
+  meta: Record<string, unknown>;
   orgId?: string;
 }) {
   await appendAudit(
@@ -426,13 +426,11 @@ export async function getUsage(
   // Aggregated from the audit log (action=llm.request) over the window.
   const days = window === '7d' ? 7 : window === '90d' ? 90 : 30;
   const since = Date.now() - days * 86_400_000;
-  const events = await db
-    .select()
-    .from(sql`audit_log` as any)
-    .where(
-      and(eq(sql`audit_log.org_id`, orgId), gte(sql`audit_log.ts`, new Date(since).toISOString()))
-    )
-    .limit(5000);
+  const events = (await listAudit(orgId, {
+    action: 'llm.request',
+    from: new Date(since).toISOString(),
+    limit: 5000,
+  }));
   const series = Array.from({ length: days }, (_, i) => {
     const d = new Date(Date.now() - (days - 1 - i) * 86_400_000).toISOString().slice(0, 10);
     return { ts: d, requests: 0, tokens: 0, costUsd: 0 };
@@ -441,11 +439,11 @@ export async function getUsage(
   let totalTokens = 0;
   let totalCostUsd = 0;
   const byModel: Record<string, number> = {};
-  for (const e of events as any[]) {
-    const day = (e.ts as string).slice(0, 10);
-    const bucket = series.find((s) => s.ts === day);
-    const tokens = (e.meta?.tokens as number) ?? 0;
-    const model = (e.meta?.model as string) ?? 'unknown';
+  for (const event of events) {
+    const day = event.ts.slice(0, 10);
+    const bucket = series.find((item) => item.ts === day);
+    const tokens = typeof event.meta.tokens === 'number' ? event.meta.tokens : 0;
+    const model = typeof event.meta.model === 'string' ? event.meta.model : 'unknown';
     const cost = (tokens / 1000) * 0.002;
     totalRequests += 1;
     totalTokens += tokens;
@@ -507,31 +505,54 @@ export async function listAudit(
     meta: Record<string, unknown>;
   }[]
 > {
-  const conditions = [eq(sql`audit_log.org_id`, orgId)];
-  if (query?.action) conditions.push(eq(sql`audit_log.action`, query.action));
-  if (query?.outcome) conditions.push(eq(sql`audit_log.outcome`, query.outcome));
-  if (query?.actor) conditions.push(eq(sql`audit_log.actor_email`, query.actor));
-  if (query?.from) conditions.push(gte(sql`audit_log.ts`, query.from));
-  if (query?.to) conditions.push(lte(sql`audit_log.ts`, query.to));
-  const rows = await db
+  interface CanonicalAuditRow {
+    id: string;
+    actor: string;
+    action: string;
+    payload: unknown;
+    createdAt: string | Date;
+  }
+  const rows = (await db
     .select()
-    .from(sql`audit_log` as any)
-    .where(and(...conditions))
-    .orderBy(desc(sql`audit_log.ts`))
-    .limit(query?.limit ?? 200);
-  return (rows as any[]).map((r) => ({
-    id: r.id,
-    ts: r.ts,
-    actorId: r.actor_id ?? null,
-    actorEmail: r.actor_email ?? null,
-    orgId: r.org_id,
-    action: r.action,
-    resource: r.resource,
-    resourceId: r.resource_id ?? null,
-    outcome: r.outcome,
-    ip: r.ip ?? null,
-    meta: typeof r.meta === 'string' ? JSON.parse(r.meta) : (r.meta ?? {}),
-  }));
+    .from(auditLogTable)
+    .orderBy(desc(auditLogTable.createdAt))
+    .limit(5000)) as CanonicalAuditRow[];
+
+  const normalized = rows.map((row) => {
+    let payload: Record<string, unknown> = {};
+    try {
+      const decoded = typeof row.payload === 'string' ? JSON.parse(row.payload) : row.payload;
+      if (decoded && typeof decoded === 'object') payload = decoded as Record<string, unknown>;
+    } catch {
+      payload = {};
+    }
+    const meta =
+      payload.meta && typeof payload.meta === 'object'
+        ? (payload.meta as Record<string, unknown>)
+        : {};
+    return {
+      id: row.id,
+      ts: row.createdAt instanceof Date ? row.createdAt.toISOString() : row.createdAt,
+      actorId: null,
+      actorEmail: row.actor,
+      orgId: typeof payload.orgId === 'string' ? payload.orgId : row.actor,
+      action: row.action,
+      resource: typeof payload.resource === 'string' ? payload.resource : 'unknown',
+      resourceId: typeof payload.resourceId === 'string' ? payload.resourceId : null,
+      outcome: typeof payload.outcome === 'string' ? payload.outcome : 'unknown',
+      ip: typeof payload.ip === 'string' ? payload.ip : null,
+      meta,
+    };
+  });
+
+  return normalized
+    .filter((row) => row.orgId === orgId)
+    .filter((row) => !query?.action || row.action === query.action)
+    .filter((row) => !query?.outcome || row.outcome === query.outcome)
+    .filter((row) => !query?.actor || row.actorEmail === query.actor)
+    .filter((row) => !query?.from || row.ts >= query.from)
+    .filter((row) => !query?.to || row.ts <= query.to)
+    .slice(0, query?.limit ?? 200);
 }
 
 /* ── SSO / OIDC / SAML ───────────────────────────────────────── */
@@ -744,7 +765,7 @@ export async function getSla(
 ): Promise<{ uptimePct: number; p99Ms: number; errorRate: number }> {
   // Derived from audit outcomes over the last 24h.
   const since = new Date(Date.now() - 86_400_000).toISOString();
-  const events = (await listAudit(orgId, { from: since, limit: 5000 })) as any[];
+  const events = await listAudit(orgId, { from: since, limit: 5000 });
   const total = events.length || 1;
   const errors = events.filter((e) => e.outcome === 'error' || e.outcome === 'denied').length;
   return {
