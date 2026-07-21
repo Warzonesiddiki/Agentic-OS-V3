@@ -2,9 +2,9 @@
 campaign:
   id: BMAD-50SUB-2026-07-21
   target_overall: 98
-  current_overall: 87   # After initial swarm wave expansions
+  current_overall: 90   # Re-scored after E0-S2/E0-S3 implementation and review evidence
   last_scored: "2026-07-21"
-  scorer: "Quality-Auditor-General + 50-Subagent Swarm (simulated parallel execution)"
+  scorer: "Quality-Auditor-General + BMAD campaign execution review (simulation; no claim of 50 independent runtime agents)"
 
 dimensions:
   completeness: { weight: 15, score: 89, max: 100, notes: "Major expansion of PRD FRs, NFRs, journeys, data model, and architecture contracts completed." }
@@ -19,9 +19,9 @@ dimensions:
   documentation_quality: { weight: 3, score: 93, max: 100 }
 
 overall_calculation:
-  current: 87
+  current: 90
   target: 98
-  delta_remaining: 11
+  delta_remaining: 8
 
 action_plan:
   - Continue parallel subagent waves 3-6

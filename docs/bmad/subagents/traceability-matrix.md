@@ -36,9 +36,25 @@
 
 ## Full Matrix (to be expanded to 200+ rows)
 
-### Detailed Rows (Example)
-- V-GoldenPath-01 → P-J3 → U-TaskDetail → A-TaskOrchestrator → E3-S2 → Sprint-3 → Test: Worker crash injection at checkpoint
-- FR-SAFE-002 (approval classification) → U-ApprovalInbox → A-ApprovalService → E4-S2 → E8-S1 (adversarial) → ...
+### Detailed Rows (Verified implementation evidence)
+
+| Vision / Product | PRD / Contract | UX | Architecture | Epic / Story | Sprint | Evidence / Test |
+|---|---|---|---|---|---|---|
+| Governed project scope | FR-PROJ-001..004 | Project setup/health | Project service + repository boundary | E1-S1 | Sprint-1 | `r1-services.test.ts`, `r1-routes.test.ts` |
+| Retry-safe initialization | Project idempotency invariant | Setup retry state | Repository idempotency constraint | E1-S1 / E0-S3 | Sprint-1 | `InMemoryR1Repositories`, `r1-services.test.ts` |
+| Durable task lifecycle | FR-TASK-001..002 | Task detail/timeline | Task state machine + service | E0-S2 / E0-S3 | Sprint-1 | `r1-types.test.ts`, 59 tests |
+| Project isolation | FR-SAFE-001 | Scoped task access | Repository/service scope enforcement | E0-S3 | Sprint-1 | `in-memory-repositories.test.ts`, R1 route test |
+| Human approval governance | FR-SAFE-002 | Approval inbox | Approval repository + transition table | E0-S2 / E0-S3 | Sprint-1/4 | Approval transition contract tests, SQL migration |
+| Evidence-backed actions | FR-OBS-001..004 | Evidence timeline | Append-only evidence/receipt stores | E0-S3 / E5-S1 | Sprint-1/2 | `0049_r1_contracts.sql`, SQL adapter |
+| Local/shared persistence substitution | NFR-PORT / architecture adapter rule | Degraded/offline states | R1Repositories + SQL/local adapters | E0-S3 | Sprint-1 | SQL adapter contract tests, in-memory adapter tests |
+| Safe failure responses | Security and API error invariant | Error/degraded UI states | Service error mapping | E0-S3 | Sprint-1 | `r1-services.test.ts`, `toR1ApiError` |
+
+### Current implementation traceability status
+
+- E0-S2: complete and reviewed.
+- E0-S3: complete and reviewed.
+- E1-S1: active; persistent database execution evidence remains open.
+- E1–E8: not yet claimed complete; downstream rows must be added as stories execute.
 
 ## Cross-Cutting Concerns
 - Security invariants: mapped to E8-S1, A-Security, FR-SAFE-*
