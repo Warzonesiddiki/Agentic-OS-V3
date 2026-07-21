@@ -70,6 +70,9 @@ import { router as memoryBatchRouter } from './routes/memory-batch.js';
 import { router as memorySearchSuggestRouter } from './routes/memory-search-suggest.js';
 import { memoryDedup } from './routes/memory-dedup.js';
 import { memoryContradiction } from './routes/memory-contradiction.js';
+import { createR1Router } from './routes/r1.js';
+import { createSqlR1Runtime } from './services/r1-runtime.js';
+import { createApplicationSqlExecutor } from './db/client.js';
 
 export const api = new Hono<NexusEnv>();
 
@@ -104,6 +107,8 @@ api.route('/api/memories', memoryContradiction);
 api.route('/', selfOptRouter);
 // Phase 15 — Performance & Scalability (stateless pool, replica router, cache)
 api.route('/perf', perfRoute);
+// Governed R1 project/task API: persistence remains behind the shared repository boundary.
+api.route('/api/v1/r1', createR1Router(createSqlR1Runtime(createApplicationSqlExecutor())));
 // Start the safe-exploration tick (idempotent; defaults to dry-run / advisory).
 void import('./services/self-opt/bootstrap.js').then((m) => m.startSelfOptTick());
 // Start the safe-exploration tick (idempotent; defaults to dry-run / advisory).

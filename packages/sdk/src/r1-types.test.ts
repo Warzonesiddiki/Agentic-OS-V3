@@ -129,7 +129,7 @@ describe('boundary parsers reject untrusted JSON', () => {
     const receipt = parseActionReceipt({
       id: '22222222-2222-4222-8222-222222222222',
       kind: 'tool_call',
-      correlationId: '33333333-3333-4333-8333-333333333333',
+      principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: '33333333-3333-4333-8333-333333333333',
       projectId: '44444444-4444-4444-8444-444444444444',
       actor: 'agent-1',
       decision: 'allow',
@@ -162,7 +162,7 @@ describe('boundary parsers reject untrusted JSON', () => {
     }).risk).toBe('low');
     expect(TaskSchema.parse({
       id: ids.task, projectId: ids.project, state: 'queued', title: 'Inspect',
-      correlationId: ids.correlation, idempotencyKey: 'request-1',
+      principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: ids.correlation, idempotencyKey: 'request-1',
       createdAt: timestamp, updatedAt: timestamp,
     }).state).toBe('queued');
     expect(() => parseTask({})).toThrow();

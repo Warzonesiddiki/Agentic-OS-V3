@@ -13,6 +13,7 @@ import type {
   Evidence,
   Project,
   Task,
+  TaskRecordEvent,
   TaskStep,
 } from './r1-types.js';
 
@@ -46,6 +47,8 @@ export interface TaskRepository {
   /** Implementations must enforce idempotencyKey uniqueness per project. */
   create(task: Task): Promise<Task>;
   update(task: Task): Promise<Task>;
+  /** Events are immutable records created with task state commits. */
+  listEvents(projectId: string, taskId: string): Promise<readonly TaskRecordEvent[]>;
   listSteps(projectId: string, taskId: string): Promise<readonly TaskStep[]>;
   saveStep(step: TaskStep): Promise<TaskStep>;
 }

@@ -11,12 +11,14 @@ import {
   type ActionReceipt,
   type ApprovalEvent,
   type Evidence,
+  MemoryProvenanceSchema,
   type Project,
   type ProjectStatus,
   type Task,
   type TaskEvent,
+  type TaskRecordEvent,
 } from './r1-types.js';
-import type { ApprovalRequest, R1Repositories } from './repositories.js';
+import type { ApprovalRequest, MemoryRecord, R1Repositories } from './repositories.js';
 
 export type ServiceErrorCode =
   | 'PROJECT_NOT_FOUND'
@@ -99,6 +101,18 @@ export class R1Service {
     return this.repositories.tasks.get(projectId, taskId);
   }
 
+  async listTasks(projectId: string): Promise<readonly Task[]> {
+    const project = await this.repositories.projects.get(projectId);
+    if (!project) return Promise.reject(new R1ServiceError('PROJECT_NOT_FOUND', 'Project not found.'));
+    return this.repositories.tasks.list(projectId);
+  }
+
+  async listTaskEvents(projectId: string, taskId: string): Promise<readonly TaskRecordEvent[]> {
+    const task = await this.repositories.tasks.get(projectId, taskId);
+    if (!task) return Promise.reject(new R1ServiceError('TASK_NOT_FOUND', 'Task not found.'));
+    return this.repositories.tasks.listEvents(projectId, taskId);
+  }
+
   async transitionTask(projectId: string, taskId: string, event: TaskEvent): Promise<Task> {
     const task = await this.repositories.tasks.get(projectId, taskId);
     if (!task) return Promise.reject(new R1ServiceError('TASK_NOT_FOUND', 'Task not found.'));
@@ -130,6 +144,35 @@ export class R1Service {
 
   async listTaskEvidence(projectId: string, taskId: string): Promise<readonly Evidence[]> {
     return this.repositories.evidence.listForTask(projectId, taskId);
+  }
+
+  /** Create a scoped memory only after every declared evidence link is verified. */
+  async saveProvenanceMemory(memory: MemoryRecord): Promise<MemoryRecord> {
+    const project = await this.repositories.projects.get(memory.projectId);
+    if (!project) return Promise.reject(new R1ServiceError('PROJECT_NOT_FOUND', 'Project not found.'));
+    const provenance = MemoryProvenanceSchema.parse(memory.metadata.provenance);
+    if (memory.evidenceIds.length === 0 || new Set(memory.evidenceIds).size !== memory.evidenceIds.length) {
+      return Promise.reject(new R1ServiceError('R1_INTERNAL_ERROR', 'Memory evidence links must be unique and non-empty.'));
+    }
+    if (memory.evidenceIds.length !== provenance.evidenceIds.length || memory.evidenceIds.some((id) => !provenance.evidenceIds.includes(id))) {
+      return Promise.reject(new R1ServiceError('R1_INTERNAL_ERROR', 'Memory provenance must match its evidence links.'));
+    }
+    const evidence = await this.repositories.evidence.listForProject(memory.projectId);
+    const known = new Set(evidence.map((record) => record.id));
+    if (memory.evidenceIds.some((id) => !known.has(id))) {
+      return Promise.reject(new R1ServiceError('PROJECT_SCOPE_VIOLATION', 'Memory evidence is outside the project scope.'));
+    }
+    return this.repositories.memories.save(memory);
+  }
+
+  async archiveMemory(projectId: string, memoryId: string): Promise<void> {
+    await this.repositories.memories.archive(projectId, memoryId);
+  }
+
+  async listProvenanceMemories(projectId: string): Promise<readonly MemoryRecord[]> {
+    const project = await this.repositories.projects.get(projectId);
+    if (!project) return Promise.reject(new R1ServiceError('PROJECT_NOT_FOUND', 'Project not found.'));
+    return this.repositories.memories.list(projectId);
   }
 
   async appendActionReceipt(projectId: string, receipt: ActionReceipt): Promise<ActionReceipt> {

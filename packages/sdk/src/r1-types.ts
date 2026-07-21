@@ -223,14 +223,36 @@ export type TaskStep = z.infer<typeof TaskStepSchema>;
 export const TaskSchema = z.object({
   id: z.string().uuid(),
   projectId: z.string().uuid(),
+  /** Authenticated principal that submitted the durable work request. */
+  principalId: z.string().min(1).max(255),
+  /** Explicit agent identity; task execution must not infer this from input. */
+  agentId: z.string().min(1).max(255),
   state: TaskStateSchema,
   title: z.string().min(1).max(500),
+  goal: z.string().min(1).max(20_000),
+  capabilityIds: z.array(z.string().min(1).max(255)).max(100),
+  policyVersion: z.string().min(1).max(100),
+  /** Opaque reference to validated input; raw secret-bearing input is not stored here. */
+  inputReference: z.string().min(1).max(1_000),
+  currentStepId: z.string().uuid().optional(),
   correlationId: z.string().uuid(),
   idempotencyKey: z.string().min(1).max(255),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
 export type Task = z.infer<typeof TaskSchema>;
+
+/** Immutable event emitted by the database when a task is created or changes state. */
+export const TaskRecordEventSchema = z.object({
+  id: z.string().min(1).max(300),
+  projectId: z.string().uuid(),
+  taskId: z.string().uuid(),
+  event: z.enum(['created', 'admit', 'require_approval', 'approve', 'deny', 'complete', 'fail', 'cancel']),
+  state: TaskStateSchema,
+  sequence: z.number().int().nonnegative(),
+  createdAt: z.string().datetime(),
+});
+export type TaskRecordEvent = z.infer<typeof TaskRecordEventSchema>;
 
 /* ------------------------------------------------------------------ *
  * Action receipts and evidence
@@ -272,6 +294,35 @@ export const EvidenceSchema = z.object({
 export type Evidence = z.infer<typeof EvidenceSchema>;
 
 /* ------------------------------------------------------------------ *
+ * Provenance-backed memory metadata (E2-S1)
+ * ------------------------------------------------------------------ */
+
+export const MemoryLifecycleSchema = z.enum(['candidate', 'active', 'archived', 'forgotten']);
+export type MemoryLifecycle = z.infer<typeof MemoryLifecycleSchema>;
+
+/** Metadata that turns retained text into an attributable, policy-reviewable memory. */
+export const MemoryProvenanceSchema = z.object({
+  type: z.enum(['fact', 'preference', 'decision', 'summary', 'instruction']),
+  source: z.string().min(1).max(255),
+  confidence: z.number().min(0).max(1),
+  lifecycle: MemoryLifecycleSchema,
+  agentId: z.string().min(1).max(255).optional(),
+  evidenceIds: z.array(z.string().uuid()).min(1).max(100),
+});
+export type MemoryProvenance = z.infer<typeof MemoryProvenanceSchema>;
+
+export const ProvenanceMemorySchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  content: z.string().min(1).max(100_000),
+  metadata: z.object({ provenance: MemoryProvenanceSchema }).catchall(z.unknown()),
+  evidenceIds: z.array(z.string().uuid()).min(1).max(100),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type ProvenanceMemory = z.infer<typeof ProvenanceMemorySchema>;
+
+/* ------------------------------------------------------------------ *
  * Boundary parsers — the only sanctioned way to ingest untrusted JSON.
  * Each throws a zod ZodError on malformed input rather than silently
  * coercing. Pair these with the `Schema` validators above.
@@ -282,6 +333,8 @@ export const parseCapability = (input: unknown): Capability => CapabilitySchema.
 export const parseTask = (input: unknown): Task => TaskSchema.parse(input);
 export const parseTaskStep = (input: unknown): TaskStep => TaskStepSchema.parse(input);
 export const parseEvidence = (input: unknown): Evidence => EvidenceSchema.parse(input);
+export const parseMemoryProvenance = (input: unknown): MemoryProvenance => MemoryProvenanceSchema.parse(input);
+export const parseProvenanceMemory = (input: unknown): ProvenanceMemory => ProvenanceMemorySchema.parse(input);
 export const parseTaskState = (input: unknown): TaskState => TaskStateSchema.parse(input);
 export const parseApprovalState = (input: unknown): ApprovalState =>
   ApprovalStateSchema.parse(input);

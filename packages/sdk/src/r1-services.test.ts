@@ -17,7 +17,7 @@ const task: Task = {
   projectId: project.id,
   state: 'queued',
   title: 'Inspect',
-  correlationId: '66666666-6666-4666-8666-666666666666',
+  principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: '66666666-6666-4666-8666-666666666666',
   idempotencyKey: 'request-1',
   createdAt: new Date(0).toISOString(),
   updatedAt: new Date(0).toISOString(),
@@ -44,6 +44,16 @@ describe('R1Service', () => {
     const service = new R1Service(repositories, { now: () => '2026-07-21T00:00:00.000Z' });
     await service.initializeProject(project);
     await service.createTask(task);
+
+    await expect(service.listTaskEvents(project.id, task.id)).resolves.toEqual([{
+      id: `${task.id}:created`,
+      projectId: project.id,
+      taskId: task.id,
+      event: 'created',
+      state: 'queued',
+      sequence: 0,
+      createdAt: task.createdAt,
+    }]);
 
     const transitioned = await service.transitionTask(project.id, task.id, 'admit');
     expect(transitioned.state).toBe('running');
@@ -73,7 +83,7 @@ describe('R1Service', () => {
       id: '77777777-7777-4777-8777-777777777777',
       projectId: project.id,
       kind: 'tool_call' as const,
-      correlationId: task.correlationId,
+      principalId: 'principal-test', agentId: 'agent-test', goal: 'durable test goal', capabilityIds: [], policyVersion: 'r1', inputReference: 'input:test', correlationId: task.correlationId,
       actor: 'agent',
       decision: 'allow' as const,
       payload: { taskId: task.id },
@@ -82,6 +92,25 @@ describe('R1Service', () => {
     await expect(service.appendActionReceipt(project.id, receipt)).resolves.toEqual(receipt);
     await expect(service.appendActionReceipt('88888888-8888-4888-8888-888888888888', receipt))
       .rejects.toMatchObject({ code: 'PROJECT_SCOPE_VIOLATION' });
+  });
+
+  it('persists a memory only when its provenance evidence belongs to the project', async () => {
+    const repositories = new InMemoryR1Repositories();
+    const service = new R1Service(repositories);
+    await service.initializeProject(project);
+    const evidenceId = '99999999-9999-4999-8999-999999999999';
+    await service.appendEvidence(project.id, {
+      id: evidenceId, projectId: project.id, kind: 'source', source: 'test', contentHash: 'a'.repeat(64), metadata: {}, createdAt: task.createdAt,
+    });
+    const memory = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', projectId: project.id, content: 'A provenance-backed fact.',
+      metadata: { provenance: { type: 'fact', source: 'test', confidence: 0.9, lifecycle: 'active', evidenceIds: [evidenceId] } },
+      evidenceIds: [evidenceId], createdAt: task.createdAt, updatedAt: task.updatedAt,
+    };
+    await expect(service.saveProvenanceMemory(memory)).resolves.toEqual(memory);
+    await expect(service.listProvenanceMemories(project.id)).resolves.toEqual([memory]);
+    await expect(service.saveProvenanceMemory({ ...memory, id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb', evidenceIds: ['cccccccc-cccc-4ccc-8ccc-cccccccccccc'] }))
+      .rejects.toMatchObject({ code: 'R1_INTERNAL_ERROR' });
   });
 
   it('rejects evidence from another project', async () => {
