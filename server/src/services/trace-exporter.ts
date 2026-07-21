@@ -103,7 +103,7 @@ export class DatabaseSpanExporter implements SpanExporter {
         events: isSqlite ? JSON.stringify(s.events) : s.events,
       }));
 
-      const { spanLogs } = await import('../db/client.js');
+      const { db, spanLogs } = await import('../db/client.js');
       await db
         .insert(spanLogs)
         .values(values as never[])

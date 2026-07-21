@@ -298,5 +298,5 @@ export const nexus = {
   verifyConstantTime: ops.verifyConstantTime,
 };
 
-export { handle };
+export { handle, getState };
 export type { ApiRequest, ApiResponse } from './lib/api';

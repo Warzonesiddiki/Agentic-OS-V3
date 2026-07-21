@@ -45,7 +45,7 @@ export interface LLMCacheOptions {
 }
 
 export class LLMResponseCache {
-  private readonly cache: LRUCache<unknown>;
+  private readonly cache: LRUCache<string, unknown>;
   private readonly ttlMs: number;
   private readonly onlyDeterministic: boolean;
   public hits = 0;
@@ -55,7 +55,7 @@ export class LLMResponseCache {
     this.ttlMs = opts.ttlMs ?? Number(process.env.NEXUS_LLM_CACHE_TTL_MS ?? 0);
     this.onlyDeterministic = opts.onlyDeterministic ?? true;
     const capacity = opts.maxEntries ?? Number(process.env.NEXUS_LLM_CACHE_MAX ?? 2000);
-    this.cache = new LRUCache<unknown>(opts.name ?? 'llm-response', capacity, this.ttlMs);
+    this.cache = new LRUCache<string, unknown>(opts.name ?? 'llm-response', capacity, this.ttlMs);
   }
 
   /** Whether caching is active for the given request. */

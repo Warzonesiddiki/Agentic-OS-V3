@@ -40,7 +40,9 @@ export async function getSharedDispatcher(): Promise<Dispatcher | null> {
   if (sharedDispatcher !== undefined) return sharedDispatcher;
   if (dispatcherError) return null;
   try {
-    const mod = await import('undici');
+    // Keep the specifier non-literal so undici remains an optional dependency.
+    const moduleName: string = 'undici';
+    const mod = await import(moduleName);
     const Agent = (mod as { Agent?: new (opts: Record<string, unknown>) => unknown }).Agent;
     if (Agent) {
       sharedDispatcher = new Agent({ keepAliveTimeout: 30_000, keepAliveMaxTimeout: 120_000, pipelining: 1 });

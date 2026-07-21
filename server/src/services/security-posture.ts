@@ -181,13 +181,21 @@ export async function computePosture(): Promise<PostureReport> {
       return {};
     }
   };
+  const invoke = async <T>(spec: string, name: string, ...args: unknown[]): Promise<T | undefined> => {
+    const candidate = (await dyn(spec))[name];
+    if (typeof candidate !== 'function') return undefined;
+    return (await candidate(...args)) as T;
+  };
   const [auditFailures, activeAnomalies, incidents, siem, secretFindings, breachEvents] =
     await Promise.all([
-      safe(async () => (await dyn('./audit-analytics.js')).countEvents?.('auth_failure') ?? 0, 0),
-      safe(async () => (await dyn('./anomaly-detector.js')).getActiveAnomalies?.()?.length ?? 0, 0),
+      safe(async () => (await invoke<number>('./audit-analytics.js', 'countEvents', 'auth_failure')) ?? 0, 0),
+      safe(async () => (await invoke<unknown[]>('./anomaly-detector.js', 'getActiveAnomalies'))?.length ?? 0, 0),
       safe(
         async () => {
-          const list = (await dyn('./incident-response.js')).listIncidents?.() ?? [];
+          const list = (await invoke<Array<{ status: string; severity?: number }>>(
+            './incident-response.js',
+            'listIncidents',
+          )) ?? [];
           const open = list.filter(
             (i: { status: string; severity?: number }) => i.status !== 'resolved'
           );
@@ -201,14 +209,17 @@ export async function computePosture(): Promise<PostureReport> {
       ),
       safe(
         async () => {
-          const sinks = (await dyn('./siem-forwarder.js')).listSinks?.() ?? [];
-          const healthy = sinks.filter((s: { healthy?: boolean }) => s.healthy).length;
+          const sinks = (await invoke<Array<{ healthy?: boolean }>>(
+            './siem-forwarder.js',
+            'listSinks',
+          )) ?? [];
+          const healthy = sinks.filter((s) => s.healthy).length;
           return { healthy, total: sinks.length };
         },
         { healthy: 1, total: 1 }
       ),
-      safe(async () => (await dyn('./secrets-scanner.js')).scanContent?.('')?.length ?? 0, 0),
-      safe(async () => (await dyn('./breach-notifier.js')).recentBreaches?.()?.length ?? 0, 0),
+      safe(async () => (await invoke<unknown[]>('./secrets-scanner.js', 'scanContent', ''))?.length ?? 0, 0),
+      safe(async () => (await invoke<unknown[]>('./breach-notifier.js', 'recentBreaches'))?.length ?? 0, 0),
     ]);
 
   return computePostureFrom({

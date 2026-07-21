@@ -13,6 +13,7 @@ const CONFIDENTIAL = [/email/i, /phone/i, /address/i, /financial/i, /customer/i,
 const INTERNAL = [/internal/i, /draft/i, /roadmap/i, /salary/i];
 
 export function classify(text: string): DataClass {
+  if (typeof text !== 'string') throw new TypeError('Content to classify must be a string');
   if (RESTRICTED.some((r) => r.test(text))) return 'restricted';
   if (CONFIDENTIAL.some((r) => r.test(text))) return 'confidential';
   if (INTERNAL.some((r) => r.test(text))) return 'internal';

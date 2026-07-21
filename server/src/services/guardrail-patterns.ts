@@ -68,6 +68,7 @@ export function getPatterns(): PatternRule[] {
 export function matchPatterns(text: string): ContentFilterResult {
   const allMatches: string[] = [];
   let matchedName = '';
+  let blocked = false;
   let redacted = text;
 
   for (const rule of getPatterns()) {
@@ -76,12 +77,14 @@ export function matchPatterns(text: string): ContentFilterResult {
     if (found) {
       allMatches.push(...found);
       matchedName = rule.name;
+      blocked ||= rule.action === 'block';
       redacted = redacted.replace(rule.pattern, (m) => '*'.repeat(m.length));
     }
   }
 
   return {
     matched: allMatches.length > 0,
+    blocked,
     pattern: matchedName,
     matches: [...new Set(allMatches)],
     redacted,

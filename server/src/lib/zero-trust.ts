@@ -71,7 +71,10 @@ export function verifyAttestation(token: string): AttestationClaims {
     typeof claims.ring !== 'number' ||
     !Array.isArray(claims.scope)
   ) {
-    throw new ApiError('ZERO_TRUST_FAILURE', 'Attestation token missing required claims.');
+    throw new ApiError(
+      'ZERO_TRUST_FAILURE',
+      'ZERO_TRUST_FAILURE: attestation token missing required claims.',
+    );
   }
   if (claims.exp < Date.now())
     throw new ApiError('ZERO_TRUST_FAILURE', 'Attestation token expired.');

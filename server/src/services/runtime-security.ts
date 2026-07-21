@@ -54,7 +54,13 @@ const DEFAULT_BLOCKED_MODULES = [
 
 // Patterns that materially raise risk of hostile behavior.
 const HEURISTICS: { id: string; weight: number; pattern: RegExp }[] = [
-  { id: 'eval', weight: 30, pattern: /\b(eval|new\s+Function|setTimeout|setInterval)\s*\(/g },
+  {
+    id: 'child-process',
+    weight: 70,
+    pattern: /(?:node:)?child_process|\b(?:exec|execFile|spawn|fork)\s*\(/g,
+  },
+  { id: 'eval', weight: 60, pattern: /\b(eval|new\s+Function)\s*\(/g },
+  { id: 'timer', weight: 10, pattern: /\b(setTimeout|setInterval)\s*\(/g },
   {
     id: 'obfuscation',
     weight: 25,
@@ -96,6 +102,7 @@ export function scoreCode(code: string): GuardVerdict {
   const matched: string[] = [];
   let score = 0;
   for (const h of HEURISTICS) {
+    h.pattern.lastIndex = 0;
     if (h.pattern.test(code)) {
       score += h.weight;
       reasons.push(`heuristic:${h.id}`);

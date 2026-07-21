@@ -1359,8 +1359,16 @@ export function getSchedulerLatency(): QueueLatencySummary {
   const pct = getQueueLatencyPercentiles();
   const out: QueueLatencySummary = {};
   for (const [queue, v] of Object.entries(pct)) {
-    const samples = latencySamples.get(queue) ?? [];
-    const mean = samples.length ? samples.reduce((a, b) => a + b, 0) / samples.length : 0;
+    const buf = latencyBuffers.get(queue);
+    const count = latencyCount.get(queue) ?? 0;
+    const head = latencyHead.get(queue) ?? 0;
+    let total = 0;
+    if (buf) {
+      for (let i = 0; i < count; i++) {
+        total += buf[(head - count + i + MAX_SAMPLES) % MAX_SAMPLES] ?? 0;
+      }
+    }
+    const mean = count > 0 ? total / count : 0;
     out[queue] = { samples: v.samples, p50: v.p50, p90: v.p90, p99: v.p99, p999: v.p999, mean };
   }
   return out;

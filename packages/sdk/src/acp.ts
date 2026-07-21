@@ -33,6 +33,18 @@ export class AcpClient {
     this.apiKey = apiKey;
   }
 
+  static toJsonRpc(request: AcpRequest): string {
+    return JSON.stringify(request);
+  }
+
+  static fromJsonRpc(raw: string): AcpResponse {
+    const value: unknown = JSON.parse(raw);
+    if (!value || typeof value !== 'object' || (value as { jsonrpc?: unknown }).jsonrpc !== '2.0') {
+      throw new Error('Invalid ACP JSON-RPC response');
+    }
+    return value as AcpResponse;
+  }
+
   async call(method: string, params?: unknown): Promise<unknown> {
     const body: AcpRequest = {
       jsonrpc: '2.0',
