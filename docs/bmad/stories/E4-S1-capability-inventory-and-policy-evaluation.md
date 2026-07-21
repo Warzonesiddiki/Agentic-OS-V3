@@ -13,7 +13,8 @@
 - [x] Enforce project/agent allowlists and default-deny behavior in the evaluator.
 - [x] Cover allow/deny/approval, unavailable capability, malformed input, and scope-escalation cases with unit tests.
 - [x] Provide persistence-neutral SQL and in-memory stores for governed capability metadata, project/agent grants, and one active policy.
-- [ ] Execute the store through the application database client and expose a scope-authorized capability registration/evaluation API.
+- [x] Execute the store through the application SQLite client and expose scope-authorized capability registration/policy/evaluation APIs.
+- [ ] Execute the governed capability store and policy API contract against PostgreSQL.
 
 ## Evidence
 

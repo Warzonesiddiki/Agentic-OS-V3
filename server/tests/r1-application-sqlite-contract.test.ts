@@ -2,11 +2,12 @@ import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createSqlR1Repositories } from '@agentic-os/sdk';
+import { createSqlR1Repositories, SqlCapabilityGovernanceStore } from '@agentic-os/sdk';
 
 const migration = [
   readFileSync(new URL('../src/db/migrations/0049_r1_contracts.sqlite.sql', import.meta.url), 'utf8'),
   readFileSync(new URL('../src/db/migrations/0050_r1_durable_task_metadata.sqlite.sql', import.meta.url), 'utf8'),
+  readFileSync(new URL('../src/db/migrations/0051_r1_capability_governance.sqlite.sql', import.meta.url), 'utf8'),
 ].join('\n');
 const timestamp = '2026-07-21T00:00:00.000Z';
 const project = {
@@ -42,6 +43,22 @@ describe('R1 SQLite application-client contract', () => {
     const repositories = createSqlR1Repositories(client.createApplicationSqlExecutor());
 
     await expect(repositories.projects.create(project)).resolves.toEqual(project);
+
+    const governance = new SqlCapabilityGovernanceStore(client.createApplicationSqlExecutor());
+    const governedCapability = {
+      id: 'file.write', name: 'Write a project file', source: 'native' as const,
+      version: '1.0.0', owner: 'contract-test', inputSchema: { type: 'object' },
+      risk: 'high' as const, scope: { projectIds: [project.id], agentIds: ['agent-contract'] },
+      health: 'healthy' as const, enabled: true,
+    };
+    await expect(governance.saveCapability(governedCapability)).resolves.toEqual(governedCapability);
+    await expect(governance.saveActivePolicy({
+      version: 'policy-contract',
+      rules: [{ id: 'write-approval', capabilityId: 'file.write', decision: 'require_approval' as const }],
+    })).resolves.toEqual({
+      version: 'policy-contract',
+      rules: [{ id: 'write-approval', capabilityId: 'file.write', decision: 'require_approval' }],
+    });
 
     const originalTask = {
       id: '22222222-2222-4222-8222-222222222222',
