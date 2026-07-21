@@ -338,15 +338,18 @@ stories:
     title: Capability inventory and policy evaluation
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-3
     dependencies:
       - E0-S2
       - E1-S1
-    implementation_owner: unassigned
+    implementation_owner: arena-agent
     review_owner: unassigned
-    blocker: null
-    evidence: []
+    blocker: "Governed capability persistence and API integration are pending."
+    evidence:
+      - docs/bmad/stories/E4-S1-capability-inventory-and-policy-evaluation.md
+      - packages/sdk/src/capability-policy.ts
+      - packages/sdk/src/capability-policy.test.ts
 
   E4-S2:
     epic: E4
