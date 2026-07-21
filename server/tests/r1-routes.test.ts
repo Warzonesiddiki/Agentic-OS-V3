@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Hono } from 'hono';
-import { InMemoryR1Repositories } from '@agentic-os/sdk';
+import { InMemoryCapabilityGovernanceStore, InMemoryR1Repositories } from '@agentic-os/sdk';
 import type { Principal } from '../src/lib/security.js';
 import type { NexusEnv } from '../src/lib/hono-env.js';
 import { createR1Router } from '../src/routes/r1.js';
@@ -35,7 +35,7 @@ describe('governed R1 routes', () => {
         await next();
       });
     }
-    app.route('/api/v1/r1', createR1Router(createR1Runtime(new InMemoryR1Repositories())));
+    app.route('/api/v1/r1', createR1Router(createR1Runtime(new InMemoryR1Repositories(), new InMemoryCapabilityGovernanceStore())));
     return app;
   };
 

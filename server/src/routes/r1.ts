@@ -1,6 +1,9 @@
 /** Governed R1 routes. These handlers depend only on the R1 service boundary. */
 import { Hono } from 'hono';
 import {
+  CapabilityPolicySchema,
+  CapabilityRequestSchema,
+  GovernedCapabilitySchema,
   parseActionReceipt,
   parseProject,
   parseTask,
@@ -106,6 +109,21 @@ export function createR1Router(runtime: R1Runtime): Hono<NexusEnv> {
     await requireScope(c, 'memory:read');
     const receipts = await runtime.service.listTaskReceipts(c.req.param('projectId'), c.req.param('taskId'));
     return c.json({ receipts }, 200);
+  });
+
+  router.post('/capabilities', async (c) => {
+    await requireScope(c, 'brain:admin');
+    return c.json(await runtime.governance.register(GovernedCapabilitySchema.parse(await c.req.json())), 201);
+  });
+
+  router.put('/capability-policy', async (c) => {
+    await requireScope(c, 'brain:admin');
+    return c.json(await runtime.governance.setActivePolicy(CapabilityPolicySchema.parse(await c.req.json())), 200);
+  });
+
+  router.post('/capability-policy/evaluate', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json(await runtime.governance.evaluate(CapabilityRequestSchema.parse(await c.req.json())), 200);
   });
 
   return router;
