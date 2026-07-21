@@ -8,6 +8,9 @@ import {
   ApprovalStateSchema,
   ApprovalEventSchema,
   ProjectSchema,
+  CapabilitySchema,
+  TaskSchema,
+  EvidenceSchema,
   ActionReceiptSchema,
   transitionTask,
   canTransitionTask,
@@ -16,6 +19,9 @@ import {
   InvalidTaskTransitionError,
   InvalidApprovalTransitionError,
   parseProject,
+  parseCapability,
+  parseTask,
+  parseEvidence,
   parseTaskState,
   parseApprovalState,
   parsePolicyDecision,
@@ -137,5 +143,37 @@ describe('boundary parsers reject untrusted JSON', () => {
   it('ProjectSchema is the source of truth for Project type', () => {
     expect(ProjectSchema.safeParse({ mode: 'shared' }).success).toBe(false);
     expect(ActionReceiptSchema.safeParse({ kind: 'db_write' }).success).toBe(false);
+  });
+
+  it('validates capability, task, and evidence contracts', () => {
+    const ids = {
+      project: '44444444-4444-4444-8444-444444444444',
+      task: '55555555-5555-4555-8555-555555555555',
+      correlation: '66666666-6666-4666-8666-666666666666',
+    };
+    const timestamp = new Date(0).toISOString();
+    expect(CapabilitySchema.parse({
+      id: 'fs.read', name: 'Read files', source: 'native', version: '1.0.0',
+      owner: 'runtime', scope: { projectId: ids.project }, risk: 'low', enabled: true,
+    }).id).toBe('fs.read');
+    expect(parseCapability({
+      id: 'fs.read', name: 'Read files', source: 'native', version: '1.0.0',
+      owner: 'runtime', scope: { projectId: ids.project }, risk: 'low', enabled: true,
+    }).risk).toBe('low');
+    expect(TaskSchema.parse({
+      id: ids.task, projectId: ids.project, state: 'queued', title: 'Inspect',
+      correlationId: ids.correlation, idempotencyKey: 'request-1',
+      createdAt: timestamp, updatedAt: timestamp,
+    }).state).toBe('queued');
+    expect(() => parseTask({})).toThrow();
+    expect(EvidenceSchema.safeParse({
+      id: '77777777-7777-4777-8777-777777777777', projectId: ids.project,
+      taskId: ids.task, kind: 'trace', source: 'worker', contentHash: 'not-a-hash',
+      metadata: {}, createdAt: timestamp,
+    }).success).toBe(false);
+    expect(parseEvidence({
+      id: '77777777-7777-4777-8777-777777777777', projectId: ids.project,
+      kind: 'trace', source: 'worker', contentHash: 'a'.repeat(64), metadata: {}, createdAt: timestamp,
+    }).kind).toBe('trace');
   });
 });

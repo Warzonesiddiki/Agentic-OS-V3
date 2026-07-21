@@ -194,7 +194,46 @@ export function transitionApproval(from: ApprovalState, event: ApprovalEvent): A
 }
 
 /* ------------------------------------------------------------------ *
- * Action receipts & evidence
+ * Capabilities and task payloads
+ * ------------------------------------------------------------------ */
+
+/** Explicit inventory entry used by policy evaluation (FR-CAP-001). */
+export const CapabilitySchema = z.object({
+  id: z.string().min(1).max(255),
+  name: z.string().min(1).max(255),
+  source: z.enum(['native', 'mcp', 'a2a', 'provider', 'skill']),
+  version: z.string().min(1).max(100),
+  owner: z.string().min(1).max(255),
+  scope: z.record(z.string()),
+  risk: RiskLevelSchema,
+  enabled: z.boolean(),
+});
+export type Capability = z.infer<typeof CapabilitySchema>;
+
+export const TaskStepSchema = z.object({
+  id: z.string().uuid(),
+  taskId: z.string().uuid(),
+  name: z.string().min(1).max(255),
+  state: StepStateSchema,
+  sequence: z.number().int().nonnegative(),
+  capabilityId: z.string().min(1).max(255).optional(),
+});
+export type TaskStep = z.infer<typeof TaskStepSchema>;
+
+export const TaskSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  state: TaskStateSchema,
+  title: z.string().min(1).max(500),
+  correlationId: z.string().uuid(),
+  idempotencyKey: z.string().min(1).max(255),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type Task = z.infer<typeof TaskSchema>;
+
+/* ------------------------------------------------------------------ *
+ * Action receipts and evidence
  * ------------------------------------------------------------------ */
 
 export const ReceiptKindSchema = z.enum([
@@ -219,6 +258,19 @@ export const ActionReceiptSchema = z.object({
 });
 export type ActionReceipt = z.infer<typeof ActionReceiptSchema>;
 
+/** Append-only provenance record linked from task timelines and exports. */
+export const EvidenceSchema = z.object({
+  id: z.string().uuid(),
+  projectId: z.string().uuid(),
+  taskId: z.string().uuid().optional(),
+  kind: z.enum(['provenance', 'trace', 'receipt', 'approval', 'source']),
+  source: z.string().min(1).max(255),
+  contentHash: z.string().regex(/^[a-f0-9]{64}$/i),
+  metadata: z.record(z.unknown()),
+  createdAt: z.string().datetime(),
+});
+export type Evidence = z.infer<typeof EvidenceSchema>;
+
 /* ------------------------------------------------------------------ *
  * Boundary parsers — the only sanctioned way to ingest untrusted JSON.
  * Each throws a zod ZodError on malformed input rather than silently
@@ -226,6 +278,10 @@ export type ActionReceipt = z.infer<typeof ActionReceiptSchema>;
  * ------------------------------------------------------------------ */
 
 export const parseProject = (input: unknown): Project => ProjectSchema.parse(input);
+export const parseCapability = (input: unknown): Capability => CapabilitySchema.parse(input);
+export const parseTask = (input: unknown): Task => TaskSchema.parse(input);
+export const parseTaskStep = (input: unknown): TaskStep => TaskStepSchema.parse(input);
+export const parseEvidence = (input: unknown): Evidence => EvidenceSchema.parse(input);
 export const parseTaskState = (input: unknown): TaskState => TaskStateSchema.parse(input);
 export const parseApprovalState = (input: unknown): ApprovalState =>
   ApprovalStateSchema.parse(input);

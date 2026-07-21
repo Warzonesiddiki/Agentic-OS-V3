@@ -111,60 +111,94 @@ stories:
     title: Define shared R1 domain types and state enums
     points: 5
     priority: P0
-    status: in_progress
+    status: done
     sprint: sprint-1
     dependencies:
       - E0-S1
-    implementation_owner: bmad-master
+    implementation_owner: arena-agent
     review_owner: senior-review
     blocker: null
     evidence:
       - packages/sdk/src/r1-types.ts
       - packages/sdk/src/r1-types.test.ts
       - packages/sdk/src/index.ts
+      - docs/bmad/stories/E0-S2-define-shared-r1-domain-types-and-state-enums.md
+      - docs/bmad/reviews/E0-S2-code-review.md
 
   E0-S3:
     epic: E0
     title: Introduce repository/service boundaries
     points: 5
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-1
     dependencies:
       - E0-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
+    implementation_owner: arena-agent
+    review_owner: senior-review
     blocker: null
-    evidence: []
+    evidence:
+      - packages/sdk/src/repositories.ts
+      - packages/sdk/src/in-memory-repositories.ts
+      - packages/sdk/src/in-memory-repositories.test.ts
+      - packages/sdk/src/r1-services.ts
+      - packages/sdk/src/r1-services.test.ts
+      - packages/sdk/src/index.ts
+      - server/src/services/r1-runtime.ts
+      - server/src/routes/r1.ts
+      - server/src/db/migrations/0049_r1_contracts.sql
+      - packages/sdk/src/sql-repositories.ts
+      - packages/sdk/src/sql-repositories.test.ts
+      - server/tests/r1-runtime.test.ts
+      - server/tests/r1-routes.test.ts
+      - docs/bmad/stories/E0-S3-introduce-repository-service-boundaries.md
+      - docs/bmad/reviews/E0-S3-code-review.md
 
   E1-S1:
     epic: E1
     title: Initialize and inspect a project scope
     points: 3
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-1
     dependencies:
       - E0-S2
       - E0-S3
-    implementation_owner: unassigned
-    review_owner: unassigned
+    implementation_owner: arena-agent
+    review_owner: senior-review
     blocker: null
-    evidence: []
+    evidence:
+      - packages/sdk/src/r1-services.ts
+      - packages/sdk/src/r1-services.test.ts
+      - packages/sdk/src/in-memory-repositories.test.ts
+      - packages/sdk/src/sql-repositories.ts
+      - server/src/routes/r1.ts
+      - server/tests/r1-routes.test.ts
+      - server/src/db/migrations/0049_r1_contracts.sql
+      - server/src/db/migrations/0049_r1_contracts.sqlite.sql
+      - docs/bmad/stories/E1-S1-initialize-and-inspect-project-scope.md
+      - docs/bmad/reviews/E1-S1-code-review.md
 
   E1-S2:
     epic: E1
     title: Implement local persistence adapter
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-2
     dependencies:
       - E0-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
+      - E1-S1
+    implementation_owner: arena-agent
+    review_owner: senior-review
+    blocker: "Application database-client contract execution remains blocked by the better-sqlite3 native install issue."
+    evidence:
+      - server/src/db/migrations/0049_r1_contracts.sqlite.sql
+      - server/tests/r1-sqlite-restart.test.ts
+      - packages/sdk/src/sql-repositories.ts
+      - packages/sdk/src/in-memory-repositories.ts
+      - packages/sdk/src/sql-repositories.test.ts
+      - docs/bmad/stories/E1-S2-implement-local-persistence-adapter.md
 
   E1-S3:
     epic: E1
