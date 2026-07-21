@@ -7,6 +7,7 @@ export * from './acp.js';
 export * from './types.js';
 export * from './r1-types.js';
 export * from './capability-policy.js';
+export * from './capability-governance-store.js';
 export * from './repositories.js';
 export * from './in-memory-repositories.js';
 export * from './r1-services.js';

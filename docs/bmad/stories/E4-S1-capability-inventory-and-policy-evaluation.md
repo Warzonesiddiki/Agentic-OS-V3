@@ -12,8 +12,8 @@
 - [x] Keep the evaluator independent of model output, tool annotations, and tool execution.
 - [x] Enforce project/agent allowlists and default-deny behavior in the evaluator.
 - [x] Cover allow/deny/approval, unavailable capability, malformed input, and scope-escalation cases with unit tests.
-- [ ] Persist governed capability metadata and project/agent grants through the application database adapter.
-- [ ] Expose a scope-authorized capability registration/evaluation API.
+- [x] Provide persistence-neutral SQL and in-memory stores for governed capability metadata, project/agent grants, and one active policy.
+- [ ] Execute the store through the application database client and expose a scope-authorized capability registration/evaluation API.
 
 ## Evidence
 
