@@ -38,7 +38,6 @@ export async function initOtel(): Promise<void> {
 
     // OTel SDKs ship without TS declarations for every class — cast through Record
     // to avoid eslint noise while preserving runtime correctness.
-    /* eslint-disable @typescript-eslint/no-explicit-any */
     const provider = new (traceNode as Record<string, any>).NodeTracerProvider({ resource });
     const exporter = new (traceHttp as Record<string, any>).OTLPTraceExporter({
       url: env.NEXUS_OTEL_ENDPOINT,
@@ -53,7 +52,6 @@ export async function initOtel(): Promise<void> {
     instr.registerInstrumentations({
       instrumentations: [new (instrHttp as Record<string, any>).HttpInstrumentation()],
     });
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     _provider = provider;
     _initialized = true;

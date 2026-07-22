@@ -1,11 +1,11 @@
 use super::CanonicalModel;
 use anyhow::{Context, Result};
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use std::collections::HashMap;
 use std::path::Path;
 
 /// Cached bundled canonical model registry
-static BUNDLED_REGISTRY: Lazy<Result<CanonicalModelRegistry>> = Lazy::new(|| {
+static BUNDLED_REGISTRY: Lazy<Result<CanonicalModelRegistry>> = LazyLock::new(|| {
     const CANONICAL_MODELS_JSON: &str = include_str!("data/canonical_models.json");
 
     let models: Vec<CanonicalModel> = serde_json::from_str(CANONICAL_MODELS_JSON)

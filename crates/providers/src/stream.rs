@@ -1,4 +1,5 @@
-use anyhow::Result;
+use crate::errors::ProviderError;
+pub type Result<T> = std::result::Result<T, ProviderError>;
 use async_stream::try_stream;
 use futures::{Stream, StreamExt};
 use serde::{Deserialize, Serialize};

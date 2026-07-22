@@ -7,7 +7,9 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { sql, desc } from 'drizzle-orm';
-import { createMemory, captureSession, recordFeedback, isKillSwitchOn } from './services.js';
+import { createMemory, captureSession } from './services/memory.service.js';
+import { recordFeedback } from './services/feedback.service.js';
+import { isKillSwitchOn } from './services/safety.service.js';
 import { recall } from './services/recall.js';
 import { verifyAuditChain } from './lib/audit.js';
 import { db } from './db/client.js';
@@ -327,60 +329,6 @@ export function createNexusMcpServer(actor: string, scopes: Scope[]): McpServer 
     const jobs = await listCronJobs();
     return { content: [{ type: 'text', text: JSON.stringify({ jobs }) }] };
   });
-
-  /* ---- Phase 5: Browser Automation (stubbed — browser service removed) ---- */
-
-  server.tool(
-    'nexus_browser_navigate',
-    'Navigate to a URL and extract page text.',
-    {
-      url: z.string().url(),
-      agentId: z.string(),
-    },
-    async () => {
-      if (!can('memory:write')) return deny('nexus_browser_navigate', 'memory:write');
-      return {
-        content: [
-          { type: 'text', text: JSON.stringify({ error: 'Browser automation not available' }) },
-        ],
-      };
-    }
-  );
-
-  server.tool(
-    'nexus_browser_extract',
-    'Extract text content from a web page.',
-    {
-      url: z.string().url(),
-      selector: z.string().optional(),
-      agentId: z.string(),
-    },
-    async () => {
-      if (!can('memory:read')) return deny('nexus_browser_extract', 'memory:read');
-      return {
-        content: [
-          { type: 'text', text: JSON.stringify({ error: 'Browser automation not available' }) },
-        ],
-      };
-    }
-  );
-
-  server.tool(
-    'nexus_browser_screenshot',
-    'Take a screenshot of a web page.',
-    {
-      url: z.string().url(),
-      agentId: z.string(),
-    },
-    async () => {
-      if (!can('memory:read')) return deny('nexus_browser_screenshot', 'memory:read');
-      return {
-        content: [
-          { type: 'text', text: JSON.stringify({ error: 'Browser automation not available' }) },
-        ],
-      };
-    }
-  );
 
   /* ---- Phase 4: Ambient Ingestion ---- */
 

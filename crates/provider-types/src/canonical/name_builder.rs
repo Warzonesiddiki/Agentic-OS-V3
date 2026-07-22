@@ -1,10 +1,10 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use regex::Regex;
 
 // Patterns for normalizing version numbers and stripping suffixes
-static NORMALIZE_VERSION_RE: Lazy<Regex> = Lazy::new(|| Regex::new(r"-(\d)-(\d)(-|@|$)").unwrap());
+static NORMALIZE_VERSION_RE: Lazy<Regex> = LazyLock::new(|| Regex::new(r"-(\d)-(\d)(-|@|$)").unwrap());
 
-static STRIP_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
+static STRIP_PATTERNS: Lazy<Vec<Regex>> = LazyLock::new(|| {
     vec![
         Regex::new(r"-latest$").unwrap(),
         Regex::new(r"-\d{8}$").unwrap(),
@@ -15,7 +15,7 @@ static STRIP_PATTERNS: Lazy<Vec<Regex>> = Lazy::new(|| {
     ]
 });
 
-static CLAUDE_PATTERNS: Lazy<Vec<(Regex, Regex, &'static str)>> = Lazy::new(|| {
+static CLAUDE_PATTERNS: Lazy<Vec<(Regex, Regex, &'static str)>> = LazyLock::new(|| {
     ["sonnet", "opus", "haiku"]
         .iter()
         .map(|&size| {

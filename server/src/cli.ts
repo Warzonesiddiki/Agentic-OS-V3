@@ -19,7 +19,7 @@
  */
 import { db, closeDb } from './db/client.js';
 import { recall } from './services/recall.js';
-import { createMemory, captureSession } from './services.js';
+import { createMemory, captureSession } from './services/memory.service.js';
 import { exportBrain, importBrain } from './services/brain.js';
 import { verifyAuditChain } from './lib/audit.js';
 import { dbReachable } from './setup.js';

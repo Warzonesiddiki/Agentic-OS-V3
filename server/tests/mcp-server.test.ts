@@ -95,11 +95,16 @@ vi.mock('../src/services/operations-ext.js', () => ({
   ingestAmbientTranscript: vi.fn(async () => ({ ingested: true, chunks: 2 })),
 }));
 
-vi.mock('../src/services.js', () => ({
+vi.mock('../src/services/memory.service.js', () => ({
   createMemory: vi.fn(async (input: Record<string, unknown>) => mem({ title: input.title, content: input.content })),
   captureSession: vi.fn(async () => ({ captured: true, skills: 1, memories: 2 })),
+}));
+vi.mock('../src/services/feedback.service.js', () => ({
   recordFeedback: vi.fn(async () => ({ recorded: true })),
+}));
+vi.mock('../src/services/safety.service.js', () => ({
   isKillSwitchOn: vi.fn(async () => false),
+  assertOperational: vi.fn(async () => {}),
 }));
 
 const { createNexusMcpServer } = await import('../src/mcp.js');
@@ -136,10 +141,11 @@ afterAll(async () => {
 // Tool execution
 // ---------------------------------------------------------------------------
 describe('Nexus MCP server — tools', () => {
-  it('lists all registered tools (≥14)', async () => {
+  it('lists all registered tools (≥11 after browser stub removal)', async () => {
     const { tools } = await client.listTools();
     const names = tools.map((t) => t.name);
-    expect(names.length).toBeGreaterThanOrEqual(14);
+    // 16 originally - 3 browser stubs removed per Phase 6.2 = 13 expected
+    expect(names.length).toBeGreaterThanOrEqual(11);
     for (const expected of [
       'nexus_recall',
       'nexus_remember',
@@ -152,14 +158,15 @@ describe('Nexus MCP server — tools', () => {
       'nexus_scheduler',
       'nexus_cron_create',
       'nexus_cron_list',
-      'nexus_browser_navigate',
-      'nexus_browser_extract',
-      'nexus_browser_screenshot',
       'nexus_ambient_ingest',
       'nexus_acl_check',
     ]) {
       expect(names, `missing ${expected}`).toContain(expected);
     }
+    // Verify browser stubs are removed
+    expect(names).not.toContain('nexus_browser_navigate');
+    expect(names).not.toContain('nexus_browser_extract');
+    expect(names).not.toContain('nexus_browser_screenshot');
   });
 
   it('nexus_recall executes', async () => {
@@ -257,34 +264,23 @@ describe('Nexus MCP server — tools', () => {
     expect(Array.isArray(data.jobs)).toBe(true);
   });
 
-  it('nexus_browser_navigate returns stubbed payload', async () => {
-    const r = await client.callTool({
+  it('nexus_browser tools removed per Phase 6.2', async () => {
+    // Browser automation stubs were deleted per Phase 6.2 – calling should error
+    const r1 = await client.callTool({
       name: 'nexus_browser_navigate',
       arguments: { url: 'https://example.com', agentId: 'a1' },
     });
-    expect(r.isError).toBeFalsy();
-    const data = JSON.parse((r.content as { text: string }[])[0].text);
-    expect(data.error).toContain('not available');
-  });
-
-  it('nexus_browser_extract returns stubbed payload', async () => {
-    const r = await client.callTool({
+    expect(r1.isError).toBe(true);
+    const r2 = await client.callTool({
       name: 'nexus_browser_extract',
       arguments: { url: 'https://example.com', agentId: 'a1' },
     });
-    expect(r.isError).toBeFalsy();
-    const data = JSON.parse((r.content as { text: string }[])[0].text);
-    expect(data.error).toContain('not available');
-  });
-
-  it('nexus_browser_screenshot returns stubbed payload', async () => {
-    const r = await client.callTool({
+    expect(r2.isError).toBe(true);
+    const r3 = await client.callTool({
       name: 'nexus_browser_screenshot',
       arguments: { url: 'https://example.com', agentId: 'a1' },
     });
-    expect(r.isError).toBeFalsy();
-    const data = JSON.parse((r.content as { text: string }[])[0].text);
-    expect(data.error).toContain('not available');
+    expect(r3.isError).toBe(true);
   });
 
   it('nexus_ambient_ingest executes', async () => {

@@ -258,7 +258,7 @@ export const apiClient = {
 
   // ───────────────────────────────────────────────────────────────
   // PHASE 17 — Enterprise Features (OIDC/SAML, RBAC, multi-tenant, billing, audit, SIEM)
-  // Every call hits the real Hono backend. No localStorage demo fallback.
+  // Every call hits the real Hono backend. No demo fallback.
   // ───────────────────────────────────────────────────────────────
 
   // Multi-tenant org / workspace hierarchy

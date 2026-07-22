@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * security.ts — real API-key auth & authorization.
  * Keys are hashed with scrypt (Node's audited KDF) and never stored raw.
@@ -167,6 +166,7 @@ interface PrincipalRow {
   status: string;
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Db type is polymorphic Postgres/SQLite; narrowed at callsite
 async function loadPrincipals(db: any): Promise<PrincipalRow[]> {
   const now = Date.now();
   if (principalCache && now - principalCache.at < PRINCIPAL_TTL_MS) return principalCache.rows;
@@ -202,6 +202,7 @@ export function invalidateAuthCache(): void {
 }
 
 /** Resolve a principal by raw key, with bounded caching of POSITIVE results only. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Db type is polymorphic Postgres/SQLite; narrowed at callsite
 export async function authenticate(db: any, key: string | null): Promise<Principal | null> {
   if (!key) return null;
   const now = Date.now();
@@ -294,6 +295,7 @@ export interface PrincipalSummary {
 }
 
 export async function createPrincipal(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Db type is polymorphic Postgres/SQLite; narrowed at callsite
   db: any,
   name: string,
   scopes: Scope[]
@@ -308,6 +310,7 @@ export async function createPrincipal(
 }
 
 export async function listPrincipals(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Db type is polymorphic Postgres/SQLite; narrowed at callsite
   db: any,
   opts?: { limit?: number; offset?: number }
 ): Promise<{ items: PrincipalSummary[]; total: number }> {
@@ -319,6 +322,7 @@ export async function listPrincipals(
     db.select({ count: sql<number>`count(*)` }).from(apiKeys),
   ]);
   const total = Number(countResult[0]?.count ?? 0);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Db type is polymorphic Postgres/SQLite; narrowed at callsite
   const items = rows.map((r: any) => ({
     id: r.id,
     name: r.name,
@@ -332,6 +336,7 @@ export async function listPrincipals(
   return { items, total };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- Db type is polymorphic Postgres/SQLite; narrowed at callsite
 export async function revokePrincipal(db: any, id: string): Promise<boolean> {
   const [updated] = await db
     .update(apiKeys)

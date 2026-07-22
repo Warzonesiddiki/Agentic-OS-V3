@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- The unified runtime adapter intentionally erases incompatible Drizzle SQLite/Postgres generic types at this single boundary. */
 /**
  * client.ts — Unified SQLite (default) / PostgreSQL client with auto-detection.
  *
@@ -55,6 +54,7 @@ const _writeMutex = new Mutex();
 
 function isSqliteBusyError(err: unknown): boolean {
   if (err && typeof err === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
     const msg = String((err as any).message || '');
     return msg.includes('SQLITE_BUSY') || msg.includes('database is locked');
   }
@@ -90,6 +90,30 @@ function createSqliteDb() {
         INSERT INTO memories_fts(memories_fts, id, title, content, tags) VALUES('delete', old.id, old.title, old.content, old.tags);
         INSERT INTO memories_fts(id, title, content, tags) VALUES (new.id, new.title, new.content, new.tags);
       END;
+
+      CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(id UNINDEXED, name, title, description, content, tags, category);
+      CREATE TRIGGER IF NOT EXISTS skills_ai AFTER INSERT ON skills BEGIN
+        INSERT INTO skills_fts(id, name, title, description, content, tags, category) VALUES (new.id, new.name, new.title, new.description, new.content, new.tags, new.category);
+      END;
+      CREATE TRIGGER IF NOT EXISTS skills_ad AFTER DELETE ON skills BEGIN
+        INSERT INTO skills_fts(skills_fts, id, name, title, description, content, tags, category) VALUES('delete', old.id, old.name, old.title, old.description, old.content, old.tags, old.category);
+      END;
+      CREATE TRIGGER IF NOT EXISTS skills_au AFTER UPDATE ON skills BEGIN
+        INSERT INTO skills_fts(skills_fts, id, name, title, description, content, tags, category) VALUES('delete', old.id, old.name, old.title, old.description, old.content, old.tags, old.category);
+        INSERT INTO skills_fts(id, name, title, description, content, tags, category) VALUES (new.id, new.name, new.title, new.description, new.content, new.tags, new.category);
+      END;
+
+      CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(id UNINDEXED, title, content, path);
+      CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
+        INSERT INTO notes_fts(id, title, content, path) VALUES (new.id, new.title, new.content, new.path);
+      END;
+      CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
+        INSERT INTO notes_fts(notes_fts, id, title, content, path) VALUES('delete', old.id, old.title, old.content, old.path);
+      END;
+      CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
+        INSERT INTO notes_fts(notes_fts, id, title, content, path) VALUES('delete', old.id, old.title, old.content, old.path);
+        INSERT INTO notes_fts(id, title, content, path) VALUES (new.id, new.title, new.content, new.path);
+      END;
     `);
   } catch {
     // FTS5 may not be compiled in; ignore.
@@ -98,6 +122,7 @@ function createSqliteDb() {
 
   // Use require for drizzle-orm/better-sqlite3 — drizzle-orm v0.45 ships CJS
   const { drizzle } = require('drizzle-orm/better-sqlite3') as {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
     drizzle: (client: any, opts?: { schema?: Record<string, any> }) => any;
   };
   return drizzle(conn, { schema: sqliteSchema });
@@ -106,6 +131,7 @@ function createSqliteDb() {
 function createPgDb() {
   const postgres = require('postgres');
   const { drizzle } = require('drizzle-orm/postgres-js') as {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
     drizzle: (client: any, opts?: { schema?: Record<string, any> }) => any;
   };
   const client = postgres(rawUrl, {
@@ -117,6 +143,7 @@ function createPgDb() {
   return drizzle(client, { schema: pgSchema });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
 export type DatabaseType = any;
 // DbTx is defined below, so we remove the duplicate at line 122
 
@@ -245,6 +272,7 @@ export async function getDbLockStatus() {
   if (isSqlite) {
     return {
       isLocked: _writeMutex.isLocked(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
       queueLength: (_writeMutex as any)._queue?.length || 0,
     };
   } else {
@@ -253,7 +281,9 @@ export async function getDbLockStatus() {
         SELECT count(*) as count FROM pg_locks
       `);
       return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
         isLocked: (rows as any)[0]?.count > 0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
         count: Number((rows as any)[0]?.count || 0),
       };
     } catch {
@@ -277,6 +307,7 @@ export async function getDbLockStatus() {
  * IMPORTANT: Do NOT perform network calls (LLM requests, embedding generation)
  * inside the transaction callback — hold the mutex for the minimum time possible.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
 export type DbTx = any;
 
 /**
@@ -350,7 +381,9 @@ async function withTransactionSqlite<T>(fn: (tx: DbTx) => Promise<T>): Promise<T
 }
 
 async function withTransactionPg<T>(fn: (tx: DbTx) => Promise<T>): Promise<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
   const pgDb = db as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
   return await pgDb.transaction(async (tx: any) => {
     return await withTimeout(
       fn(tx),
