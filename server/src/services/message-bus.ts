@@ -594,25 +594,42 @@ function defaultTopic(type: string, kind: MessageKind): string {
   return `${prefix}:${type}`;
 }
 
-// ── Singleton ─────────────────────────────────────────────────
+// ── Singleton via DI container ─────────────────────────────────
 
-let _instance: MessageBus | null = null;
+import { container } from "../lib/container.js";
+
+const BUS_TOKEN = "messageBus";
 
 /**
- * Get the singleton MessageBus instance, creating it lazily if needed.
+ * Get the singleton MessageBus instance via DI container, creating lazily.
  */
 export function getMessageBus(): MessageBus {
-  if (!_instance) {
-    _instance = new MessageBus();
-    log.info("message_bus_initialized", { instance: "singleton" });
+  try {
+    return container.resolve<MessageBus>(BUS_TOKEN);
+  } catch {
+    const bus = new MessageBus();
+    container.registerSingleton(BUS_TOKEN, bus);
+    log.info("message_bus_initialized", { instance: "container" });
+    return bus;
   }
-  return _instance;
 }
 
 export function resetMessageBus(): void {
-  if (_instance) {
-    _instance.clear();
-    _instance = null;
-    log.info("message_bus_reset", {});
+  try {
+    const bus = container.resolve<MessageBus>(BUS_TOKEN) as MessageBus | undefined;
+    if (bus) {
+      bus.clear();
+    }
+  } catch {
+    // not registered
   }
+  // Remove from container singletons to allow fresh creation
+  // Directly clear the token if present
+  try {
+    const anyContainer = container as { singletons: Map<string, unknown> };
+    anyContainer.singletons.delete(BUS_TOKEN);
+  } catch {
+    // ignore
+  }
+  log.info("message_bus_reset", {});
 }

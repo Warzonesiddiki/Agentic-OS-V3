@@ -8,8 +8,9 @@ export default defineConfig({
     exclude: ['node_modules', 'dist', 'tests/integration'],
     coverage: {
       provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-      exclude: ['node_modules/', 'dist/', 'tests/']
+      reporter: ['text', 'json', 'html', 'lcov'],
+      exclude: ['node_modules/', 'dist/', 'tests/'],
+      thresholds: { branches: 60, functions: 60, lines: 60, statements: 60 },
     },
     testTimeout: 30000,
     hookTimeout: 30000

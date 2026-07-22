@@ -29,8 +29,13 @@ async function bootstrap(): Promise<void> {
   // individual modules don't trigger the DB connection or env validation.
   let env;
   try {
-    const { getEnv } = await import('./lib/env.js');
+    const { getEnv, checkBlockchainKeySecurity } = await import('./lib/env.js');
     env = getEnv();
+    const chainCheck = checkBlockchainKeySecurity();
+    if (chainCheck.warning) {
+      log.warn('blockchain_key_security', { warning: chainCheck.warning });
+      console.warn(chainCheck.warning);
+    }
   } catch (err) {
     fatal('Environment validation failed on startup', err);
   }
@@ -41,7 +46,7 @@ async function bootstrap(): Promise<void> {
   const { apiKeys } = await import('./db/client.js');
   const { eq } = await import('drizzle-orm');
   const { appendAudit } = await import('./lib/audit.js');
-  const { isKillSwitchOn } = await import('./services.js');
+  const { isKillSwitchOn } = await import('./services/safety.service.js');
   const { handleMcp } = await import('./mcp-http.js');
   const { randomUUID } = await import('node:crypto');
   // os and writeFileSync are imported at module top level for use in both bootstrap and shutdown.

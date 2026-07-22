@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * blockchain.ts — Merkle Tree Audit Logging (NO CHAIN SUBMISSION).
  *
@@ -454,6 +453,7 @@ export async function anchorAuditLogsBatch(force = false): Promise<AnchorResult 
   }
 
   if (pendingEntries.length >= interval || force || forceByAge) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- crypto/RPC layer uses dynamic JSON; validated via zod at boundary
     const chunkHashes = pendingEntries.map((e: any) => e.entryHash);
     const root = computeMerkleRoot(chunkHashes);
     const prevCkHash = lastCp.length > 0 ? lastCp[0]!.merkleRoot : '0'.repeat(64);
@@ -527,6 +527,7 @@ export async function verifyAnchor(anchorId: string): Promise<VerificationResult
     .where(and(gte(auditLog.sequence, cp.chunkStartSeq), lte(auditLog.sequence, cp.chunkEndSeq)))
     .orderBy(asc(auditLog.sequence));
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- crypto/RPC layer uses dynamic JSON; validated via zod at boundary
   const hashes = entries.map((e: any) => e.entryHash);
   const computedRoot = computeMerkleRoot(hashes);
 

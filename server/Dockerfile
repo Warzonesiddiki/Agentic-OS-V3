@@ -5,7 +5,7 @@ WORKDIR /app
 RUN apk add --no-cache python3 make g++
 
 COPY package.json package-lock.json* ./
-RUN npm ci || npm install
+RUN test -f package-lock.json || (echo "FATAL: lockfile missing" && exit 1); npm ci
 
 COPY . .
 RUN npm run db:generate || true

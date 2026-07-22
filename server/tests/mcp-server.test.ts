@@ -95,11 +95,16 @@ vi.mock('../src/services/operations-ext.js', () => ({
   ingestAmbientTranscript: vi.fn(async () => ({ ingested: true, chunks: 2 })),
 }));
 
-vi.mock('../src/services.js', () => ({
+vi.mock('../src/services/memory.service.js', () => ({
   createMemory: vi.fn(async (input: Record<string, unknown>) => mem({ title: input.title, content: input.content })),
   captureSession: vi.fn(async () => ({ captured: true, skills: 1, memories: 2 })),
+}));
+vi.mock('../src/services/feedback.service.js', () => ({
   recordFeedback: vi.fn(async () => ({ recorded: true })),
+}));
+vi.mock('../src/services/safety.service.js', () => ({
   isKillSwitchOn: vi.fn(async () => false),
+  assertOperational: vi.fn(async () => {}),
 }));
 
 const { createNexusMcpServer } = await import('../src/mcp.js');

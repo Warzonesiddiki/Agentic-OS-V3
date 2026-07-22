@@ -1,6 +1,7 @@
 use std::{collections::HashMap, str::FromStr};
 
-use anyhow::Result;
+use crate::errors::ProviderError;
+pub type Result<T> = std::result::Result<T, ProviderError>;
 use serde::{Deserialize, Deserializer, Serialize};
 use utoipa::ToSchema;
 

@@ -7,7 +7,7 @@ services:
     restart: always
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: nexus_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?error}
       POSTGRES_DB: nexus
     ports:
       - '5432:5432'
@@ -62,7 +62,7 @@ services:
     environment:
       NODE_ENV: production
       PORT: 9900
-      DATABASE_URL: postgresql://postgres:nexus_password@postgres:5432/nexus
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?error}@postgres:5432/nexus
       NEXUS_REDIS_URL: redis://redis:6379
       NEXUS_BUS_BACKEND: redis
       NEXUS_ALLOWED_ORIGINS: http://frontend:80,http://127.0.0.1:80,http://127.0.0.1:9900

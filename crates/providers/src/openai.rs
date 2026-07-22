@@ -18,7 +18,8 @@ use crate::openai_compatible::{
     handle_response_openai_compat, handle_status, stream_openai_compat, stream_responses_compat,
 };
 use crate::request_log::{start_log, LoggerHandleExt};
-use anyhow::Result;
+use crate::errors::ProviderError;
+pub type Result<T> = std::result::Result<T, ProviderError>;
 use async_trait::async_trait;
 use reqwest::StatusCode;
 use std::collections::HashMap;

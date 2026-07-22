@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * self-improvement-harness.ts
  * ────────────────────────────
@@ -98,6 +97,7 @@ export async function collectRecentMetrics(metric: string, limit = 100): Promise
     orderBy: [desc(metricSnapshots.capturedAt)],
     limit,
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- self-opt harness handles dynamic metric JSON; validated upstream
   const values = rows.map((r: any) => ({
     value: r.value,
     capturedAt: r.capturedAt,
@@ -108,6 +108,7 @@ export async function collectRecentMetrics(metric: string, limit = 100): Promise
 
 function summarize(metric: string, values: MetricWindow['values']): MetricWindow {
   if (!values.length) return { metric, values, p50: 0, p95: 0, mean: 0, n: 0 };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- self-opt harness handles dynamic metric JSON; validated upstream
   const sorted = values.map((v: any) => v.value).sort((a, b) => a - b);
   const p = (q: number) => {
     const idx = Math.min(sorted.length - 1, Math.floor(q * sorted.length));
@@ -222,6 +223,7 @@ export async function listProposals(filter?: {
     limit: filter?.limit ?? 50,
   });
   const { isSqlite } = await import('../db/client.js');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- self-opt harness handles dynamic metric JSON; validated upstream
   return rows.map((r: any) => ({
     ...r,
     patch: isSqlite && typeof r.patch === 'string' ? JSON.parse(r.patch) : r.patch,
@@ -237,6 +239,7 @@ export async function getProposal(id: string): Promise<ProposalRecord | null> {
   });
   if (!row) return null;
   const { isSqlite } = await import('../db/client.js');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- self-opt harness handles dynamic metric JSON; validated upstream
   const r = row as any;
   return {
     ...r,
@@ -305,6 +308,7 @@ export const ENV_AUDIT_TRAIL: Array<{ key: string; value: string; timestamp: Dat
 
 /**
  * Apply a proposal's patch. Hard refusal: BLOCKING + SAFETY risk classes.
+ // eslint-disable-next-line @typescript-eslint/no-explicit-any -- self-opt harness handles dynamic metric JSON; validated upstream
  * Soft refusal: any patch kind not in ALLOWED_PATCH_KINDS (e.g. fs.write).
  */
 export async function applyPatch(
@@ -334,7 +338,7 @@ export async function applyPatch(
     if (!ENV_OVERRIDE_ALLOWLIST.has(p.patch.key)) {
       return { applied: false, reason: `key_not_whitelisted:${p.patch.key}` };
     }
-    process.env[p.patch.key] = String(p.patch.value);
+    process.env[p.patch.key] = String(p.patch.value); // ENV_OVERRIDE_ALLOWLIST + ENV_AUDIT_TRAIL guard
     ENV_AUDIT_TRAIL.push({ key: p.patch.key, value: String(p.patch.value), timestamp: new Date() });
     await appendAudit('improvement.env_override_applied', { key: p.patch.key, value: p.patch.value }, 'harness');
     // Live tuning of the scheduling policy via Forge's public setter (interface-only).
@@ -386,6 +390,7 @@ export async function measureAndFinalize(
   const newP95 = recentRows.length
     ? summarize(
         p.targetMetric,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- self-opt harness handles dynamic metric JSON; validated upstream
         recentRows.map((r: any) => ({ value: r.value, capturedAt: r.capturedAt, tags: {} }))
       ).p95
     : p.baselineValue;

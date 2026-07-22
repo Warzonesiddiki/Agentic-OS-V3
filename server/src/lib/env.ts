@@ -122,6 +122,7 @@ const envSchema = z.object({
   NEXUS_BLOCKCHAIN_ENABLED: boolean(false),
   NEXUS_BLOCKCHAIN_RPC_URL: optionalString,
   NEXUS_BLOCKCHAIN_PRIVATE_KEY: optionalString,
+  NEXUS_BLOCKCHAIN_ENCRYPTION_KEY: optionalString,
   NEXUS_BLOCKCHAIN_CHAIN_ID: integer(1, 1),
   NEXUS_BLOCKCHAIN_ANCHOR_INTERVAL: integer(10, 1),
   NEXUS_BLOCKCHAIN_ANCHOR_MAX_AGE: integer(300_000, 1),
@@ -171,4 +172,21 @@ export function embeddingsConfigured(): boolean {
       current.NEXUS_LLM_API_KEY &&
       current.NEXUS_EMBEDDING_MODEL,
   );
+}
+
+/** Detect raw 64-hex private key without encryption guard — warn at boot. */
+function isRawHexPrivateKey(key: string): boolean {
+  return /^[0-9a-fA-F]{64}$/.test(key.trim().replace(/^0x/, ''));
+}
+
+export function checkBlockchainKeySecurity(): { warning?: string } {
+  const current = getEnv();
+  const raw = current.NEXUS_BLOCKCHAIN_PRIVATE_KEY;
+  const enc = current.NEXUS_BLOCKCHAIN_ENCRYPTION_KEY;
+  if (raw && isRawHexPrivateKey(raw) && !enc) {
+    return {
+      warning: `WARNING: NEXUS_BLOCKCHAIN_PRIVATE_KEY looks like a raw 64-hex key but NEXUS_BLOCKCHAIN_ENCRYPTION_KEY is empty. Set NEXUS_BLOCKCHAIN_ENCRYPTION_KEY to encrypt at rest or use an HSM backend.`,
+    };
+  }
+  return {};
 }

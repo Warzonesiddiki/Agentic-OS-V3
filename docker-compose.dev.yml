@@ -6,7 +6,7 @@ services:
       - '5432:5432'
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: dev_password
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?error}
       POSTGRES_DB: nexus_dev
     volumes:
       - pgdata_dev:/var/lib/postgresql/data
@@ -21,6 +21,7 @@ services:
     environment:
       NODE_ENV: development
       NEXUS_LOG_LEVEL: debug
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD:?error}@postgres:5432/nexus_dev
     volumes:
       - ./server/src:/app/src:ro
       - ./server/tests:/app/tests:ro

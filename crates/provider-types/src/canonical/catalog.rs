@@ -1,4 +1,4 @@
-use once_cell::sync::Lazy;
+use std::sync::LazyLock;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
@@ -17,7 +17,7 @@ struct ProviderMetadataEntry {
     pub model_count: usize,
 }
 
-static PROVIDER_METADATA: Lazy<HashMap<String, ProviderMetadataEntry>> = Lazy::new(|| {
+static PROVIDER_METADATA: Lazy<HashMap<String, ProviderMetadataEntry>> = LazyLock::new(|| {
     serde_json::from_str::<Vec<ProviderMetadataEntry>>(PROVIDER_METADATA_JSON)
         .unwrap_or_else(|e| {
             eprintln!("Failed to parse provider metadata: {}", e);

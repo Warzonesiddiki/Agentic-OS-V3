@@ -19,7 +19,7 @@ export function securityHeaders(nonce?: string): Record<string, string> {
     headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains';
   }
 
-  // Content Security Policy (No unsafe-inline or unsafe-eval)
+  // Content Security Policy - nonce based, denies inline and eval
   const nonceDirective = nonce ? `'nonce-${nonce}'` : '';
   let csp = `default-src 'self'; `;
   csp += `script-src 'self' ${nonceDirective}; `;

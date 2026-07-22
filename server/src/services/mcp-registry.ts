@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 /**
  * services/mcp-registry.ts — Phase 3.3 & Phase 12: MCP Server Registry
  *
@@ -201,17 +200,57 @@ export class HardenedStdioClientTransport implements Transport {
 
   constructor(private config: StdioConfig) {}
 
+  /**
+   * Build a filtered env for MCP subprocess — allowlist ONLY, explicit blocklist.
+   * This is the ONLY place where env is accessed (per security gate).
+   */
+  private buildFilteredEnv(extraEnv?: Record<string, string>): Record<string, string> {
+    const ALLOW = new Set(['PATH', 'HOME', 'NODE_ENV', 'NEXUS_LLM_PROVIDER', 'NEXUS_LLM_API_KEY']);
+    // Explicit blocklist per Phase 1.3 — must never leak even if added to allowlist in future.
+    const BLOCK = new Set([
+      'NEXUS_API_KEY',
+      'NEXUS_BLOCKCHAIN_PRIVATE_KEY',
+      'NEXUS_BLOCKCHAIN_ENCRYPTION_KEY',
+      'DATABASE_URL',
+      'ANTHROPIC_API_KEY',
+      'OPENAI_API_KEY',
+      'GOOGLE_API_KEY',
+      'GROQ_API_KEY',
+      'MISTRAL_API_KEY',
+      'AZURE_OPENAI_API_KEY',
+      'VLLM_API_KEY',
+      'M3_API_KEY',
+      'PORTKEY_API_KEY',
+      'NEXUS_OTEL_API_KEY',
+      'NEXUS_REDIS_URL',
+      'VAULT_TOKEN',
+      'AWS_KMS_KEY_ID',
+      'HSM_LOCAL_KEY',
+    ]);
+
+    const out: Record<string, string> = {};
+    // Only copy from env what is in ALLOW and NOT in BLOCK
+    for (const key of ALLOW) {
+      if (BLOCK.has(key)) continue;
+      const val = process.env[key];
+      if (val !== undefined) out[key] = String(val);
+    }
+    // Overlay extraEnv but still enforce ALLOW + BLOCK
+    if (extraEnv) {
+      for (const [k, v] of Object.entries(extraEnv)) {
+        if (!ALLOW.has(k)) continue;
+        if (BLOCK.has(k)) continue;
+        if (v !== undefined) out[k] = String(v);
+      }
+    }
+    return out;
+  }
+
   async start(): Promise<void> {
     if (this.started) throw new Error('Stdio transport already started');
     this.started = true;
 
-    const mergedEnv = { ...process.env, ...this.config.env };
-    const allowedKeys = new Set(['PATH', 'HOME', 'NODE_ENV', 'NEXUS_LLM_PROVIDER', 'NEXUS_LLM_API_KEY']);
-    const filteredEnv = Object.fromEntries(
-      Object.entries(mergedEnv)
-        .filter(([key, val]) => allowedKeys.has(key) && val !== undefined)
-        .map(([key, val]) => [key, String(val)])
-    );
+    const filteredEnv = this.buildFilteredEnv(this.config.env);
 
     this.process = spawn(this.config.command, this.config.args ?? [], {
       env: filteredEnv,

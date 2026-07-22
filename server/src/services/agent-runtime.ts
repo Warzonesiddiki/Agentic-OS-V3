@@ -19,7 +19,8 @@ import { z } from 'zod';
 import { appendAudit } from '../lib/audit.js';
 import { callLLM } from './llm.js';
 import { recall } from './recall.js';
-import { createMemory, createSkill } from '../services.js';
+import { createMemory } from './memory.service.js';
+import { createSkill } from './skill.service.js';
 
 import {
   getAgent,
@@ -545,59 +546,6 @@ export function createDefaultActions(): Action[] {
         riskLevel: 'read',
         minRing: 2,
         timeoutMs: 3000,
-      },
-    },
-    {
-      name: 'browserNavigate',
-      description: 'Navigate to a URL and extract page text.',
-      schema: z.object({
-        url: zStr('The URL to visit'),
-      }),
-      handler: async () => {
-        return { error: 'Browser automation not available' };
-      },
-      similes: ['visit', 'open url', 'browse', 'fetch page', 'open page'],
-      examples: [
-        {
-          input: { url: 'https://example.com' },
-          output: { url: 'https://example.com', text: 'Page content...', title: 'Example' },
-          description: 'Navigate to a URL and extract page text',
-        },
-      ],
-      metadata: {
-        version: '1.0.0',
-        category: 'browser',
-        provider: 'builtin',
-        riskLevel: 'network',
-        minRing: 2,
-        timeoutMs: 30000,
-      },
-    },
-    {
-      name: 'browserExtract',
-      description: 'Extract text from a specific URL with optional CSS selector.',
-      schema: z.object({
-        url: zStr(),
-        selector: zStr('CSS selector (optional)').optional().default('body'),
-      }),
-      handler: async () => {
-        return { error: 'Browser automation not available' };
-      },
-      similes: ['extract', 'scrape', 'get text', 'parse page'],
-      examples: [
-        {
-          input: { url: 'https://example.com/article', selector: 'main' },
-          output: { url: 'https://example.com/article', text: 'Article content...' },
-          description: 'Extract text with CSS selector',
-        },
-      ],
-      metadata: {
-        version: '1.0.0',
-        category: 'browser',
-        provider: 'builtin',
-        riskLevel: 'network',
-        minRing: 2,
-        timeoutMs: 30000,
       },
     },
     {

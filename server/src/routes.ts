@@ -1,19 +1,9 @@
 /**
  * routes.ts — versioned REST API (/api/v1) — thin handlers over services.
  * Each route validates with Zod, enforces auth + scope, and returns an envelope.
+ * Per Phase 2.2: NO direct database calls — all persistence via services.
  */
 import { Hono } from 'hono';
-import { db } from './db/client.js';
-import {
-  memories,
-  skills,
-  projects,
-  notes,
-  tokenLedger,
-  systemMeta,
-  auditLog,
-} from './db/client.js';
-import { eq, gt, sql } from 'drizzle-orm';
 import { ok, err } from './lib/envelope.js';
 import type { NexusEnv } from './lib/hono-env.js';
 import { requireScope, safeJson, parse, fail } from './lib/auth-context.js';
@@ -49,6 +39,19 @@ import { z } from 'zod';
 import { broadcastSSE, getSSEClientCount } from './services/sse-bus.js';
 import { runCompilationPipeline, listCompiledScripts } from './services/skill-template-engine.js';
 import { metricsOutput, metricsContentType } from './services/metrics.js';
+import {
+  getSystemCounts,
+  listMemoriesPaginated,
+  getMemoryById,
+  listSkillsPaginated,
+  getSkillById,
+  listProjectsPaginated,
+  listVaultNotesPaginated,
+  listLedgerEntries,
+  getSystemMetaMap,
+  recordHeartbeat,
+  getAuditCount,
+} from './services/system.service.js';
 import { auditRouter } from './routes/audit-routes.js';
 import { analyticsRouter } from './routes/analytics.js';
 import { agents } from './routes/agents.js';
@@ -154,13 +157,7 @@ api.get('/metrics', async (c) => {
 
 api.get('/api/v1/system', async (c) => {
   const e = getEnv();
-  const count = sql<number>`count(*)::int`;
-  const [mem, skl, prj, aud] = await Promise.all([
-    db.select({ n: count }).from(memories),
-    db.select({ n: count }).from(skills),
-    db.select({ n: count }).from(projects),
-    db.select({ n: count }).from(auditLog),
-  ]);
+  const counts = await getSystemCounts();
   return c.json(
     ok(
       {
@@ -169,12 +166,7 @@ api.get('/api/v1/system', async (c) => {
         llmMode: llmConfigured() ? 'configured' : 'lexical',
         rateLimitPerMinute: e.NEXUS_RATE_LIMIT_PER_MINUTE,
         maxBodyBytes: e.NEXUS_MAX_BODY_BYTES,
-        counts: {
-          memories: mem[0]?.n ?? 0,
-          skills: skl[0]?.n ?? 0,
-          projects: prj[0]?.n ?? 0,
-          audit: aud[0]?.n ?? 0,
-        },
+        counts,
       },
       c.get('requestId') ?? ''
     )
@@ -186,15 +178,9 @@ api.get('/api/v1/memories', async (c) => {
   await requireScope(c, 'memory:read');
   const limit = Math.min(500, Math.max(1, Number(c.req.query('limit') ?? 200)));
   const cursor = c.req.query('cursor');
-  const items = cursor
-    ? await db.query.memories.findMany({
-        limit: limit + 1,
-        where: gt(memories.id, cursor),
-        orderBy: memories.id,
-      })
-    : await db.query.memories.findMany({ limit: limit + 1, orderBy: memories.id });
-  const hasMore = items.length > limit;
-  if (hasMore) items.pop();
+  const rawItems = await listMemoriesPaginated(limit, cursor);
+  const hasMore = rawItems.length > limit;
+  const items = hasMore ? rawItems.slice(0, limit) : rawItems;
   return c.json(
     ok(
       {
@@ -219,7 +205,7 @@ api.post('/api/v1/memories', async (c) => {
 
 api.get('/api/v1/memories/:id', async (c) => {
   await requireScope(c, 'memory:read');
-  const m = await db.query.memories.findFirst({ where: eq(memories.id, c.req.param('id')) });
+  const m = await getMemoryById(c.req.param('id'));
   if (!m) return c.json(err('NOT_FOUND', 'Memory not found.', c.get('requestId') ?? ''), 404);
   return c.json(ok(m, c.get('requestId') ?? ''));
 });
@@ -258,7 +244,7 @@ api.get('/api/v1/skills', async (c) => {
   await requireScope(c, 'skill:read');
   const limit = Math.min(500, Math.max(1, Number(c.req.query('limit') ?? 200)));
   const offset = Math.max(0, Number(c.req.query('offset') ?? 0));
-  const items = await db.query.skills.findMany({ limit, offset, orderBy: skills.createdAt });
+  const items = await listSkillsPaginated(limit, offset);
   return c.json(ok({ total: items.length, items, limit, offset }, c.get('requestId') ?? ''));
 });
 
@@ -271,7 +257,7 @@ api.post('/api/v1/skills', async (c) => {
 
 api.get('/api/v1/skills/:id', async (c) => {
   await requireScope(c, 'skill:read');
-  const s = await db.query.skills.findFirst({ where: eq(skills.id, c.req.param('id')) });
+  const s = await getSkillById(c.req.param('id'));
   if (!s) return c.json(err('NOT_FOUND', 'Skill not found.', c.get('requestId') ?? ''), 404);
   return c.json(ok(s, c.get('requestId') ?? ''));
 });
@@ -337,7 +323,7 @@ api.get('/api/v1/projects', async (c) => {
   await requireScope(c, 'memory:read');
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? 100)));
   const offset = Math.max(0, Number(c.req.query('offset') ?? 0));
-  const items = await db.query.projects.findMany({ limit, offset, orderBy: projects.createdAt });
+  const items = await listProjectsPaginated(limit, offset);
   return c.json(ok({ total: items.length, items, limit, offset }, c.get('requestId') ?? ''));
 });
 
@@ -410,7 +396,7 @@ api.post('/api/v1/brain/embeddings/rebuild', async (c) => {
 api.get('/api/v1/vault/notes', async (c) => {
   await requireScope(c, 'vault:read');
   const limit = Math.min(500, Math.max(1, Number(c.req.query('limit') ?? 200)));
-  const items = await db.query.notes.findMany({ limit, orderBy: notes.indexedAt });
+  const items = await listVaultNotesPaginated(limit);
   return c.json(ok({ items, total: items.length, limit }, c.get('requestId') ?? ''));
 });
 
@@ -433,21 +419,12 @@ api.post('/api/v1/vault/write-back', async (c) => {
 // ---- Ledger ----
 api.get('/api/v1/ledger', async (c) => {
   await requireScope(c, 'audit:read');
-  // Total savings computed in DB (SUM), items are bounded + paginated.
   const limit = Math.min(200, Math.max(1, Number(c.req.query('limit') ?? 100)));
   const offset = Math.max(0, Number(c.req.query('offset') ?? 0));
-  const [items, sumRow] = await Promise.all([
-    db.select().from(tokenLedger).limit(limit).offset(offset),
-    db
-      .select({
-        total: sql<number>`coalesce(sum(tokens_saved), 0)::int`,
-        count: sql<number>`count(*)::int`,
-      })
-      .from(tokenLedger),
-  ]);
+  const { items, totalSaved, totalCount } = await listLedgerEntries(limit, offset);
   return c.json(
     ok(
-      { items, totalSaved: sumRow[0]?.total ?? 0, total: sumRow[0]?.count ?? 0, limit, offset },
+      { items, totalSaved, total: totalCount, limit, offset },
       c.get('requestId') ?? ''
     )
   );
@@ -456,14 +433,13 @@ api.get('/api/v1/ledger', async (c) => {
 // ---- Safety ----
 api.get('/api/v1/safety', async (c) => {
   const engaged = await isKillSwitchOn();
-  const meta = await db.query.systemMeta.findMany();
-  const m = new Map(meta.map((r: { key: string; value: string | null }) => [r.key, r.value]));
-  const last = Number(m.get('lastHeartbeat') ?? 0);
+  const metaMap = await getSystemMetaMap();
+  const last = Number(metaMap.get('lastHeartbeat') ?? 0);
   return c.json(
     ok(
       {
         killSwitch: engaged,
-        killSwitchReason: m.get('killSwitchReason') ?? '',
+        killSwitchReason: metaMap.get('killSwitchReason') ?? '',
         lastHeartbeat: last,
         heartbeatOk: Date.now() - last < 60_000,
         llmMode: llmConfigured() ? 'configured' : 'lexical',
@@ -482,15 +458,8 @@ api.post('/api/v1/safety/kill-switch', async (c) => {
 
 api.post('/api/v1/safety/heartbeat', async (c) => {
   const p = await requireScope(c, 'safety:write');
-  const now = Date.now();
-  await db
-    .insert(systemMeta)
-    .values({ key: 'lastHeartbeat', value: String(now), updatedAt: new Date() })
-    .onConflictDoUpdate({
-      target: systemMeta.key,
-      set: { value: String(now), updatedAt: new Date() },
-    });
-  return c.json(ok({ lastHeartbeat: now, actor: p.name }, c.get('requestId') ?? ''));
+  const result = await recordHeartbeat(p.name);
+  return c.json(ok(result, c.get('requestId') ?? ''));
 });
 
 // ---- Feedback ----
@@ -507,11 +476,11 @@ api.post('/api/v1/feedback', async (c) => {
 
 api.get('/api/v1/health/detailed', async (c) => {
   await requireScope(c, 'memory:read');
-  const [dbOk, pgvector] = await Promise.all([dbReachable(), isPgvectorInstalled()]);
-  // Replaced verifyAuditChain call with fallback/mock or database check since we don't have verifyAuditChain imported here anymore.
-  // Wait, let's keep it simple or fetch count
-  const count = sql<number>`count(*)::int`;
-  const aud = await db.select({ n: count }).from(auditLog);
+  const [dbOk, pgvector, auditCount] = await Promise.all([
+    dbReachable(),
+    isPgvectorInstalled(),
+    getAuditCount(),
+  ]);
   return c.json(
     ok(
       {
@@ -519,7 +488,7 @@ api.get('/api/v1/health/detailed', async (c) => {
         pgvector: pgvector ? 'installed' : 'missing',
         recallMode: pgvector && llmConfigured() ? 'semantic_rrf' : 'lexical_bm25',
         audit: 'valid',
-        auditEntries: aud[0]?.n ?? 0,
+        auditEntries: auditCount,
         sseClients: getSSEClientCount(),
       },
       c.get('requestId') ?? ''

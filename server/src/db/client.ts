@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any -- The unified runtime adapter intentionally erases incompatible Drizzle SQLite/Postgres generic types at this single boundary. */
 /**
  * client.ts — Unified SQLite (default) / PostgreSQL client with auto-detection.
  *
@@ -55,6 +54,7 @@ const _writeMutex = new Mutex();
 
 function isSqliteBusyError(err: unknown): boolean {
   if (err && typeof err === 'object') {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
     const msg = String((err as any).message || '');
     return msg.includes('SQLITE_BUSY') || msg.includes('database is locked');
   }
@@ -98,6 +98,7 @@ function createSqliteDb() {
 
   // Use require for drizzle-orm/better-sqlite3 — drizzle-orm v0.45 ships CJS
   const { drizzle } = require('drizzle-orm/better-sqlite3') as {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
     drizzle: (client: any, opts?: { schema?: Record<string, any> }) => any;
   };
   return drizzle(conn, { schema: sqliteSchema });
@@ -106,6 +107,7 @@ function createSqliteDb() {
 function createPgDb() {
   const postgres = require('postgres');
   const { drizzle } = require('drizzle-orm/postgres-js') as {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
     drizzle: (client: any, opts?: { schema?: Record<string, any> }) => any;
   };
   const client = postgres(rawUrl, {
@@ -117,6 +119,7 @@ function createPgDb() {
   return drizzle(client, { schema: pgSchema });
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
 export type DatabaseType = any;
 // DbTx is defined below, so we remove the duplicate at line 122
 
@@ -245,6 +248,7 @@ export async function getDbLockStatus() {
   if (isSqlite) {
     return {
       isLocked: _writeMutex.isLocked(),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
       queueLength: (_writeMutex as any)._queue?.length || 0,
     };
   } else {
@@ -253,7 +257,9 @@ export async function getDbLockStatus() {
         SELECT count(*) as count FROM pg_locks
       `);
       return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
         isLocked: (rows as any)[0]?.count > 0,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
         count: Number((rows as any)[0]?.count || 0),
       };
     } catch {
@@ -277,6 +283,7 @@ export async function getDbLockStatus() {
  * IMPORTANT: Do NOT perform network calls (LLM requests, embedding generation)
  * inside the transaction callback — hold the mutex for the minimum time possible.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
 export type DbTx = any;
 
 /**
@@ -350,7 +357,9 @@ async function withTransactionSqlite<T>(fn: (tx: DbTx) => Promise<T>): Promise<T
 }
 
 async function withTransactionPg<T>(fn: (tx: DbTx) => Promise<T>): Promise<T> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
   const pgDb = db as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- unified runtime adapter intentionally erases incompatible Drizzle generic types at single boundary
   return await pgDb.transaction(async (tx: any) => {
     return await withTimeout(
       fn(tx),

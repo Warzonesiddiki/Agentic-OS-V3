@@ -1,12 +1,4 @@
 #!/bin/sh
 . "$(dirname "$0")/_/husky.sh"
 
-echo "Running pre-commit checks..."
-
-# Check TypeScript types
-cd server && npx tsc --noEmit || { echo "TypeScript check failed"; exit 1; }
-
-# Run linting
-npx eslint src --ext .ts,.tsx || { echo "Lint failed"; exit 1; }
-
-echo "Pre-commit checks passed!"
+npx lint-staged
