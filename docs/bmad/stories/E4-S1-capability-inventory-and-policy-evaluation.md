@@ -14,14 +14,28 @@
 - [x] Cover allow/deny/approval, unavailable capability, malformed input, and scope-escalation cases with unit tests.
 - [x] Provide persistence-neutral SQL and in-memory stores for governed capability metadata, project/agent grants, and one active policy.
 - [x] Execute the store through the application SQLite client and expose scope-authorized capability registration/policy/evaluation APIs.
-- [ ] Execute the governed capability store and policy API contract against PostgreSQL.
+- [x] Execute the governed capability store and policy API contract against PostgreSQL.
 
 ## Evidence
 
 - `packages/sdk/src/capability-policy.ts`
 - `packages/sdk/src/capability-policy.test.ts`
+- `packages/sdk/src/capability-governance-store.ts`
 - `packages/sdk/src/index.ts`
+- `server/src/db/migrations/0051_r1_capability_governance.sql`
+- `server/src/db/migrations/0051_r1_capability_governance.sqlite.sql`
+- `server/src/services/capability-governance.ts`
+- `server/src/routes/r1.ts`
+- `server/tests/r1-application-postgres-contract.test.ts` (3/3 green; PGlite engine, live-PG via `DATABASE_URL`)
+- `docs/bmad/reviews/E4-S1-pg-contract-review.md`
 
-## Remaining work
+## Completion note (2026-07-22)
 
-The deterministic policy kernel is complete and tested. Persistence integration and a governed server API remain required before this story can be marked done; these must also be validated against SQLite and PostgreSQL.
+The PostgreSQL acceptance criterion is now executed: verbatim production
+migrations (0049/0050/0051) plus the governed capability store and the
+scope-authorized policy API run green on a real PostgreSQL engine. The PG run
+exposed and fixed a cross-adapter timestamp-shape defect
+(`packages/sdk/src/sql-repositories.ts`). Awaiting senior-review sign-off
+(status: review); a live-DB re-run in CI (`DATABASE_URL`) is the remaining
+verification nicety, not a code change.
+

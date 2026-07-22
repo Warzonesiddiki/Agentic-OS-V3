@@ -53,6 +53,18 @@ function jsonValue(value: unknown, fallback: Record<string, unknown> | readonly 
   }
 }
 
+/**
+ * PostgreSQL drivers return TIMESTAMPTZ values as Date instances while the
+ * SQLite adapter returns the stored ISO text. The R1 domain contract always
+ * uses ISO-8601 strings, so normalization happens exactly once — here, at the
+ * persistence boundary — keeping both adapters substitutable.
+ */
+function isoTimestamp(value: unknown): string {
+  if (value instanceof Date) return value.toISOString();
+  if (typeof value === 'string') return value;
+  throw new SqlRepositoryError('NOT_FOUND', 'Stored R1 timestamp is malformed.');
+}
+
 function stringRecord(value: unknown): Record<string, string> {
   const decoded = jsonValue(value, {});
   if (Array.isArray(decoded) || Object.values(decoded).some((entry) => typeof entry !== 'string')) {
@@ -62,11 +74,20 @@ function stringRecord(value: unknown): Record<string, string> {
 }
 
 function projectFromRow(row: Project): Project {
-  return { ...row, scope: stringRecord(row.scope) };
+  return {
+    ...row,
+    scope: stringRecord(row.scope),
+    createdAt: isoTimestamp(row.createdAt),
+    updatedAt: isoTimestamp(row.updatedAt),
+  };
 }
 
 function evidenceFromRow(row: Evidence): Evidence {
-  return { ...row, metadata: jsonValue(row.metadata, {}) as Record<string, unknown> };
+  return {
+    ...row,
+    metadata: jsonValue(row.metadata, {}) as Record<string, unknown>,
+    createdAt: isoTimestamp(row.createdAt),
+  };
 }
 
 function memoryFromRow(row: MemoryRecord): MemoryRecord {
@@ -74,6 +95,8 @@ function memoryFromRow(row: MemoryRecord): MemoryRecord {
     ...row,
     metadata: jsonValue(row.metadata, {}) as Record<string, unknown>,
     evidenceIds: jsonValue(row.evidenceIds, []) as readonly string[],
+    createdAt: isoTimestamp(row.createdAt),
+    updatedAt: isoTimestamp(row.updatedAt),
   };
 }
 
@@ -86,7 +109,15 @@ function capabilityFromRow(row: Capability): Capability {
 }
 
 function receiptFromRow(row: ActionReceipt): ActionReceipt {
-  return { ...row, payload: jsonValue(row.payload, {}) as Record<string, unknown> };
+  return { ...row, payload: jsonValue(row.payload, {}) as Record<string, unknown>, createdAt: isoTimestamp(row.createdAt) };
+}
+
+function approvalFromRow(row: ApprovalRequest): ApprovalRequest {
+  return { ...row, createdAt: isoTimestamp(row.createdAt), updatedAt: isoTimestamp(row.updatedAt) };
+}
+
+function taskEventFromRow(row: TaskRecordEvent): TaskRecordEvent {
+  return { ...row, createdAt: isoTimestamp(row.createdAt) };
 }
 
 class SqlProjects implements ProjectRepository {
@@ -129,7 +160,12 @@ function taskFromRow(row: Task): Task {
   // SQLite returns NULL for an absent optional step while the domain contract
   // represents absence as an omitted property.
   const { currentStepId, ...task } = row;
-  const normalized = { ...task, capabilityIds: jsonValue(row.capabilityIds, []) as string[] };
+  const normalized = {
+    ...task,
+    capabilityIds: jsonValue(row.capabilityIds, []) as string[],
+    createdAt: isoTimestamp(row.createdAt),
+    updatedAt: isoTimestamp(row.updatedAt),
+  };
   return currentStepId == null ? normalized : { ...normalized, currentStepId };
 }
 
@@ -175,9 +211,9 @@ class SqlTasks implements TaskRepository {
   }
   async listEvents(projectId: string, taskId: string): Promise<readonly TaskRecordEvent[]> {
     await this.get(projectId, taskId);
-    return this.sql.query<TaskRecordEvent>(`SELECT id, project_id AS "projectId", task_id AS "taskId",
+    return (await this.sql.query<TaskRecordEvent>(`SELECT id, project_id AS "projectId", task_id AS "taskId",
       event, state, sequence, created_at AS "createdAt" FROM r1_task_events
-      WHERE project_id=$1 AND task_id=$2 ORDER BY sequence`, [projectId, taskId]);
+      WHERE project_id=$1 AND task_id=$2 ORDER BY sequence`, [projectId, taskId])).map(taskEventFromRow);
   }
   async listSteps(projectId: string, taskId: string): Promise<readonly TaskStep[]> {
     await this.get(projectId, taskId);
@@ -234,11 +270,11 @@ class SqlApprovals implements ApprovalRepository {
   async get(projectId: string, approvalId: string): Promise<ApprovalRequest | null> {
     const approval = one(await this.sql.query<ApprovalRequest>(`SELECT id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_approvals WHERE id=$1`, [approvalId]));
     if (approval && approval.projectId !== projectId) throw new SqlRepositoryError('PROJECT_SCOPE_VIOLATION', 'Resource is outside the project scope.');
-    return approval;
+    return approval ? approvalFromRow(approval) : null;
   }
-  async listPending(projectId: string): Promise<readonly ApprovalRequest[]> { return this.sql.query<ApprovalRequest>(`SELECT id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_approvals WHERE project_id=$1 AND state='pending' ORDER BY created_at`, [projectId]); }
-  async create(request: ApprovalRequest): Promise<ApprovalRequest> { const result = await this.sql.query<ApprovalRequest>(`INSERT INTO r1_approvals (id, project_id, task_id, capability_id, state, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, created_at AS "createdAt", updated_at AS "updatedAt"`, [request.id, request.projectId, request.taskId, request.capabilityId, request.state, request.createdAt, request.updatedAt]); const created = one(result); if (!created) throw new SqlRepositoryError('ALREADY_EXISTS', 'Approval could not be created.'); return created; }
-  async update(request: ApprovalRequest): Promise<ApprovalRequest> { const result = await this.sql.query<ApprovalRequest>(`UPDATE r1_approvals SET state=$3, updated_at=$4 WHERE id=$1 AND project_id=$2 RETURNING id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, created_at AS "createdAt", updated_at AS "updatedAt"`, [request.id, request.projectId, request.state, request.updatedAt]); const updated = one(result); if (!updated) throw new SqlRepositoryError('NOT_FOUND', 'Approval not found.'); return updated; }
+  async listPending(projectId: string): Promise<readonly ApprovalRequest[]> { return (await this.sql.query<ApprovalRequest>(`SELECT id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, created_at AS "createdAt", updated_at AS "updatedAt" FROM r1_approvals WHERE project_id=$1 AND state='pending' ORDER BY created_at`, [projectId])).map(approvalFromRow); }
+  async create(request: ApprovalRequest): Promise<ApprovalRequest> { const result = await this.sql.query<ApprovalRequest>(`INSERT INTO r1_approvals (id, project_id, task_id, capability_id, state, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, created_at AS "createdAt", updated_at AS "updatedAt"`, [request.id, request.projectId, request.taskId, request.capabilityId, request.state, request.createdAt, request.updatedAt]); const created = one(result); if (!created) throw new SqlRepositoryError('ALREADY_EXISTS', 'Approval could not be created.'); return approvalFromRow(created); }
+  async update(request: ApprovalRequest): Promise<ApprovalRequest> { const result = await this.sql.query<ApprovalRequest>(`UPDATE r1_approvals SET state=$3, updated_at=$4 WHERE id=$1 AND project_id=$2 RETURNING id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, created_at AS "createdAt", updated_at AS "updatedAt"`, [request.id, request.projectId, request.state, request.updatedAt]); const updated = one(result); if (!updated) throw new SqlRepositoryError('NOT_FOUND', 'Approval not found.'); return approvalFromRow(updated); }
 }
 
 class SqlCapabilities implements CapabilityRepository {
