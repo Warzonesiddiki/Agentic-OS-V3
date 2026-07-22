@@ -74,20 +74,27 @@ function stringRecord(value: unknown): Record<string, string> {
 }
 
 function projectFromRow(row: Project): Project {
-  return {
-    ...row,
+  // An absent idempotency key is stored as NULL; the domain contract
+  // represents absence as an omitted property.
+  const { idempotencyKey, ...project } = row;
+  const normalized = {
+    ...project,
     scope: stringRecord(row.scope),
     createdAt: isoTimestamp(row.createdAt),
     updatedAt: isoTimestamp(row.updatedAt),
   };
+  return idempotencyKey == null ? normalized : { ...normalized, idempotencyKey };
 }
 
 function evidenceFromRow(row: Evidence): Evidence {
-  return {
-    ...row,
+  // Absent task linkage is stored as NULL; the domain contract omits it.
+  const { taskId, ...evidence } = row;
+  const normalized = {
+    ...evidence,
     metadata: jsonValue(row.metadata, {}) as Record<string, unknown>,
     createdAt: isoTimestamp(row.createdAt),
   };
+  return taskId == null ? normalized : { ...normalized, taskId };
 }
 
 function memoryFromRow(row: MemoryRecord): MemoryRecord {
@@ -214,6 +221,22 @@ class SqlTasks implements TaskRepository {
     return (await this.sql.query<TaskRecordEvent>(`SELECT id, project_id AS "projectId", task_id AS "taskId",
       event, state, sequence, created_at AS "createdAt" FROM r1_task_events
       WHERE project_id=$1 AND task_id=$2 ORDER BY sequence`, [projectId, taskId])).map(taskEventFromRow);
+  }
+  async appendEvent(event: TaskRecordEvent): Promise<TaskRecordEvent> {
+    // (task_id, sequence) is the immutable natural key. An already-committed
+    // event is returned unchanged; an import replay can never silently
+    // rewrite history.
+    const result = await this.sql.query<TaskRecordEvent>(`INSERT INTO r1_task_events (id, project_id, task_id, event, state, sequence, created_at)
+      VALUES ($1,$2,$3,$4,$5,$6,$7)
+      ON CONFLICT (task_id, sequence) DO NOTHING
+      RETURNING id, project_id AS "projectId", task_id AS "taskId", event, state, sequence, created_at AS "createdAt"`,
+      [event.id, event.projectId, event.taskId, event.event, event.state, event.sequence, event.createdAt]);
+    const inserted = one(result);
+    if (inserted) return taskEventFromRow(inserted);
+    const existing = one(await this.sql.query<TaskRecordEvent>(`SELECT id, project_id AS "projectId", task_id AS "taskId",
+      event, state, sequence, created_at AS "createdAt" FROM r1_task_events WHERE task_id=$1 AND sequence=$2`, [event.taskId, event.sequence]));
+    if (!existing) throw new SqlRepositoryError('NOT_FOUND', 'Task event could not be appended.');
+    return taskEventFromRow(existing);
   }
   async listSteps(projectId: string, taskId: string): Promise<readonly TaskStep[]> {
     await this.get(projectId, taskId);

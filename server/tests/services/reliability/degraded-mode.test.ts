@@ -81,7 +81,9 @@ describe('circuit-breaker-registry', () => {
   it('exposes a snapshot of all breakers', () => {
     registerBreaker('breaker-y', { failureThreshold: 5, resetMs: 1000, halfOpenMax: 1 });
     const snap = snapshot();
-    expect(snap['breaker-y']).toBeDefined();
-    expect(snap['breaker-y'].state).toBe('closed');
+    // Production contract: snapshot() returns an array keyed by `name`.
+    const breaker = snap.find((entry) => entry.name === 'breaker-y');
+    expect(breaker).toBeDefined();
+    expect(breaker?.state).toBe('closed');
   });
 });

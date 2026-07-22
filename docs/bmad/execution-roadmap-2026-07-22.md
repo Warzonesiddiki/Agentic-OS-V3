@@ -55,10 +55,17 @@ full code review pass. Completed items are checked box `[x]` with evidence.
 - [ ] Spin a real PostgreSQL 16 instance in CI; run
   `npx vitest run tests/r1-application-postgres-contract.test.ts` with
   `DATABASE_URL` set (same contract file; zero code change needed).
-- [ ] E1-S3 project export/import dry-run (deps: E1-S1✓, E0-S3✓, E5-S1).
-- [ ] E2-S1 provenance-backed memory management API surface checks.
-- [ ] Repair the two import-broken suites (`reliability/core`, `reliability/gap`) —
-  restores suite collection everywhere.
+- [x] E1-S3 project export/import dry-run (deps: E1-S1✓, E0-S3✓, E5-S1). —
+  **2026-07-23: dual-engine contract green (`r1-project-transfer-contract`,
+  5/5), SDK 12 transfer unit tests, routes authorized (export `memory:read`,
+  dry-run `memory:write`, apply `brain:admin`); in review.**
+- [x] E2-S1 provenance-backed memory management API surface checks. —
+  **2026-07-23: governed create/list/archive + evidence routes, lifecycle
+  receipts verified on SQLite (restart) and PostgreSQL (direct SQL); in
+  review.**
+- [x] Repair the two import-broken suites (`reliability/core`, `reliability/gap`) —
+  restores suite collection everywhere. — **2026-07-23: done plus
+  `degraded-mode`; reliability 4 files / 52 tests green.**
 
 ### Phase R2 — Sprint-3 (recall, checkpoints, capability hardening)
 - [ ] E2-S2 token-budgeted hybrid recall; E3-S2 checkpointed worker execution.

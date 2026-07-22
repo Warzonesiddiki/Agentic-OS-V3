@@ -123,7 +123,18 @@ class MemoryTasks implements TaskRepository {
   async listEvents(projectId: string, taskId: string): Promise<readonly TaskRecordEvent[]> {
     const task = await this.get(projectId, taskId);
     if (!task) return [];
-    return this.events.get(task.id) ?? [];
+    return [...(this.events.get(task.id) ?? [])].sort((a, b) => a.sequence - b.sequence);
+  }
+  async appendEvent(event: TaskRecordEvent): Promise<TaskRecordEvent> {
+    const task = this.values.get(event.taskId);
+    if (!task) throw new RepositoryError('NOT_FOUND', 'Task not found.');
+    scoped(event.projectId, task.projectId);
+    const committed = this.events.get(task.id) ?? [];
+    const existing = committed.find((record) => record.sequence === event.sequence);
+    if (existing) return existing; // natural-key idempotent; never overwrite
+    committed.push(event);
+    this.events.set(task.id, committed);
+    return event;
   }
   async listSteps(projectId: string, taskId: string): Promise<readonly TaskStep[]> {
     const task = await this.get(projectId, taskId);

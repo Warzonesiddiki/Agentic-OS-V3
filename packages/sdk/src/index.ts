@@ -11,6 +11,7 @@ export * from './capability-governance-store.js';
 export * from './repositories.js';
 export * from './in-memory-repositories.js';
 export * from './r1-services.js';
+export * from './project-transfer.js';
 export * from './sql-repositories.js';
 export * from './bindings.js';
 

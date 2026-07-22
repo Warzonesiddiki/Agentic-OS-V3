@@ -7,7 +7,7 @@ workflow:
   phase_name: implementation
   release: R1-governed-agent-workbench
   current_sprint: sprint-1
-  last_updated: 2026-07-22
+  last_updated: 2026-07-23
 campaign:
   name: 50-SUBAGENT-BMAD-PERFECTION-CAMPAIGN
   id: BMAD-50SUB-2026-07-21
@@ -210,31 +210,46 @@ stories:
     title: Project export/import dry run
     points: 3
     priority: P1
-    status: backlog
+    status: review
     sprint: sprint-2
     dependencies:
       - E1-S1
       - E0-S3
       - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
+    implementation_owner: arena-agent
+    review_owner: senior-review
     blocker: null
-    evidence: []
+    evidence:
+      - packages/sdk/src/project-transfer.ts
+      - packages/sdk/src/project-transfer.test.ts
+      - server/src/services/r1-runtime.ts
+      - server/src/routes/r1.ts
+      - server/tests/r1-project-transfer-contract.test.ts
+      - docs/bmad/stories/E1-S3-project-export-import-dry-run.md
+      - docs/bmad/reviews/E1-S3-code-review.md
 
   E2-S1:
     epic: E2
     title: Create and manage provenance-backed memories
     points: 5
     priority: P1
-    status: backlog
+    status: review
     sprint: sprint-2
     dependencies:
       - E1-S1
       - E0-S3
-    implementation_owner: unassigned
-    review_owner: unassigned
+    implementation_owner: arena-agent
+    review_owner: senior-review
     blocker: null
-    evidence: []
+    evidence:
+      - packages/sdk/src/r1-services.ts
+      - server/src/routes/r1.ts
+      - server/tests/r1-routes.test.ts
+      - server/tests/r1-sqlite-restart.test.ts
+      - server/tests/r1-application-sqlite-contract.test.ts
+      - server/tests/r1-application-postgres-contract.test.ts
+      - docs/bmad/stories/E2-S1-create-and-manage-provenance-backed-memories.md
+      - docs/bmad/reviews/E1-S3-code-review.md
 
   E2-S2:
     epic: E2

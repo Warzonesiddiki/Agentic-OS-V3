@@ -9,28 +9,35 @@
  * No FROZEN files touched.
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { createHash } from 'node:crypto';
 
 // ── shared mocks ──────────────────────────────────────────────────────────────
-const makeChain = () => {
-  const fn: any = (..._a: unknown[]) => makeChain();
-  return new Proxy(fn, {
+// vi.mock factories are hoisted above module evaluation: constructing the
+// proxy at top level hits TDZ ("Cannot access 'db' before initialization").
+// vi.hoisted evaluates before any factory, which is the supported fix.
+const { db } = vi.hoisted(() => {
+  const makeChain = (): unknown => {
+    const fn: any = (..._a: unknown[]) => makeChain();
+    return new Proxy(fn, {
+      get: (_t, p) => {
+        if (p === 'findFirst' || p === 'findMany') return () => Promise.resolve(p === 'findFirst' ? null : []);
+        if (p === 'returning') return () => Promise.resolve([]);
+        if (p === 'values') return () => makeChain();
+        if (p === 'set') return () => makeChain();
+        if (p === 'where') return () => Promise.resolve([]);
+        if (p === 'from') return () => makeChain();
+        return makeChain();
+      },
+    });
+  };
+  const dbQuery = new Proxy({}, { get: () => makeChain() });
+  const db = new Proxy({}, {
     get: (_t, p) => {
-      if (p === 'findFirst' || p === 'findMany') return () => Promise.resolve(p === 'findFirst' ? null : []);
-      if (p === 'returning') return () => Promise.resolve([]);
-      if (p === 'values') return () => makeChain();
-      if (p === 'set') return () => makeChain();
-      if (p === 'where') return () => Promise.resolve([]);
-      if (p === 'from') return () => makeChain();
+      if (p === 'query') return dbQuery;
       return makeChain();
     },
   });
-};
-const dbQuery = new Proxy({}, { get: () => makeChain() });
-const db = new Proxy({}, {
-  get: (_t, p) => {
-    if (p === 'query') return dbQuery;
-    return makeChain();
-  },
+  return { db };
 });
 
 vi.mock('../../../src/db/client.js', () => ({ db }));
@@ -53,9 +60,9 @@ import {
   anyAlert,
   burnRate,
 } from '../../../src/services/reliability/burn-rate.js';
-import { acquire, release, stats } from '../../../src/services/reliability/tenant-bulkhead.js';
+import { configureBulkhead, acquire, release, stats } from '../../../src/services/reliability/tenant-bulkhead.js';
 import { validateBudget, isOver } from '../../../src/services/reliability/latency-budget.js';
-import { startDrill, completeDrill, listDrills } from '../../../src/services/reliability/failover-drill.js';
+import { startDrill, completeDrill, lastDrillFor } from '../../../src/services/reliability/failover-drill.js';
 import {
   validateBackup,
   assertBackupValid,
@@ -108,6 +115,7 @@ describe('burn-rate', () => {
 
 describe('tenant-bulkhead (functional)', () => {
   it('acquires and releases a tenant slot', () => {
+    configureBulkhead({ tenantId: 't1', maxConcurrent: 2, maxQueue: 2 });
     acquire('t1');
     expect(stats('t1')?.active).toBe(1);
     release('t1');
@@ -120,45 +128,52 @@ describe('tenant-bulkhead (functional)', () => {
 
 describe('latency-budget', () => {
   it('validates a well-formed budget', () => {
-    expect(() => validateBudget({ targetMs: 100, observed: { p99: 50 } })).not.toThrow();
+    expect(() => validateBudget({ totalMs: 100, breakdown: { p99: 50 } })).not.toThrow();
   });
-  it('throws for a non-positive target', () => {
-    expect(() => validateBudget({ targetMs: 0, observed: { p99: 50 } })).toThrow();
+  it('throws when the breakdown exceeds the total', () => {
+    expect(() => validateBudget({ totalMs: 40, breakdown: { p99: 50 } })).toThrow();
   });
   it('reports over-budget metric names', () => {
-    const over = isOver({ p99: 200, p95: 120 }, { targetMs: 100, observed: { p99: 200, p95: 120 } });
+    const over = isOver({ p99: 200, p95: 120 }, { totalMs: 100, breakdown: { p99: 100, p95: 110 } });
     expect(Array.isArray(over)).toBe(true);
     expect(over).toContain('p99');
-    const ok = isOver({ p99: 50 }, { targetMs: 100, observed: { p99: 50 } });
+    const ok = isOver({ p99: 50 }, { totalMs: 100, breakdown: { p99: 100 } });
     expect(ok.length).toBe(0);
   });
 });
 
 describe('failover-drill', () => {
-  it('starts, completes, and lists a drill', async () => {
-    const d = await startDrill('db');
+  it('starts, completes, and records a drill for the component', () => {
+    const d = startDrill('db');
     expect(d.id).toBeTruthy();
-    expect(d.status).toBe('running');
-    const done = await completeDrill(d.id, true, 1000);
-    expect(done.status).toBe('completed');
+    expect(d.success).toBe(false);
+    expect(d.finishedAt).toBeUndefined();
+    const done = completeDrill(d.id, 1000, 30, true, 'RTO within target');
     expect(done.success).toBe(true);
-    const all = await listDrills();
-    expect(all.some((x) => x.id === d.id)).toBe(true);
+    expect(done.rtoMs).toBe(1000);
+    expect(done.rpoMs).toBe(30);
+    expect(done.finishedAt).toBeTypeOf('number');
+    expect(lastDrillFor('db')?.id).toBe(d.id);
   });
 });
 
 describe('backup-validator', () => {
-  it('validates a verified backup', async () => {
-    const v = await validateBackup({ id: 'b1', takenAt: Date.now(), checksum: 'x', sizeBytes: 10, verified: true });
-    expect(v.valid).toBe(true);
+  const content = Buffer.from('nexus-backup-payload-v1');
+  const sha256 = createHash('sha256').update(content).digest('hex');
+  const validManifest = {
+    id: 'b1', path: '/backups/b1.tar.zst', sizeBytes: content.length,
+    sha256, capturedAt: Date.now(), encrypted: false,
+  };
+  it('validates a backup whose checksum and size match the content', () => {
+    expect(validateBackup(validManifest, content).valid).toBe(true);
   });
-  it('rejects an unverified backup', async () => {
-    const v = await validateBackup({ id: 'b2', takenAt: Date.now(), checksum: 'x', sizeBytes: 10, verified: false });
+  it('rejects a backup whose checksum does not match', () => {
+    const v = validateBackup({ ...validManifest, id: 'b2', sha256: '0'.repeat(64) }, content);
     expect(v.valid).toBe(false);
+    expect(v.reason).toBe('checksum mismatch');
   });
-  it('assertBackupValid throws on invalid (with content buffer)', async () => {
-    const manifest = { id: 'b3', takenAt: Date.now(), checksum: 'x', sizeBytes: 10, verified: false };
-    await expect(assertBackupValid(manifest, Buffer.from('x'))).rejects.toBeDefined();
+  it('assertBackupValid throws on invalid (with content buffer)', () => {
+    expect(() => assertBackupValid({ ...validManifest, id: 'b3', sha256: 'f'.repeat(64) }, content)).toThrow();
   });
 });
 
@@ -183,7 +198,7 @@ describe('canary-orchestrator', () => {
 });
 
 describe('capacity-planner', () => {
-  const model: CapacityModel = { service: 's', currentRps: 100, peakRps: 200, growthPerDay: 10 };
+  const model: CapacityModel = { service: 's', currentRps: 100, maxRps: 200, growthPerDay: 10 };
   it('computes headroom days', () => {
     expect(headroomDays(model)).toBe(10);
   });
@@ -263,13 +278,14 @@ describe('incident-runbook', () => {
 describe('fmea-exporter', () => {
   it('scores, sorts, and exports risks from rows', () => {
     const rows: FmeaRow[] = [
-      { component: 'c', failureMode: 'f', cause: 'ca', effect: 'e', severity: 4, occurrence: 3, detection: 2 },
-      { component: 'c2', failureMode: 'f2', cause: 'ca2', effect: 'e2', severity: 9, occurrence: 5, detection: 1 },
+      { component: 'c', failureMode: 'f', cause: 'ca', effect: 'e', severity: 4, occurrence: 3, detection: 2, rpn: 24, mitigation: 'm1' },
+      { component: 'c2', failureMode: 'f2', cause: 'ca2', effect: 'e2', severity: 9, occurrence: 5, detection: 1, rpn: 45, mitigation: 'm2' },
     ];
     const top = topRisks(rows);
     expect(top.length).toBe(2);
-    expect(typeof top[0].riskScore).toBe('number');
-    expect(top[0].riskScore).toBeGreaterThanOrEqual(top[1].riskScore);
+    expect(typeof top[0].rpn).toBe('number');
+    expect(top[0].component).toBe('c2');
+    expect(top[0].rpn).toBeGreaterThanOrEqual(top[1].rpn);
     const md = exportJson(rows);
     expect(typeof md).toBe('string');
     expect(md.length).toBeGreaterThan(0);
@@ -299,12 +315,13 @@ describe('reliability-scorecard', () => {
 });
 
 describe('quarantine', () => {
-  it('quarantines and releases an agent', async () => {
-    const q = await quarantineAgent('a1', 'reason', 60000);
-    expect(q.id).toBeTruthy();
-    expect(q.status).toBe('requested');
-    expect((await activeQuarantines()).some((x) => x.id === q.id)).toBe(true);
-    const r = await releaseQuarantine(q.id);
+  it('quarantines and releases an agent', () => {
+    const decision = quarantineAgent('a1', 'safety reason', 60000);
+    expect(decision.request.id).toBeTruthy();
+    // Sentinel auto-adjudicates: the request is active immediately (fail-closed).
+    expect(decision.request.status).toBe('active');
+    expect(activeQuarantines().some((x) => x.id === decision.request.id)).toBe(true);
+    const r = releaseQuarantine(decision.request.id);
     expect(r.status).toBe('released');
   });
 });

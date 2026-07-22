@@ -186,6 +186,27 @@ describe('R1 PostgreSQL application contract', () => {
     await expect(service.saveProvenanceMemory(provenanceMemory)).resolves.toEqual(provenanceMemory);
     await expect(repositories.memories.list(project.id)).resolves.toEqual([provenanceMemory]);
 
+    // E2-S1 lifecycle audit (PostgreSQL verification): the service committed a
+    // durable memory.save receipt correlated by memory id; archiving the
+    // memory drops the row while its memory.archive receipt survives as the
+    // lifecycle record. Ordered by operation for determinism.
+    await service.archiveMemory(project.id, provenanceMemory.id, 'principal-archive-actor');
+    await expect(repositories.memories.get(project.id, provenanceMemory.id)).resolves.toBeNull();
+    await expect(harness.executor.query<Record<string, unknown>>(
+      `SELECT kind, actor, decision, payload FROM r1_action_receipts
+       WHERE project_id = $1 AND correlation_id = $2 ORDER BY payload->>'operation'`,
+      [project.id, provenanceMemory.id],
+    )).resolves.toEqual([
+      {
+        kind: 'db_write', actor: 'principal-archive-actor', decision: 'allow',
+        payload: { operation: 'memory.archive', memoryId: provenanceMemory.id, lifecycle: 'active' },
+      },
+      {
+        kind: 'db_write', actor: 'pg-contract', decision: 'allow',
+        payload: { operation: 'memory.save', memoryId: provenanceMemory.id, lifecycle: 'active' },
+      },
+    ]);
+
     // Durable task creation: CHECK constraints, trigger-created event row,
     // and the atomic idempotent upsert all execute on PostgreSQL semantics.
     const task = {

@@ -6,26 +6,32 @@
  */
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
-const makeChain = () => {
-  const fn: any = (..._a: unknown[]) => makeChain();
-  return new Proxy(fn, {
+// vi.mock factories are hoisted above module evaluation: constructing the
+// proxy at top level hits TDZ ("Cannot access 'db' before initialization").
+// vi.hoisted evaluates before any factory, which is the supported fix.
+const { db } = vi.hoisted(() => {
+  const makeChain = (): unknown => {
+    const fn: any = (..._a: unknown[]) => makeChain();
+    return new Proxy(fn, {
+      get: (_t, p) => {
+        if (p === 'findFirst' || p === 'findMany') return () => Promise.resolve(p === 'findFirst' ? null : []);
+        if (p === 'returning') return () => Promise.resolve([]);
+        if (p === 'values') return () => makeChain();
+        if (p === 'set') return () => makeChain();
+        if (p === 'where') return () => Promise.resolve([]);
+        if (p === 'from') return () => makeChain();
+        return makeChain();
+      },
+    });
+  };
+  const dbQuery = new Proxy({}, { get: () => makeChain() });
+  const db = new Proxy({}, {
     get: (_t, p) => {
-      if (p === 'findFirst' || p === 'findMany') return () => Promise.resolve(p === 'findFirst' ? null : []);
-      if (p === 'returning') return () => Promise.resolve([]);
-      if (p === 'values') return () => makeChain();
-      if (p === 'set') return () => makeChain();
-      if (p === 'where') return () => Promise.resolve([]);
-      if (p === 'from') return () => makeChain();
+      if (p === 'query') return dbQuery;
       return makeChain();
     },
   });
-};
-const dbQuery = new Proxy({}, { get: () => makeChain() });
-const db = new Proxy({}, {
-  get: (_t, p) => {
-    if (p === 'query') return dbQuery;
-    return makeChain();
-  },
+  return { db };
 });
 
 vi.mock('../../../src/db/client.js', () => ({ db }));
@@ -93,17 +99,26 @@ describe('comms-templates', () => {
 });
 
 describe('break-glass', () => {
-  it('activates, reports active, consumes, and expires', async () => {
+  it('activates, reports active, records the consuming actor, and expires on TTL', () => {
     const bg: BreakGlass = activate('emergency fix', ['agents:write', 'kill-switch:bypass'], 'root');
     expect(bg.id).toBeTruthy();
     expect(isActive(bg.id)).toBe(true);
-    await consume(bg.id, 'root');
+    const consumed = consume(bg.id, 'root');
+    expect(consumed.usedBy).toBe('root');
+    // A grant remains active until its TTL elapses; use does not void it.
+    expect(isActive(bg.id)).toBe(true);
+    expect(isActive(bg.id, Date.now() + 2 * 60 * 60 * 1000)).toBe(false);
+  });
+
+  it('purges expired grants', () => {
+    const bg = activate('temporary grant', ['x'], 'root');
+    // 61 minutes strictly exceeds the 60-minute TTL even when activate and
+    // purge land within the same millisecond.
+    purgeExpired(Date.now() + 61 * 60 * 1000);
     expect(isActive(bg.id)).toBe(false);
   });
 
-  it('purges expired grants', async () => {
-    const bg = activate('temp', ['x'], 'root');
-    purgeExpired(Date.now() + 60 * 60 * 1000);
-    expect(isActive(bg.id)).toBe(false);
+  it('rejects activation without a recorded reason', () => {
+    expect(() => activate('x', ['x'], 'root')).toThrow();
   });
 });
