@@ -5,6 +5,7 @@
  * project scoping and state transitions; callers do not mutate repositories
  * directly.
  */
+import { randomUUID } from 'node:crypto';
 import {
   transitionApproval,
   transitionTask,
@@ -162,11 +163,43 @@ export class R1Service {
     if (memory.evidenceIds.some((id) => !known.has(id))) {
       return Promise.reject(new R1ServiceError('PROJECT_SCOPE_VIOLATION', 'Memory evidence is outside the project scope.'));
     }
-    return this.repositories.memories.save(memory);
+    const saved = await this.repositories.memories.save(memory);
+    // Durable lifecycle audit: every memory mutation appends an action receipt.
+    await this.repositories.receipts.append(this.lifecycleReceipt(
+      saved, provenance.agentId ?? provenance.source, 'memory.save', provenance.lifecycle,
+    ));
+    return saved;
   }
 
-  async archiveMemory(projectId: string, memoryId: string): Promise<void> {
+  async archiveMemory(projectId: string, memoryId: string, actorId?: string): Promise<void> {
+    const memory = await this.repositories.memories.get(projectId, memoryId);
     await this.repositories.memories.archive(projectId, memoryId);
+    if (memory) {
+      // Archive drops the row; the receipt is the surviving lifecycle record.
+      const provenance = MemoryProvenanceSchema.safeParse(memory.metadata.provenance);
+      await this.repositories.receipts.append(this.lifecycleReceipt(
+        memory, actorId ?? 'r1-service', 'memory.archive',
+        provenance.success ? provenance.data.lifecycle : undefined,
+      ));
+    }
+  }
+
+  private lifecycleReceipt(
+    memory: MemoryRecord,
+    actor: string,
+    operation: 'memory.save' | 'memory.archive',
+    lifecycle?: string,
+  ): ActionReceipt {
+    return {
+      id: randomUUID(),
+      projectId: memory.projectId,
+      correlationId: memory.id,
+      kind: 'db_write',
+      actor,
+      decision: 'allow',
+      payload: { operation, memoryId: memory.id, ...(lifecycle ? { lifecycle } : {}) },
+      createdAt: this.now(),
+    };
   }
 
   async listProvenanceMemories(projectId: string): Promise<readonly MemoryRecord[]> {

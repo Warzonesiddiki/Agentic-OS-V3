@@ -5,6 +5,7 @@ import {
   CapabilityRequestSchema,
   GovernedCapabilitySchema,
   parseActionReceipt,
+  parseEvidence,
   parseProvenanceMemory,
   parseProject,
   parseTask,
@@ -80,21 +81,52 @@ export function createR1Router(runtime: R1Runtime): Hono<NexusEnv> {
   });
 
   router.post('/projects/:projectId/memories', async (c) => {
-    const principal = await requireScope(c, 'memory:write');
-    const memory = parseProvenanceMemory(await c.req.json());
-    if (memory.projectId !== c.req.param('projectId')) {
-      return c.json({ error: { code: 'PROJECT_SCOPE_VIOLATION', message: 'Resource is outside the project scope.' } }, 403);
+    try {
+      const principal = await requireScope(c, 'memory:write');
+      const memory = parseProvenanceMemory(await c.req.json());
+      if (memory.projectId !== c.req.param('projectId')) {
+        return c.json({ error: { code: 'PROJECT_SCOPE_VIOLATION', message: 'Resource is outside the project scope.' } }, 403);
+      }
+      const provenanceAgent = memory.metadata.provenance.agentId;
+      if (provenanceAgent !== undefined && provenanceAgent !== principal.id) {
+        return c.json({ error: { code: 'PROJECT_SCOPE_VIOLATION', message: 'Resource is outside the project scope.' } }, 403);
+      }
+      return c.json(await runtime.service.saveProvenanceMemory(memory), 201);
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      const apiError = toR1ApiError(error);
+      const status = apiError.code === 'PROJECT_NOT_FOUND' ? 404
+        : apiError.code === 'PROJECT_SCOPE_VIOLATION' ? 403 : 400;
+      return c.json({ error: apiError }, status);
     }
-    const provenanceAgent = memory.metadata.provenance.agentId;
-    if (provenanceAgent !== undefined && provenanceAgent !== principal.id) {
-      return c.json({ error: { code: 'PROJECT_SCOPE_VIOLATION', message: 'Resource is outside the project scope.' } }, 403);
+  });
+
+  // Governed evidence append/list: the provenance chain (E2-S1) requires
+  // verifyable in-scope evidence before any memory may reference it (E5-S1).
+  router.post('/projects/:projectId/evidence', async (c) => {
+    try {
+      await requireScope(c, 'memory:write');
+      const evidence = parseEvidence(await c.req.json());
+      if (evidence.projectId !== c.req.param('projectId')) {
+        return c.json({ error: { code: 'PROJECT_SCOPE_VIOLATION', message: 'Resource is outside the project scope.' } }, 403);
+      }
+      return c.json(await runtime.service.appendEvidence(evidence.projectId, evidence), 201);
+    } catch (error) {
+      if (error instanceof ApiError) throw error;
+      const apiError = toR1ApiError(error);
+      return c.json({ error: apiError }, apiError.code === 'PROJECT_NOT_FOUND' ? 404 : 400);
     }
-    return c.json(await runtime.service.saveProvenanceMemory(memory), 201);
+  });
+
+  router.get('/projects/:projectId/evidence', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json({ evidence: await runtime.repositories.evidence.listForProject(c.req.param('projectId')) }, 200);
   });
 
   router.delete('/projects/:projectId/memories/:memoryId', async (c) => {
-    await requireScope(c, 'memory:write');
-    await runtime.service.archiveMemory(c.req.param('projectId'), c.req.param('memoryId'));
+    const principal = await requireScope(c, 'memory:write');
+    // The deleting principal becomes the accountable actor on the lifecycle receipt.
+    await runtime.service.archiveMemory(c.req.param('projectId'), c.req.param('memoryId'), principal.id);
     return c.body(null, 204);
   });
 
@@ -149,6 +181,31 @@ export function createR1Router(runtime: R1Runtime): Hono<NexusEnv> {
   router.post('/capability-policy/evaluate', async (c) => {
     await requireScope(c, 'memory:read');
     return c.json(await runtime.governance.evaluate(CapabilityRequestSchema.parse(await c.req.json())), 200);
+  });
+
+  // E1-S3 — schema-versioned project export / import dry-run / atomic apply.
+  router.get('/projects/:projectId/export', async (c) => {
+    await requireScope(c, 'memory:read');
+    const bundle = await runtime.transfer.exportProject(c.req.param('projectId'), {
+      omitReceiptPayloads: c.req.query('omitReceiptPayloads') === 'true',
+    });
+    if (!bundle) return c.json({ error: { code: 'PROJECT_NOT_FOUND', message: 'Project not found.' } }, 404);
+    return c.json(bundle, 200);
+  });
+
+  router.post('/projects/import/dry-run', async (c) => {
+    await requireScope(c, 'memory:write');
+    // A dry run is an inspection: the report is the answer even when the
+    // candidate is rejected, so the endpoint always responds 200.
+    return c.json(await runtime.transfer.dryRunImport(await c.req.json()), 200);
+  });
+
+  router.post('/projects/import', async (c) => {
+    await requireScope(c, 'brain:admin');
+    const result = await runtime.applyProjectImport(await c.req.json());
+    if (result.applied) return c.json(result, 200);
+    const status = result.plan.rejected.length > 0 ? 400 : 409;
+    return c.json(result, status);
   });
 
   return router;

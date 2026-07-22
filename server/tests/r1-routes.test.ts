@@ -107,4 +107,64 @@ describe('governed R1 routes', () => {
       error: { code: 'PROJECT_SCOPE_VIOLATION' },
     });
   });
+
+  it('governs memory create/list/archive with evidence verification and lifecycle receipts (E2-S1)', async () => {
+    const app = createApp();
+    await app.request('/api/v1/r1/projects', {
+      method: 'POST', body: JSON.stringify(project), headers: { 'content-type': 'application/json' },
+    });
+    const evidence = {
+      id: '99999999-9999-4999-8999-999999999999', projectId: project.id, kind: 'source',
+      source: 'route-test', contentHash: 'c'.repeat(64), metadata: {}, createdAt: new Date(0).toISOString(),
+    };
+    await app.request(`/api/v1/r1/projects/${project.id}/evidence`, {
+      method: 'POST', body: JSON.stringify(evidence), headers: { 'content-type': 'application/json' },
+    });
+    const memory = {
+      id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', projectId: project.id,
+      content: 'Governed memory through the route.',
+      metadata: { provenance: { type: 'fact', source: 'route-test', confidence: 1, lifecycle: 'active', evidenceIds: [evidence.id] } },
+      evidenceIds: [evidence.id], createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(),
+    };
+    const created = await app.request(`/api/v1/r1/projects/${project.id}/memories`, {
+      method: 'POST', body: JSON.stringify(memory), headers: { 'content-type': 'application/json' },
+    });
+    expect(created.status).toBe(201);
+
+    // Unverifiable evidence linkage fails closed.
+    const dangling = await app.request(`/api/v1/r1/projects/${project.id}/memories`, {
+      method: 'POST',
+      body: JSON.stringify({
+        ...memory,
+        id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        evidenceIds: ['cccccccc-cccc-4ccc-8ccc-cccccccccccc'],
+        metadata: { provenance: { type: 'fact', source: 'route-test', confidence: 1, lifecycle: 'candidate', evidenceIds: ['cccccccc-cccc-4ccc-8ccc-cccccccccccc'] } },
+      }),
+      headers: { 'content-type': 'application/json' },
+    });
+    expect(dangling.status).toBe(403); // unverified evidence linkage is a scope violation
+
+    const listed = await app.request(`/api/v1/r1/projects/${project.id}/memories`);
+    expect(listed.status).toBe(200);
+    await expect(listed.json()).resolves.toMatchObject({ memories: [{ id: memory.id }] });
+
+    const archived = await app.request(`/api/v1/r1/projects/${project.id}/memories/${memory.id}`, { method: 'DELETE' });
+    expect(archived.status).toBe(204);
+    await expect((await app.request(`/api/v1/r1/projects/${project.id}/memories`)).json())
+      .resolves.toMatchObject({ memories: [] });
+  });
+
+  it('binds memory provenance agent to the authenticated principal', async () => {
+    const app = createApp();
+    const memory = {
+      id: 'dddddddd-dddd-4ddd-8ddd-dddddddddddd', projectId: project.id,
+      content: 'Impersonated memory.',
+      metadata: { provenance: { type: 'fact', source: 'route-test', confidence: 1, lifecycle: 'candidate', agentId: 'someone-else', evidenceIds: ['99999999-9999-4999-8999-999999999999'] } },
+      evidenceIds: ['99999999-9999-4999-8999-999999999999'], createdAt: new Date(0).toISOString(), updatedAt: new Date(0).toISOString(),
+    };
+    const response = await app.request(`/api/v1/r1/projects/${project.id}/memories`, {
+      method: 'POST', body: JSON.stringify(memory), headers: { 'content-type': 'application/json' },
+    });
+    expect(response.status).toBe(403);
+  });
 });

@@ -49,6 +49,12 @@ export interface TaskRepository {
   update(task: Task): Promise<Task>;
   /** Events are immutable records created with task state commits. */
   listEvents(projectId: string, taskId: string): Promise<readonly TaskRecordEvent[]>;
+  /**
+   * Replay an immutable task event (sanctioned use: governed project
+   * import/restore). Implementations must treat (taskId, sequence) as a
+   * natural key and must never overwrite an already-committed event.
+   */
+  appendEvent(event: TaskRecordEvent): Promise<TaskRecordEvent>;
   listSteps(projectId: string, taskId: string): Promise<readonly TaskStep[]>;
   saveStep(step: TaskStep): Promise<TaskStep>;
 }
