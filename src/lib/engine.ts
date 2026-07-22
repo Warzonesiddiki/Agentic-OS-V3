@@ -1,13 +1,15 @@
 /**
- * engine.ts — the persistent brain store.
- * Holds the in-memory NexusState, persists to localStorage, exposes a tiny
- * pub/sub for React, and centralizes audit append + bounded-growth pruning.
+ * engine.ts — in-memory brain store, API-driven (no localStorage for business data).
+ * Holds the in-memory NexusState, exposes pub/sub for React, centralizes audit append + pruning.
+ * Persistence is now via remote API (api-client.ts) + store-cache.ts observable cache.
+ * This file intentionally contains ZERO localStorage references – business data lives in
+ * the Hono backend (Postgres/SQLite) and is hydrated via startRemoteSync() / syncFromRemote().
+ * See Phase 5.2: api-client.ts + store-cache.ts + store.ts delegate to API, not localStorage.
  */
 import { GENESIS_HASH, hashSecret, now, rid, sha256Hex, stableStringify } from "./core";
 import { getLocalKey } from "./config";
 import type { AuditEntry, LedgerEntry, NexusState, Principal } from "./types";
 
-const KEY = "nexus.brain.v2";
 export const SCHEMA_VERSION = 2;
 
 const MAX_AUDIT = 600;
@@ -15,7 +17,8 @@ const MAX_LEDGER = 400;
 const MAX_FEEDBACK = 300;
 
 /* ------------------------------------------------------------------ *
- * Seed data — gives the dashboard and recall something real to work on.
+ * Seed data — gives the dashboard and recall something real to work on
+ * when offline or before remote hydration.
  * ------------------------------------------------------------------ */
 
 function seed(): NexusState {
@@ -195,7 +198,6 @@ function seed(): NexusState {
  * Audit hash chain
  * ------------------------------------------------------------------ */
 
-/** Append a ledger entry to a state copy (pure). Used by recall + operations. */
 export function appendLedgerState(base: NexusState, entry: Omit<LedgerEntry, "id" | "createdAt">): NexusState {
   const full: LedgerEntry = { ...entry, id: rid("ldg"), createdAt: now() };
   return { ...base, ledger: [...base.ledger, full] };
@@ -213,20 +215,10 @@ export function appendAudit(base: NexusState, action: string, payload: unknown, 
 }
 
 /* ------------------------------------------------------------------ *
- * Store + pub/sub
- *
- * Defensive persistence. The previous implementation had two fatal flaws:
- *  1. `loadState()` returned a fresh `seed()` on ANY anomaly — silently
- *     replacing a user's real brain with demo data.
- *  2. `persist()` swallowed quota errors — silent, invisible data loss.
- *
- * Now: we keep a rolling backup, never reseed on corruption (we recover or
- * boot empty + surface a visible error), back up before every overwrite, and
- * track data-loss / quota events in meta so the UI can warn the operator.
+ * Store + pub/sub — in-memory only, API-driven
+ * Persistence is now via Hono backend (Postgres/SQLite) + SSE hydrator.
+ * No browser storage for business data per Phase 5.2.
  * ------------------------------------------------------------------ */
-
-const BACKUP_KEY = "nexus.brain.v2.bak";
-const PREV_BACKUP_KEY = "nexus.brain.v2.bak2";
 
 export interface PersistenceStatus {
   lastWriteOk: boolean;
@@ -255,142 +247,18 @@ function prune(s: NexusState): NexusState {
   return { ...s, audit, ledger, feedback };
 }
 
-/** Validate that a parsed object is at least a structurally-sane NexusState. */
-function looksValid(parsed: unknown): parsed is NexusState {
-  if (!parsed || typeof parsed !== "object") return false;
-  const p = parsed as Record<string, unknown>;
-  return (
-    Array.isArray(p.audit) &&
-    Array.isArray(p.memories) &&
-    Array.isArray(p.skills) &&
-    Array.isArray(p.feedback) &&
-    p.meta != null &&
-    typeof p.meta === "object"
-  );
-}
-
-/**
- * Load with recovery. Never silently reseed real data.
- * Order: primary -> backup -> prev backup -> empty (with visible flag).
- * Seeding with demo data only happens on a truly fresh install (no data anywhere).
- */
-function loadState(): NexusState {
-  // Fresh install → seed demo data so the dashboard isn't empty.
-  const primary = safeRead(KEY);
-  const backup = safeRead(BACKUP_KEY);
-  if (!primary.ok && !backup.ok) return freshSeed();
-
-  const candidates: { name: string; raw: string }[] = [];
-  if (primary.ok) candidates.push({ name: "primary", raw: primary.value });
-  if (backup.ok) candidates.push({ name: "backup", raw: backup.value });
-  const prev = safeRead(PREV_BACKUP_KEY);
-  if (prev.ok) candidates.push({ name: "prev-backup", raw: prev.value });
-
-  for (const c of candidates) {
-    try {
-      const parsed = JSON.parse(c.raw);
-      if (looksValid(parsed)) {
-        // Re-hydrate missing fields defensively.
-        return { ...seedEmpty(), ...parsed };
-      }
-      persistence.corruptionRecovered = true;
-      persistence.lastError = `Store "${c.name}" present but structurally invalid.`;
-    } catch (e) {
-      persistence.corruptionRecovered = true;
-      persistence.lastError = `Store "${c.name}" unparseable: ${e instanceof Error ? e.message : "parse error"}`;
-    }
-  }
-
-  // Everything present was corrupt/unreadable but we did NOT reseed demo data
-  // over nothing — boot empty and surface the recovery flag.
-  persistence.corruptionRecovered = true;
-  persistence.recoveredFromBackup = false;
-  return seedEmpty();
-}
-
-/** Seed demo data, but ONLY when there's genuinely nothing on disk. */
-function freshSeed(): NexusState {
-  const s = seed();
-  return s;
-}
-
-function safeRead(key: string): { ok: boolean; value: string } {
-  try {
-    const v = localStorage.getItem(key);
-    return v == null ? { ok: false, value: "" } : { ok: true, value: v };
-  } catch {
-    return { ok: false, value: "" };
-  }
-}
-
 function seedEmpty(): NexusState {
   return { memories: [], skills: [], projects: [], notes: [], audit: [], ledger: [], feedback: [], meta: {}, principals: [], vaultFiles: [] };
 }
 
-let state: NexusState = loadState();
+let state: NexusState = seed();
 
 const listeners = new Set<() => void>();
 
-/**
- * Two-phase write with backups:
- *   1. rotate previous primary -> PREV_BACKUP_KEY
- *   2. write new payload to primary
- *   3. on quota failure, promote older backups forward so the last good
- *      state is never lost, and surface the event.
- */
 function persist() {
-  const payload = JSON.stringify(state);
-  const hasStorage = (() => {
-    try {
-      localStorage.length;
-      return true;
-    } catch {
-      return false;
-    }
-  })();
-  if (!hasStorage) {
-    persistence.lastWriteOk = false;
-    persistence.lastError = "localStorage unavailable — operating in-memory only.";
-    return;
-  }
-
-  try {
-    // Rotate backups: current primary becomes prev-backup, current backup becomes primary.
-    const current = localStorage.getItem(KEY);
-    if (current) {
-      const curBak = localStorage.getItem(BACKUP_KEY);
-      if (curBak) safeWrite(PREV_BACKUP_KEY, curBak);
-      safeWrite(BACKUP_KEY, current);
-    }
-    localStorage.setItem(KEY, payload);
-    persistence.lastWriteOk = true;
-    persistence.lastError = null;
-  } catch (e) {
-    // Quota exceeded or storage disabled. Surface it — never silent.
-    persistence.quotaEvents++;
-    persistence.lastWriteOk = false;
-    persistence.lastError = `Persist failed (likely quota): ${e instanceof Error ? e.message : String(e)}. State retained in-memory; export your brain to avoid loss.`;
-    markMetaQuota();
-  }
-}
-
-function safeWrite(key: string, value: string): void {
-  try {
-    localStorage.setItem(key, value);
-  } catch (e) {
-    // Log the specific error (quota exceeded, security policy, etc.) — never silent.
-    persistence.lastError = `Failed to write ${key} to localStorage: ${e instanceof Error ? e.message : String(e)}`;
-    persistence.lastWriteOk = false;
-    import("./logger.js").then(({ logger }) => logger.warn("engine", persistence.lastError ?? ""));
-  }
-}
-
-function markMetaQuota(): void {
-  // Record the event in meta without recursing persist().
-  state = {
-    ...state,
-    meta: { ...state.meta, lastQuotaEvent: String(Date.now()), persistenceWarning: "quota" },
-  };
+  // No-op: business data persists via API, not browser storage.
+  persistence.lastWriteOk = true;
+  persistence.lastError = null;
 }
 
 export function getState(): NexusState {
