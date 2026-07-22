@@ -90,6 +90,30 @@ function createSqliteDb() {
         INSERT INTO memories_fts(memories_fts, id, title, content, tags) VALUES('delete', old.id, old.title, old.content, old.tags);
         INSERT INTO memories_fts(id, title, content, tags) VALUES (new.id, new.title, new.content, new.tags);
       END;
+
+      CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(id UNINDEXED, name, title, description, content, tags, category);
+      CREATE TRIGGER IF NOT EXISTS skills_ai AFTER INSERT ON skills BEGIN
+        INSERT INTO skills_fts(id, name, title, description, content, tags, category) VALUES (new.id, new.name, new.title, new.description, new.content, new.tags, new.category);
+      END;
+      CREATE TRIGGER IF NOT EXISTS skills_ad AFTER DELETE ON skills BEGIN
+        INSERT INTO skills_fts(skills_fts, id, name, title, description, content, tags, category) VALUES('delete', old.id, old.name, old.title, old.description, old.content, old.tags, old.category);
+      END;
+      CREATE TRIGGER IF NOT EXISTS skills_au AFTER UPDATE ON skills BEGIN
+        INSERT INTO skills_fts(skills_fts, id, name, title, description, content, tags, category) VALUES('delete', old.id, old.name, old.title, old.description, old.content, old.tags, old.category);
+        INSERT INTO skills_fts(id, name, title, description, content, tags, category) VALUES (new.id, new.name, new.title, new.description, new.content, new.tags, new.category);
+      END;
+
+      CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(id UNINDEXED, title, content, path);
+      CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
+        INSERT INTO notes_fts(id, title, content, path) VALUES (new.id, new.title, new.content, new.path);
+      END;
+      CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
+        INSERT INTO notes_fts(notes_fts, id, title, content, path) VALUES('delete', old.id, old.title, old.content, old.path);
+      END;
+      CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
+        INSERT INTO notes_fts(notes_fts, id, title, content, path) VALUES('delete', old.id, old.title, old.content, old.path);
+        INSERT INTO notes_fts(id, title, content, path) VALUES (new.id, new.title, new.content, new.path);
+      END;
     `);
   } catch {
     // FTS5 may not be compiled in; ignore.
