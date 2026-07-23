@@ -123,6 +123,23 @@ export class BoundedToolGateway {
     return `${root}/${requestedPath}`.replace(/\/+/g, '/');
   }
 
+  private async findCompletedEffect(
+    projectId: string,
+    taskId: string,
+    correlationId: string,
+    operation: string,
+  ): Promise<ToolResult | null> {
+    const receipts = await this.repos.receipts.listForTask(projectId, taskId);
+    const existing = receipts.find((receipt) =>
+      receipt.correlationId === correlationId && receipt.payload.operation === operation,
+    );
+    if (!existing) return null;
+    if (existing.decision === 'allow') {
+      return { ok: true, output: `Previously completed ${operation}; no side effect was repeated.`, receiptId: existing.id };
+    }
+    return { ok: false, error: `Previous ${operation} attempt was denied; no side effect was repeated.`, receiptId: existing.id };
+  }
+
   private async recordReceipt(input: { projectId: string; correlationId: string; kind: ActionReceipt['kind']; actor: string; decision: ActionReceipt['decision']; payload: Record<string, unknown> }): Promise<ActionReceipt> {
     const receipt: ActionReceipt = {
       id: randomUUID(),
@@ -170,6 +187,8 @@ export class BoundedToolGateway {
   async writeFile(inputRaw: unknown, actorId = 'tool-gateway'): Promise<ToolResult> {
     const input = WriteFileInputSchema.parse(inputRaw);
     const correlationId = input.correlationId ?? randomUUID();
+    const previous = await this.findCompletedEffect(input.projectId, input.taskId, correlationId, 'write-file');
+    if (previous) return previous;
     // Require approval
     const approved = await this.isApprovalApproved(input.approvalId, input.projectId);
     if (!approved) {
@@ -214,6 +233,8 @@ export class BoundedToolGateway {
   async runConstrainedCommand(inputRaw: unknown, actorId = 'tool-gateway'): Promise<ToolResult> {
     const input = ConstrainedCommandInputSchema.parse(inputRaw);
     const correlationId = input.correlationId ?? randomUUID();
+    const previous = await this.findCompletedEffect(input.projectId, input.taskId, correlationId, 'constrained-command');
+    if (previous) return previous;
 
     // Approve required
     const approved = await this.isApprovalApproved(input.approvalId, input.projectId);
