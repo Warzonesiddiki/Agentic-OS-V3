@@ -75,7 +75,7 @@ export async function createTestDb(migrationSqlPath?: string): Promise<TestDbFix
 
   // Run the migration SQL to create all tables
   const migrationPath =
-    migrationSqlPath ?? join(process.cwd(), 'drizzle', '0000_dark_misty_knight.sql');
+    migrationSqlPath ?? join(process.cwd(), 'drizzle', '0000_baseline_schema.sql');
   if (existsSync(migrationPath)) {
     const sql = readFileSync(migrationPath, 'utf-8');
     // Split on statement-breakpoint comments and execute each

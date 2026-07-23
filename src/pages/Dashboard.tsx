@@ -224,7 +224,7 @@ function ServerStatus() {
         <span className="font-mono text-[10px] text-slate-600">{remote.baseUrl}</span>
       </div>
       <p className="mt-2 text-[11px] text-slate-500">
-        When connected, the dashboard can read/write through the server's REST API. Currently: local
+        When connected, the dashboard can read/write through the server&apos;s REST API. Currently: local
         engine only. Remote data path is planned for full integration.
       </p>
     </Card>

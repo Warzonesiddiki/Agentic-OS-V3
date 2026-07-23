@@ -48,6 +48,10 @@ coverage/
 .tmp/
 tmp/
 
+# Runtime-generated config (self-improvement-harness TOML persistence)
+nexus-config.toml
+server/nexus-config.toml
+
 # Locks
 package-lock.json
 pnpm-lock.yaml

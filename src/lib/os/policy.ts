@@ -28,7 +28,7 @@ export function getTool(name: string): ToolSpec | undefined {
 export const DANGEROUS_PATTERNS: { re: RegExp; label: string }[] = [
   { re: /\brm\s+-rf?\s+\/?(?:\/|\s|$)/, label: "recursive delete at root" },
   { re: /\brm\s+-rf?\b/, label: "recursive force delete" },
-  { re: /:\(\)\s*\{\s*:\|:\&\s*\}\s*;/, label: "fork bomb" },
+  { re: /:\(\)\s*\{\s*:\|:&\s*\}\s*;/, label: "fork bomb" },
   { re: /\bmkfs\b/, label: "filesystem format" },
   { re: /\bdd\b.*\b(of=|\/dev\/)/, label: "raw disk write (dd)" },
   { re: />\s*\/dev\/sd[a-z]/, label: "write to block device" },

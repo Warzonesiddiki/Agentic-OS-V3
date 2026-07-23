@@ -183,7 +183,7 @@ type PipelineNode = Node<PipelineNodeData>;
 
 /* ─── Custom node components ───────────────────────────────────────────────── */
 
-function PipelineNode({ data, selected }: NodeProps<PipelineNode>) {
+function PipelineNodeCard({ data, selected }: NodeProps<PipelineNode>) {
   const def = BLOCK_TYPE_MAP.get(data.blockType);
   if (!def) return null;
   const statusColors: Record<ExecStatus, string> = {
@@ -224,7 +224,7 @@ function PipelineNode({ data, selected }: NodeProps<PipelineNode>) {
   );
 }
 
-const nodeTypes: NodeTypes = { pipeline: PipelineNode };
+const nodeTypes: NodeTypes = { pipeline: PipelineNodeCard };
 
 /* ─── Drag-overlay preview ─────────────────────────────────────────────────── */
 

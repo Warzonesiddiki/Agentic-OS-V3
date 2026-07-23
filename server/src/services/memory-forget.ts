@@ -5,7 +5,7 @@
  * GDPR-style content/PII substring. `purgeForgottenMemories` hard-deletes
  * rows whose deletedAt is older than the retention window.
  */
-import { db, isSqlite, withTransaction } from '../db/client.js';
+import { db, withTransaction } from '../db/client.js';
 import { memories } from '../db/client.js';
 import { and, eq, isNull, like, lt, or } from 'drizzle-orm';
 
@@ -26,13 +26,12 @@ export interface PurgeReport {
 
 const MS_PER_DAY = 86_400_000;
 
-function nowValue(): string | Date {
-  return isSqlite ? new Date().toISOString() : new Date();
+function nowValue(): Date {
+  return new Date();
 }
 
-function cutoffValue(days: number): string | Date {
-  const d = new Date(Date.now() - days * MS_PER_DAY);
-  return isSqlite ? d.toISOString() : d;
+function cutoffValue(days: number): Date {
+  return new Date(Date.now() - days * MS_PER_DAY);
 }
 
 export async function forgetMe(identifier: string): Promise<ForgetReport> {

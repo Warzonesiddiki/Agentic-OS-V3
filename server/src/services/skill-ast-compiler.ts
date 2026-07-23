@@ -35,6 +35,7 @@
  */
 
 import { createHash } from 'node:crypto';
+import { runInNewContext } from 'node:vm';
 
 /* ─── AST Node Types ─────────────────────────────────────────────────────── */
 
@@ -508,8 +509,10 @@ function buildTransformAST(
   transformType: TransformType,
   inputShape: Record<string, unknown>,
   outputShape: Record<string, unknown>,
-  sampleInputs: unknown[],
-  sampleOutputs: unknown[]
+  // kept for API shape parity with callers/future sample-driven codegen
+  _sampleInputs: unknown[],
+  // kept for API shape parity with callers/future sample-driven codegen
+  _sampleOutputs: unknown[]
 ): ASTNode {
   const inputKeys = Object.keys(inputShape);
   const outputKeys = Object.keys(outputShape);
@@ -643,7 +646,6 @@ function validateDeterminism(
 
   try {
     // Create a safe execution context
-    const { runInNewContext } = require('node:vm');
     const wrappedCode = `${code}\nconst __result = compiledTask(__input);`;
 
     for (let i = 0; i < Math.min(sampleInputs.length, sampleOutputs.length, 5); i++) {

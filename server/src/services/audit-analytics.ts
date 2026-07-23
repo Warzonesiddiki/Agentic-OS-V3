@@ -35,7 +35,7 @@ export async function topActions(
   const rows = await db
     .select({ action: auditLog.action, count: sql<number>`count(*)` })
     .from(auditLog)
-    .where(gte(auditLog.createdAt, since.toISOString()))
+    .where(gte(auditLog.createdAt, since))
     .groupBy(auditLog.action)
     .orderBy(desc(sql`count(*)`))
     .limit(limit);

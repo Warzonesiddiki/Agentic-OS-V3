@@ -64,7 +64,7 @@ const DEFAULT_RULES: ClassificationRule[] = [
     level: 'restricted',
     patterns: [
       /\b(?:sk|pk|ak|rk)_[a-zA-Z0-9]{20,}\b/,
-      /(?:api[_-]?key|secret[_-]?key|access[_-]?token)\s*[:=]\s*["']?[a-zA-Z0-9_\-]{16,}/i,
+      /(?:api[_-]?key|secret[_-]?key|access[_-]?token)\s*[:=]\s*["']?[a-zA-Z0-9_-]{16,}/i,
     ],
     description: 'API keys and secrets',
   },

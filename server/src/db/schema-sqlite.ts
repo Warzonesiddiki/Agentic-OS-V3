@@ -12,8 +12,33 @@
  *
  * Foreign keys, indexes, and unique constraints are preserved.
  */
-import { sqliteTable, text, integer, real, uniqueIndex, index } from 'drizzle-orm/sqlite-core';
+import { sqliteTable, text, integer, real, uniqueIndex, index, customType } from 'drizzle-orm/sqlite-core';
 import { sql } from 'drizzle-orm';
+
+/**
+ * Timestamp column — stored as TEXT (ISO 8601 string) for SQLite, matching the
+ * PostgreSQL `timestamp` column's Date-in/Date-out contract used throughout
+ * services (e.g. `row.createdAt.getTime()`, `new Date()` inserts).
+ *
+ * better-sqlite3 can only bind numbers/strings/bigints/buffers/null — passing
+ * a raw `Date` object throws `TypeError: SQLite3 can only bind numbers,
+ * strings, bigints, buffers, and null`. This customType serializes Date
+ * objects to ISO strings on write and parses ISO strings back to Date objects
+ * on read, so application code can treat `_at` columns identically across
+ * both SQLite and PostgreSQL backends (Dual Database Engine Parity).
+ */
+const timestampText = customType<{ data: Date; driverData: string }>({
+  dataType() {
+    return 'text';
+  },
+  toDriver(value: Date): string {
+    return value instanceof Date ? value.toISOString() : new Date(value as unknown as string).toISOString();
+  },
+  fromDriver(value: unknown): Date {
+    return new Date(value as string);
+  },
+});
+
 
 /**
  * Embedding column — stored as TEXT containing a JSON-encoded float array.
@@ -36,10 +61,10 @@ export const memoryClusters = sqliteTable(
     centroidEmbedding: text('centroid_embedding').notNull().default('{}'),
     singletonRatio: real('singleton_ratio').notNull().default(0),
     size: integer('size').notNull().default(0),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -68,7 +93,7 @@ export const sessionLinks = sqliteTable(
     fromSession: text('from_session').notNull(),
     toSession: text('to_session').notNull(),
     strength: real('strength').notNull().default(1),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -86,7 +111,7 @@ export const memoryCausalEdges = sqliteTable(
     toMemoryId: text('to_memory_id').notNull(),
     relation: text('relation').notNull(),
     confidence: real('confidence').notNull().default(1),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -106,7 +131,7 @@ export const memoryContradictions = sqliteTable(
     relation: text('relation').notNull(),
     resolutionOf: text('resolution_of'),
     resolved: integer('resolved', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -123,7 +148,7 @@ export const memoryEmotions = sqliteTable(
     valence: real('valence').notNull().default(0),
     arousal: real('arousal').notNull().default(0),
     model: text('model'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -161,10 +186,10 @@ export const memoryTemplates = sqliteTable('memory_templates', {
   id: text('id').primaryKey(),
   name: text('name').notNull().unique(),
   spec: text('spec').notNull().default('{}'),
-  createdAt: text('created_at')
+  createdAt: timestampText('created_at')
     .notNull()
     .default(sql`(CURRENT_TIMESTAMP)`),
-  updatedAt: text('updated_at')
+  updatedAt: timestampText('updated_at')
     .notNull()
     .default(sql`(CURRENT_TIMESTAMP)`),
 });
@@ -177,10 +202,10 @@ export const memoryDiffMarkers = sqliteTable(
     memoryId: text('memory_id').notNull(),
     peerId: text('peer_id').notNull(),
     hash: text('hash').notNull(),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -194,7 +219,7 @@ export const memoryRehearsalLog = sqliteTable(
     id: text('id').primaryKey(),
     memoryId: text('memory_id').notNull(),
     projectId: text('project_id'),
-    reviewedAt: text('reviewed_at')
+    reviewedAt: timestampText('reviewed_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
     grade: real('grade').notNull(),
@@ -217,7 +242,7 @@ export const memoryAttachments = sqliteTable(
     thumbnail: text('thumbnail'),
     highlighted: text('highlighted'),
     language: text('language'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -238,7 +263,7 @@ export const memoryArchive = sqliteTable(
     source: text('source').notNull().default('archived'),
     projectId: text('project_id'),
     tokenCost: integer('token_cost').notNull().default(0),
-    archivedAt: text('archived_at')
+    archivedAt: timestampText('archived_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
     reason: text('reason'),
@@ -255,7 +280,7 @@ export const agentMemoryQuotas = sqliteTable(
     maxTokens: integer('max_tokens').notNull().default(1000000),
     usedCount: integer('used_count').notNull().default(0),
     usedTokens: integer('used_tokens').notNull().default(0),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -275,23 +300,23 @@ export const memories = sqliteTable(
     projectId: text('project_id').references(() => projects.id, { onDelete: 'set null' }),
     tokenCost: integer('token_cost').notNull().default(0),
     recallCount: integer('recall_count').notNull().default(0),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    lastRecalledAt: text('last_recalled_at'),
+    lastRecalledAt: timestampText('last_recalled_at'),
     language: text('language'),
     privacyZone: text('privacy_zone'),
     confidence: real('confidence'),
     version: integer('version'),
     tier: text('tier').notNull().default('stm'),
-    deletedAt: text('deleted_at'),
+    deletedAt: timestampText('deleted_at'),
     supersededBy: text('superseded_by'),
     decayHalflifeHours: real('decay_halflife_hours').notNull().default(168),
     rehearsalCount: integer('rehearsal_count').notNull().default(0),
-    nextReviewAt: text('next_review_at'),
+    nextReviewAt: timestampText('next_review_at'),
     clusterId: text('cluster_id').references(() => memoryClusters.id, { onDelete: 'set null' }),
     embedding: embeddingCol(),
   },
@@ -303,13 +328,6 @@ export const memories = sqliteTable(
     kindImportanceIdx: index('memories_kind_importance_idx').on(t.kind, t.importance),
   })
 );
-
-export const memoriesFts = sqliteTable('memories_fts', {
-  id: text('id'),
-  title: text('title'),
-  content: text('content'),
-  tags: text('tags'),
-});
 
 export const skills = sqliteTable(
   'skills',
@@ -328,10 +346,10 @@ export const skills = sqliteTable(
     failureCount: integer('failure_count').notNull().default(0),
     source: text('source').notNull().default('manual'),
     projectId: text('project_id').references(() => projects.id, { onDelete: 'set null' }),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
     embedding: embeddingCol(),
@@ -357,10 +375,10 @@ export const projects = sqliteTable(
     skillCount: integer('skill_count').notNull().default(0),
     tokenFootprint: integer('token_footprint').notNull().default(0),
     metadata: text('metadata').notNull().default('{}'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -381,7 +399,7 @@ export const notes = sqliteTable(
     wikilinks: text('wikilinks').notNull().default('[]'),
     charCount: integer('char_count').notNull().default(0),
     mtime: text('mtime'),
-    indexedAt: text('indexed_at')
+    indexedAt: timestampText('indexed_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
     embedding: embeddingCol(),
@@ -402,7 +420,7 @@ export const auditLog = sqliteTable(
     payload: text('payload').notNull().default('{}'),
     prevHash: text('prev_hash').notNull(),
     entryHash: text('entry_hash').notNull(),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -420,7 +438,7 @@ export const merkleCheckpoints = sqliteTable('merkle_checkpoints', {
   merkleRoot: text('merkle_root').notNull(),
   prevCheckpointHash: text('prev_checkpoint_hash').notNull(),
   entryCount: integer('entry_count').notNull(),
-  createdAt: text('created_at')
+  createdAt: timestampText('created_at')
     .notNull()
     .default(sql`(CURRENT_TIMESTAMP)`),
 });
@@ -437,10 +455,10 @@ export const anchoredRoots = sqliteTable(
     txHash: text('tx_hash').notNull(),
     blockNumber: integer('block_number'),
     status: text('status').notNull().default('pending'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    confirmedAt: text('confirmed_at'),
+    confirmedAt: timestampText('confirmed_at'),
   },
   (t) => ({
     cpIdx: index('anchor_checkpoint_idx').on(t.checkpointId),
@@ -457,7 +475,7 @@ export const tokenLedger = sqliteTable('token_ledger', {
   tokensSaved: integer('tokens_saved').notNull().default(0),
   itemsReturned: integer('items_returned').notNull().default(0),
   real: integer('real', { mode: 'boolean' }).notNull().default(true),
-  createdAt: text('created_at')
+  createdAt: timestampText('created_at')
     .notNull()
     .default(sql`(CURRENT_TIMESTAMP)`),
 });
@@ -471,7 +489,7 @@ export const feedback = sqliteTable(
     itemId: text('item_id').notNull(),
     itemType: text('item_type').notNull(),
     helpful: integer('helpful', { mode: 'boolean' }).notNull(),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -483,7 +501,7 @@ export const feedback = sqliteTable(
 export const systemMeta = sqliteTable('system_meta', {
   key: text('key').primaryKey(),
   value: text('value').notNull(),
-  updatedAt: text('updated_at')
+  updatedAt: timestampText('updated_at')
     .notNull()
     .default(sql`(CURRENT_TIMESTAMP)`),
 });
@@ -496,10 +514,10 @@ export const apiKeys = sqliteTable(
     keyHash: text('key_hash').notNull(),
     scopes: text('scopes').notNull().default('[]'),
     status: text('status').notNull().default('active'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    lastUsedAt: text('last_used_at'),
+    lastUsedAt: timestampText('last_used_at'),
   },
   (t) => ({
     hashUnique: uniqueIndex('apikey_hash_unique').on(t.keyHash),
@@ -521,7 +539,7 @@ export const trajectoryLogs = sqliteTable(
     responseReceived: text('response_received').notNull().default(''),
     tokenUsage: text('token_usage').notNull().default('{}'),
     latencyMs: integer('latency_ms').notNull().default(0),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -545,7 +563,7 @@ export const toolReceipts = sqliteTable(
     postHash: text('post_hash'),
     exitCode: integer('exit_code'),
     authorized: integer('authorized', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -574,13 +592,13 @@ export const agents = sqliteTable(
     timeoutMs: integer('timeout_ms').notNull().default(120000),
     maxRetries: integer('max_retries').notNull().default(3),
     metadata: text('metadata', { mode: 'json' }).notNull().default('{}'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    lastHeartbeatAt: text('last_heartbeat_at'),
+    lastHeartbeatAt: timestampText('last_heartbeat_at'),
     schedulingMode: text('scheduling_mode').notNull().default('preemptive'),
     cgroup: text('cgroup').notNull().default('{}'),
   },
@@ -609,11 +627,11 @@ export const agentTasks = sqliteTable(
     retryCount: integer('retry_count').notNull().default(0),
     maxRetries: integer('max_retries').notNull().default(3),
     traceId: text('trace_id'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    startedAt: text('started_at'),
-    finishedAt: text('finished_at'),
+    startedAt: timestampText('started_at'),
+    finishedAt: timestampText('finished_at'),
     deadline: text('deadline'),
     quantumMs: integer('quantum_ms'),
     checkpoint: text('checkpoint').notNull().default('{}'),
@@ -645,7 +663,7 @@ export const ringPolicies = sqliteTable(
     maxConcurrency: integer('max_concurrency').notNull().default(0),
     maxTokensPerMin: integer('max_tokens_per_min').notNull().default(0),
     maxApiCallsPerMin: integer('max_api_calls_per_min').notNull().default(0),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -666,7 +684,7 @@ export const schedulerMetrics = sqliteTable(
     sampleCount: integer('sample_count').notNull().default(0),
     windowStart: text('window_start').notNull(),
     windowEnd: text('window_end').notNull(),
-    computedAt: text('computed_at')
+    computedAt: timestampText('computed_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -685,10 +703,10 @@ export const cronJobs = sqliteTable(
     taskLabel: text('task_label').notNull(),
     taskInput: text('task_input').notNull().default('{}'),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-    lastRunAt: text('last_run_at'),
-    nextRunAt: text('next_run_at'),
+    lastRunAt: timestampText('last_run_at'),
+    nextRunAt: timestampText('next_run_at'),
     runCount: integer('run_count').notNull().default(0),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -719,7 +737,7 @@ export const spanLogs = sqliteTable(
     durationMs: integer('duration_ms').notNull().default(0),
     attributes: text('attributes').notNull().default('{}'),
     events: text('events').notNull().default('[]'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -747,7 +765,7 @@ export const sandboxExecutions = sqliteTable(
     stderr: text('stderr').notNull().default(''),
     durationMs: integer('duration_ms').notNull().default(0),
     status: text('status').notNull().default('pending'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -768,7 +786,7 @@ export const stateSnapshots = sqliteTable(
     stepIndex: integer('step_index').notNull(),
     stepName: text('step_name').notNull(),
     context: text('context').notNull().default('{}'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -794,11 +812,11 @@ export const compiledScripts = sqliteTable(
     tokensSaved: integer('tokens_saved').notNull().default(0),
     detectedCount: integer('detected_count').notNull().default(0),
     avgLatencyMs: integer('avg_latency_ms').notNull().default(0),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    activatedAt: text('activated_at'),
-    updatedAt: text('updated_at')
+    activatedAt: timestampText('activated_at'),
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -819,7 +837,7 @@ export const metricSnapshots = sqliteTable(
     windowStart: text('window_start').notNull(),
     windowEnd: text('window_end').notNull(),
     tags: text('tags').notNull().default('{}'),
-    capturedAt: text('captured_at')
+    capturedAt: timestampText('captured_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -847,13 +865,13 @@ export const improvementProposals = sqliteTable(
     reviewer: text('reviewer'),
     rolloutPct: integer('rollout_pct').notNull().default(0),
     measuredDelta: real('measured_delta'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    decidedAt: text('decided_at'),
+    decidedAt: timestampText('decided_at'),
   },
   (t) => ({
     statusIdx: index('imp_prop_status_idx').on(t.status),
@@ -884,10 +902,10 @@ export const plugins = sqliteTable(
     ratingCount: integer('rating_count').notNull().default(0),
     installCount: integer('install_count').notNull().default(0),
     trustState: text('trust_state').notNull().default('untrusted'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -907,16 +925,36 @@ export const pluginInstallations = sqliteTable(
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     ringOverride: integer('ring_override'),
     config: text('config').notNull().default('{}'),
-    installedAt: text('installed_at')
+    installedAt: timestampText('installed_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
   (t) => ({
     pluginIdx: index('plugin_install_plugin_idx').on(t.pluginId),
     installUnique: uniqueIndex('plugin_install_unique').on(t.pluginId),
+  })
+);
+
+export const pluginKv = sqliteTable(
+  'plugin_kv',
+  {
+    id: text('id').primaryKey(),
+    pluginId: text('plugin_id').notNull(),
+    key: text('key').notNull(),
+    value: text('value').notNull(),
+    createdAt: timestampText('created_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+    updatedAt: timestampText('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  },
+  (t) => ({
+    pluginKeyUnique: uniqueIndex('plugin_kv_plugin_key_unique').on(t.pluginId, t.key),
+    pluginIdx: index('plugin_kv_plugin_idx').on(t.pluginId),
   })
 );
 
@@ -934,7 +972,7 @@ export const pluginReceipts = sqliteTable(
     fuelUsed: text('fuel_used').notNull().default('0'),
     durationMs: integer('duration_ms').notNull().default(0),
     authorized: integer('authorized', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -961,10 +999,10 @@ export const federatedMemoryProofs = sqliteTable(
     privacyClass: text('privacy_class').notNull().default('public'),
     materialized: integer('materialized', { mode: 'boolean' }).notNull().default(false),
     rejectReason: text('reject_reason'),
-    receivedAt: text('received_at')
+    receivedAt: timestampText('received_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    expiresAt: text('expires_at'),
+    expiresAt: timestampText('expires_at'),
   },
   (t) => ({
     originIdx: index('fed_proof_origin_idx').on(t.originPeerId),
@@ -983,10 +1021,10 @@ export const llmProviderHealth = sqliteTable(
     failureCount: integer('failure_count').notNull().default(0),
     successCount: integer('success_count').notNull().default(0),
     p95Ms: real('p95_ms').notNull().default(0),
-    lastFailureAt: text('last_failure_at'),
-    lastSuccessAt: text('last_success_at'),
-    openedAt: text('opened_at'),
-    updatedAt: text('updated_at')
+    lastFailureAt: timestampText('last_failure_at'),
+    lastSuccessAt: timestampText('last_success_at'),
+    openedAt: timestampText('opened_at'),
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1003,11 +1041,11 @@ export const llmTokenBudgets = sqliteTable(
     used: integer('used').notNull().default(0),
     hardKill: integer('hard_kill', { mode: 'boolean' }).notNull().default(false),
     reason: text('reason'),
-    expiresAt: text('expires_at'),
-    createdAt: text('created_at')
+    expiresAt: timestampText('expires_at'),
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1028,10 +1066,10 @@ export const pipelines = sqliteTable(
     trigger: text('trigger').notNull().default('{}'),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
     author: text('author').notNull().default('user'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1046,13 +1084,13 @@ export const pipelineRuns = sqliteTable(
     id: text('id').primaryKey(),
     pipelineId: text('pipeline_id').notNull(),
     status: text('status').notNull().default('pending'),
-    startedAt: text('started_at'),
-    finishedAt: text('finished_at'),
+    startedAt: timestampText('started_at'),
+    finishedAt: timestampText('finished_at'),
     durationMs: integer('duration_ms').notNull().default(0),
     nodeResults: text('node_results').notNull().default('{}'),
     error: text('error'),
     triggeredBy: text('triggered_by').notNull().default('manual'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1087,10 +1125,10 @@ export const marketplacePlugins = sqliteTable(
     installCount: integer('install_count').notNull().default(0),
     status: text('status').notNull().default('draft'), // draft | published | deprecated | quarantined
     verified: integer('verified', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1124,8 +1162,8 @@ export const marketplaceVersions = sqliteTable(
     sandboxProfile: text('sandbox_profile').notNull().default('default'),
     status: text('status').notNull().default('pending'), // pending | approved | rejected
     securityReviewId: text('security_review_id'),
-    publishedAt: text('published_at'),
-    createdAt: text('created_at')
+    publishedAt: timestampText('published_at'),
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1152,7 +1190,7 @@ export const pluginReviews = sqliteTable(
     title: text('title').notNull().default(''),
     body: text('body').notNull().default(''),
     helpfulCount: integer('helpful_count').notNull().default(0),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1175,7 +1213,7 @@ export const pluginDependencies = sqliteTable(
     depSlug: text('dep_slug').notNull(),
     depVersionRange: text('dep_version_range').notNull().default('*'),
     kind: text('kind').notNull().default('runtime'), // runtime | peer | dev
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1199,10 +1237,10 @@ export const pluginInstalls = sqliteTable(
     installedBy: text('installed_by').notNull(),
     installPath: text('install_path'),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1225,8 +1263,8 @@ export const pluginSecurityReviews = sqliteTable(
     score: integer('score'), // 0..100
     findings: text('findings').notNull().default('[]'), // JSON array
     scannedWith: text('scanned_with').notNull().default('static-sandbox'),
-    reviewedAt: text('reviewed_at'),
-    createdAt: text('created_at')
+    reviewedAt: timestampText('reviewed_at'),
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1248,10 +1286,10 @@ export const marketplaceIntegrations = sqliteTable(
     authorId: text('author_id').notNull(),
     verified: integer('verified', { mode: 'boolean' }).notNull().default(false),
     status: text('status').notNull().default('published'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1269,7 +1307,7 @@ export const pluginSigningKeys = sqliteTable(
     pubkey: text('pubkey').notNull(), // base64 ed25519 public key
     label: text('label').notNull().default('default'),
     revoked: integer('revoked', { mode: 'boolean' }).notNull().default(false),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1299,10 +1337,10 @@ export const selfOptParamVersions = sqliteTable(
     proposedBy: text('proposed_by').notNull().default('pulse'),
     pValue: real('p_value'),
     metricDelta: real('metric_delta'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    promotedAt: text('promoted_at'),
+    promotedAt: timestampText('promoted_at'),
   },
   (t) => ({
     tunerIdx: index('sopv_tuner_idx').on(t.tunerId),
@@ -1327,10 +1365,10 @@ export const selfOptExperiments = sqliteTable(
     status: text('status').notNull().default('running'),
     winner: text('winner'),
     pValue: real('p_value'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    finishedAt: text('finished_at'),
+    finishedAt: timestampText('finished_at'),
   },
   (t) => ({
     tunerIdx: index('soe_tuner_idx').on(t.tunerId),
@@ -1349,7 +1387,7 @@ export const selfOptKnowledgeBus = sqliteTable(
     score: real('score').notNull().default(0),
     scope: text('scope').notNull().default('local'),
     publishedBy: text('published_by').notNull().default('pulse'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1370,7 +1408,7 @@ export const selfOptEvents = sqliteTable(
     ownerAgent: text('owner_agent'),
     actor: text('actor').notNull().default('pulse'),
     detailJson: text('detail_json', { mode: 'json' }).notNull().default({}),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1392,10 +1430,10 @@ export const orgs = sqliteTable(
     parentId: text('parent_id'),
     plan: text('plan').notNull().default('free'),
     seats: integer('seats').notNull().default(5),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1412,7 +1450,7 @@ export const workspaces = sqliteTable(
     name: text('name').notNull(),
     region: text('region').notNull().default('us-east-1'),
     dataResidency: text('data_residency').notNull().default('us'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1431,11 +1469,11 @@ export const enterpriseUsers = sqliteTable(
     roles: text('roles', { mode: 'json' }).notNull().default([]),
     status: text('status').notNull().default('active'),
     mfaEnabled: integer('mfa_enabled', { mode: 'boolean' }).notNull().default(false),
-    lastLoginAt: text('last_login_at'),
-    createdAt: text('created_at')
+    lastLoginAt: timestampText('last_login_at'),
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    updatedAt: text('updated_at')
+    updatedAt: timestampText('updated_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1458,10 +1496,10 @@ export const enterpriseApiKeys = sqliteTable(
     tier: text('tier').notNull().default('free'),
     scopes: text('scopes', { mode: 'json' }).notNull().default([]),
     rateLimitRpm: integer('rate_limit_rpm').notNull().default(60),
-    lastUsedAt: text('last_used_at'),
-    expiresAt: text('expires_at'),
+    lastUsedAt: timestampText('last_used_at'),
+    expiresAt: timestampText('expires_at'),
     status: text('status').notNull().default('active'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1478,7 +1516,7 @@ export const rbacRoles = sqliteTable(
     name: text('name').notNull(),
     isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(true),
     permissions: text('permissions', { mode: 'json' }).notNull().default([]),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1495,7 +1533,7 @@ export const siemSinks = sqliteTable(
     kind: text('kind').notNull().default('webhook'),
     endpoint: text('endpoint').notNull(),
     enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1524,7 +1562,7 @@ export const tenantConfig = sqliteTable('tenant_config', {
   themeLogoUrl: text('theme_logo_url').notNull().default(''),
   themeBrandName: text('theme_brand_name').notNull().default('NEXUS'),
   budgetAlertPct: integer('budget_alert_pct').notNull().default(80),
-  updatedAt: text('updated_at')
+  updatedAt: timestampText('updated_at')
     .notNull()
     .default(sql`(CURRENT_TIMESTAMP)`),
 });
@@ -1540,7 +1578,7 @@ export const invoices = sqliteTable(
     amountUsd: integer('amount_usd').notNull().default(0),
     status: text('status').notNull().default('open'),
     pdfUrl: text('pdf_url').notNull().default(''),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1556,7 +1594,7 @@ export const paymentMethods = sqliteTable(
       .references(() => orgs.id, { onDelete: 'cascade' }),
     brand: text('brand').notNull().default(''),
     last4: text('last4').notNull().default(''),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1572,7 +1610,7 @@ export const crossOrgShares = sqliteTable(
     resource: text('resource').notNull(),
     resourceId: text('resource_id').notNull(),
     role: text('role').notNull().default('viewer'),
-    createdAt: text('created_at')
+    createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
   },
@@ -1582,7 +1620,7 @@ export const crossOrgShares = sqliteTable(
 export const onboardingState = sqliteTable('onboarding_state', {
   orgId: text('org_id').primaryKey(),
   completedSteps: text('completed_steps', { mode: 'json' }).notNull().default([]),
-  updatedAt: text('updated_at')
+  updatedAt: timestampText('updated_at')
     .notNull()
     .default(sql`(CURRENT_TIMESTAMP)`),
 });

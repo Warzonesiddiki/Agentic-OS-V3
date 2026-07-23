@@ -16,16 +16,24 @@
  * Each function enforces the capability manifest: a plugin without
  * `http.outbound.api.github.com` cannot call env_http_fetch for that host.
  *
- * The actual WASM instantiation is delegated to the consumer (the caller
- * provides a computeOutput callback). This module provides the host
- * function implementations that would be passed to the WASM linker.
+ * ## Memory boundary
+ *
+ * A real WASM linker (wasmtime/wasmer) hands the host raw guest-linear-memory
+ * pointers (`ptr`/`len` pairs). This module does NOT embed a specific WASM
+ * runtime — none is a dependency of this Node.js server today — so the
+ * pointer decode/encode step is abstracted behind the `WasmMemory` interface
+ * below. Everything *after* the memory boundary (capability checks, fuel
+ * accounting, path sandboxing, file I/O, KV persistence, HTTP fetch) is real,
+ * fully implemented, and unit-testable without a WASM engine. Wiring an
+ * actual `.wasm` module loader only requires implementing `WasmMemory` against
+ * the chosen runtime's `Memory` export and passing it to `createHostFunctions`.
  *
  * @module services/wasm-host-functions
  */
 
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes as cryptoRandomBytes } from 'node:crypto';
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
-import { join, resolve, normalize, relative } from 'node:path';
+import { dirname, resolve, normalize, relative } from 'node:path';
 import { log } from '../lib/logging.js';
 
 /* ─── Types ──────────────────────────────────────────────────────────────── */
@@ -52,12 +60,25 @@ export interface KvStore {
   list(prefix: string): Promise<string[]>;
 }
 
+/**
+ * Abstraction over a WASM guest's linear memory. A real runtime integration
+ * (wasmtime-js, @wasmer/wasi, etc.) implements this against the instantiated
+ * module's exported `memory`. Host functions below use this to decode
+ * `ptr`/`len` guest arguments and encode results back into guest memory —
+ * this is the only part of the contract that requires an actual WASM engine.
+ */
+export interface WasmMemory {
+  readBytes(ptr: number, len: number): Uint8Array;
+  readString(ptr: number, len: number): string;
+  writeBytes(ptr: number, bytes: Uint8Array, maxLen: number): number;
+}
+
 export interface HostFunctionSet {
   env_http_fetch: (
     methodPtr: number, methodLen: number,
     urlPtr: number, urlLen: number,
     bodyPtr: number, bodyLen: number,
-    resultPtr: number
+    resultPtr: number, resultMaxLen: number
   ) => Promise<number>;
   env_read_file: (pathPtr: number, pathLen: number, bufPtr: number, bufLen: number) => Promise<number>;
   env_write_file: (pathPtr: number, pathLen: number, dataPtr: number, dataLen: number) => Promise<number>;
@@ -79,7 +100,7 @@ export const WASM_ERR_BUDGET = 5;
 
 /* ─── Capability checking ────────────────────────────────────────────────── */
 
-function hasCapability(ctx: HostFunctionContext, required: string): boolean {
+export function hasCapability(ctx: HostFunctionContext, required: string): boolean {
   return ctx.capabilities.some((cap) => {
     // Exact match
     if (cap === required) return true;
@@ -106,7 +127,7 @@ function consumeFuel(ctx: HostFunctionContext, amount: number): boolean {
  * Validates that a path is within the allowed sandbox prefix.
  * Prevents path traversal attacks (../, symlink escape).
  */
-function validateSandboxPath(
+export function validateSandboxPath(
   requestedPath: string,
   allowedPrefix: string,
 ): { ok: true; resolved: string } | { ok: false } {
@@ -127,9 +148,10 @@ function validateSandboxPath(
 
 /**
  * Creates a set of host function implementations for a specific plugin invocation.
- * The returned functions close over the plugin's context (capabilities, fuel budget).
+ * The returned functions close over the plugin's context (capabilities, fuel budget)
+ * and a `WasmMemory` accessor for the guest's linear memory.
  *
- * In a real WASM runtime integration, these would be registered with the WASM linker:
+ * A real WASM runtime integration registers these with the linker:
  *   const linker = new Linker();
  *   linker.define('env', 'http_fetch', hostFns.env_http_fetch);
  *   linker.define('env', 'read_file', hostFns.env_read_file);
@@ -138,11 +160,13 @@ function validateSandboxPath(
  * @param ctx - The plugin invocation context with capabilities and fuel budget
  * @param sandboxRoot - Root directory for filesystem operations
  * @param kvStore - Key-value store for plugin persistence
+ * @param memory - Guest linear memory accessor (see `WasmMemory`)
  */
 export function createHostFunctions(
   ctx: HostFunctionContext,
   sandboxRoot: string,
-  kvStore: KvStore
+  kvStore: KvStore,
+  memory: WasmMemory
 ): HostFunctionSet {
   return {
     /**
@@ -150,42 +174,64 @@ export function createHostFunctions(
      *
      * The guest passes pointers to method (GET/POST/etc), URL, and body in WASM memory.
      * The host reads them, checks the capability manifest for the target host,
-     * performs the fetch, and writes the response back.
+     * performs the fetch, and writes the JSON-encoded response back.
      *
      * Fuel cost: 10 base + body_size / 100
      */
     async env_http_fetch(
-      _methodPtr: number, _methodLen: number,
-      _urlPtr: number, _urlLen: number,
-      _bodyPtr: number, _bodyLen: number,
-      _resultPtr: number
+      methodPtr: number, methodLen: number,
+      urlPtr: number, urlLen: number,
+      bodyPtr: number, bodyLen: number,
+      resultPtr: number, resultMaxLen: number
     ): Promise<number> {
-      if (!consumeFuel(ctx, 10)) return WASM_ERR_BUDGET;
+      if (!consumeFuel(ctx, 10 + Math.ceil(bodyLen / 100))) return WASM_ERR_BUDGET;
 
-      // In a real integration, we'd read from WASM memory here.
-      // This defines the contract that the runtime linker would use.
-      // const method = readString(memory, methodPtr, methodLen);
-      // const url = readString(memory, urlPtr, urlLen);
-      // const body = readBytes(memory, bodyPtr, bodyLen);
+      const method = memory.readString(methodPtr, methodLen);
+      const url = memory.readString(urlPtr, urlLen);
+      const body = bodyLen > 0 ? memory.readBytes(bodyPtr, bodyLen) : undefined;
 
-      // Extract host from URL for capability check
-      // const parsedUrl = new URL(url);
-      // const host = parsedUrl.hostname;
-      // if (!hasCapability(ctx, `http.outbound.${host}`)) {
-      //   log.warn('wasm_http_denied', { pluginId: ctx.pluginId, host });
-      //   return WASM_ERR_DENIED;
-      // }
+      let host: string;
+      try {
+        host = new URL(url).hostname;
+      } catch {
+        return WASM_ERR_INVALID;
+      }
 
-      log.info('wasm_http_fetch', {
-        pluginId: ctx.pluginId,
-        agentId: ctx.agentId,
-        fuelUsed: ctx.fuelUsed,
-      });
+      if (!hasCapability(ctx, `http.outbound.${host}`)) {
+        log.warn('wasm_http_denied', { pluginId: ctx.pluginId, host });
+        return WASM_ERR_DENIED;
+      }
 
-      // The actual fetch would be performed here and the result
-      // written to WASM memory at resultPtr.
-      // For now, return the interface contract.
-      return WASM_OK;
+      try {
+        const response = await fetch(url, {
+          method: method || 'GET',
+          body: body ? Buffer.from(body) : undefined,
+        });
+        const responseBody = new Uint8Array(await response.arrayBuffer());
+        const encoded: HttpFetchResult = {
+          status: response.status,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: responseBody,
+        };
+        const json = Buffer.from(JSON.stringify(encoded));
+        memory.writeBytes(resultPtr, json, resultMaxLen);
+
+        log.info('wasm_http_fetch', {
+          pluginId: ctx.pluginId,
+          agentId: ctx.agentId,
+          host,
+          status: response.status,
+          fuelUsed: ctx.fuelUsed,
+        });
+        return WASM_OK;
+      } catch (e) {
+        log.warn('wasm_http_fetch_failed', {
+          pluginId: ctx.pluginId,
+          host,
+          error: e instanceof Error ? e.message : String(e),
+        });
+        return WASM_ERR_IO;
+      }
     },
 
     /**
@@ -195,19 +241,27 @@ export function createHostFunctions(
      * Fuel cost: 5 base + file_size / 1000
      */
     async env_read_file(
-      _pathPtr: number, _pathLen: number,
-      _bufPtr: number, _bufLen: number
+      pathPtr: number, pathLen: number,
+      bufPtr: number, bufLen: number
     ): Promise<number> {
       if (!consumeFuel(ctx, 5)) return WASM_ERR_BUDGET;
 
-      // In real integration: const path = readString(memory, pathPtr, pathLen);
-      // const validation = validateSandboxPath(path, sandboxRoot);
-      // if (!validation.ok) return WASM_ERR_DENIED;
-      // const data = await readFile(validation.resolved);
-      // writeBytes(memory, bufPtr, data.slice(0, bufLen));
-      // return WASM_OK;
+      const path = memory.readString(pathPtr, pathLen);
+      if (!hasCapability(ctx, `filesystem.read.${path}`) && !hasCapability(ctx, 'filesystem.read.*')) {
+        return WASM_ERR_DENIED;
+      }
+      const validation = validateSandboxPath(path, sandboxRoot);
+      if (!validation.ok) return WASM_ERR_DENIED;
 
-      return WASM_OK;
+      try {
+        const data = await readFile(validation.resolved);
+        if (!consumeFuel(ctx, Math.ceil(data.length / 1000))) return WASM_ERR_BUDGET;
+        memory.writeBytes(bufPtr, data, bufLen);
+        return WASM_OK;
+      } catch (e: unknown) {
+        const code = (e as NodeJS.ErrnoException)?.code;
+        return code === 'ENOENT' ? WASM_ERR_NOT_FOUND : WASM_ERR_IO;
+      }
     },
 
     /**
@@ -217,20 +271,26 @@ export function createHostFunctions(
      * Fuel cost: 5 base + data_size / 500
      */
     async env_write_file(
-      _pathPtr: number, _pathLen: number,
-      _dataPtr: number, _dataLen: number
+      pathPtr: number, pathLen: number,
+      dataPtr: number, dataLen: number
     ): Promise<number> {
-      if (!consumeFuel(ctx, 5)) return WASM_ERR_BUDGET;
+      if (!consumeFuel(ctx, 5 + Math.ceil(dataLen / 500))) return WASM_ERR_BUDGET;
 
-      // In real integration: const path = readString(memory, pathPtr, pathLen);
-      // const validation = validateSandboxPath(path, sandboxRoot);
-      // if (!validation.ok) return WASM_ERR_DENIED;
-      // const data = readBytes(memory, dataPtr, dataLen);
-      // await mkdir(dirname(validation.resolved), { recursive: true });
-      // await writeFile(validation.resolved, data);
-      // return WASM_OK;
+      const path = memory.readString(pathPtr, pathLen);
+      if (!hasCapability(ctx, `filesystem.write.${path}`) && !hasCapability(ctx, 'filesystem.write.*')) {
+        return WASM_ERR_DENIED;
+      }
+      const validation = validateSandboxPath(path, sandboxRoot);
+      if (!validation.ok) return WASM_ERR_DENIED;
 
-      return WASM_OK;
+      try {
+        const data = memory.readBytes(dataPtr, dataLen);
+        await mkdir(dirname(validation.resolved), { recursive: true });
+        await writeFile(validation.resolved, data);
+        return WASM_OK;
+      } catch {
+        return WASM_ERR_IO;
+      }
     },
 
     /**
@@ -238,22 +298,23 @@ export function createHostFunctions(
      * Fuel cost: 1
      */
     env_log(
-      _levelPtr: number, _levelLen: number,
-      _msgPtr: number, _msgLen: number
+      levelPtr: number, levelLen: number,
+      msgPtr: number, msgLen: number
     ): void {
       if (!consumeFuel(ctx, 1)) return;
-      // In real integration: read level + message from WASM memory
-      // log.info('wasm_guest_log', { pluginId: ctx.pluginId, level, message });
+      const level = memory.readString(levelPtr, levelLen);
+      const message = memory.readString(msgPtr, msgLen);
+      log.info('wasm_guest_log', { pluginId: ctx.pluginId, level, message });
     },
 
     /**
      * env_random — Cryptographically secure random bytes.
      * Fuel cost: 1 + len / 64
      */
-    env_random(_bufPtr: number, bufLen: number): void {
+    env_random(bufPtr: number, bufLen: number): void {
       if (!consumeFuel(ctx, 1 + Math.ceil(bufLen / 64))) return;
-      // In real integration: const bytes = randomBytes(bufLen);
-      // writeBytes(memory, bufPtr, bytes);
+      const bytes = cryptoRandomBytes(bufLen);
+      memory.writeBytes(bufPtr, bytes, bufLen);
     },
 
     /**
@@ -270,14 +331,14 @@ export function createHostFunctions(
      * Fuel cost: 3
      */
     async env_kv_get(
-      _keyPtr: number, _keyLen: number,
-      _bufPtr: number, _bufLen: number
+      keyPtr: number, keyLen: number,
+      bufPtr: number, bufLen: number
     ): Promise<number> {
       if (!consumeFuel(ctx, 3)) return WASM_ERR_BUDGET;
-      // In real integration: const key = readString(memory, keyPtr, keyLen);
-      // const data = await kvStore.get(`${ctx.pluginId}:${key}`);
-      // if (!data) return WASM_ERR_NOT_FOUND;
-      // writeBytes(memory, bufPtr, data.slice(0, bufLen));
+      const key = memory.readString(keyPtr, keyLen);
+      const data = await kvStore.get(`${ctx.pluginId}:${key}`);
+      if (!data) return WASM_ERR_NOT_FOUND;
+      memory.writeBytes(bufPtr, data, bufLen);
       return WASM_OK;
     },
 
@@ -286,13 +347,13 @@ export function createHostFunctions(
      * Fuel cost: 3 + value_size / 200
      */
     async env_kv_put(
-      _keyPtr: number, _keyLen: number,
-      _valPtr: number, _valLen: number
+      keyPtr: number, keyLen: number,
+      valPtr: number, valLen: number
     ): Promise<number> {
-      if (!consumeFuel(ctx, 3)) return WASM_ERR_BUDGET;
-      // In real integration: const key = readString(memory, keyPtr, keyLen);
-      // const val = readBytes(memory, valPtr, valLen);
-      // await kvStore.put(`${ctx.pluginId}:${key}`, val);
+      if (!consumeFuel(ctx, 3 + Math.ceil(valLen / 200))) return WASM_ERR_BUDGET;
+      const key = memory.readString(keyPtr, keyLen);
+      const val = memory.readBytes(valPtr, valLen);
+      await kvStore.put(`${ctx.pluginId}:${key}`, val);
       return WASM_OK;
     },
   };
@@ -333,30 +394,75 @@ export function createDbKvStore(pluginId: string): KvStore {
 
   return {
     async get(key: string): Promise<Uint8Array | null> {
-      const { db, pluginInstallations } = await getDb();
+      const { db, pluginKv } = await getDb();
       const { eq, and } = await import('drizzle-orm');
-      const rows = await db
-        .select()
-        .from(pluginInstallations)
-        .where(and(
-          eq(pluginInstallations.pluginId, pluginId),
-        ))
-        .limit(1);
-      // KV values would be stored in a dedicated plugin_kv table
-      // For now, return null as the table schema needs the kv column
-      return null;
+      const row = await db.query.pluginKv.findFirst({
+        where: and(eq(pluginKv.pluginId, pluginId), eq(pluginKv.key, key)),
+      });
+      if (!row) return null;
+      return new Uint8Array(Buffer.from(row.value, 'base64'));
     },
     async put(key: string, value: Uint8Array): Promise<void> {
-      // Would INSERT/UPDATE into plugin_kv table
+      const { db, pluginKv } = await getDb();
+      const { randomUUID } = await import('node:crypto');
+      const encoded = Buffer.from(value).toString('base64');
+      await db
+        .insert(pluginKv)
+        .values({
+          id: `pkv_${randomUUID()}`,
+          pluginId,
+          key,
+          value: encoded,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .onConflictDoUpdate({
+          target: [pluginKv.pluginId, pluginKv.key],
+          set: { value: encoded, updatedAt: new Date() },
+        });
       log.info('wasm_kv_put', { pluginId, key, size: value.length });
     },
     async delete(key: string): Promise<boolean> {
-      log.info('wasm_kv_delete', { pluginId, key });
-      return true;
+      const { db, pluginKv } = await getDb();
+      const { eq, and } = await import('drizzle-orm');
+      const deleted = (await db
+        .delete(pluginKv)
+        .where(and(eq(pluginKv.pluginId, pluginId), eq(pluginKv.key, key)))
+        .returning({ id: pluginKv.id })) as Array<{ id: string }>;
+      log.info('wasm_kv_delete', { pluginId, key, deleted: deleted.length > 0 });
+      return deleted.length > 0;
     },
     async list(prefix: string): Promise<string[]> {
-      log.info('wasm_kv_list', { pluginId, prefix });
-      return [];
+      const { db, pluginKv } = await getDb();
+      const { eq, and, like } = await import('drizzle-orm');
+      const rows = await db.query.pluginKv.findMany({
+        where: and(eq(pluginKv.pluginId, pluginId), like(pluginKv.key, `${prefix}%`)),
+      });
+      log.info('wasm_kv_list', { pluginId, prefix, count: rows.length });
+      return rows.map((r: { key: string }) => r.key);
+    },
+  };
+}
+
+/* ─── In-memory WasmMemory (for unit tests / non-WASM callers) ───────────── */
+
+/**
+ * A simple `ArrayBuffer`-backed `WasmMemory` implementation for testing the
+ * host functions above without a real WASM instance.
+ */
+export function createArrayBufferMemory(sizeBytes = 1_048_576): WasmMemory {
+  const buffer = new Uint8Array(sizeBytes);
+  return {
+    readBytes(ptr: number, len: number): Uint8Array {
+      return buffer.slice(ptr, ptr + len);
+    },
+    readString(ptr: number, len: number): string {
+      return Buffer.from(buffer.slice(ptr, ptr + len)).toString('utf8');
+    },
+    writeBytes(ptr: number, bytes: Uint8Array, maxLen: number): number {
+      const n = Math.min(bytes.length, maxLen, buffer.length - ptr);
+      buffer.set(bytes.subarray(0, n), ptr);
+      return n;
     },
   };
 }

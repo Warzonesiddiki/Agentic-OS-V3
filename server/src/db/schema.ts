@@ -919,6 +919,22 @@ export const pluginInstallations = pgTable(
   })
 );
 
+export const pluginKv = pgTable(
+  'plugin_kv',
+  {
+    id: text('id').primaryKey(),
+    pluginId: text('plugin_id').notNull(),
+    key: text('key').notNull(),
+    value: text('value').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => ({
+    pluginKeyUnique: uniqueIndex('plugin_kv_plugin_key_unique').on(t.pluginId, t.key),
+    pluginIdx: index('plugin_kv_plugin_idx').on(t.pluginId),
+  })
+);
+
 export const pluginReceipts = pgTable(
   'plugin_receipts',
   {
