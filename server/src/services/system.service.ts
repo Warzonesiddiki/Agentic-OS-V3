@@ -12,7 +12,7 @@ import {
   systemMeta,
   auditLog,
 } from '../db/client.js';
-import { eq, gt, sql, desc } from 'drizzle-orm';
+import { eq, gt, sql } from 'drizzle-orm';
 
 export async function getSystemCounts() {
   const count = sql<number>`count(*)::int`;

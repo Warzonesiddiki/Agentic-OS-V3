@@ -14,6 +14,14 @@ import { ApiError } from '../../src/lib/errors.js';
 
 vi.mock('../../src/lib/security.js', () => ({
   authenticate: vi.fn(),
+  hasScope: (principal: { scopes: string[] } | null, scope: string): boolean => {
+    if (!principal) return false;
+    if (principal.scopes.includes(scope)) return true;
+    for (const granted of principal.scopes) {
+      if (granted.endsWith('.*') && scope.startsWith(granted.slice(0, -1))) return true;
+    }
+    return false;
+  },
 }));
 
 vi.mock('../db/client.js', () => ({

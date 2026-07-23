@@ -58,10 +58,16 @@ export default [
     rules: {
       ...reactPlugin.configs.recommended.rules,
       ...reactHooksPlugin.configs.recommended.rules,
-      'react/jsx-uses-react': 'error',
+      // Project uses the automatic JSX runtime (Vite + @vitejs/plugin-react),
+      // so `React` does not need to be in scope for JSX to compile.
+      'react/react-in-jsx-scope': 'off',
+      'react/jsx-uses-react': 'off',
       'react/jsx-uses-vars': 'error',
       'react/prop-types': 'off',
       'no-unused-vars': 'off',
+      // TypeScript resolves globals, type-only imports, and DOM lib types
+      // (RequestInit, etc.) more accurately than ESLint's base no-undef rule.
+      'no-undef': 'off',
       '@typescript-eslint/no-unused-vars': ['warn', { argsIgnorePattern: '^_' }],
       '@typescript-eslint/no-explicit-any': 'warn',
     },

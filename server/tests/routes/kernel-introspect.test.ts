@@ -163,7 +163,7 @@ function buildTestDb(): DbHandle {
   raw.pragma('foreign_keys = ON');
   raw.pragma('busy_timeout = 5000');
 
-  const migrationPath = join(process.cwd(), 'drizzle', '0000_dark_misty_knight.sql');
+  const migrationPath = join(process.cwd(), 'drizzle', '0000_baseline_schema.sql');
   if (existsSync(migrationPath)) {
     const sqlText = readFileSync(migrationPath, 'utf-8');
     for (const stmt of sqlText.split('--> statement-breakpoint')) {

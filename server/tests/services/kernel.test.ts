@@ -73,7 +73,7 @@ vi.mock('../../src/db/client.js', async () => {
   sqliteDb.pragma('journal_mode = WAL');
   sqliteDb.pragma('busy_timeout = 5000');
 
-  const migrationPath = join(process.cwd(), 'drizzle', '0000_dark_misty_knight.sql');
+  const migrationPath = join(process.cwd(), 'drizzle', '0000_baseline_schema.sql');
   if (existsSync(migrationPath)) {
     for (const stmt of readFileSync(migrationPath, 'utf-8').split('--> statement-breakpoint')) {
       const t = stmt.trim();

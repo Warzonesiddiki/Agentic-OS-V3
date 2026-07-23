@@ -28,6 +28,7 @@ vi.mock('../../src/lib/env.js', () => {
     NEXUS_CB_THRESHOLD: 3,
     NEXUS_CB_RESET_MS: 100,
     NODE_ENV: 'test',
+    NEXUS_SQLITE_PATH: './agentic-os.db',
   };
   return {
     env: new Proxy(envState, { get: (t, k: string) => t[k] }),

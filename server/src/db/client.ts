@@ -439,6 +439,7 @@ export const {
   improvementProposals,
   plugins,
   pluginInstallations,
+  pluginKv,
   pluginReceipts,
   federatedMemoryProofs,
   llmProviderHealth,

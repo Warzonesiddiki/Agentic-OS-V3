@@ -217,6 +217,8 @@ server/src/services/workspace-sync.ts      @artisan
 server/src/services/sandbox.ts             @artisan
 server/src/services/sandbox-worker.ts      @artisan
 server/src/services/wasm-plugin-runtime.ts @artisan
+server/src/services/wasm-host-functions.ts @artisan
+server/src/services/skill-ast-compiler.ts  @artisan
 server/src/routes/marketplace-routes.ts    @artisan
 server/src/scripts/import-skills.ts        @artisan
 packages/sdk/                              @artisan
@@ -315,3 +317,54 @@ scripts/ @Warzonesiddiki
 DEVELOPMENT.md @Warzonesiddiki
 BENCHMARK.md @Warzonesiddiki
 TROUBLESHOOTING.md @Warzonesiddiki
+
+# FROZEN common infrastructure (see header note) - LEADER-owned explicit rules.
+# These were previously documented only in a comment block and were not
+# actually enforced/matched by the CODEOWNERS-coverage CI check.
+server/src/index.ts                       @Warzonesiddiki
+server/src/app.ts                         @Warzonesiddiki
+server/src/proxy.ts                       @Warzonesiddiki
+server/src/routes.ts                      @Warzonesiddiki
+server/src/services.ts                    @Warzonesiddiki
+server/src/typings.d.ts                   @Warzonesiddiki
+server/src/cli.ts                         @Warzonesiddiki
+server/src/setup.ts                       @Warzonesiddiki
+server/src/_probe_status.ts               @Warzonesiddiki
+server/src/db/client.ts                   @Warzonesiddiki
+server/src/db/schema.ts                   @Warzonesiddiki
+server/src/db/schema-sqlite.ts            @Warzonesiddiki
+server/src/db/dev-schema.ts               @Warzonesiddiki
+server/src/db/                            @Warzonesiddiki
+server/drizzle.config.ts                  @Warzonesiddiki
+server/drizzle.config.sqlite.ts           @Warzonesiddiki
+server/drizzle/                           @Warzonesiddiki
+server/src/lib/envelope.ts                @Warzonesiddiki
+server/src/lib/errors.ts                  @Warzonesiddiki
+server/src/lib/id.ts                      @Warzonesiddiki
+server/src/lib/hono-env.ts                @Warzonesiddiki
+server/src/lib/env.ts                     @Warzonesiddiki
+server/src/lib/guards.ts                  @Warzonesiddiki
+server/src/lib/http.ts                    @Warzonesiddiki
+server/src/lib/zvalidator.ts              @Warzonesiddiki
+server/src/lib/schemas.ts                 @Warzonesiddiki
+server/src/lib/strings.ts                 @Warzonesiddiki
+server/src/lib/payload-limit.ts           @Warzonesiddiki
+server/src/lib/protocol-integration.ts    @Warzonesiddiki
+server/src/lib/logging.ts                 @Warzonesiddiki
+server/src/lib/logger.ts                  @Warzonesiddiki
+server/src/services/system.service.ts     @Warzonesiddiki
+src/skill-registry.ts                     @Warzonesiddiki
+
+# Repo-wide dotfiles / lockfiles / meta not covered above.
+.gitignore                                @Warzonesiddiki
+.gitattributes                            @Warzonesiddiki
+.editorconfig                             @Warzonesiddiki
+.npmrc                                    @Warzonesiddiki
+.prettierrc                               @Warzonesiddiki
+.prettierignore                           @Warzonesiddiki
+.lintstagedrc                             @Warzonesiddiki
+pnpm-lock.yaml                            @Warzonesiddiki
+pnpm-workspace.yaml                       @Warzonesiddiki
+Cargo.toml                                @Warzonesiddiki
+Cargo.lock                                @Warzonesiddiki
+LICENSE                                   @Warzonesiddiki

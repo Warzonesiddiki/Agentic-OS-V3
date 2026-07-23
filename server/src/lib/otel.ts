@@ -38,7 +38,9 @@ export async function initOtel(): Promise<void> {
 
     // OTel SDKs ship without TS declarations for every class — cast through Record
     // to avoid eslint noise while preserving runtime correctness.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel SDK dynamic import erases class typings; runtime shape verified via .register()/.shutdown() calls below
     const provider = new (traceNode as Record<string, any>).NodeTracerProvider({ resource });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel SDK dynamic import erases class typings; runtime shape verified via exporter usage below
     const exporter = new (traceHttp as Record<string, any>).OTLPTraceExporter({
       url: env.NEXUS_OTEL_ENDPOINT,
       headers: env.NEXUS_OTEL_API_KEY
@@ -46,10 +48,12 @@ export async function initOtel(): Promise<void> {
         : undefined,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel SDK dynamic import erases class typings; runtime shape verified via addSpanProcessor call
     provider.addSpanProcessor(new (traceBase as Record<string, any>).SimpleSpanProcessor(exporter));
     provider.register();
 
     instr.registerInstrumentations({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- OTel SDK dynamic import erases class typings; runtime shape verified via registerInstrumentations call
       instrumentations: [new (instrHttp as Record<string, any>).HttpInstrumentation()],
     });
 

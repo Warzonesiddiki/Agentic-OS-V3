@@ -2,15 +2,42 @@
  * errors.ts — Centralized error types for NEXUS 2.0
  */
 
+/**
+ * Well-known error codes mapped to their canonical HTTP status. Used as the
+ * default when a caller constructs `new ApiError(code, message)` without an
+ * explicit status — this keeps `throw new ApiError('NOT_FOUND', ...)` call
+ * sites (of which there are dozens across services/routes) returning the
+ * correct HTTP status without requiring every call site to repeat the status
+ * code by hand.
+ */
+const DEFAULT_STATUS_BY_CODE: Record<string, number> = {
+  NOT_FOUND: 404,
+  VALIDATION_ERROR: 400,
+  UNAUTHORIZED: 401,
+  FORBIDDEN: 403,
+  CONFLICT: 409,
+  RATE_LIMITED: 429,
+  PAYLOAD_TOO_LARGE: 413,
+  SAFETY_KILL_SWITCH: 423,
+  KILL_SWITCH_ENGAGED: 423,
+  LLM_ERROR: 502,
+  DATABASE_ERROR: 500,
+  SANDBOX_ERROR: 500,
+  INTERNAL_ERROR: 500,
+};
+
 export class ApiError extends Error {
+  public status: number;
+
   constructor(
     public code: string,
     message: string,
-    public status: number = 500,
+    status?: number,
     public details?: unknown
   ) {
     super(message);
     this.name = 'ApiError';
+    this.status = status ?? DEFAULT_STATUS_BY_CODE[code] ?? 500;
   }
 }
 

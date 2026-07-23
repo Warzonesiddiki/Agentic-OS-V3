@@ -5,7 +5,7 @@
  * (the "cold" tier). Recall can optionally include the cold tier. A cron job
  * and an SSE hook drive periodic migration best-effort.
  */
-import { db, isSqlite, withTransaction } from '../db/client.js';
+import { db, withTransaction } from '../db/client.js';
 import { memories, memoryArchive } from '../db/client.js';
 import { and, eq, isNull, lt, like, or } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
@@ -35,13 +35,12 @@ export interface RecallResult {
 
 const MS_PER_DAY = 86_400_000;
 
-function cutoffValue(ageDays: number): string | Date {
-  const d = new Date(Date.now() - ageDays * MS_PER_DAY);
-  return isSqlite ? d.toISOString() : d;
+function cutoffValue(ageDays: number): Date {
+  return new Date(Date.now() - ageDays * MS_PER_DAY);
 }
 
-function nowValue(): string | Date {
-  return isSqlite ? new Date().toISOString() : new Date();
+function nowValue(): Date {
+  return new Date();
 }
 
 type ColdCandidate = {

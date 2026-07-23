@@ -87,7 +87,7 @@ function zScore(values: number[]): { mean: number; stddev: number; zScores: numb
  */
 async function detectStatisticalAnomalies(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
-  const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+  const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 3600_000);
 
   try {
     // Get recent memories with importance values for z-score analysis
@@ -126,7 +126,7 @@ async function detectStatisticalAnomalies(): Promise<ShadowInsight[]> {
 
     const bucketCounts = [...buckets.values()];
     if (bucketCounts.length >= 7) {
-      const { mean: bucketMean, stddev: bucketStddev, zScores: bucketZScores } = zScore(bucketCounts);
+      const { mean: bucketMean, stddev: bucketStddev } = zScore(bucketCounts);
       // Check if the most recent bucket (key 0) is an outlier
       const recentBucket = buckets.get(0) ?? 0;
       const recentZScore = bucketStddev > 0 ? (recentBucket - bucketMean) / bucketStddev : 0;
@@ -168,7 +168,7 @@ async function detectStatisticalAnomalies(): Promise<ShadowInsight[]> {
 
 async function detectAnomalies(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
-  const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
+  const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000);
 
   // 0. Statistical anomaly detection (z-score based)
   const statisticalAnomalies = await detectStatisticalAnomalies();
@@ -224,8 +224,8 @@ async function trackTrends(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
 
   try {
-    const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
-    const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+    const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000);
+    const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 3600_000);
 
     const [tasks7d, tasks30d, , topActionResult, successRateResult] = await Promise.all([
       // Tasks in last 7 days
@@ -322,7 +322,7 @@ async function generateImplicitConclusions(): Promise<ShadowInsight[]> {
     const recentMemories = await db
       .select()
       .from(memories)
-      .where(gte(memories.createdAt, new Date(Date.now() - 30 * 24 * 3600_000).toISOString()))
+      .where(gte(memories.createdAt, new Date(Date.now() - 30 * 24 * 3600_000)))
       .limit(200);
 
     const tagPairs = new Map<string, number>();
@@ -388,7 +388,7 @@ async function analyzeGaps(): Promise<ShadowInsight[]> {
       .where(
         and(
           eq(memories.kind, 'skill'),
-          gte(memories.createdAt, new Date(Date.now() - 14 * 24 * 3600_000).toISOString())
+          gte(memories.createdAt, new Date(Date.now() - 14 * 24 * 3600_000))
         )
       )
       .limit(100);
