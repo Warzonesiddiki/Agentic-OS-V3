@@ -20,6 +20,7 @@ export * from './r1-task-worker.js';
 export * from './r1-event-stream.js';
 export * from './r1-approvals.js';
 export * from './r1-tool-gateway.js';
+export * from './r1-effect-claims.js';
 export * from './r1-kill-switch.js';
 export * from './r1-telemetry.js';
 export * from './r1-evidence-timeline.js';

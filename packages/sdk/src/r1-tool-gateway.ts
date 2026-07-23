@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import type { R1Repositories } from './repositories.js';
 import type { ActionReceipt } from './r1-types.js';
+import { InMemoryEffectClaimStore, type EffectClaimStore } from './r1-effect-claims.js';
 
 export const ReadFileInputSchema = z.object({
   projectId: z.string().uuid(),
@@ -50,6 +51,7 @@ export interface ToolGatewayOptions {
   readonly sandboxExecutor?: (command: string, args: string[], timeoutMs: number, workingDirectory: string) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
   readonly fileReader?: (fullPath: string) => Promise<string>;
   readonly fileWriter?: (fullPath: string, content: string) => Promise<void>;
+  readonly effectClaims?: EffectClaimStore;
 }
 
 const DISALLOWED_PATH_PATTERNS = [
@@ -99,6 +101,7 @@ export class BoundedToolGateway {
   private readonly sandboxExecutor: NonNullable<ToolGatewayOptions['sandboxExecutor']>;
   private readonly fileReader: NonNullable<ToolGatewayOptions['fileReader']>;
   private readonly fileWriter: NonNullable<ToolGatewayOptions['fileWriter']>;
+  private readonly effectClaims: EffectClaimStore;
 
   constructor(private readonly repos: R1Repositories, options: ToolGatewayOptions = {}) {
     this.now = options.now ?? (() => new Date().toISOString());
@@ -107,6 +110,7 @@ export class BoundedToolGateway {
     this.sandboxExecutor = (options.sandboxExecutor ?? (async () => ({ stdout: 'sandbox executor not configured', stderr: '', exitCode: 0 }))) as NonNullable<ToolGatewayOptions['sandboxExecutor']>;
     this.fileReader = (options.fileReader ?? (async () => { throw new Error('fileReader not configured'); })) as NonNullable<ToolGatewayOptions['fileReader']>;
     this.fileWriter = (options.fileWriter ?? (async () => { throw new Error('fileWriter not configured'); })) as NonNullable<ToolGatewayOptions['fileWriter']>;
+    this.effectClaims = options.effectClaims ?? new InMemoryEffectClaimStore();
   }
 
   private resolvePath(projectId: string, requestedPath: string): string {
@@ -121,6 +125,25 @@ export class BoundedToolGateway {
     }
     // relative path: join with root but still check traversal already done
     return `${root}/${requestedPath}`.replace(/\/+/g, '/');
+  }
+
+  private async claimEffect(
+    projectId: string,
+    taskId: string,
+    correlationId: string,
+    operation: string,
+  ): Promise<ToolResult | null> {
+    const result = await this.effectClaims.claim({ projectId, taskId, correlationId, operation, createdAt: this.now() });
+    if (result.acquired) return null;
+    if (result.claim.state === 'completed') {
+      const completed = await this.findCompletedEffect(projectId, taskId, correlationId, operation);
+      return completed ?? { ok: false, error: `Completed ${operation} claim has no receipt; manual reconciliation required.`, receiptId: correlationId };
+    }
+    return { ok: false, error: `${operation} is already claimed by another worker; no side effect was repeated.`, receiptId: correlationId };
+  }
+
+  private async completeEffect(projectId: string, taskId: string, correlationId: string, operation: string): Promise<void> {
+    await this.effectClaims.complete({ projectId, taskId, correlationId, operation, completedAt: this.now() });
   }
 
   private async findCompletedEffect(
@@ -202,6 +225,8 @@ export class BoundedToolGateway {
       });
       return { ok: false, error: 'Write requires approved approval', receiptId: receipt.id };
     }
+    const claimBlocked = await this.claimEffect(input.projectId, input.taskId, correlationId, 'write-file');
+    if (claimBlocked) return claimBlocked;
     try {
       const fullPath = this.resolvePath(input.projectId, input.path);
       if (isPathTraversal(fullPath)) throw new Error('Path traversal disallowed');
@@ -215,6 +240,7 @@ export class BoundedToolGateway {
         decision: 'allow',
         payload: { operation: 'write-file', path: input.path, taskId: input.taskId, approvalId: input.approvalId, contentHash: this.hashContent(input.content) },
       });
+      await this.completeEffect(input.projectId, input.taskId, correlationId, 'write-file');
       return { ok: true, output: `wrote ${input.content.length} bytes to ${input.path}`, receiptId: receipt.id };
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);
@@ -249,7 +275,6 @@ export class BoundedToolGateway {
       });
       return { ok: false, error: 'Command requires approved approval', receiptId: receipt.id };
     }
-
     // Validate command against injection and disallowed list
     if (isCommandInjection(input.command) || input.args.some(isCommandInjection)) {
       const receipt = await this.recordReceipt({
@@ -274,6 +299,9 @@ export class BoundedToolGateway {
       return { ok: false, error: 'Disallowed command blocked', receiptId: receipt.id };
     }
 
+    const claimBlocked = await this.claimEffect(input.projectId, input.taskId, correlationId, 'constrained-command');
+    if (claimBlocked) return claimBlocked;
+
     try {
       const workingDirectory = this.resolvePath(input.projectId, '.');
       const result = await this.sandboxExecutor(input.command, input.args, input.timeoutMs, workingDirectory);
@@ -296,6 +324,7 @@ export class BoundedToolGateway {
       if (result.exitCode !== 0) {
         return { ok: false, error: result.stderr || `exit ${result.exitCode}`, receiptId: receipt.id };
       }
+      await this.completeEffect(input.projectId, input.taskId, correlationId, 'constrained-command');
       return { ok: true, output: result.stdout, receiptId: receipt.id };
     } catch (e) {
       const errMsg = e instanceof Error ? e.message : String(e);

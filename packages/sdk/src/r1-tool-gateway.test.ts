@@ -39,6 +39,31 @@ describe('BoundedToolGateway effect idempotency', () => {
     expect(writes).toBe(1);
   });
 
+  it('atomically claims a command before execution so a concurrent retry cannot repeat it', async () => {
+    const repositories = new InMemoryR1Repositories();
+    await repositories.projects.create(project);
+    await repositories.tasks.create(task);
+    let executions = 0;
+    const gateway = new BoundedToolGateway(repositories, {
+      projectRoots: new Map([[project.id, '/tmp/projects/gateway']]),
+      isApprovalApproved: async () => true,
+      sandboxExecutor: async () => {
+        executions += 1;
+        await new Promise<void>((resolve) => setTimeout(resolve, 20));
+        return { stdout: 'ok', stderr: '', exitCode: 0 };
+      },
+    });
+    const input = {
+      projectId: project.id, taskId: task.id, command: 'echo', args: ['ok'],
+      approvalId: '66666666-6666-4666-8666-666666666666', correlationId: '77777777-7777-4777-8777-777777777777',
+    };
+
+    const [first, second] = await Promise.all([gateway.runConstrainedCommand(input), gateway.runConstrainedCommand(input)]);
+
+    expect([first.ok, second.ok].filter(Boolean)).toHaveLength(1);
+    expect(executions).toBe(1);
+  });
+
   it('does not re-run an approved command with the same task correlation', async () => {
     const repositories = new InMemoryR1Repositories();
     await repositories.projects.create(project);

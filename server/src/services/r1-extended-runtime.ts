@@ -26,6 +26,7 @@ import {
   SqlKillSwitch,
   SqlDurableApprovals,
   SqlTelemetry,
+  SqlEffectClaimStore,
   MCPAdapter,
   A2AAdapter,
   ProjectSyncService,
@@ -80,6 +81,7 @@ export function createExtendedSqlR1Runtime(
   const killSwitchStore = new SqlKillSwitch(executor);
   const durableApprovalsRepo = new SqlDurableApprovals(executor);
   const telemetrySql = new SqlTelemetry(executor);
+  const effectClaims = new SqlEffectClaimStore(executor);
 
   const recall = new R1RecallService(repos, { embeddingAvailable: false });
   const feedback = new RecallFeedbackService(repos, feedbackRepo, contradictionRepo, { now: options.now });
@@ -89,6 +91,7 @@ export function createExtendedSqlR1Runtime(
   const toolGateway = new BoundedToolGateway(repos, {
     now: options.now,
     projectRoots: options.projectRoots,
+    effectClaims,
     isApprovalApproved: async (id: string, projectId: string) => {
       const appr = await durableApprovalsRepo.get(projectId, id);
       return appr?.state === 'approved';
