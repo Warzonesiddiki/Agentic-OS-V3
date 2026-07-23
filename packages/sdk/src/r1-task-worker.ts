@@ -66,6 +66,7 @@ export interface LeaseRepository {
 export interface CompensationRepository {
   save(c: CompensationStep): Promise<CompensationStep>;
   listForTask(projectId: string, taskId: string): Promise<readonly CompensationStep[]>;
+  listForProject(projectId: string): Promise<readonly CompensationStep[]>;
   update(c: CompensationStep): Promise<CompensationStep>;
 }
 
@@ -138,8 +139,11 @@ class InMemoryCompensation implements CompensationRepository {
     this.map.set(c.taskId, list);
     return c;
   }
-  async listForTask(_projectId: string, taskId: string): Promise<readonly CompensationStep[]> {
-    return [...(this.map.get(taskId) ?? [])];
+  async listForTask(projectId: string, taskId: string): Promise<readonly CompensationStep[]> {
+    return [...(this.map.get(taskId) ?? [])].filter((compensation) => compensation.projectId === projectId);
+  }
+  async listForProject(projectId: string): Promise<readonly CompensationStep[]> {
+    return [...this.map.values()].flat().filter((compensation) => compensation.projectId === projectId);
   }
   async update(c: CompensationStep): Promise<CompensationStep> {
     const list = this.map.get(c.taskId) ?? [];
@@ -260,15 +264,18 @@ export class TaskWorker {
     return recovered;
   }
 
-  /** Check if receipt already exists to prevent duplicate idempotent execution */
-  async isStepAlreadyExecuted(projectId: string, stepId: string, correlationId: string): Promise<boolean> {
-    // Search receipts for this correlation + step
-    // Since receipts are per task via payload.taskId filtering in SQL adapter not perfect, we check all for demo
-    // For in-memory, listForTask needs taskId; so we attempt listing via all receipts in store? Simplified: check existence via listing for project task? We'll use receipts.listForTask if we know taskId; here we need project+task context.
-    // For simplicity, we assume caller passes taskId in correlation via payload; we check project receipts list? Use a heuristic: if any receipt correlation equals stepId.
-    // This is a simplified idempotency guard.
-    // In real impl, we'd have idempotency table.
-    return false; // placeholder - implemented via SQL unique constraint in prod
+  /**
+   * Determine whether a step already produced an action receipt for the same
+   * correlation. The task ID is mandatory so every repository can enforce
+   * project scope before examining receipt metadata.
+   */
+  async isStepAlreadyExecuted(projectId: string, taskId: string, stepId: string, correlationId: string): Promise<boolean> {
+    const receipts = await this.repos.receipts.listForTask(projectId, taskId);
+    return receipts.some((receipt) =>
+      receipt.correlationId === correlationId
+      && receipt.payload.stepId === stepId
+      && receipt.decision === 'allow',
+    );
   }
 
   async transition(projectId: string, taskId: string, event: TaskEvent): Promise<Task> {
@@ -361,19 +368,7 @@ export class TaskWorker {
   }
 
   private async compsForProject(projectId: string): Promise<readonly CompensationStep[]> {
-    // This is simplified; in real we would list all tasks compensations filtered by project.
-    // For in-memory we need to iterate.
-    // Since compensation repo is per task, we cannot list all without taskIds.
-    // We'll return empty and rely on taskId lookup in caller, but for demo we collect via internal map if it's InMemoryCompensation.
-    const impl = this.compensations as any;
-    if (impl.map instanceof Map) {
-      const all: CompensationStep[] = [];
-      for (const list of impl.map.values()) {
-        for (const c of list as CompensationStep[]) if (c.projectId === projectId) all.push(c);
-      }
-      return all;
-    }
-    return [];
+    return this.compensations.listForProject(projectId);
   }
 
   private async emitEvent(projectId: string, taskId: string, event: TaskRecordEvent['event'], state: TaskState): Promise<void> {

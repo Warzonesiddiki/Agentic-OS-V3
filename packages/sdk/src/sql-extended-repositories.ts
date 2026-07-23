@@ -95,8 +95,12 @@ export class SqlCompensations implements CompensationRepository {
     const rows = await this.sql.query<any>(`SELECT id, project_id AS "projectId", task_id AS "taskId", target_step_id AS "targetStepId", reason, state, created_at AS "createdAt" FROM r1_compensations WHERE project_id=$1 AND task_id=$2 ORDER BY created_at`, [projectId, taskId]);
     return rows.map((r) => ({ id: r.id, projectId: r.projectId, taskId: r.taskId, targetStepId: r.targetStepId, reason: r.reason, state: r.state, createdAt: isoFromRow(r.createdAt) } as CompensationStep));
   }
+  async listForProject(projectId: string): Promise<readonly CompensationStep[]> {
+    const rows = await this.sql.query<any>(`SELECT id, project_id AS "projectId", task_id AS "taskId", target_step_id AS "targetStepId", reason, state, created_at AS "createdAt" FROM r1_compensations WHERE project_id=$1 ORDER BY created_at`, [projectId]);
+    return rows.map((r) => ({ id: r.id, projectId: r.projectId, taskId: r.taskId, targetStepId: r.targetStepId, reason: r.reason, state: r.state, createdAt: isoFromRow(r.createdAt) } as CompensationStep));
+  }
   async update(c: CompensationStep): Promise<CompensationStep> {
-    const row = one(await this.sql.query<any>(`UPDATE r1_compensations SET state=$2 WHERE id=$1 RETURNING id, project_id AS "projectId", task_id AS "taskId", target_step_id AS "targetStepId", reason, state, created_at AS "createdAt"`, [c.id, c.state]));
+    const row = one(await this.sql.query<any>(`UPDATE r1_compensations SET state=$2 WHERE id=$1 AND project_id=$3 RETURNING id, project_id AS "projectId", task_id AS "taskId", target_step_id AS "targetStepId", reason, state, created_at AS "createdAt"`, [c.id, c.state, c.projectId]));
     if (!row) throw new Error('Compensation not found');
     return { id: row.id, projectId: row.projectId, taskId: row.taskId, targetStepId: row.targetStepId, reason: row.reason, state: row.state, createdAt: isoFromRow(row.createdAt) } as CompensationStep;
   }
