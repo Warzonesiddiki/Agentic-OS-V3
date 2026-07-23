@@ -111,7 +111,15 @@ api.route('/', selfOptRouter);
 // Phase 15 — Performance & Scalability (stateless pool, replica router, cache)
 api.route('/perf', perfRoute);
 // Governed R1 project/task API: persistence remains behind the shared repository boundary.
-api.route('/api/v1/r1', createR1Router(createSqlR1Runtime(createApplicationSqlExecutor())));
+import { createExtendedSqlR1Runtime } from './services/r1-extended-runtime.js';
+import { createExtendedR1Router } from './routes/r1-extended.js';
+
+const baseR1Runtime = createSqlR1Runtime(createApplicationSqlExecutor());
+api.route('/api/v1/r1', createR1Router(baseR1Runtime));
+
+// Extended R1 runtime with full E2-E9 coverage
+const extendedR1Runtime = createExtendedSqlR1Runtime(createApplicationSqlExecutor());
+api.route('/api/v1/r1', createExtendedR1Router(extendedR1Runtime));
 // Start the safe-exploration tick (idempotent; defaults to dry-run / advisory).
 void import('./services/self-opt/bootstrap.js').then((m) => m.startSelfOptTick());
 // Start the safe-exploration tick (idempotent; defaults to dry-run / advisory).

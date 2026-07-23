@@ -14,6 +14,17 @@ export * from './r1-services.js';
 export * from './project-transfer.js';
 export * from './sql-repositories.js';
 export * from './bindings.js';
+export * from './r1-recall.js';
+export * from './r1-feedback.js';
+export * from './r1-task-worker.js';
+export * from './r1-event-stream.js';
+export * from './r1-approvals.js';
+export * from './r1-tool-gateway.js';
+export * from './r1-kill-switch.js';
+export * from './r1-telemetry.js';
+export * from './r1-evidence-timeline.js';
+export * from './r1-serena.js';
+export * from './sql-extended-repositories.js';
 
 // Phase 16 — Developer Experience surface
 export * from './client.js';
