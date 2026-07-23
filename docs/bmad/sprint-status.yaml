@@ -388,6 +388,7 @@ stories:
     dependencies: [E4-S1, E4-S3, E5-S2]
     evidence:
       - packages/sdk/src/r1-mcp-adapter.ts
+      - packages/sdk/src/r1-mcp-adapter.test.ts
       - packages/sdk/src/sql-e7-repositories.ts
       - server/src/db/migrations/0053_r1_sync.sql
       - server/src/services/r1-extended-runtime.ts
@@ -404,6 +405,7 @@ stories:
     dependencies: [E4-S1, E3-S2, E5-S2]
     evidence:
       - packages/sdk/src/r1-a2a-adapter.ts
+      - packages/sdk/src/r1-a2a-adapter.test.ts
       - packages/sdk/src/sql-e7-repositories.ts
       - server/src/db/migrations/0053_r1_sync.sql
       - server/src/services/r1-extended-runtime.ts
@@ -419,6 +421,7 @@ stories:
     dependencies: [E1-S3, E5-S1, E6-S1]
     evidence:
       - packages/sdk/src/r1-sync.ts
+      - packages/sdk/src/r1-sync.test.ts
       - packages/sdk/src/sql-e7-repositories.ts
       - server/src/db/migrations/0053_r1_sync.sql
       - server/src/services/r1-extended-runtime.ts
@@ -466,6 +469,7 @@ stories:
     dependencies: [E0-S3, E5-S1]
     evidence:
       - packages/sdk/src/r1-serena.ts
+      - packages/sdk/src/r1-serena.test.ts
       - server/src/routes/r1-extended.ts
   E9-S2:
     epic: E9
@@ -477,6 +481,7 @@ stories:
     dependencies: [E9-S1]
     evidence:
       - packages/sdk/src/r1-serena.ts
+      - packages/sdk/src/r1-serena.test.ts
   E9-S3:
     epic: E9
     title: Implement governed editing & refactoring
@@ -487,6 +492,7 @@ stories:
     dependencies: [E9-S1, E4-S2]
     evidence:
       - packages/sdk/src/r1-serena.ts
+      - packages/sdk/src/r1-serena.test.ts
   E9-S4:
     epic: E9
     title: MCP exposure + CLI experience
@@ -496,6 +502,8 @@ stories:
     sprint: sprint-6
     dependencies: [E9-S1, E9-S2, E9-S3]
     evidence:
+      - packages/sdk/src/r1-serena.ts
+      - packages/sdk/src/r1-serena.test.ts
       - server/src/routes/r1-extended.ts
       - src/lib/r1-client.ts
 
