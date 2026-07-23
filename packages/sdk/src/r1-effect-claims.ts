@@ -20,6 +20,8 @@ export interface EffectClaimResult {
 export interface EffectClaimStore {
   claim(input: Omit<EffectClaim, 'state' | 'createdAt' | 'completedAt'> & { readonly createdAt: string }): Promise<EffectClaimResult>;
   complete(input: Pick<EffectClaim, 'projectId' | 'taskId' | 'correlationId' | 'operation'> & { readonly completedAt: string }): Promise<EffectClaim>;
+  /** Claimed effects are never replayed automatically; operators must reconcile them. */
+  listStale(projectId: string, before: string): Promise<readonly EffectClaim[]>;
 }
 
 export class InMemoryEffectClaimStore implements EffectClaimStore {
@@ -41,6 +43,12 @@ export class InMemoryEffectClaimStore implements EffectClaimStore {
     const completed: EffectClaim = { ...existing, state: 'completed', completedAt: input.completedAt };
     this.claims.set(key, completed);
     return completed;
+  }
+
+  async listStale(projectId: string, before: string): Promise<readonly EffectClaim[]> {
+    return [...this.claims.values()].filter((claim) =>
+      claim.projectId === projectId && claim.state === 'claimed' && claim.createdAt <= before,
+    );
   }
 }
 
@@ -78,6 +86,15 @@ export class SqlEffectClaimStore implements EffectClaimStore {
     const claim = rows[0];
     if (!claim) throw new Error('Effect claim not found or already completed');
     return normalizeClaim(claim);
+  }
+
+  async listStale(projectId: string, before: string): Promise<readonly EffectClaim[]> {
+    const rows = await this.sql.query<EffectClaim>(
+      `SELECT project_id AS "projectId", task_id AS "taskId", correlation_id AS "correlationId", operation, state, created_at AS "createdAt", completed_at AS "completedAt"
+       FROM r1_effect_claims WHERE project_id=$1 AND state='claimed' AND created_at <= $2 ORDER BY created_at`,
+      [projectId, before],
+    );
+    return rows.map(normalizeClaim);
   }
 }
 

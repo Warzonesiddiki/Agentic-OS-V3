@@ -610,6 +610,7 @@ stories:
       - _bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md
       - server/src/services/r1-sandbox-runner.ts
       - server/tests/r1-sandbox-runner.test.ts
+      - docs/bmad/releases/R1-sandbox-security-contract.md
   E10-S7:
     epic: E10-R1
     title: Implement real constrained process runner
@@ -642,10 +643,13 @@ stories:
     title: Implement durable recovery state machine
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-8
     dependencies: [E10-S9]
-    evidence: []
+    evidence:
+      - packages/sdk/src/r1-effect-claims.ts
+      - server/src/routes/r1-extended.ts
+      - packages/sdk/src/r1-tool-gateway.test.ts
   E10-S11:
     epic: E10-R1
     title: Prove exactly-once crash recovery with real effect

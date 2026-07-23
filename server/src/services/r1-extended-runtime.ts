@@ -27,6 +27,7 @@ import {
   SqlDurableApprovals,
   SqlTelemetry,
   SqlEffectClaimStore,
+  InMemoryEffectClaimStore,
   MCPAdapter,
   A2AAdapter,
   ProjectSyncService,
@@ -37,6 +38,7 @@ import {
   type SqlExecutor,
   type R1Repositories,
   type ImportApplyResult,
+  type EffectClaimStore,
 } from '@agentic-os/sdk';
 import { CapabilityGovernanceService } from './capability-governance.js';
 import { runR1ConstrainedCommand } from './r1-sandbox-runner.js';
@@ -59,6 +61,7 @@ export interface ExtendedR1Runtime {
   readonly mcp: MCPAdapter;
   readonly a2a: A2AAdapter;
   readonly sync: ProjectSyncService;
+  readonly effectClaims: EffectClaimStore;
   readonly applyProjectImport: (candidate: unknown) => Promise<ImportApplyResult>;
 }
 
@@ -144,6 +147,7 @@ export function createExtendedSqlR1Runtime(
     mcp,
     a2a,
     sync,
+    effectClaims,
     applyProjectImport,
   };
 }
@@ -166,6 +170,7 @@ export function createInMemoryExtendedRuntime(repos: R1Repositories, options: { 
   const mcp = new MCPAdapter();
   const a2a = new A2AAdapter();
   const sync = new ProjectSyncService();
+  const effectClaims = new InMemoryEffectClaimStore();
 
   return {
     repositories: repos,
@@ -185,6 +190,7 @@ export function createInMemoryExtendedRuntime(repos: R1Repositories, options: { 
     mcp,
     a2a,
     sync,
+    effectClaims,
     applyProjectImport: (c) => transfer.applyImport(c),
   };
 }

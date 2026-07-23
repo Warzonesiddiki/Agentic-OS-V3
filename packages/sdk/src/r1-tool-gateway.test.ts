@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { InMemoryR1Repositories } from './in-memory-repositories.js';
 import { BoundedToolGateway } from './r1-tool-gateway.js';
+import { InMemoryEffectClaimStore } from './r1-effect-claims.js';
 import type { Project, Task } from './r1-types.js';
 
 const project: Project = {
@@ -15,6 +16,18 @@ const task: Task = {
 };
 
 describe('BoundedToolGateway effect idempotency', () => {
+  it('surfaces stale claims for manual reconciliation without authorizing a replay', async () => {
+    const claims = new InMemoryEffectClaimStore();
+    await claims.claim({
+      projectId: project.id, taskId: task.id, correlationId: '99999999-9999-4999-8999-999999999999',
+      operation: 'write-file', createdAt: '2026-07-24T00:00:00.000Z',
+    });
+
+    await expect(claims.listStale(project.id, '2026-07-24T00:01:00.000Z')).resolves.toMatchObject([
+      { taskId: task.id, state: 'claimed', operation: 'write-file' },
+    ]);
+    await expect(claims.listStale(project.id, '2026-07-23T23:59:00.000Z')).resolves.toEqual([]);
+  });
   it('does not repeat an approved file write with the same task correlation', async () => {
     const repositories = new InMemoryR1Repositories();
     await repositories.projects.create(project);

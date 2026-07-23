@@ -110,6 +110,19 @@ export function createExtendedR1Router(runtime: ExtendedR1Runtime): Hono<NexusEn
     return c.json({ recovered: await runtime.worker.recoverExpired() }, 200);
   });
 
+  // Claimed effects are intentionally never replayed automatically. Operators
+  // inspect this bounded list before choosing a manual reconciliation action.
+  router.get('/projects/:projectId/effects/recovery', async (c) => {
+    await requireScope(c, 'brain:admin');
+    const projectId = c.req.param('projectId');
+    const requestedAgeMs = Number(c.req.query('olderThanMs') ?? 30_000);
+    if (!Number.isInteger(requestedAgeMs) || requestedAgeMs < 1_000 || requestedAgeMs > 86_400_000) {
+      return c.json({ error: { code: 'INVALID', message: 'olderThanMs must be an integer between 1000 and 86400000' } }, 400);
+    }
+    const before = new Date(Date.now() - requestedAgeMs).toISOString();
+    return c.json({ claims: await runtime.effectClaims.listStale(projectId, before), reconciliationRequired: true }, 200);
+  });
+
   // --- E3-S3 Retry/cancel/recovery ---
   router.post('/projects/:projectId/tasks/:taskId/cancel', async (c) => {
     await requireScope(c, 'memory:write');
