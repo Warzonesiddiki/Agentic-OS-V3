@@ -98,6 +98,15 @@ sprints:
       - E9-S2
       - E9-S3
       - E9-S4
+  sprint-7:
+    name: interoperability-and-sync
+    goal: Implement versioned MCP, A2A, and explicit sync to complete full product vision beyond R1 MUST.
+    capacity_points: 24
+    status: done
+    committed:
+      - E7-S1
+      - E7-S2
+      - E7-S3
 
 stories:
   E0-S1:
@@ -374,28 +383,48 @@ stories:
     title: Versioned MCP capability adapter
     points: 8
     priority: P2
-    status: deferred
-    sprint: null
+    status: done
+    sprint: sprint-7
     dependencies: [E4-S1, E4-S3, E5-S2]
-    evidence: []
+    evidence:
+      - packages/sdk/src/r1-mcp-adapter.ts
+      - packages/sdk/src/sql-e7-repositories.ts
+      - server/src/db/migrations/0053_r1_sync.sql
+      - server/src/services/r1-extended-runtime.ts
+      - server/src/routes/r1-extended.ts
+      - src/lib/r1-client.ts
+      - docs/bmad/stories/E7-S1-versioned-mcp-capability-adapter.md
   E7-S2:
     epic: E7
     title: Versioned A2A task adapter
     points: 8
     priority: P2
-    status: deferred
-    sprint: null
+    status: done
+    sprint: sprint-7
     dependencies: [E4-S1, E3-S2, E5-S2]
-    evidence: []
+    evidence:
+      - packages/sdk/src/r1-a2a-adapter.ts
+      - packages/sdk/src/sql-e7-repositories.ts
+      - server/src/db/migrations/0053_r1_sync.sql
+      - server/src/services/r1-extended-runtime.ts
+      - server/src/routes/r1-extended.ts
+      - docs/bmad/stories/E7-S2-versioned-a2a-task-adapter.md
   E7-S3:
     epic: E7
     title: Explicit one-project sync
     points: 8
     priority: P2
-    status: deferred
-    sprint: null
+    status: done
+    sprint: sprint-7
     dependencies: [E1-S3, E5-S1, E6-S1]
-    evidence: []
+    evidence:
+      - packages/sdk/src/r1-sync.ts
+      - packages/sdk/src/sql-e7-repositories.ts
+      - server/src/db/migrations/0053_r1_sync.sql
+      - server/src/services/r1-extended-runtime.ts
+      - server/src/routes/r1-extended.ts
+      - src/lib/r1-client.ts
+      - docs/bmad/stories/E7-S3-explicit-one-project-sync.md
   E8-S1:
     epic: E8
     title: Security and isolation verification

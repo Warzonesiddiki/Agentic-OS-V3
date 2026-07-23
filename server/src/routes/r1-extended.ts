@@ -443,5 +443,133 @@ export function createExtendedR1Router(runtime: ExtendedR1Runtime): Hono<NexusEn
     return c.json(await runtime.serena.renameSymbol({ projectId, oldName: body.oldName, newName: body.newName, projectRoot: root }), 200);
   });
 
+  // --- E7-S1 MCP capability adapter ---
+  router.get('/mcp/compatibility', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json(runtime.mcp.getCompatibilityMatrix(), 200);
+  });
+
+  router.get('/projects/:projectId/mcp/servers', async (c) => {
+    await requireScope(c, 'memory:read');
+    const projectId = c.req.param('projectId');
+    // owner derived from principal, but for R1 we list by project owner? Use projectId as owner filter for demo
+    const result = await runtime.mcp.discover(projectId);
+    return c.json(result, 200);
+  });
+
+  router.post('/projects/:projectId/mcp/servers', async (c) => {
+    await requireScope(c, 'brain:admin');
+    const body = await c.req.json();
+    const server = await runtime.mcp.register(body);
+    return c.json(server, 201);
+  });
+
+  router.get('/projects/:projectId/mcp/servers/:serverId/tools', async (c) => {
+    await requireScope(c, 'memory:read');
+    const serverId = c.req.param('serverId');
+    return c.json({ tools: await runtime.mcp.listTools(serverId) }, 200);
+  });
+
+  router.post('/projects/:projectId/mcp/servers/:serverId/call', async (c) => {
+    const principal = await requireScope(c, 'memory:write');
+    const projectId = c.req.param('projectId');
+    const serverId = c.req.param('serverId');
+    const body = await c.req.json();
+    const result = await runtime.mcp.callTool({ serverId, toolName: body.toolName, args: body.args, owner: principal.id, taskId: body.taskId, approvalId: body.approvalId });
+    const span = runtime.telemetry.startSpan({ kind: 'tool', name: `mcp-${body.toolName}`, projectId, taskId: body.taskId });
+    runtime.telemetry.endSpan(span.spanId, 'ok');
+    return c.json(result, 200);
+  });
+
+  // --- E7-S2 A2A task adapter ---
+  router.get('/a2a/compatibility', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json(runtime.a2a.getCompatibilityMatrix(), 200);
+  });
+
+  router.post('/a2a/cards', async (c) => {
+    await requireScope(c, 'brain:admin');
+    const body = await c.req.json();
+    return c.json(await runtime.a2a.registerAgentCard(body), 201);
+  });
+
+  router.get('/a2a/cards', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json({ cards: await runtime.a2a.listAgentCards() }, 200);
+  });
+
+  router.post('/projects/:projectId/a2a/delegate', async (c) => {
+    const principal = await requireScope(c, 'memory:write');
+    const projectId = c.req.param('projectId');
+    const body = await c.req.json();
+    const task = await runtime.a2a.delegateTask({ localTaskId: body.localTaskId, localStepId: body.localStepId, agentCardId: body.agentCardId, owner: principal.id, approvalId: body.approvalId, contextId: body.contextId });
+    const span = runtime.telemetry.startSpan({ kind: 'tool', name: `a2a-delegate-${body.agentCardId}`, projectId, taskId: body.localTaskId });
+    runtime.telemetry.endSpan(span.spanId, 'ok');
+    return c.json(task, 201);
+  });
+
+  router.get('/projects/:projectId/a2a/tasks/:a2aTaskId', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json(await runtime.a2a.getRemoteStatus(c.req.param('a2aTaskId')), 200);
+  });
+
+  router.post('/projects/:projectId/a2a/tasks/:a2aTaskId/status', async (c) => {
+    await requireScope(c, 'memory:write');
+    const body = await c.req.json();
+    return c.json(await runtime.a2a.updateRemoteStatus(c.req.param('a2aTaskId'), body.status, body.artifacts), 200);
+  });
+
+  router.post('/projects/:projectId/a2a/tasks/:a2aTaskId/promote', async (c) => {
+    const principal = await requireScope(c, 'memory:write');
+    const body = await c.req.json();
+    return c.json(await runtime.a2a.promoteArtifact({ a2aTaskId: c.req.param('a2aTaskId'), artifactId: body.artifactId, owner: principal.id, approvalId: body.approvalId }), 200);
+  });
+
+  router.get('/projects/:projectId/a2a/local/:localTaskId', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json({ tasks: await runtime.a2a.listForLocalTask(c.req.param('localTaskId')) }, 200);
+  });
+
+  // --- E7-S3 Explicit one-project sync ---
+  router.get('/projects/:projectId/sync/state', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json(await runtime.sync.getState(c.req.param('projectId')), 200);
+  });
+
+  router.post('/projects/:projectId/sync/push', async (c) => {
+    const principal = await requireScope(c, 'memory:write');
+    const projectId = c.req.param('projectId');
+    const body = await c.req.json();
+    const result = await runtime.sync.push(projectId, body.changes ?? []);
+    const span = runtime.telemetry.startSpan({ kind: 'task', name: `sync-push-${projectId}`, projectId });
+    runtime.telemetry.endSpan(span.spanId, result.conflicts.length ? 'error' : 'ok');
+    return c.json(result, 200);
+  });
+
+  router.get('/projects/:projectId/sync/pull', async (c) => {
+    await requireScope(c, 'memory:read');
+    const projectId = c.req.param('projectId');
+    const after = Number(c.req.query('afterRevision') ?? -1);
+    return c.json(await runtime.sync.pull(projectId, after), 200);
+  });
+
+  router.get('/projects/:projectId/sync/conflicts', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json({ conflicts: await runtime.sync.listConflicts(c.req.param('projectId')) }, 200);
+  });
+
+  router.post('/projects/:projectId/sync/conflicts/:conflictId/resolve', async (c) => {
+    const principal = await requireScope(c, 'memory:write');
+    const projectId = c.req.param('projectId');
+    const conflictId = c.req.param('conflictId');
+    const body = await c.req.json();
+    return c.json(await runtime.sync.resolveConflict(projectId, conflictId, body.resolution, principal.id, body.mergedPayload), 200);
+  });
+
+  router.get('/projects/:projectId/sync/pending', async (c) => {
+    await requireScope(c, 'memory:read');
+    return c.json({ pending: await runtime.sync.getPendingLocalChanges(c.req.param('projectId')) }, 200);
+  });
+
   return router;
 }

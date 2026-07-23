@@ -26,6 +26,13 @@ import {
   SqlKillSwitch,
   SqlDurableApprovals,
   SqlTelemetry,
+  MCPAdapter,
+  A2AAdapter,
+  ProjectSyncService,
+  SqlMCPRepo,
+  SqlA2ACardRepo,
+  SqlA2ATaskRepo,
+  SqlSyncStore,
   type SqlExecutor,
   type R1Repositories,
 } from '@agentic-os/sdk';
@@ -46,6 +53,9 @@ export interface ExtendedR1Runtime {
   readonly telemetry: TelemetryService;
   readonly evidenceTimeline: EvidenceTimelineService;
   readonly serena: SerenaCodeIntelligence;
+  readonly mcp: MCPAdapter;
+  readonly a2a: A2AAdapter;
+  readonly sync: ProjectSyncService;
   readonly applyProjectImport: (candidate: unknown) => Promise<any>;
 }
 
@@ -104,6 +114,9 @@ export function createExtendedSqlR1Runtime(
   const telemetry = new TelemetryService({ now: options.now, spanExporter: { export: async (spans) => { for (const s of spans) await telemetrySql.saveSpan(s); } } });
   const evidenceTimeline = new EvidenceTimelineService(repos, { now: options.now });
   const serena = new SerenaCodeIntelligence({ now: options.now });
+  const mcp = new MCPAdapter(new SqlMCPRepo(executor), { now: options.now });
+  const a2a = new A2AAdapter(new SqlA2ACardRepo(executor), new SqlA2ATaskRepo(executor), { now: options.now, isApprovalApproved: async (id) => (await durableApprovalsRepo.get('', id))?.state === 'approved' });
+  const sync = new ProjectSyncService(new SqlSyncStore(executor), { now: options.now });
 
   const applyProjectImport = async (candidate: unknown) => {
     const svc = new ProjectTransferService(repos);
@@ -126,6 +139,9 @@ export function createExtendedSqlR1Runtime(
     telemetry,
     evidenceTimeline,
     serena,
+    mcp,
+    a2a,
+    sync,
     applyProjectImport,
   };
 }
@@ -145,6 +161,9 @@ export function createInMemoryExtendedRuntime(repos: R1Repositories, options: { 
   const telemetry = new TelemetryService({ now: options.now });
   const evidenceTimeline = new EvidenceTimelineService(repos);
   const serena = new SerenaCodeIntelligence({ now: options.now });
+  const mcp = new MCPAdapter();
+  const a2a = new A2AAdapter();
+  const sync = new ProjectSyncService();
 
   return {
     repositories: repos,
@@ -161,6 +180,9 @@ export function createInMemoryExtendedRuntime(repos: R1Repositories, options: { 
     telemetry,
     evidenceTimeline,
     serena,
+    mcp,
+    a2a,
+    sync,
     applyProjectImport: (c) => transfer.applyImport(c),
   };
 }

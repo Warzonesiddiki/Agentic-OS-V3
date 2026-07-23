@@ -145,4 +145,49 @@ export const r1 = {
   async diagnostics(projectId: string) {
     return request(`/projects/${projectId}/code/diagnostics`).then((r) => r.diagnostics ?? r);
   },
+
+  // E7-S1 MCP
+  async mcpCompatibility() {
+    return request('/mcp/compatibility');
+  },
+  async listMcpServers(projectId: string) {
+    return request(`/projects/${projectId}/mcp/servers`).then((r) => r.servers ?? r);
+  },
+  async registerMcpServer(projectId: string, server: any) {
+    return request(`/projects/${projectId}/mcp/servers`, { method: 'POST', body: JSON.stringify(server) });
+  },
+  async callMcpTool(projectId: string, serverId: string, toolName: string, args: Record<string, unknown>, taskId?: string, approvalId?: string) {
+    return request(`/projects/${projectId}/mcp/servers/${serverId}/call`, { method: 'POST', body: JSON.stringify({ toolName, args, taskId, approvalId }) });
+  },
+
+  // E7-S2 A2A
+  async a2aCompatibility() {
+    return request('/a2a/compatibility');
+  },
+  async registerA2ACard(card: any) {
+    return request('/a2a/cards', { method: 'POST', body: JSON.stringify(card) });
+  },
+  async listA2ACards() {
+    return request('/a2a/cards').then((r) => r.cards ?? r);
+  },
+  async delegateA2ATask(projectId: string, input: any) {
+    return request(`/projects/${projectId}/a2a/delegate`, { method: 'POST', body: JSON.stringify(input) });
+  },
+
+  // E7-S3 Sync
+  async syncState(projectId: string) {
+    return request(`/projects/${projectId}/sync/state`);
+  },
+  async syncPush(projectId: string, changes: any[]) {
+    return request(`/projects/${projectId}/sync/push`, { method: 'POST', body: JSON.stringify({ changes }) });
+  },
+  async syncPull(projectId: string, afterRevision = -1) {
+    return request(`/projects/${projectId}/sync/pull?afterRevision=${afterRevision}`);
+  },
+  async syncConflicts(projectId: string) {
+    return request(`/projects/${projectId}/sync/conflicts`).then((r) => r.conflicts ?? r);
+  },
+  async resolveSyncConflict(projectId: string, conflictId: string, resolution: 'local'|'remote'|'merge', mergedPayload?: any) {
+    return request(`/projects/${projectId}/sync/conflicts/${conflictId}/resolve`, { method: 'POST', body: JSON.stringify({ resolution, mergedPayload }) });
+  },
 };

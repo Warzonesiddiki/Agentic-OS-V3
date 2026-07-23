@@ -25,6 +25,10 @@ export * from './r1-telemetry.js';
 export * from './r1-evidence-timeline.js';
 export * from './r1-serena.js';
 export * from './sql-extended-repositories.js';
+export * from './r1-mcp-adapter.js';
+export * from './r1-a2a-adapter.js';
+export * from './r1-sync.js';
+export * from './sql-e7-repositories.js';
 
 // Phase 16 — Developer Experience surface
 export * from './client.js';
