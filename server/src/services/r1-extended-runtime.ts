@@ -35,6 +35,7 @@ import {
   SqlSyncStore,
   type SqlExecutor,
   type R1Repositories,
+  type ImportApplyResult,
 } from '@agentic-os/sdk';
 import { CapabilityGovernanceService } from './capability-governance.js';
 import { runR1ConstrainedCommand } from './r1-sandbox-runner.js';
@@ -57,7 +58,7 @@ export interface ExtendedR1Runtime {
   readonly mcp: MCPAdapter;
   readonly a2a: A2AAdapter;
   readonly sync: ProjectSyncService;
-  readonly applyProjectImport: (candidate: unknown) => Promise<any>;
+  readonly applyProjectImport: (candidate: unknown) => Promise<ImportApplyResult>;
 }
 
 export function createExtendedSqlR1Runtime(

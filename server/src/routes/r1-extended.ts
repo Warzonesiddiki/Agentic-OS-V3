@@ -4,13 +4,10 @@
  * All handlers use typed validation and delegate to SDK services.
  */
 import { Hono } from 'hono';
-import { z } from 'zod';
 import { R1RecallQuerySchema } from '@agentic-os/sdk';
-import { RecallFeedbackSchema, ContradictionSignalSchema } from '@agentic-os/sdk';
 import { requireScope, fail } from '../lib/auth-context.js';
 import type { NexusEnv } from '../lib/hono-env.js';
 import type { ExtendedR1Runtime } from '../services/r1-extended-runtime.js';
-import { ApiError } from '../lib/errors.js';
 
 export function createExtendedR1Router(runtime: ExtendedR1Runtime): Hono<NexusEnv> {
   const router = new Hono<NexusEnv>();
@@ -87,18 +84,7 @@ export function createExtendedR1Router(runtime: ExtendedR1Runtime): Hono<NexusEn
   router.get('/projects/:projectId/tasks/:taskId/checkpoints', async (c) => {
     await requireScope(c, 'memory:read');
     const { projectId, taskId } = c.req.param();
-    // Access underlying repo via worker internals for demo: use extended repos direct SQL? We'll query checkpoints via internal map or SQL
-    // For simplicity, we expose via worker's checkpoint repository if it has list method via cast
-    const checkpointsRepo = (runtime.worker as any).checkpoints ?? (runtime as any).checkpoints;
-    // Fallback: try to use service list if available via SQL executor direct query handled in service - but we have method via new extended runtime? We'll attempt list via worker's internal if present
-    const list = await (runtime as any).repositories?.tasks?.list ? [] : []; // placeholder
-    // Actually worker holds checkpoints repository
-    const workerCheckpoints = (runtime.worker as any).checkpoints;
-    if (workerCheckpoints?.listForTask) {
-      return c.json({ checkpoints: await workerCheckpoints.listForTask(projectId, taskId) }, 200);
-    }
-    // If not, direct SQL not available, return empty for in-memory fallback
-    return c.json({ checkpoints: [] }, 200);
+    return c.json({ checkpoints: await runtime.worker.listCheckpoints(projectId, taskId) }, 200);
   });
 
   router.post('/projects/:projectId/tasks/claim', async (c) => {
@@ -217,8 +203,6 @@ export function createExtendedR1Router(runtime: ExtendedR1Runtime): Hono<NexusEn
       actorId: principal.id,
       ttlMs: body.ttlMs,
     });
-    const span = runtime.telemetry.startSpan({ kind: 'approval_wait', name: `approval-${req.id}`, projectId, taskId: body.taskId });
-    // Keep span open logically; we end after decision. For now store span id in approval metadata? Simplified.
     return c.json(req, 201);
   });
 
@@ -538,7 +522,7 @@ export function createExtendedR1Router(runtime: ExtendedR1Runtime): Hono<NexusEn
   });
 
   router.post('/projects/:projectId/sync/push', async (c) => {
-    const principal = await requireScope(c, 'memory:write');
+    await requireScope(c, 'memory:write');
     const projectId = c.req.param('projectId');
     const body = await c.req.json();
     const result = await runtime.sync.push(projectId, body.changes ?? []);

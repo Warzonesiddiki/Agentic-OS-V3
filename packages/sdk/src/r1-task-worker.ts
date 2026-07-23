@@ -236,6 +236,11 @@ export class TaskWorker {
     return this.checkpoints.save(cp);
   }
 
+  /** List durable checkpoints without exposing repository internals. */
+  async listCheckpoints(projectId: string, taskId: string): Promise<readonly Checkpoint[]> {
+    return this.checkpoints.listForTask(projectId, taskId);
+  }
+
   /** Recover expired leases from last checkpoint */
   async recoverExpired(): Promise<readonly { taskId: string; checkpoint: Checkpoint | null }[]> {
     const expired = await this.leases.listExpired(this.now());
