@@ -95,8 +95,12 @@ export class SqlCompensations implements CompensationRepository {
     const rows = await this.sql.query<any>(`SELECT id, project_id AS "projectId", task_id AS "taskId", target_step_id AS "targetStepId", reason, state, created_at AS "createdAt" FROM r1_compensations WHERE project_id=$1 AND task_id=$2 ORDER BY created_at`, [projectId, taskId]);
     return rows.map((r) => ({ id: r.id, projectId: r.projectId, taskId: r.taskId, targetStepId: r.targetStepId, reason: r.reason, state: r.state, createdAt: isoFromRow(r.createdAt) } as CompensationStep));
   }
+  async listForProject(projectId: string): Promise<readonly CompensationStep[]> {
+    const rows = await this.sql.query<any>(`SELECT id, project_id AS "projectId", task_id AS "taskId", target_step_id AS "targetStepId", reason, state, created_at AS "createdAt" FROM r1_compensations WHERE project_id=$1 ORDER BY created_at`, [projectId]);
+    return rows.map((r) => ({ id: r.id, projectId: r.projectId, taskId: r.taskId, targetStepId: r.targetStepId, reason: r.reason, state: r.state, createdAt: isoFromRow(r.createdAt) } as CompensationStep));
+  }
   async update(c: CompensationStep): Promise<CompensationStep> {
-    const row = one(await this.sql.query<any>(`UPDATE r1_compensations SET state=$2 WHERE id=$1 RETURNING id, project_id AS "projectId", task_id AS "taskId", target_step_id AS "targetStepId", reason, state, created_at AS "createdAt"`, [c.id, c.state]));
+    const row = one(await this.sql.query<any>(`UPDATE r1_compensations SET state=$2 WHERE id=$1 AND project_id=$3 RETURNING id, project_id AS "projectId", task_id AS "taskId", target_step_id AS "targetStepId", reason, state, created_at AS "createdAt"`, [c.id, c.state, c.projectId]));
     if (!row) throw new Error('Compensation not found');
     return { id: row.id, projectId: row.projectId, taskId: row.taskId, targetStepId: row.targetStepId, reason: row.reason, state: row.state, createdAt: isoFromRow(row.createdAt) } as CompensationStep;
   }
@@ -141,7 +145,7 @@ export class SqlContradiction implements ContradictionRepository {
     return rows.map((r) => ({ id: r.id, projectId: r.projectId, memoryAId: r.memoryAId, memoryBId: r.memoryBId, reason: r.reason, confidence: r.confidence, evidenceIds: jsonParse(r.evidenceIds), status: r.status, createdAt: isoFromRow(r.createdAt) } as ContradictionSignal));
   }
   async update(s: ContradictionSignal): Promise<ContradictionSignal> {
-    const row = one(await this.sql.query<any>(`UPDATE r1_contradictions SET status=$2, reason=$3 WHERE id=$1 RETURNING id, project_id AS "projectId", memory_a_id AS "memoryAId", memory_b_id AS "memoryBId", reason, confidence, evidence_ids AS "evidenceIds", status, created_at AS "createdAt"`, [s.id, s.status, s.reason]));
+    const row = one(await this.sql.query<any>(`UPDATE r1_contradictions SET status=$2, reason=$3 WHERE id=$1 AND project_id=$4 RETURNING id, project_id AS "projectId", memory_a_id AS "memoryAId", memory_b_id AS "memoryBId", reason, confidence, evidence_ids AS "evidenceIds", status, created_at AS "createdAt"`, [s.id, s.status, s.reason, s.projectId]));
     if (!row) throw new Error('Contradiction not found');
     return { id: row.id, projectId: row.projectId, memoryAId: row.memoryAId, memoryBId: row.memoryBId, reason: row.reason, confidence: row.confidence, evidenceIds: jsonParse(row.evidenceIds), status: row.status, createdAt: isoFromRow(row.createdAt) } as ContradictionSignal;
   }
@@ -185,8 +189,8 @@ export class SqlKillSwitch implements KillSwitchRepository {
 // Durable approvals
 export class SqlDurableApprovals implements ApprovalRepositoryEx {
   constructor(private readonly sql: SqlExecutor) {}
-  async get(_projectId: string, approvalId: string): Promise<DurableApprovalRequest | null> {
-    const row = one(await this.sql.query<any>(`SELECT id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, action, created_at AS "createdAt", updated_at AS "updatedAt", decision_actor_id AS "decisionActorId", decision_at AS "decisionAt" FROM r1_durable_approvals WHERE id=$1`, [approvalId]));
+  async get(projectId: string, approvalId: string): Promise<DurableApprovalRequest | null> {
+    const row = one(await this.sql.query<any>(`SELECT id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, action, created_at AS "createdAt", updated_at AS "updatedAt", decision_actor_id AS "decisionActorId", decision_at AS "decisionAt" FROM r1_durable_approvals WHERE id=$1 AND project_id=$2`, [approvalId, projectId]));
     if (!row) return null;
     return {
       id: row.id, projectId: row.projectId, taskId: row.taskId, capabilityId: row.capabilityId, state: row.state,
@@ -209,8 +213,8 @@ export class SqlDurableApprovals implements ApprovalRepositoryEx {
     return { id: row.id, projectId: row.projectId, taskId: row.taskId, capabilityId: row.capabilityId, state: row.state, action: jsonParse(row.action), createdAt: isoFromRow(row.createdAt), updatedAt: isoFromRow(row.updatedAt) } as DurableApprovalRequest;
   }
   async update(req: DurableApprovalRequest): Promise<DurableApprovalRequest> {
-    const row = one(await this.sql.query<any>(`UPDATE r1_durable_approvals SET state=$2, updated_at=$3, decision_actor_id=$4, decision_at=$5 WHERE id=$1 RETURNING id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, action, created_at AS "createdAt", updated_at AS "updatedAt", decision_actor_id AS "decisionActorId", decision_at AS "decisionAt"`,
-      [req.id, req.state, req.updatedAt, req.decisionActorId ?? null, req.decisionAt ?? null]));
+    const row = one(await this.sql.query<any>(`UPDATE r1_durable_approvals SET state=$2, updated_at=$3, decision_actor_id=$4, decision_at=$5 WHERE id=$1 AND project_id=$6 RETURNING id, project_id AS "projectId", task_id AS "taskId", capability_id AS "capabilityId", state, action, created_at AS "createdAt", updated_at AS "updatedAt", decision_actor_id AS "decisionActorId", decision_at AS "decisionAt"`,
+      [req.id, req.state, req.updatedAt, req.decisionActorId ?? null, req.decisionAt ?? null, req.projectId]));
     if (!row) throw new Error('Approval not found');
     return {
       id: row.id, projectId: row.projectId, taskId: row.taskId, capabilityId: row.capabilityId, state: row.state,

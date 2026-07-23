@@ -2,7 +2,11 @@
 
 **Date:** 2026-07-23
 **Release:** R1 Governed Agent Workbench
-**Status:** Release candidate — all P0 stories implemented, security & performance suites green
+**Status:** **BLOCKED — E10-R1 integrity, security, and release requalification required.** Historical targeted suites remain evidence only; they do not authorize release.
+
+## Audit supersession notice (2026-07-24)
+
+An adversarial audit found a simulated constrained command runner, unimplemented worker duplicate-effect check, project-scope omissions in SQL persistence paths, placeholder route logic, failing full repository test suite, outstanding dependency advisories, and incomplete clean-machine/rollback/security-triage gates. This document is historical operational guidance, not release approval, until E10-R1 Workstream 30 independently signs off. See `_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md`. Current Gate 0 baseline: `docs/bmad/baseline-2026-07-24-gate0.md`; machine-readable ledger: `docs/bmad/releases/evidence/2026-07-24-release-evidence-ledger.json`.
 
 ## 1. Setup Guides
 

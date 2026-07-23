@@ -26,6 +26,8 @@ import {
   SqlKillSwitch,
   SqlDurableApprovals,
   SqlTelemetry,
+  SqlEffectClaimStore,
+  InMemoryEffectClaimStore,
   MCPAdapter,
   A2AAdapter,
   ProjectSyncService,
@@ -35,8 +37,11 @@ import {
   SqlSyncStore,
   type SqlExecutor,
   type R1Repositories,
+  type ImportApplyResult,
+  type EffectClaimStore,
 } from '@agentic-os/sdk';
 import { CapabilityGovernanceService } from './capability-governance.js';
+import { runR1ConstrainedCommand } from './r1-sandbox-runner.js';
 
 export interface ExtendedR1Runtime {
   readonly repositories: R1Repositories;
@@ -56,7 +61,8 @@ export interface ExtendedR1Runtime {
   readonly mcp: MCPAdapter;
   readonly a2a: A2AAdapter;
   readonly sync: ProjectSyncService;
-  readonly applyProjectImport: (candidate: unknown) => Promise<any>;
+  readonly effectClaims: EffectClaimStore;
+  readonly applyProjectImport: (candidate: unknown) => Promise<ImportApplyResult>;
 }
 
 export function createExtendedSqlR1Runtime(
@@ -78,6 +84,7 @@ export function createExtendedSqlR1Runtime(
   const killSwitchStore = new SqlKillSwitch(executor);
   const durableApprovalsRepo = new SqlDurableApprovals(executor);
   const telemetrySql = new SqlTelemetry(executor);
+  const effectClaims = new SqlEffectClaimStore(executor);
 
   const recall = new R1RecallService(repos, { embeddingAvailable: false });
   const feedback = new RecallFeedbackService(repos, feedbackRepo, contradictionRepo, { now: options.now });
@@ -87,17 +94,13 @@ export function createExtendedSqlR1Runtime(
   const toolGateway = new BoundedToolGateway(repos, {
     now: options.now,
     projectRoots: options.projectRoots,
-    isApprovalApproved: async (id: string) => {
-      const appr = await durableApprovalsRepo.get('', id);
+    effectClaims,
+    isApprovalApproved: async (id: string, projectId: string) => {
+      const appr = await durableApprovalsRepo.get(projectId, id);
       return appr?.state === 'approved';
     },
-    sandboxExecutor: async (command, args, timeoutMs) => {
-      // Bounded sandbox: only allow ls, cat, echo, npm, pnpm, node, git for R1 demo
-      const allowed = ['ls', 'cat', 'echo', 'npm', 'pnpm', 'node', 'git', 'pwd'];
-      if (!allowed.includes(command)) throw new Error(`Command not allowed in sandbox: ${command}`);
-      // Simulate execution - in real would use child_process with timeout
-      return { stdout: `mock exec: ${command} ${args.join(' ')}`, stderr: '', exitCode: 0 };
-    },
+    sandboxExecutor: async (command, args, timeoutMs, workingDirectory) =>
+      runR1ConstrainedCommand({ command, args, timeoutMs, workingDirectory }),
     fileReader: async (fullPath: string) => {
       // Enforce project root already done in gateway; here we simulate read
       const { readFile } = await import('node:fs/promises');
@@ -115,7 +118,9 @@ export function createExtendedSqlR1Runtime(
   const evidenceTimeline = new EvidenceTimelineService(repos, { now: options.now });
   const serena = new SerenaCodeIntelligence({ now: options.now });
   const mcp = new MCPAdapter(new SqlMCPRepo(executor), { now: options.now });
-  const a2a = new A2AAdapter(new SqlA2ACardRepo(executor), new SqlA2ATaskRepo(executor), { now: options.now, isApprovalApproved: async (id) => (await durableApprovalsRepo.get('', id))?.state === 'approved' });
+  // A2A's adapter contract does not yet carry project scope with an approval ID.
+  // Fail closed rather than performing an unscoped approval lookup.
+  const a2a = new A2AAdapter(new SqlA2ACardRepo(executor), new SqlA2ATaskRepo(executor), { now: options.now, isApprovalApproved: async () => false });
   const sync = new ProjectSyncService(new SqlSyncStore(executor), { now: options.now });
 
   const applyProjectImport = async (candidate: unknown) => {
@@ -142,6 +147,7 @@ export function createExtendedSqlR1Runtime(
     mcp,
     a2a,
     sync,
+    effectClaims,
     applyProjectImport,
   };
 }
@@ -164,6 +170,7 @@ export function createInMemoryExtendedRuntime(repos: R1Repositories, options: { 
   const mcp = new MCPAdapter();
   const a2a = new A2AAdapter();
   const sync = new ProjectSyncService();
+  const effectClaims = new InMemoryEffectClaimStore();
 
   return {
     repositories: repos,
@@ -183,6 +190,7 @@ export function createInMemoryExtendedRuntime(repos: R1Repositories, options: { 
     mcp,
     a2a,
     sync,
+    effectClaims,
     applyProjectImport: (c) => transfer.applyImport(c),
   };
 }

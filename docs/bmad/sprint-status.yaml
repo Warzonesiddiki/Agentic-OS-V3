@@ -4,13 +4,13 @@ workflow:
   phase: 4
   phase_name: implementation
   release: R1-governed-agent-workbench
-  current_sprint: sprint-6
-  last_updated: 2026-07-23
+  current_sprint: sprint-8
+  last_updated: 2026-07-24
 campaign:
   name: 50-SUBAGENT-BMAD-PERFECTION-CAMPAIGN
   id: BMAD-50SUB-2026-07-21
-  status: ACTIVE - All waves completed, final verification
-  perfection_score: 98
+  status: BLOCKED - 2026-07-24 adversarial audit requires E10-R1 requalification
+  perfection_score: not_scored_pending_requalification
 swarm_progress:
   roles_deployed: 50
   waves_launched: "All waves complete"
@@ -22,7 +22,7 @@ swarm_progress:
     - "Security & performance acceptance suites"
     - "Serena parity MCP tools"
     - "R1 frontend workbench (dashboard, task detail, approvals, memory)"
-  next: "Final release gate sign-off"
+  next: "E10-R1 remediation and independent release requalification"
   target: 98
   subagents_deployed: 50
   notes: "All R1 MUST stories implemented with tests, security and performance verification, frontend UX, Serena parity"
@@ -107,6 +107,43 @@ sprints:
       - E7-S1
       - E7-S2
       - E7-S3
+
+  sprint-8:
+    name: r1-integrity-security-and-release-requalification
+    goal: Make each R1 production claim real, tenant-scoped, typed, reversible, and independently release-qualified.
+    capacity_points: 180
+    status: ready
+    committed:
+      - E10-S1
+      - E10-S2
+      - E10-S3
+      - E10-S4
+      - E10-S5
+      - E10-S6
+      - E10-S7
+      - E10-S8
+      - E10-S9
+      - E10-S10
+      - E10-S11
+      - E10-S12
+      - E10-S13
+      - E10-S14
+      - E10-S15
+      - E10-S16
+      - E10-S17
+      - E10-S18
+      - E10-S19
+      - E10-S20
+      - E10-S21
+      - E10-S22
+      - E10-S23
+      - E10-S24
+      - E10-S25
+      - E10-S26
+      - E10-S27
+      - E10-S28
+      - E10-S29
+      - E10-S30
 
 stories:
   E0-S1:
@@ -506,6 +543,293 @@ stories:
       - packages/sdk/src/r1-serena.test.ts
       - server/src/routes/r1-extended.ts
       - src/lib/r1-client.ts
+
+  E10-S1:
+    epic: E10-R1
+    title: Freeze unsupported release and perfection claims
+    points: 5
+    priority: P0
+    status: in_progress
+    sprint: sprint-8
+    dependencies: []
+    evidence:
+      - docs/bmad/stories/E10-S1-freeze-unsupported-release-and-perfection-claims.md
+      - docs/bmad/baseline-2026-07-24-gate0.md
+  E10-S2:
+    epic: E10-R1
+    title: Reconcile authoritative BMAD status and baselines
+    points: 5
+    priority: P0
+    status: in_progress
+    sprint: sprint-8
+    dependencies: []
+    evidence:
+      - docs/bmad/stories/E10-S2-reconcile-authoritative-status-and-baselines.md
+      - docs/bmad/baseline-2026-07-24-gate0.md
+  E10-S3:
+    epic: E10-R1
+    title: Create E10-R1 story acceptance and evidence contracts
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: []
+    evidence: []
+  E10-S4:
+    epic: E10-R1
+    title: Establish machine-readable release evidence ledger
+    points: 5
+    priority: P0
+    status: in_progress
+    sprint: sprint-8
+    dependencies: []
+    evidence:
+      - docs/bmad/stories/E10-S4-establish-machine-readable-release-evidence-ledger.md
+      - docs/bmad/releases/evidence/2026-07-24-release-evidence-ledger.json
+  E10-S5:
+    epic: E10-R1
+    title: Classify every full-suite test failure
+    points: 5
+    priority: P0
+    status: in_progress
+    sprint: sprint-8
+    dependencies: []
+    evidence:
+      - docs/bmad/stories/E10-S5-classify-and-remediate-full-suite-failures.md
+      - docs/bmad/releases/evidence/2026-07-24-full-suite-triage.json
+      - docs/bmad/releases/evidence/2026-07-24-full-suite.log
+  E10-S6:
+    epic: E10-R1
+    title: Specify governed sandbox security contract
+    points: 5
+    priority: P0
+    status: in_progress
+    sprint: sprint-8
+    dependencies: [E10-S5]
+    evidence:
+      - _bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md
+      - server/src/services/r1-sandbox-runner.ts
+      - server/tests/r1-sandbox-runner.test.ts
+      - docs/bmad/releases/R1-sandbox-security-contract.md
+  E10-S7:
+    epic: E10-R1
+    title: Implement real constrained process runner
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S6]
+    evidence: []
+  E10-S8:
+    epic: E10-R1
+    title: Adversarially test sandbox execution
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S7]
+    evidence: []
+  E10-S9:
+    epic: E10-R1
+    title: Implement durable scoped side-effect idempotency
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S8]
+    evidence: []
+  E10-S10:
+    epic: E10-R1
+    title: Implement durable recovery state machine
+    points: 5
+    priority: P0
+    status: in_progress
+    sprint: sprint-8
+    dependencies: [E10-S9]
+    evidence:
+      - packages/sdk/src/r1-effect-claims.ts
+      - server/src/routes/r1-extended.ts
+      - packages/sdk/src/r1-tool-gateway.test.ts
+  E10-S11:
+    epic: E10-R1
+    title: Prove exactly-once crash recovery with real effect
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S10]
+    evidence: []
+  E10-S12:
+    epic: E10-R1
+    title: Scope every R1 SQL lookup and mutation
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S11]
+    evidence: []
+  E10-S13:
+    epic: E10-R1
+    title: Enforce principal-to-project authorization
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S12]
+    evidence: []
+  E10-S14:
+    epic: E10-R1
+    title: Replace private runtime access with typed service APIs
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S13]
+    evidence: []
+  E10-S15:
+    epic: E10-R1
+    title: Complete SQL compensation support
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S14]
+    evidence: []
+  E10-S16:
+    epic: E10-R1
+    title: Create and test ordered R1 down migrations
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S15]
+    evidence: []
+  E10-S17:
+    epic: E10-R1
+    title: Validate forward and rollback migrations across engines
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S16]
+    evidence: []
+  E10-S18:
+    epic: E10-R1
+    title: Eliminate explicit any in R1 production paths
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S17]
+    evidence: []
+  E10-S19:
+    epic: E10-R1
+    title: Validate all R1 API request and response contracts
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S18]
+    evidence: []
+  E10-S20:
+    epic: E10-R1
+    title: Remove placeholders and simulations from claimed R1 paths
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S19]
+    evidence: []
+  E10-S21:
+    epic: E10-R1
+    title: Harden export import and evidence integrity
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S20]
+    evidence: []
+  E10-S22:
+    epic: E10-R1
+    title: Repair or formally rationalize full repository test suite
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S21]
+    evidence: []
+  E10-S23:
+    epic: E10-R1
+    title: Build deterministic R1 integration harness
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S22]
+    evidence: []
+  E10-S24:
+    epic: E10-R1
+    title: Add R1 component and accessibility tests
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S23]
+    evidence: []
+  E10-S25:
+    epic: E10-R1
+    title: Add 14-step R1 golden-path E2E test
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S24]
+    evidence: []
+  E10-S26:
+    epic: E10-R1
+    title: Establish R1 coverage and mutation thresholds
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S25]
+    evidence: []
+  E10-S27:
+    epic: E10-R1
+    title: Remediate production dependency vulnerabilities
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S26]
+    evidence: []
+  E10-S28:
+    epic: E10-R1
+    title: Complete security triage and penetration matrix
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S27]
+    evidence: []
+  E10-S29:
+    epic: E10-R1
+    title: Perform clean-machine release and rollback drill
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S28]
+    evidence: []
+  E10-S30:
+    epic: E10-R1
+    title: Conduct independent adversarial release audit
+    points: 5
+    priority: P0
+    status: backlog
+    sprint: sprint-8
+    dependencies: [E10-S29]
+    evidence: []
 
 status_legend:
   backlog: Identified but not refined for immediate work.
