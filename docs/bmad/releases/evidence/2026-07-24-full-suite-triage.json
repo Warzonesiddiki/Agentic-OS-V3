@@ -1,0 +1,600 @@
+{
+  "schemaVersion": "nexus.r1.full-suite-triage.v1",
+  "runLog": "docs/bmad/releases/evidence/2026-07-24-full-suite.log",
+  "scope": "one classification per failing test file; raw log retains all 159 failed test cases",
+  "summary": {
+    "actual_product_defect": 51,
+    "environment_native_dependency_failure": 26,
+    "stale_or_broken_test": 21
+  },
+  "failures": [
+    {
+      "test_file": "tests/a2a.test.ts [ tests/a2a.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/bench-scheduler.test.ts [ tests/bench-scheduler.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/brain-v3.test.ts [ tests/brain-v3.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/crypto-audit.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "TypeError: Cannot read properties of undefined (reading 'enabled')",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/db-concurrency.test.ts [ tests/db-concurrency.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/e2e/system.e2e.test.ts [ tests/e2e/system.e2e.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/enterprise-rbac.test.ts [ tests/enterprise-rbac.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: Cannot find module '../lib/errors.js' imported from '/home/user/Agentic-OS-V3/server/tests/enterprise-rbac.test.ts'",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/enterprise.test.ts [ tests/enterprise.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: Cannot find module '../db/schema.js' imported from '/home/user/Agentic-OS-V3/server/tests/enterprise.test.ts'",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/fairness-corrector.test.ts [ tests/fairness-corrector.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/federated-recall.test.ts [ tests/federated-recall.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/feedback.service.test.ts [ tests/feedback.service.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/forge-live-seam.test.ts [ tests/forge-live-seam.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/forge-selfheal.test.ts [ tests/forge-selfheal.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/gap-items.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected false to be true // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/gate.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "Error: eslint reported lint errors (exit 2). First errors:",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/guardrails-negative.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/guardrails-quarantine.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected 'ok' to be 'warn' // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/health.test.ts [ tests/health.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] No \"createApplicationSqlExecutor\" export is defined on the \"../src/db/client.js\" mock. Did you forget to return it from \"vi.mock\"?",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/kernel-bootstrap.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected [Function] to throw error matching /unknown service/ but got 'BootstrapGraph: unknown dependency \"m\u2026'",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/kernel-introspect.test.ts [ tests/kernel-introspect.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/kernel-panic.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected \"spy\" to not be called at all, but actually been called 1 times\u001b[90m",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/killswitch-race.test.ts [ tests/killswitch-race.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/lib/auth-context.test.ts [ tests/lib/auth-context.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/llm-coalesce.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected \"spy\" to be called 1 times, but got 50 times",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/marketplace.service.test.ts [ tests/marketplace.service.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/marketplace.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "Error: graph contains a cycle",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/memory-analysis.test.ts [ tests/memory-analysis.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/memory-attachments.store.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected '<svg xmlns=\"http://www.w3.org/2000/sv\u2026' to contain 'a b  c  d'",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/memory-backup.test.ts",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "TypeError: db.select is not a function",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/memory-batch.apply.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected +0 to be 4 // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/memory-cluster.ops.test.ts",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] No \"systemMeta\" export is defined on the \"../src/db/client.js\" mock. Did you forget to return it from \"vi.mock\"?",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/memory-cold-storage.test.ts",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "TypeError: archiveMemory is not a function",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/memory-encryption.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "TypeError: Cannot read properties of undefined (reading 'enabled')",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/memory-export-v3.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "TypeError: Cannot read properties of null (reading 'schemaVersion')",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/memory-forget.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected +0 to be 1 // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/memory-lifecycle.test.ts [ tests/memory-lifecycle.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/memory-perfection.test.ts [ tests/memory-perfection.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/memory-priming.test.ts [ tests/memory-priming.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/memory-query.test.ts [ tests/memory-query.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/memory-search-suggest.test.ts [ tests/memory-search-suggest.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/memory-stitcher.test.ts",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "TypeError: buildStitchPrompt is not a function",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/memory-storage.test.ts [ tests/memory-storage.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: No test suite found in file /home/user/Agentic-OS-V3/server/tests/memory-storage.test.ts",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/memory-tag-taxonomy.async.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: promise resolved \"{ \u2026(6) }\" instead of rejecting",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/metron-caches.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected 1 to be undefined",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/metron-probe-health.test.ts",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "TypeError: runProbe is not a function",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/metron-tracing.test.ts",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "TypeError: fn is not a function",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/migration.test.ts",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/overhead-accounting.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected 2 to be 3 // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/p2p-swarm.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected +0 to be 1 // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/phase11-kernel.test.ts",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: MODULE NOT IMPLEMENTED: ../src/services/kernel.js \u2014 Phase 11 agent has not landed this file yet. (Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/phase14-security.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/pipeline-executor.test.ts [ tests/pipeline-executor.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/plugin-manifest.test.ts [ tests/plugin-manifest.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/preemption-leak-guard.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected [ 'fresh', 'old1', 'old2' ] to deeply equal [ 'old1', 'old2' ]",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/project.service.test.ts [ tests/project.service.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/r1-application-postgres-contract.test.ts [ tests/r1-application-postgres-contract.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/r1-application-sqlite-contract.test.ts",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/r1-project-transfer-contract.test.ts [ tests/r1-project-transfer-contract.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/r1-routes.test.ts [ tests/r1-routes.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/rateLimit.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected '10.0.0.1' to be '1.2.3.4' // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/resource-quota.test.ts [ tests/resource-quota.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/ring-audit.test.ts [ tests/ring-audit.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/routes/automation.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected 500 to be 200 // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/routes/kernel-introspect.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/routes/v3-upgrade.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: Target cannot be null or undefined.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/scheduler-core.test.ts [ tests/scheduler-core.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/scheduler-phase11.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/scheduler-property.test.ts [ tests/scheduler-property.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/scheduler-resilience-risk.test.ts [ tests/scheduler-resilience-risk.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/secrets-scanner.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/security-lib-negative.test.ts",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "TypeError: classify is not a function",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/security-mcp.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "TypeError: scopes is not iterable",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/security.test.ts [ tests/security.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/self-improvement-harness-control.test.ts [ tests/self-improvement-harness-control.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/self-improvement-harness.test.ts [ tests/self-improvement-harness.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/self-opt-adapters.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected \"spy\" to not be called at all, but actually been called 1 times\u001b[90m",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/self-opt-controller.test.ts [ tests/self-opt-controller.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/self-opt-emit.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected false to be true // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/self-opt-telemetry.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected 50 to be 250 // Object.is equality",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/self-opt-tuners.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected 0 to be greater than 0",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/self-opt.test.ts [ tests/self-opt.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/sentinel-core.test.ts [ tests/sentinel-core.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/services/agent-runtime.test.ts [ tests/services/agent-runtime.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/services/audit-routes.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "AssertionError: expected \"spy\" to be called with arguments: [ Anything, 'audit:read' ]\u001b[90m",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/services/brain.test.ts [ tests/services/brain.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/services/embeddings.test.ts",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/services/feedback.service.test.ts [ tests/services/feedback.service.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: Cannot find module '../services/feedback.service.js' imported from '/home/user/Agentic-OS-V3/server/tests/services/feedback.service.test.ts'",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/services/kernel.test.ts [ tests/services/kernel.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/services/llm-gateway-v2.pure.test.ts [ tests/services/llm-gateway-v2.pure.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] No \"portkeyBridge\" export is defined on the \"../../src/services/portkey-bridge.js\" mock. Did you forget to return it from \"vi.mock\"?",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/services/llm-gateway-v2.test.ts [ tests/services/llm-gateway-v2.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/services/recall.test.ts [ tests/services/recall.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/services/scheduler-property.test.ts [ tests/services/scheduler-property.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/services/session-recorder.test.ts [ tests/services/session-recorder.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: Cannot find module '../services/session-recorder.js' imported from '/home/user/Agentic-OS-V3/server/tests/services/session-recorder.test.ts'",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    },
+    {
+      "test_file": "tests/services/skill-compiler-capability.test.ts [ tests/services/skill-compiler-capability.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/services/skill-template-engine.test.ts [ tests/services/skill-template-engine.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/services/wasm-capability-resolution.test.ts [ tests/services/wasm-capability-resolution.test.ts ]",
+      "classification": "environment_native_dependency_failure",
+      "primary_signature": "Error: Could not locate the bindings file. Tried:",
+      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there."
+    },
+    {
+      "test_file": "tests/smoke-new-services.test.ts [ tests/smoke-new-services.test.ts ]",
+      "classification": "actual_product_defect",
+      "primary_signature": "Failure output requires test-file-level triage; see raw log.",
+      "next_action": "Reproduce in isolated test, assign code owner, fix behavior, and add regression coverage."
+    },
+    {
+      "test_file": "tests/sse-bridge.test.ts [ tests/sse-bridge.test.ts ]",
+      "classification": "stale_or_broken_test",
+      "primary_signature": "Error: [vitest] There was an error when mocking a module. If you are using \"vi.mock\" factory, make sure there are no top level variables inside, since this call is hoisted to top of the file. Read more: https://vitest.dev/api/vi.html#vi-mock",
+      "next_action": "Repair import/mock/API contract or remove only after an approved replacement test exists."
+    }
+  ]
+}

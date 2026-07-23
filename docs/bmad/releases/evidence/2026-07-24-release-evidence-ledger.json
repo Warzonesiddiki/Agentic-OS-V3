@@ -1,0 +1,41 @@
+{
+  "schemaVersion": "nexus.r1.release-evidence-ledger.v1",
+  "generatedAt": "2026-07-24",
+  "repositoryCommit": "3da7f2d14bcfa4c0d71decf3a399cb9db4f70b4d",
+  "environment": {
+    "node": "v22.22.3",
+    "pnpm": "9.15.0",
+    "platform": "Linux-6.1.158+-x86_64-with-glibc2.36",
+    "installMode": "pnpm install --no-frozen-lockfile --ignore-scripts",
+    "databaseMode": "better-sqlite3 native binding unavailable in this sandbox; PGlite is required for supported DB contract validation"
+  },
+  "commands": [
+    {
+      "id": "full-suite",
+      "command": "pnpm test",
+      "expected": "all configured server tests pass",
+      "actual": "exit 1; 98 failed files, 159 failed tests; 156 passed files, 1750 passed tests, 12 skipped",
+      "status": "blocked",
+      "artifact": "docs/bmad/releases/evidence/2026-07-24-full-suite.log",
+      "triage": "docs/bmad/releases/evidence/2026-07-24-full-suite-triage.json"
+    },
+    {
+      "id": "sdk-targeted",
+      "command": "cd packages/sdk && vitest run",
+      "expected": "all SDK tests pass",
+      "actual": "254 passed",
+      "status": "pass",
+      "artifact": "terminal validation output; rerun required at release gate"
+    },
+    {
+      "id": "r1-targeted-server",
+      "command": "cd server && vitest run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts",
+      "expected": "all targeted R1 tests pass",
+      "actual": "16 passed",
+      "status": "pass",
+      "artifact": "terminal validation output; rerun required at release gate"
+    }
+  ],
+  "releaseDecision": "blocked",
+  "reviewer": "unassigned-independent-reviewer"
+}

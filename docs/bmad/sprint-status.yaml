@@ -549,19 +549,23 @@ stories:
     title: Freeze unsupported release and perfection claims
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-8
     dependencies: []
-    evidence: []
+    evidence:
+      - docs/bmad/stories/E10-S1-freeze-unsupported-release-and-perfection-claims.md
+      - docs/bmad/baseline-2026-07-24-gate0.md
   E10-S2:
     epic: E10-R1
     title: Reconcile authoritative BMAD status and baselines
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-8
     dependencies: []
-    evidence: []
+    evidence:
+      - docs/bmad/stories/E10-S2-reconcile-authoritative-status-and-baselines.md
+      - docs/bmad/baseline-2026-07-24-gate0.md
   E10-S3:
     epic: E10-R1
     title: Create E10-R1 story acceptance and evidence contracts
@@ -576,19 +580,24 @@ stories:
     title: Establish machine-readable release evidence ledger
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-8
     dependencies: []
-    evidence: []
+    evidence:
+      - docs/bmad/stories/E10-S4-establish-machine-readable-release-evidence-ledger.md
+      - docs/bmad/releases/evidence/2026-07-24-release-evidence-ledger.json
   E10-S5:
     epic: E10-R1
     title: Classify every full-suite test failure
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-8
     dependencies: []
-    evidence: []
+    evidence:
+      - docs/bmad/stories/E10-S5-classify-and-remediate-full-suite-failures.md
+      - docs/bmad/releases/evidence/2026-07-24-full-suite-triage.json
+      - docs/bmad/releases/evidence/2026-07-24-full-suite.log
   E10-S6:
     epic: E10-R1
     title: Specify governed sandbox security contract
