@@ -58,7 +58,7 @@
 - [x] **P2-07:** Implement actual skill compilation (AST parsing for deterministic functions). `skill-ast-compiler.ts` with 17 AST node types, code generator, pattern→AST compiler, transform classification (identity/field_mapping/computed_fields/array_transform/filter/aggregation/nested_extraction), determinism validation, capability inference. 36 tests.
 - [x] **P2-08:** Add an auto-migration runner on server startup (`server/src/setup.ts`). `runMigrations()` in setup.ts runs `drizzle-kit migrate` on startup for both SQLite and PostgreSQL.
 - [x] **P2-09:** Connect the visual DAG editor in Pipeline Builder to real pipeline execution (`pipeline-executor.ts`). PipelineBuilder now uses api-client.ts for CRUD. Added `GET /api/v1/pipelines/:name` route and `getPipelineByName()` service function.
-- [ ] **P2-10:** Add Wayland support to the Linux desktop actuator.
+- [x] **P2-10:** Add Wayland support to the Linux desktop actuator. LinuxWaylandActuator with ydotool/grim, auto-detection via WAYLAND_DISPLAY, XWayland fallback.
 - [x] **P2-11:** Enhance self-improvement harness to modify TOML configs, not just `process.env`. Added `persistToToml()`, `loadTomlConfigOverrides()`, `ENV_TO_TOML_PATH` mapping. All env patches now persist to `nexus-config.toml` for cross-restart durability.
 
 ---
