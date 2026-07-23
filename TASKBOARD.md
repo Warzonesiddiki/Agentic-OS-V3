@@ -53,9 +53,9 @@
 - [x] **P2-02:** Add DB-backed WASM plugin persistence (replacing the in-memory `Map`). `createDbKvStore()` provides persistent key-value storage scoped to plugin installation, alongside the in-memory `createMemoryKvStore()` for testing.
 - [x] **P2-03:** Build actual anomaly detection in the Shadow Daemon (statistical analysis, z-score alerting). Added `detectStatisticalAnomalies()` with z-score analysis on importance values, temporal spike/drop detection, and recall frequency outliers (z > 2.5 threshold).
 - [x] **P2-04:** Implement true federated node discovery with HTTP transport for cross-node queries. Created `federated-node-discovery.ts` with PeerRegistry, heartbeat monitoring, gossip protocol, fan-out queries, and Reciprocal Rank Fusion (RRF) merge.
-- [ ] **P2-05:** Add frontend component tests (React Testing Library + Vitest).
-- [ ] **P2-06:** Add Playwright E2E browser tests for critical flows.
-- [ ] **P2-07:** Implement actual skill compilation (AST parsing for deterministic functions).
+- [x] **P2-05:** Add frontend component tests (React Testing Library + Vitest). 33 component tests across ErrorBoundary (8), ui primitives (20), KillSwitchBanner (5). All use jsdom environment.
+- [x] **P2-06:** Add Playwright E2E browser tests for critical flows. Config + 3 spec files: dashboard navigation, API console interactions, memories page rendering, pipeline builder.
+- [x] **P2-07:** Implement actual skill compilation (AST parsing for deterministic functions). `skill-ast-compiler.ts` with 17 AST node types, code generator, pattern→AST compiler, transform classification (identity/field_mapping/computed_fields/array_transform/filter/aggregation/nested_extraction), determinism validation, capability inference. 36 tests.
 - [x] **P2-08:** Add an auto-migration runner on server startup (`server/src/setup.ts`). `runMigrations()` in setup.ts runs `drizzle-kit migrate` on startup for both SQLite and PostgreSQL.
 - [x] **P2-09:** Connect the visual DAG editor in Pipeline Builder to real pipeline execution (`pipeline-executor.ts`). PipelineBuilder now uses api-client.ts for CRUD. Added `GET /api/v1/pipelines/:name` route and `getPipelineByName()` service function.
 - [ ] **P2-10:** Add Wayland support to the Linux desktop actuator.
