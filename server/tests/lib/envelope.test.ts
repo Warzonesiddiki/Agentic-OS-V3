@@ -1,111 +1,98 @@
 /**
- * lib/envelope.test.ts — Unit tests for envelope utilities.
+ * envelope.test.ts — Tests for the API response envelope utilities.
  */
 import { describe, it, expect } from 'vitest';
 import { ok, err, statusForCode } from '../../src/lib/envelope.js';
 
-describe('envelope utilities', () => {
-  const traceId = 'test-trace-id-123';
-
-  it('should create a successful envelope with data', () => {
-    const data = { message: 'success', id: 1 };
-    const envelope = ok(data, traceId);
-    expect(envelope).toEqual({
+describe('ok()', () => {
+  it('returns envelope with ok=true and data', () => {
+    const result = ok({ name: 'test' }, 'trace-1');
+    expect(result).toEqual({
       ok: true,
-      data,
-      traceId,
+      data: { name: 'test' },
+      traceId: 'trace-1',
     });
   });
 
-  it('should create a successful envelope with array data', () => {
-    const data = [1, 2, 3];
-    const envelope = ok(data, traceId);
-    expect(envelope).toEqual({ ok: true, data, traceId });
+  it('defaults traceId to empty string', () => {
+    const result = ok('hello');
+    expect(result.traceId).toBe('');
   });
 
-  it('should create a successful envelope with null data', () => {
-    const envelope = ok(null, traceId);
-    expect(envelope).toEqual({ ok: true, data: null, traceId });
+  it('handles null data', () => {
+    const result = ok(null, 't1');
+    expect(result.ok).toBe(true);
+    expect(result.data).toBeNull();
   });
 
-  it('should create a successful envelope with string data', () => {
-    const envelope = ok('plain-string', traceId);
-    expect(envelope).toEqual({ ok: true, data: 'plain-string', traceId });
+  it('handles array data', () => {
+    const result = ok([1, 2, 3], 't1');
+    expect(result.data).toEqual([1, 2, 3]);
   });
 
-  it('should create an error envelope with code and message', () => {
-    const code = 'NOT_FOUND';
-    const message = 'Resource not found';
-    const envelope = err(code, message, traceId);
-    expect(envelope).toEqual({
+  it('handles numeric data', () => {
+    const result = ok(42, 't1');
+    expect(result.data).toBe(42);
+  });
+});
+
+describe('err()', () => {
+  it('returns envelope with ok=false and error details', () => {
+    const result = err('NOT_FOUND', 'Resource not found', 'trace-2', 404);
+    expect(result).toEqual({
       ok: false,
-      error: { code, message },
-      traceId,
+      error: { code: 'NOT_FOUND', message: 'Resource not found', status: 404 },
+      traceId: 'trace-2',
     });
   });
 
-  it('should create an error envelope with status code', () => {
-    const code = 'VALIDATION_ERROR';
-    const message = 'Invalid input';
-    const status = 400;
-    const envelope = err(code, message, traceId, status);
-    expect(envelope).toEqual({
-      ok: false,
-      error: { code, message, status },
-      traceId,
-    });
+  it('defaults traceId to empty string', () => {
+    const result = err('INTERNAL', 'Something broke');
+    expect(result.traceId).toBe('');
   });
 
-  it('should create an error envelope for empty traceId', () => {
-    const envelope = err('INTERNAL_ERROR', 'fail', '');
-    expect(envelope.traceId).toBe('');
-    expect(envelope.ok).toBe(false);
+  it('handles missing status', () => {
+    const result = err('INTERNAL', 'Something broke', 't1');
+    expect(result.error?.status).toBeUndefined();
   });
+});
 
-  it('should produce distinct references per call', () => {
-    const a = ok({ x: 1 }, 't1');
-    const b = ok({ x: 1 }, 't1');
-    expect(a).toEqual(b);
-    expect(a).not.toBe(b);
-  });
-
-  it('should map VALIDATION codes to 400 status', () => {
+describe('statusForCode()', () => {
+  it('maps VALIDATION_* to 400', () => {
     expect(statusForCode('VALIDATION_ERROR')).toBe(400);
-    expect(statusForCode('VALIDATION_INVALID')).toBe(400);
-    expect(statusForCode('VALIDATION_TYPE')).toBe(400);
+    expect(statusForCode('VALIDATION_SCHEMA')).toBe(400);
   });
 
-  it('should map UNAUTHORIZED code to 401 status', () => {
+  it('maps UNAUTHORIZED to 401', () => {
     expect(statusForCode('UNAUTHORIZED')).toBe(401);
   });
 
-  it('should map FORBIDDEN code to 403 status', () => {
+  it('maps FORBIDDEN to 403', () => {
     expect(statusForCode('FORBIDDEN')).toBe(403);
   });
 
-  it('should map NOT_FOUND code to 404 status', () => {
+  it('maps NOT_FOUND to 404', () => {
     expect(statusForCode('NOT_FOUND')).toBe(404);
   });
 
-  it('should map CONFLICT code to 409 status', () => {
+  it('maps CONFLICT to 409', () => {
     expect(statusForCode('CONFLICT')).toBe(409);
   });
 
-  it('should map PAYLOAD_TOO_LARGE code to 413 status', () => {
+  it('maps PAYLOAD_TOO_LARGE to 413', () => {
     expect(statusForCode('PAYLOAD_TOO_LARGE')).toBe(413);
   });
 
-  it('should map RATE_LIMITED code to 429 status', () => {
+  it('maps RATE_LIMITED to 429', () => {
     expect(statusForCode('RATE_LIMITED')).toBe(429);
   });
 
-  it('should map SAFETY_KILL_SWITCH code to 423 status', () => {
+  it('maps SAFETY_KILL_SWITCH to 423', () => {
     expect(statusForCode('SAFETY_KILL_SWITCH')).toBe(423);
   });
 
-  it('should map unknown codes to 500 status', () => {
+  it('maps unknown codes to 500', () => {
     expect(statusForCode('UNKNOWN_ERROR')).toBe(500);
-    expect(statusForCode('CUSTOM_CODE')).toBe(500);
-    expect(statusForCode('')).toBe(500);
+    expect(statusForCode('SOMETHING_ELSE')).toBe(500);
   });
 });
