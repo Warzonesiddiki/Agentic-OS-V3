@@ -65,9 +65,114 @@ export async function runShadowCycle(): Promise<ShadowReport> {
 
 /* ── Anomaly Detection ── */
 
+/**
+ * Compute z-score for statistical anomaly detection.
+ * Returns the number of standard deviations a value is from the mean.
+ */
+function zScore(values: number[]): { mean: number; stddev: number; zScores: number[] } {
+  const n = values.length;
+  if (n === 0) return { mean: 0, stddev: 0, zScores: [] };
+  const mean = values.reduce((sum, v) => sum + v, 0) / n;
+  const variance = values.reduce((sum, v) => sum + (v - mean) ** 2, 0) / n;
+  const stddev = Math.sqrt(variance);
+  if (stddev === 0) return { mean, stddev: 0, zScores: values.map(() => 0) };
+  const zScores = values.map((v) => (v - mean) / stddev);
+  return { mean, stddev, zScores };
+}
+
+/**
+ * Statistical anomaly detection: identifies memories whose importance
+ * or recall count is a statistical outlier (z-score > 2.5).
+ * Also detects temporal anomalies (sudden drops/spikes in activity rate).
+ */
+async function detectStatisticalAnomalies(): Promise<ShadowInsight[]> {
+  const insights: ShadowInsight[] = [];
+  const THIRTY_DAYS_AGO = new Date(Date.now() - 30 * 24 * 3600_000).toISOString();
+
+  try {
+    // Get recent memories with importance values for z-score analysis
+    const allMemories = await db
+      .select()
+      .from(memories)
+      .where(gte(memories.createdAt, THIRTY_DAYS_AGO))
+      .limit(1000);
+
+    if (allMemories.length < 10) return insights; // Not enough data for statistics
+
+    // Z-score analysis on importance values
+    const importanceValues = allMemories.map((m: { importance?: number | null }) => m.importance ?? 0.5);
+    const { mean, stddev, zScores } = zScore(importanceValues);
+    const Z_THRESHOLD = 2.5;
+
+    const outliers = allMemories.filter((_: { id: string }, i: number) => Math.abs(zScores[i]!) > Z_THRESHOLD);
+    if (outliers.length > 0 && outliers.length < allMemories.length * 0.1) {
+      insights.push({
+        type: 'anomaly',
+        severity: 'warning',
+        title: `Statistical outlier: ${outliers.length} memories with extreme importance`,
+        detail: `${outliers.length} memories have importance z-scores > ${Z_THRESHOLD} (mean=${mean.toFixed(3)}, σ=${stddev.toFixed(3)}). These are statistical anomalies that may need review.`,
+        relatedIds: outliers.slice(0, 10).map((m: { id: string }) => m.id),
+      });
+    }
+
+    // Temporal anomaly: detect sudden changes in memory creation rate
+    const now = Date.now();
+    const buckets = new Map<number, number>();
+    const BUCKET_SIZE_MS = 24 * 3600_000; // 1-day buckets
+    for (const m of allMemories) {
+      const bucketKey = Math.floor((now - new Date(m.createdAt).getTime()) / BUCKET_SIZE_MS);
+      buckets.set(bucketKey, (buckets.get(bucketKey) ?? 0) + 1);
+    }
+
+    const bucketCounts = [...buckets.values()];
+    if (bucketCounts.length >= 7) {
+      const { mean: bucketMean, stddev: bucketStddev, zScores: bucketZScores } = zScore(bucketCounts);
+      // Check if the most recent bucket (key 0) is an outlier
+      const recentBucket = buckets.get(0) ?? 0;
+      const recentZScore = bucketStddev > 0 ? (recentBucket - bucketMean) / bucketStddev : 0;
+      if (Math.abs(recentZScore) > Z_THRESHOLD) {
+        insights.push({
+          type: 'anomaly',
+          severity: recentZScore > 0 ? 'warning' : 'info',
+          title: recentZScore > 0 ? 'Spike in memory creation rate' : 'Drop in memory creation rate',
+          detail: `Today's memory creation (${recentBucket}) is ${Math.abs(recentZScore).toFixed(1)}σ from the ${bucketMean.toFixed(1)}/day average (σ=${bucketStddev.toFixed(1)}).`,
+        });
+      }
+    }
+
+    // Recall frequency anomaly: memories recalled unusually often
+    const recallCounts = allMemories.map((m: { recallCount?: number | null }) => m.recallCount ?? 0);
+    const recallStats = zScore(recallCounts);
+    if (recallStats.stddev > 0) {
+      const hotMemories = allMemories.filter((_: { id: string }, i: number) =>
+        recallStats.zScores[i]! > 3.0
+      );
+      if (hotMemories.length > 0 && hotMemories.length <= 5) {
+        insights.push({
+          type: 'anomaly',
+          severity: 'info',
+          title: `${hotMemories.length} memories recalled at anomalous frequency`,
+          detail: `These memories have recall counts > 3σ above the mean (${recallStats.mean.toFixed(1)}). They may be candidates for promotion to LTM.`,
+          relatedIds: hotMemories.map((m: { id: string }) => m.id),
+        });
+      }
+    }
+  } catch (e) {
+    log.warn('statistical_anomaly_detection_failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  return insights;
+}
+
 async function detectAnomalies(): Promise<ShadowInsight[]> {
   const insights: ShadowInsight[] = [];
   const SEVEN_DAYS_AGO = new Date(Date.now() - 7 * 24 * 3600_000).toISOString();
+
+  // 0. Statistical anomaly detection (z-score based)
+  const statisticalAnomalies = await detectStatisticalAnomalies();
+  insights.push(...statisticalAnomalies);
 
   // 1. Detect conflicting memories: same entity, opposite assertions
   const recentMemories = await db

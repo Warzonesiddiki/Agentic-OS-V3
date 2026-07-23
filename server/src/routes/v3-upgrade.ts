@@ -491,7 +491,18 @@ v3upgrade.post("/api/v1/pipelines", async (c) => {
 v3upgrade.get("/api/v1/pipelines", async (c) => {
   await requireScope(c, "pipeline:admin");
   const items = await listPipelines();
-  return c.json(ok({ items }, c.get("requestId") ?? ""));
+  // Return just the names for the PipelineBuilder list
+  return c.json(ok(items.map((p: { name: string }) => p.name), c.get("requestId") ?? ""));
+});
+
+v3upgrade.get("/api/v1/pipelines/:name", async (c) => {
+  await requireScope(c, "pipeline:admin");
+  const { getPipelineByName } = await import("../services/pipeline-executor.js");
+  const pipeline = await getPipelineByName(c.req.param("name"));
+  if (!pipeline) {
+    return c.json(ok(null, c.get("requestId") ?? ""), 404);
+  }
+  return c.json(ok(pipeline, c.get("requestId") ?? ""));
 });
 
 v3upgrade.post("/api/v1/pipelines/:id/run", async (c) => {

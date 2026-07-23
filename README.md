@@ -109,63 +109,73 @@ Fused scores are then blended with importance, recency, and feedback weights for
 
 ### Core Memory System
 
-| Feature                 | Description                                          |
-| ----------------------- | ---------------------------------------------------- |
-| **Typed memories**      | Episodic, semantic, preference, reflexion, fact      |
-| **Token budget recall** | Greedy pack within caller-specified token limit      |
-| **RRF fusion**          | Blends BM25 + vector similarity (k=60)               |
-| **Importance decay**    | Configurable half-life and recency weighting         |
-| **Feedback loop**       | Record helpful/not-helpful per recall result         |
-| **Checkpoints**         | Labeled snapshots for cross-session context transfer |
+| Feature                 | Description                                          | Maturity        |
+| ----------------------- | ---------------------------------------------------- | --------------- |
+| **Typed memories**      | Episodic, semantic, preference, reflexion, fact      | ✅ Stable       |
+| **Token budget recall** | Greedy pack within caller-specified token limit      | ✅ Stable       |
+| **RRF fusion**          | Blends BM25 + vector similarity (k=60)               | ✅ Stable       |
+| **Importance decay**    | Configurable half-life and recency weighting         | ⚠️ Experimental |
+| **Feedback loop**       | Record helpful/not-helpful per recall result         | ✅ Stable       |
+| **Checkpoints**         | Labeled snapshots for cross-session context transfer | ✅ Stable       |
 
 ### Agentic OS Kernel
 
-| Feature                | Description                                              |
-| ---------------------- | -------------------------------------------------------- |
-| **Agent ring model**   | Ring 0 (kernel) → Ring 3 (user) privilege separation     |
-| **Saga orchestration** | Steps with compensation (rollback) support               |
-| **IPC message bus**    | In-memory or Redis pub/sub for agent communication       |
-| **Virtual filesystem** | Namespace-isolated per-agent VFS                         |
-| **Approval gates**     | Human-in-the-loop for privileged operations              |
-| **Daemon supervisor**  | Auto-restart, heartbeat monitoring, stale task detection |
-| **Timer/scheduler**    | Cron-resolved recurring tasks                            |
+| Feature                | Description                                              | Maturity        |
+| ---------------------- | -------------------------------------------------------- | --------------- |
+| **Agent ring model**   | Ring 0 (kernel) → Ring 3 (user) privilege separation     | ✅ Stable       |
+| **Saga orchestration** | Steps with compensation (rollback) support               | ✅ Stable       |
+| **IPC message bus**    | In-memory or Redis pub/sub for agent communication       | ✅ Stable       |
+| **Virtual filesystem** | Namespace-isolated per-agent VFS                         | ⚠️ Experimental |
+| **Approval gates**     | Human-in-the-loop for privileged operations              | ✅ Stable       |
+| **Daemon supervisor**  | Auto-restart, heartbeat monitoring, stale task detection | ✅ Stable       |
+| **Timer/scheduler**    | Cron-resolved recurring tasks, MLFQ, EDF                 | ⚠️ Experimental |
 
 ### Skills System
 
-| Feature                   | Description                                            |
-| ------------------------- | ------------------------------------------------------ |
-| **Versioned skills**      | Named procedures with description and triggers         |
-| **Outcome tracking**      | Success/failure rating with bayesian averaging         |
-| **Auto-compilation**      | Detects repeated patterns → generates reusable scripts |
-| **Neural skill compiler** | Evaluates trigger patterns against task labels         |
-| **Category organization** | Tag-based navigation and search                        |
+| Feature                   | Description                                            | Maturity        |
+| ------------------------- | ------------------------------------------------------ | --------------- |
+| **Versioned skills**      | Named procedures with description and triggers         | ✅ Stable       |
+| **Outcome tracking**      | Success/failure rating with bayesian averaging         | ✅ Stable       |
+| **Auto-compilation**      | Detects repeated patterns → generates reusable scripts | 🔬 Preview      |
+| **Skill pattern matcher** | Evaluates trigger patterns against task labels         | 🔬 Preview      |
+| **Category organization** | Tag-based navigation and search                        | ✅ Stable       |
 
 ### Security & Governance
 
-| Feature                    | Description                                                   |
-| -------------------------- | ------------------------------------------------------------- |
-| **Scoped API keys**        | 9 scopes (memory:read/write, brain:admin, safety:write, etc.) |
-| **Hash-chained audit**     | SHA-256, append-only, tamper-evident                          |
-| **Constant-time auth**     | `crypto.timingSafeEqual` — no timing side-channels            |
-| **Kill switch**            | Emergency mutation blocker, persistable                       |
-| **Rate limiting**          | Configurable per-minute global throttle                       |
-| **LLM trajectory logging** | Full reasoning traces per audit entry                         |
-| **Tool receipt tracking**  | Immutable tool-call ledger with pre/post hashes               |
+| Feature                    | Description                                                   | Maturity  |
+| -------------------------- | ------------------------------------------------------------- | --------- |
+| **Scoped API keys**        | 9 scopes (memory:read/write, brain:admin, safety:write, etc.) | ✅ Stable |
+| **Hash-chained audit**     | SHA-256, append-only, tamper-evident                          | ✅ Stable |
+| **Constant-time auth**     | `crypto.timingSafeEqual` — no timing side-channels            | ✅ Stable |
+| **Kill switch**            | Emergency mutation blocker, persistable                       | ✅ Stable |
+| **Rate limiting**          | Per-IP + per-principal, configurable throttles                | ✅ Stable |
+| **LLM trajectory logging** | Full reasoning traces per audit entry                         | ✅ Stable |
+| **Tool receipt tracking**  | Immutable tool-call ledger with pre/post hashes               | ✅ Stable |
+| **CSP nonce**              | Nonce-based Content Security Policy (no unsafe-inline)        | ✅ Stable |
+| **MCP env filter**         | Sandboxed subprocess env with explicit blocklist              | ✅ Stable |
 
 ### Infrastructure
 
-| Feature                      | Description                                         |
-| ---------------------------- | --------------------------------------------------- |
-| **pgvector semantic search** | `HNSW` indexes on memories, skills, notes           |
-| **Obsidian vault bridge**    | Index markdown vault, write back as notes           |
-| **Brain export/import**      | Schema-validated, idempotent, secrets-safe          |
-| **Docker sandbox**           | Ephemeral containers for untrusted code             |
-| **In-process sandbox**       | `vm.Script` isolation when Docker is unavailable    |
-| **Browser automation**       | Playwright integration for web browsing             |
-| **Desktop actuation**        | VLM-driven GUI automation (screenshot → action)     |
-| **Blockchain anchoring**     | Merkle root anchoring to Ethereum-compatible chains |
-| **OpenTelemetry**            | OTEL-compatible tracing and metrics                 |
-| **IBC protocol support**     | Cross-chain bridging (proposal phase)               |
+| Feature                      | Description                                         | Maturity        |
+| ---------------------------- | --------------------------------------------------- | --------------- |
+| **pgvector semantic search** | `HNSW` indexes on memories, skills, notes           | ✅ Stable       |
+| **Obsidian vault bridge**    | Index markdown vault, write back as notes           | ✅ Stable       |
+| **Brain export/import**      | Schema-validated, idempotent, secrets-safe          | ✅ Stable       |
+| **Docker sandbox**           | Ephemeral containers for untrusted code             | ⚠️ Experimental |
+| **In-process sandbox**       | `vm.Script` isolation when Docker is unavailable    | ⚠️ Experimental |
+| **WASM plugin runtime**      | Capability-gated, fuel-metered host functions       | 🔬 Preview      |
+| **Desktop actuation**        | VLM-driven GUI automation (screenshot → action)     | ⚠️ Experimental |
+| **Blockchain anchoring**     | Merkle root anchoring to Ethereum-compatible chains | ⚠️ Experimental |
+| **OpenTelemetry**            | OTEL-compatible tracing and metrics                 | ✅ Stable       |
+| **Federated recall**         | Cross-node memory queries with RRF merge            | 🔬 Preview      |
+
+### Maturity Legend
+
+| Badge             | Meaning                                                                              |
+| ----------------- | ------------------------------------------------------------------------------------ |
+| ✅ **Stable**     | Production-tested, fully wired to backend, has test coverage                         |
+| ⚠️ **Experimental** | Functional but may have edge cases, limited test coverage, or platform constraints |
+| 🔬 **Preview**    | Core architecture in place, implementation is partial or requires additional setup   |
 
 ---
 

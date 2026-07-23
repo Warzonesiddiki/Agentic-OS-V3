@@ -288,6 +288,167 @@ export async function rejectProposal(
   return (await getProposal(id))!;
 }
 
+/* ─── TOML Config Persistence (Phase 2, Task P2-11) ─────────────────────── */
+
+/**
+ * TOML config file path for persistent configuration changes.
+ * When a patch is applied, it writes to both process.env (runtime)
+ * AND this TOML file (persistent across restarts).
+ */
+const TOML_CONFIG_PATH = process.env.NEXUS_TOML_CONFIG_PATH ?? './nexus-config.toml';
+
+/**
+ * Keys that are allowed to be persisted to the TOML config file.
+ * Only safe, operational tuning parameters — never secrets or paths.
+ */
+const TOML_PERSIST_ALLOWLIST = new Set([
+  'NEXUS_CACHE_TTL_MS',
+  'NEXUS_RATE_LIMIT_PER_MINUTE',
+  'NEXUS_RATE_LIMIT_SSE_PER_MINUTE',
+  'NEXUS_MAX_BODY_BYTES',
+  'NEXUS_LLM_TEMPERATURE',
+  'NEXUS_LLM_MAX_TOKENS',
+  'NEXUS_LOG_LEVEL',
+  'NEXUS_AUTONOMOUS_MODE',
+  'NEXUS_MEMORY_RECALL_K',
+  'NEXUS_MEMORY_IMPORTANCE_THRESHOLD',
+  'NEXUS_SCHEDULER_POLICY',
+  'NEXUS_WORKER_MAX_CONCURRENCY',
+]);
+
+/**
+ * Map env var names to TOML section + key paths.
+ * Format: [section] key = value
+ */
+const ENV_TO_TOML_PATH: Record<string, { section: string; key: string }> = {
+  NEXUS_CACHE_TTL_MS: { section: 'runtime', key: 'cache_ttl_ms' },
+  NEXUS_RATE_LIMIT_PER_MINUTE: { section: 'rate_limit', key: 'per_minute' },
+  NEXUS_RATE_LIMIT_SSE_PER_MINUTE: { section: 'rate_limit', key: 'sse_per_minute' },
+  NEXUS_MAX_BODY_BYTES: { section: 'runtime', key: 'max_body_bytes' },
+  NEXUS_LLM_TEMPERATURE: { section: 'llm', key: 'temperature' },
+  NEXUS_LLM_MAX_TOKENS: { section: 'llm', key: 'max_tokens' },
+  NEXUS_LOG_LEVEL: { section: 'logging', key: 'level' },
+  NEXUS_AUTONOMOUS_MODE: { section: 'runtime', key: 'autonomous_mode' },
+  NEXUS_MEMORY_RECALL_K: { section: 'memory', key: 'recall_k' },
+  NEXUS_MEMORY_IMPORTANCE_THRESHOLD: { section: 'memory', key: 'importance_threshold' },
+  NEXUS_SCHEDULER_POLICY: { section: 'scheduler', key: 'policy' },
+  NEXUS_WORKER_MAX_CONCURRENCY: { section: 'worker', key: 'max_concurrency' },
+};
+
+/**
+ * Write a config value to the TOML file. Creates the file if it doesn't exist.
+ * Updates the existing section/key if present, appends if new.
+ *
+ * Simple TOML writer — no external dependency needed.
+ * Supports: string, number, boolean values.
+ */
+async function persistToToml(envKey: string, value: string | number | boolean): Promise<void> {
+  if (!TOML_PERSIST_ALLOWLIST.has(envKey)) return;
+
+  const tomlPath = ENV_TO_TOML_PATH[envKey];
+  if (!tomlPath) return;
+
+  const { readFile, writeFile } = await import('node:fs/promises');
+  const { existsSync } = await import('node:fs');
+
+  let content = '';
+  if (existsSync(TOML_CONFIG_PATH)) {
+    content = await readFile(TOML_CONFIG_PATH, 'utf-8');
+  }
+
+  const sectionHeader = `[${tomlPath.section}]`;
+  const valueStr = typeof value === 'string' ? `"${value}"` : String(value);
+  const line = `${tomlPath.key} = ${valueStr}`;
+
+  // Check if section exists
+  const sectionRegex = new RegExp(`\\[${escapeRegex(tomlPath.section)}\\]`, 'm');
+  const keyRegex = new RegExp(`^${escapeRegex(tomlPath.key)}\\s*=.*$`, 'm');
+
+  if (sectionRegex.test(content)) {
+    // Section exists — find it and update/add key
+    const sectionStart = content.search(sectionRegex);
+    const nextSectionMatch = content.slice(sectionStart + sectionHeader.length).search(/\n\[/);
+    const sectionEnd = nextSectionMatch >= 0
+      ? sectionStart + sectionHeader.length + nextSectionMatch
+      : content.length;
+    const sectionContent = content.slice(sectionStart, sectionEnd);
+
+    if (keyRegex.test(sectionContent)) {
+      // Key exists in section — replace it
+      const keyMatch = sectionContent.search(keyRegex);
+      const absKeyStart = sectionStart + keyMatch;
+      const absKeyEnd = content.indexOf('\n', absKeyStart);
+      content = content.slice(0, absKeyStart) + line + content.slice(absKeyEnd >= 0 ? absKeyEnd : undefined);
+    } else {
+      // Key doesn't exist in section — append to section
+      content = content.slice(0, sectionEnd) + line + '\n' + content.slice(sectionEnd);
+    }
+  } else {
+    // Section doesn't exist — append section + key
+    content += `\n${sectionHeader}\n${line}\n`;
+  }
+
+  await writeFile(TOML_CONFIG_PATH, content, 'utf-8');
+  log.info('toml_config_persisted', { envKey, section: tomlPath.section, key: tomlPath.key, value: String(value) });
+}
+
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Load TOML config overrides on startup. Called from setup.ts.
+ * Returns a map of env key → value that should be applied.
+ */
+export async function loadTomlConfigOverrides(): Promise<Map<string, string>> {
+  const { existsSync } = await import('node:fs');
+  const { readFile } = await import('node:fs/promises');
+  const overrides = new Map<string, string>();
+
+  if (!existsSync(TOML_CONFIG_PATH)) return overrides;
+
+  try {
+    const content = await readFile(TOML_CONFIG_PATH, 'utf-8');
+    let currentSection = '';
+
+    for (const line of content.split('\n')) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith('#')) continue;
+
+      // Section header
+      const sectionMatch = trimmed.match(/^\[([^\]]+)\]$/);
+      if (sectionMatch) {
+        currentSection = sectionMatch[1]!;
+        continue;
+      }
+
+      // Key = Value
+      const kvMatch = trimmed.match(/^([^=]+)=\s*(.+)$/);
+      if (kvMatch && currentSection) {
+        const key = kvMatch[1]!.trim();
+        let value = kvMatch[2]!.trim();
+        // Strip quotes from strings
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1);
+        }
+
+        // Reverse lookup: TOML section+key → env var name
+        for (const [envKey, path] of Object.entries(ENV_TO_TOML_PATH)) {
+          if (path.section === currentSection && path.key === key) {
+            overrides.set(envKey, value);
+          }
+        }
+      }
+    }
+  } catch (e) {
+    log.warn('toml_config_load_failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+
+  return overrides;
+}
+
 /* ─── Patch application ──────────────────────────────────────────────────── */
 
 const ALLOWED_PATCH_KINDS = new Set<ProposalPatch['kind']>(['env', 'cache_ttl', 'feature_flag', 'pool_size']);
@@ -340,7 +501,9 @@ export async function applyPatch(
     }
     process.env[p.patch.key] = String(p.patch.value); // ENV_OVERRIDE_ALLOWLIST + ENV_AUDIT_TRAIL guard
     ENV_AUDIT_TRAIL.push({ key: p.patch.key, value: String(p.patch.value), timestamp: new Date() });
-    await appendAudit('improvement.env_override_applied', { key: p.patch.key, value: p.patch.value }, 'harness');
+    // Persist to TOML config file for cross-restart durability (Phase 2, P2-11)
+    await persistToToml(p.patch.key, p.patch.value as string | number | boolean);
+    await appendAudit('improvement.env_override_applied', { key: p.patch.key, value: p.patch.value, persisted: 'toml' }, 'harness');
     // Live tuning of the scheduling policy via Forge's public setter (interface-only).
     if (p.patch.key === 'NEXUS_SCHEDULER_POLICY') {
       const policy = String(p.patch.value);
