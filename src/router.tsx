@@ -11,6 +11,13 @@ import { startOSRemoteSync } from './lib/os/store';
 
 // Lazy-load page components for code splitting — each page is a separate chunk.
 const Dashboard = lazy(() => import('./pages/Dashboard'));
+const R1DashboardWrapper = lazy(() => import('./components/r1/R1Dashboard').then(m => ({ default: m.R1Dashboard })));
+const R1TaskStartWrapper = lazy(() => import('./components/r1/R1TaskDetail').then(m => ({ default: m.R1TaskStart })));
+const R1TaskDetailWrapper = lazy(() => import('./components/r1/R1TaskDetail').then(m => ({ default: m.R1TaskDetail })));
+const R1ApprovalsWrapper = lazy(() => import('./components/r1/R1Approvals').then(m => ({ default: m.R1ApprovalInbox })));
+const R1MemoryWorkbenchWrapper = lazy(() => import('./components/r1/R1MemoryWorkbench').then(m => ({ default: m.R1MemoryWorkbench })));
+
+// Legacy dashboard kept as fallback, R1 is primary
 const Memories = lazy(() => import('./pages/Memories'));
 const Recall = lazy(() => import('./pages/Recall'));
 const Skills = lazy(() => import('./pages/Skills'));
@@ -112,7 +119,55 @@ export const router = createBrowserRouter([
         path: 'dashboard',
         element: (
           <PageErrorBoundary>
+            <R1DashboardWrapper />
+          </PageErrorBoundary>
+        ),
+      },
+      {
+        path: 'dashboard-legacy',
+        element: (
+          <PageErrorBoundary>
             <Dashboard />
+          </PageErrorBoundary>
+        ),
+      },
+      {
+        path: 'r1/dashboard',
+        element: (
+          <PageErrorBoundary>
+            <R1DashboardWrapper />
+          </PageErrorBoundary>
+        ),
+      },
+      {
+        path: 'r1/tasks/start',
+        element: (
+          <PageErrorBoundary>
+            <R1TaskStartWrapper />
+          </PageErrorBoundary>
+        ),
+      },
+      {
+        path: 'r1/tasks/:taskId',
+        element: (
+          <PageErrorBoundary>
+            <R1TaskDetailWrapper />
+          </PageErrorBoundary>
+        ),
+      },
+      {
+        path: 'r1/approvals',
+        element: (
+          <PageErrorBoundary>
+            <R1ApprovalsWrapper />
+          </PageErrorBoundary>
+        ),
+      },
+      {
+        path: 'r1/memories',
+        element: (
+          <PageErrorBoundary>
+            <R1MemoryWorkbenchWrapper />
           </PageErrorBoundary>
         ),
       },

@@ -9,6 +9,10 @@ import { Badge, cn } from './ui';
 
 export type PageId =
   | 'dashboard'
+  | 'r1/dashboard'
+  | 'r1/tasks/start'
+  | 'r1/approvals'
+  | 'r1/memories'
   | 'memories'
   | 'recall'
   | 'skills'
@@ -54,8 +58,32 @@ const I = (d: string) => (
 
 export const NAV: NavItem[] = [
   {
+    id: 'r1/dashboard' as PageId,
+    label: 'R1 Dashboard',
+    section: 'R1 Governed',
+    icon: I('M4 13h16M4 7h16M4 19h10M4 3h16'),
+  },
+  {
+    id: 'r1/tasks/start' as PageId,
+    label: 'Start Task',
+    section: 'R1 Governed',
+    icon: I('M12 3v18M3 12h18'),
+  },
+  {
+    id: 'r1/approvals' as PageId,
+    label: 'R1 Approvals',
+    section: 'R1 Governed',
+    icon: I('M9 11l3 3L22 4M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11'),
+  },
+  {
+    id: 'r1/memories' as PageId,
+    label: 'R1 Memory Workbench',
+    section: 'R1 Governed',
+    icon: I('M4 5h16v11H7l-3 3V5ZM8 9h8M8 12h5'),
+  },
+  {
     id: 'dashboard',
-    label: 'Dashboard',
+    label: 'Dashboard (legacy)',
     section: 'Brain',
     icon: I('M4 13h16M4 7h16M4 19h10M4 3h16'),
   },
@@ -217,7 +245,7 @@ export const NAV: NavItem[] = [
   },
 ];
 
-const SECTIONS = ['Brain', 'Cognition', 'Operations', 'Agent OS', 'Developer'];
+const SECTIONS = ['R1 Governed', 'Brain', 'Cognition', 'Operations', 'Agent OS', 'Developer'];
 
 export function Shell({ children }: { children?: ReactNode }) {
   const state = useNexus();

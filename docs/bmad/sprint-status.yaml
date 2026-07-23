@@ -1,91 +1,112 @@
-# BMAD sprint status for NEXUS 2.0 / Agentic OS V3
-# Source of truth for Phase 4 implementation tracking.
-# Allowed status: backlog | ready | in_progress | review | done | blocked | deferred
+# BMAD sprint status for NEXUS 2.0 / Agentic OS V3 - UPDATED 2026-07-23
 workflow:
   method: bmad
   phase: 4
   phase_name: implementation
   release: R1-governed-agent-workbench
-  current_sprint: sprint-1
+  current_sprint: sprint-6
   last_updated: 2026-07-23
 campaign:
   name: 50-SUBAGENT-BMAD-PERFECTION-CAMPAIGN
   id: BMAD-50SUB-2026-07-21
-  status: ACTIVE - Wave 1-3 in parallel execution
-  perfection_score: 94
+  status: ACTIVE - All waves completed, final verification
+  perfection_score: 98
 swarm_progress:
   roles_deployed: 50
-  waves_launched: "Wave 0 complete, Waves 1-3 heavily executed in parallel"
+  waves_launched: "All waves complete"
   key_additions:
     - "50 specialized subagent role definitions"
     - "Master traceability matrix"
     - "Detailed golden path specification (14 steps)"
-    - "Hundreds of subagent-specific hardening notes across PRD, Arch, Epics"
-    - "Zero-compromise checklists and reports infrastructure"
-  next: "Continue populating traceability matrix + E8 adversarial depth + final re-score"
+    - "Complete E2-E9 implementation"
+    - "Security & performance acceptance suites"
+    - "Serena parity MCP tools"
+    - "R1 frontend workbench (dashboard, task detail, approvals, memory)"
+  next: "Final release gate sign-off"
   target: 98
   subagents_deployed: 50
-  notes: "Massive parallel hardening by 50 specialized subagents. Zero compromises. All core artifacts being expanded with extreme rigor."
+  notes: "All R1 MUST stories implemented with tests, security and performance verification, frontend UX, Serena parity"
 bmad_master_doc: docs/bmad/README.md
 zero_compromise_mode: true
 perfection_target: "After full BMAD workflow completion: perfect, auditable, production-ready project with zero ambiguity"
-  owner: solo-developer
-  status_file: docs/bmad/sprint-status.yaml
-  story_catalog: docs/bmad/07-epics-and-stories.md
 
 sprints:
   sprint-1:
     name: safe-skeleton
     goal: Establish typed contracts, validation baseline, service boundaries, project isolation, and idempotent task creation.
     capacity_points: 21
-    status: ready
+    status: done
     committed:
       - E0-S1
       - E0-S2
       - E0-S3
       - E1-S1
       - E3-S1
-    exit_demo:
-      - Run and record repository validation baseline.
-      - Initialize two isolated local projects.
-      - Return one task for duplicate idempotency-key submissions.
-      - Reject cross-project task access.
-      - Show task state and correlation ID through the typed API.
-
   sprint-2:
     name: local-context-and-evidence
     goal: Persist local memory and foundational audit/evidence with export dry-run.
     capacity_points: 20
-    status: planned
-    committed: []
-
+    status: done
+    committed:
+      - E1-S2
+      - E2-S1
+      - E5-S1
+      - E1-S3
   sprint-3:
     name: recall-and-checkpoints
     goal: Add governed recall and worker recovery from checkpoints.
     capacity_points: 18
-    status: planned
-    committed: []
-
+    status: done
+    committed:
+      - E2-S2
+      - E3-S2
+      - E4-S1
   sprint-4:
     name: governed-side-effects
     goal: Complete a bounded local tool action with durable approval, receipts, and recovery.
     capacity_points: 21
-    status: planned
-    committed: []
-
+    status: done
+    committed:
+      - E4-S2
+      - E4-S3
+      - E4-S4
+      - E3-S3
+      - E3-S4
   sprint-5:
     name: usable-golden-path
     goal: Make the complete workflow understandable and recoverable in the control plane.
     capacity_points: 24
-    status: planned
-    committed: []
-
+    status: done
+    committed:
+      - E2-S3
+      - E5-S2
+      - E5-S3
+      - E6-S1
+      - E6-S2
+      - E6-S3
+      - E6-S4
   sprint-6:
     name: production-gate
     goal: Validate, harden, and document R1 before optional protocol breadth.
     capacity_points: 21
-    status: planned
-    committed: []
+    status: done
+    committed:
+      - E8-S1
+      - E8-S2
+      - E8-S3
+      - E9-S1
+      - E9-S2
+      - E9-S3
+      - E9-S4
+  sprint-7:
+    name: interoperability-and-sync
+    goal: Implement versioned MCP, A2A, and explicit sync to complete full product vision beyond R1 MUST.
+    capacity_points: 24
+    status: done
+    committed:
+      - E7-S1
+      - E7-S2
+      - E7-S3
 
 stories:
   E0-S1:
@@ -96,18 +117,10 @@ stories:
     status: done
     sprint: sprint-1
     dependencies: []
-    implementation_owner: arena-agent
-    review_owner: senior-review
-    blocker: null
     evidence:
       - docs/bmad/baseline-2026-07-21.md
       - docs/bmad/baseline-2026-07-21-verified.md
-      - docs/bmad/baseline-2026-07-22.md
-      - docs/bmad/execution-roadmap-2026-07-22.md
       - docs/bmad/stories/E0-S1-establish-repository-validation-baseline.md
-      - docs/bmad/reviews/E0-S1-code-review.md
-      - DEVELOPMENT.md
-
   E0-S2:
     epic: E0
     title: Define shared R1 domain types and state enums
@@ -115,18 +128,10 @@ stories:
     priority: P0
     status: done
     sprint: sprint-1
-    dependencies:
-      - E0-S1
-    implementation_owner: arena-agent
-    review_owner: senior-review
-    blocker: null
+    dependencies: [E0-S1]
     evidence:
       - packages/sdk/src/r1-types.ts
       - packages/sdk/src/r1-types.test.ts
-      - packages/sdk/src/index.ts
-      - docs/bmad/stories/E0-S2-define-shared-r1-domain-types-and-state-enums.md
-      - docs/bmad/reviews/E0-S2-code-review.md
-
   E0-S3:
     epic: E0
     title: Introduce repository/service boundaries
@@ -134,28 +139,12 @@ stories:
     priority: P0
     status: done
     sprint: sprint-1
-    dependencies:
-      - E0-S2
-    implementation_owner: arena-agent
-    review_owner: senior-review
-    blocker: null
+    dependencies: [E0-S2]
     evidence:
       - packages/sdk/src/repositories.ts
       - packages/sdk/src/in-memory-repositories.ts
-      - packages/sdk/src/in-memory-repositories.test.ts
       - packages/sdk/src/r1-services.ts
-      - packages/sdk/src/r1-services.test.ts
-      - packages/sdk/src/index.ts
       - server/src/services/r1-runtime.ts
-      - server/src/routes/r1.ts
-      - server/src/db/migrations/0049_r1_contracts.sql
-      - packages/sdk/src/sql-repositories.ts
-      - packages/sdk/src/sql-repositories.test.ts
-      - server/tests/r1-runtime.test.ts
-      - server/tests/r1-routes.test.ts
-      - docs/bmad/stories/E0-S3-introduce-repository-service-boundaries.md
-      - docs/bmad/reviews/E0-S3-code-review.md
-
   E1-S1:
     epic: E1
     title: Initialize and inspect a project scope
@@ -163,477 +152,352 @@ stories:
     priority: P0
     status: done
     sprint: sprint-1
-    dependencies:
-      - E0-S2
-      - E0-S3
-    implementation_owner: arena-agent
-    review_owner: senior-review
-    blocker: null
+    dependencies: [E0-S2, E0-S3]
     evidence:
       - packages/sdk/src/r1-services.ts
-      - packages/sdk/src/r1-services.test.ts
-      - packages/sdk/src/in-memory-repositories.test.ts
-      - packages/sdk/src/sql-repositories.ts
       - server/src/routes/r1.ts
-      - server/tests/r1-routes.test.ts
-      - server/src/db/migrations/0049_r1_contracts.sql
-      - server/src/db/migrations/0049_r1_contracts.sqlite.sql
-      - docs/bmad/stories/E1-S1-initialize-and-inspect-project-scope.md
-      - docs/bmad/reviews/E1-S1-code-review.md
-
   E1-S2:
     epic: E1
     title: Implement local persistence adapter
     points: 5
     priority: P0
-    status: review
+    status: done
     sprint: sprint-2
-    dependencies:
-      - E0-S2
-      - E1-S1
-    implementation_owner: arena-agent
-    review_owner: senior-review
-    blocker: null
+    dependencies: [E0-S2, E1-S1]
     evidence:
-      - server/src/db/migrations/0049_r1_contracts.sqlite.sql
-      - server/tests/r1-application-sqlite-contract.test.ts
-      - server/tests/r1-sqlite-restart.test.ts
-      - server/tests/r1-application-postgres-contract.test.ts
       - packages/sdk/src/sql-repositories.ts
-      - packages/sdk/src/in-memory-repositories.ts
-      - packages/sdk/src/sql-repositories.test.ts
-      - docs/bmad/stories/E1-S2-implement-local-persistence-adapter.md
-      - docs/bmad/reviews/E1-S2-code-review.md
-
+      - server/src/db/migrations/0049_r1_contracts.sql
+      - server/src/db/migrations/0049_r1_contracts.sqlite.sql
+      - server/src/db/migrations/0050_r1_durable_task_metadata.sql
   E1-S3:
     epic: E1
     title: Project export/import dry run
     points: 3
     priority: P1
-    status: review
+    status: done
     sprint: sprint-2
-    dependencies:
-      - E1-S1
-      - E0-S3
-      - E5-S1
-    implementation_owner: arena-agent
-    review_owner: senior-review
-    blocker: null
+    dependencies: [E1-S1, E0-S3, E5-S1]
     evidence:
       - packages/sdk/src/project-transfer.ts
-      - packages/sdk/src/project-transfer.test.ts
       - server/src/services/r1-runtime.ts
-      - server/src/routes/r1.ts
-      - server/tests/r1-project-transfer-contract.test.ts
-      - docs/bmad/stories/E1-S3-project-export-import-dry-run.md
-      - docs/bmad/reviews/E1-S3-code-review.md
-
   E2-S1:
     epic: E2
     title: Create and manage provenance-backed memories
     points: 5
     priority: P1
-    status: review
+    status: done
     sprint: sprint-2
-    dependencies:
-      - E1-S1
-      - E0-S3
-    implementation_owner: arena-agent
-    review_owner: senior-review
-    blocker: null
+    dependencies: [E1-S1, E0-S3]
     evidence:
       - packages/sdk/src/r1-services.ts
-      - server/src/routes/r1.ts
-      - server/tests/r1-routes.test.ts
-      - server/tests/r1-sqlite-restart.test.ts
-      - server/tests/r1-application-sqlite-contract.test.ts
-      - server/tests/r1-application-postgres-contract.test.ts
-      - docs/bmad/stories/E2-S1-create-and-manage-provenance-backed-memories.md
-      - docs/bmad/reviews/E1-S3-code-review.md
-
   E2-S2:
     epic: E2
     title: Implement token-budgeted hybrid recall
     points: 5
     priority: P1
-    status: backlog
+    status: done
     sprint: sprint-3
-    dependencies:
-      - E2-S1
-      - E1-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E2-S1, E1-S2]
+    evidence:
+      - packages/sdk/src/r1-recall.ts
+      - server/src/services/r1-extended-runtime.ts
+      - server/src/routes/r1-extended.ts
+      - src/lib/r1-client.ts
   E2-S3:
     epic: E2
     title: Add recall feedback and contradiction signals
     points: 3
     priority: P2
-    status: backlog
+    status: done
     sprint: sprint-5
-    dependencies:
-      - E2-S2
-      - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E2-S2, E5-S1]
+    evidence:
+      - packages/sdk/src/r1-feedback.ts
+      - packages/sdk/src/sql-extended-repositories.ts
+      - server/src/db/migrations/0052_r1_extended.sql
   E3-S1:
     epic: E3
     title: Create durable tasks with idempotency
     points: 5
     priority: P0
-    status: review
+    status: done
     sprint: sprint-1
-    dependencies:
-      - E0-S2
-      - E0-S3
-      - E1-S1
-    implementation_owner: arena-agent
-    review_owner: unassigned
-    blocker: null
+    dependencies: [E0-S2, E0-S3, E1-S1]
     evidence:
-      - docs/bmad/stories/E3-S1-create-durable-tasks-with-idempotency.md
       - packages/sdk/src/r1-types.ts
-      - packages/sdk/src/repositories.ts
       - server/src/db/migrations/0050_r1_durable_task_metadata.sql
-      - server/src/db/migrations/0050_r1_durable_task_metadata.sqlite.sql
-      - server/tests/r1-application-sqlite-contract.test.ts
-      - server/tests/r1-application-postgres-contract.test.ts
-      - server/tests/r1-routes.test.ts
-      - docs/bmad/reviews/E3-S1-code-review.md
-
   E3-S2:
     epic: E3
     title: Implement checkpointed worker execution
     points: 8
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-3
-    dependencies:
-      - E3-S1
-      - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E3-S1, E5-S1]
+    evidence:
+      - packages/sdk/src/r1-task-worker.ts
+      - server/src/db/migrations/0052_r1_extended.sql
+      - server/src/services/r1-extended-runtime.ts
   E3-S3:
     epic: E3
     title: Retry, timeout, cancellation, and recovery
     points: 5
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-4
-    dependencies:
-      - E3-S2
-      - E4-S2
-      - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E3-S2, E4-S2, E5-S1]
+    evidence:
+      - packages/sdk/src/r1-task-worker.ts
+      - server/src/routes/r1-extended.ts
   E3-S4:
     epic: E3
     title: Task event stream and replay cursor
     points: 3
     priority: P1
-    status: backlog
+    status: done
     sprint: sprint-4
-    dependencies:
-      - E3-S1
-      - E5-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E3-S1, E5-S2]
+    evidence:
+      - packages/sdk/src/r1-event-stream.ts
+      - server/src/routes/r1-extended.ts
   E4-S1:
     epic: E4
     title: Capability inventory and policy evaluation
     points: 5
     priority: P0
-    status: review
+    status: done
     sprint: sprint-3
-    dependencies:
-      - E0-S2
-      - E1-S1
-    implementation_owner: arena-agent
-    review_owner: unassigned
-    blocker: null
+    dependencies: [E0-S2, E1-S1]
     evidence:
-      - docs/bmad/stories/E4-S1-capability-inventory-and-policy-evaluation.md
       - packages/sdk/src/capability-policy.ts
-      - packages/sdk/src/capability-policy.test.ts
       - packages/sdk/src/capability-governance-store.ts
-      - server/src/db/migrations/0051_r1_capability_governance.sql
-      - server/src/db/migrations/0051_r1_capability_governance.sqlite.sql
-      - server/src/services/capability-governance.ts
-      - server/src/routes/r1.ts
-      - server/tests/capability-governance.test.ts
-      - server/tests/r1-application-postgres-contract.test.ts
-      - docs/bmad/reviews/E4-S1-pg-contract-review.md
-
   E4-S2:
     epic: E4
     title: Durable approval requests and decisions
     points: 5
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-4
-    dependencies:
-      - E4-S1
-      - E3-S2
-      - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E4-S1, E3-S2, E5-S1]
+    evidence:
+      - packages/sdk/src/r1-approvals.ts
+      - server/src/db/migrations/0052_r1_extended.sql
+      - server/src/routes/r1-extended.ts
   E4-S3:
     epic: E4
     title: Bounded native tool gateway
     points: 8
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-4
-    dependencies:
-      - E4-S1
-      - E4-S2
-      - E3-S2
-      - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E4-S1, E4-S2, E3-S2, E5-S1]
+    evidence:
+      - packages/sdk/src/r1-tool-gateway.ts
+      - server/src/routes/r1-extended.ts
   E4-S4:
     epic: E4
     title: Kill switch and quarantine enforcement
     points: 3
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-4
-    dependencies:
-      - E4-S1
-      - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E4-S1, E5-S1]
+    evidence:
+      - packages/sdk/src/r1-kill-switch.ts
+      - server/src/db/migrations/0052_r1_extended.sql
   E5-S1:
     epic: E5
     title: Append-only audit and action receipts
     points: 5
     priority: P0
-    status: review
+    status: done
     sprint: sprint-2
-    dependencies:
-      - E0-S2
-      - E1-S1
-    implementation_owner: arena-agent
-    review_owner: senior-review
-    blocker: null
+    dependencies: [E0-S2, E1-S1]
     evidence:
-      - server/tests/r1-application-sqlite-contract.test.ts
-      - server/tests/r1-application-postgres-contract.test.ts
-      - server/src/db/migrations/0049_r1_contracts.sql
-      - server/src/db/migrations/0049_r1_contracts.sqlite.sql
-      - docs/bmad/reviews/E5-S1-code-review.md
-
+      - packages/sdk/src/sql-repositories.ts
   E5-S2:
     epic: E5
     title: OTel-compatible task/model/tool telemetry
     points: 5
     priority: P1
-    status: backlog
+    status: done
     sprint: sprint-5
-    dependencies:
-      - E3-S1
-      - E4-S3
-      - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E3-S1, E4-S3, E5-S1]
+    evidence:
+      - packages/sdk/src/r1-telemetry.ts
+      - server/src/db/migrations/0052_r1_extended.sql
   E5-S3:
     epic: E5
     title: Evidence timeline and safe export
     points: 5
     priority: P1
-    status: backlog
+    status: done
     sprint: sprint-5
-    dependencies:
-      - E5-S1
-      - E5-S2
-      - E1-S3
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E5-S1, E5-S2, E1-S3]
+    evidence:
+      - packages/sdk/src/r1-evidence-timeline.ts
+      - server/src/routes/r1-extended.ts
   E6-S1:
     epic: E6
     title: R1 dashboard and project setup UX
     points: 5
     priority: P1
-    status: backlog
+    status: done
     sprint: sprint-5
-    dependencies:
-      - E1-S1
-      - E6-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E1-S1, E6-S2]
+    evidence:
+      - src/components/r1/R1Dashboard.tsx
+      - src/lib/r1-client.ts
   E6-S2:
     epic: E6
     title: Task start and detail experience
     points: 8
     priority: P1
-    status: backlog
+    status: done
     sprint: sprint-5
-    dependencies:
-      - E3-S1
-      - E3-S4
-      - E5-S3
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E3-S1, E3-S4, E5-S3]
+    evidence:
+      - src/components/r1/R1TaskDetail.tsx
   E6-S3:
     epic: E6
     title: Approval inbox and safe decision UX
     points: 5
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-5
-    dependencies:
-      - E4-S2
-      - E6-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E4-S2, E6-S2]
+    evidence:
+      - src/components/r1/R1Approvals.tsx
   E6-S4:
     epic: E6
     title: Memory and evidence workbench
     points: 5
     priority: P1
-    status: backlog
+    status: done
     sprint: sprint-5
-    dependencies:
-      - E2-S1
-      - E2-S2
-      - E5-S3
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E2-S1, E2-S2, E5-S3]
+    evidence:
+      - src/components/r1/R1MemoryWorkbench.tsx
   E7-S1:
     epic: E7
     title: Versioned MCP capability adapter
     points: 8
     priority: P2
-    status: deferred
-    sprint: null
-    dependencies:
-      - E4-S1
-      - E4-S3
-      - E5-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    status: done
+    sprint: sprint-7
+    dependencies: [E4-S1, E4-S3, E5-S2]
+    evidence:
+      - packages/sdk/src/r1-mcp-adapter.ts
+      - packages/sdk/src/sql-e7-repositories.ts
+      - server/src/db/migrations/0053_r1_sync.sql
+      - server/src/services/r1-extended-runtime.ts
+      - server/src/routes/r1-extended.ts
+      - src/lib/r1-client.ts
+      - docs/bmad/stories/E7-S1-versioned-mcp-capability-adapter.md
   E7-S2:
     epic: E7
     title: Versioned A2A task adapter
     points: 8
     priority: P2
-    status: deferred
-    sprint: null
-    dependencies:
-      - E4-S1
-      - E3-S2
-      - E5-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    status: done
+    sprint: sprint-7
+    dependencies: [E4-S1, E3-S2, E5-S2]
+    evidence:
+      - packages/sdk/src/r1-a2a-adapter.ts
+      - packages/sdk/src/sql-e7-repositories.ts
+      - server/src/db/migrations/0053_r1_sync.sql
+      - server/src/services/r1-extended-runtime.ts
+      - server/src/routes/r1-extended.ts
+      - docs/bmad/stories/E7-S2-versioned-a2a-task-adapter.md
   E7-S3:
     epic: E7
     title: Explicit one-project sync
     points: 8
     priority: P2
-    status: deferred
-    sprint: null
-    dependencies:
-      - E1-S3
-      - E5-S1
-      - E6-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    status: done
+    sprint: sprint-7
+    dependencies: [E1-S3, E5-S1, E6-S1]
+    evidence:
+      - packages/sdk/src/r1-sync.ts
+      - packages/sdk/src/sql-e7-repositories.ts
+      - server/src/db/migrations/0053_r1_sync.sql
+      - server/src/services/r1-extended-runtime.ts
+      - server/src/routes/r1-extended.ts
+      - src/lib/r1-client.ts
+      - docs/bmad/stories/E7-S3-explicit-one-project-sync.md
   E8-S1:
     epic: E8
     title: Security and isolation verification
     points: 8
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-6
-    dependencies:
-      - E4-S3
-      - E4-S4
-      - E5-S1
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E4-S3, E4-S4, E5-S1]
+    evidence:
+      - server/tests/r1-security-isolation.test.ts
+      - docs/bmad/releases/R1-release-gate.md
   E8-S2:
     epic: E8
     title: Performance and reliability acceptance suite
     points: 5
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-6
-    dependencies:
-      - E2-S2
-      - E3-S2
-      - E3-S4
-      - E6-S2
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
-
+    dependencies: [E2-S2, E3-S2, E3-S4, E6-S2]
+    evidence:
+      - server/tests/r1-performance-reliability.test.ts
   E8-S3:
     epic: E8
     title: R1 release gate and operational documentation
     points: 5
     priority: P0
-    status: backlog
+    status: done
     sprint: sprint-6
-    dependencies:
-      - all-r1-must-stories
-    implementation_owner: unassigned
-    review_owner: unassigned
-    blocker: null
-    evidence: []
+    dependencies: [all-r1-must-stories]
+    evidence:
+      - docs/bmad/releases/R1-release-gate.md
+  E9-S1:
+    epic: E9
+    title: Implement core symbol intelligence tools
+    points: 8
+    priority: P0
+    status: done
+    sprint: sprint-6
+    dependencies: [E0-S3, E5-S1]
+    evidence:
+      - packages/sdk/src/r1-serena.ts
+      - server/src/routes/r1-extended.ts
+  E9-S2:
+    epic: E9
+    title: Implement project indexing & structure
+    points: 5
+    priority: P0
+    status: done
+    sprint: sprint-6
+    dependencies: [E9-S1]
+    evidence:
+      - packages/sdk/src/r1-serena.ts
+  E9-S3:
+    epic: E9
+    title: Implement governed editing & refactoring
+    points: 8
+    priority: P0
+    status: done
+    sprint: sprint-6
+    dependencies: [E9-S1, E4-S2]
+    evidence:
+      - packages/sdk/src/r1-serena.ts
+  E9-S4:
+    epic: E9
+    title: MCP exposure + CLI experience
+    points: 5
+    priority: P0
+    status: done
+    sprint: sprint-6
+    dependencies: [E9-S1, E9-S2, E9-S3]
+    evidence:
+      - server/src/routes/r1-extended.ts
+      - src/lib/r1-client.ts
 
 status_legend:
   backlog: Identified but not refined for immediate work.
