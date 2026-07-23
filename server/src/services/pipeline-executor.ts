@@ -377,6 +377,12 @@ export async function listPipelines() {
   return db.query.pipelines.findMany({});
 }
 
+export async function getPipelineByName(name: string) {
+  return db.query.pipelines.findFirst({
+    where: eq(pipelines.name, name),
+  });
+}
+
 /* ─── (Forge) Retry / saga-compensation helpers ───────────────────────────── */
 
 export function getNodeCompensator(node: PipelineNode): PipelineNode | null {

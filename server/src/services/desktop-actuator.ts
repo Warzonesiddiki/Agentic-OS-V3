@@ -33,7 +33,7 @@ export interface ScreenshotOptions {
   crop?: CropRegion;
 }
 
-export type ActuatorMode = 'windows' | 'mac' | 'linux' | 'headless';
+export type ActuatorMode = 'windows' | 'mac' | 'linux' | 'linux-wayland' | 'headless';
 
 export interface DesktopActuator {
   readonly mode: ActuatorMode;
@@ -606,6 +606,155 @@ export class LinuxActuator extends BaseDesktopActuator {
   }
 }
 
+/* ── Linux Wayland Actuator Implementation (P2-10) ── */
+
+/**
+ * Wayland-compatible desktop actuator.
+ *
+ * Wayland's security model prevents global input injection and screen capture
+ * (unlike X11's xdotool). This actuator uses:
+ *   - `ydotool` for input simulation (works on Wayland via /dev/uinput)
+ *   - `grim` for screenshots (Wayland-native, uses wlr-screencopy protocol)
+ *   - `slurp` for region selection (optional)
+ *   - `wl-copy`/`wl-paste` for clipboard (instead of xclip/xsel)
+ *
+ * Falls back to XWayland (xdotool) if native Wayland tools are unavailable.
+ */
+export class LinuxWaylandActuator extends BaseDesktopActuator {
+  readonly mode: ActuatorMode = 'linux-wayland';
+
+  private hasYdotool = false;
+  private hasGrim = false;
+
+  async isAvailable(): Promise<boolean> {
+    if (process.platform !== 'linux') return false;
+    if (!process.env.WAYLAND_DISPLAY) return false;
+    try {
+      execFileSync('which', ['ydotool'], { timeout: 3000 });
+      this.hasYdotool = true;
+    } catch {
+      try { execFileSync('which', ['xdotool'], { timeout: 3000 }); } catch { return false; }
+    }
+    try { execFileSync('which', ['grim'], { timeout: 3000 }); this.hasGrim = true; } catch { /* no grim */ }
+    return true;
+  }
+
+  async screenshot(opts?: ScreenshotOptions): Promise<string> {
+    const tmpFile = path.join(os.tmpdir(), `wayland_shot_${randomUUID().slice(0, 8)}.png`);
+    try {
+      if (this.hasGrim) {
+        if (opts?.crop) {
+          const { x, y, width, height } = opts.crop;
+          execFileSync('grim', ['-g', `${Math.round(x)},${Math.round(y)} ${Math.round(width)}x${Math.round(height)}`, tmpFile], { timeout: 10_000 });
+        } else {
+          execFileSync('grim', [tmpFile], { timeout: 10_000 });
+        }
+      } else {
+        const args = ['-window', 'root'];
+        if (opts?.crop) {
+          const { x, y, width, height } = opts.crop;
+          args.push('-crop', `${Math.round(width)}x${Math.round(height)}+${Math.round(x)}+${Math.round(y)}`);
+        }
+        args.push(tmpFile);
+        execFileSync('import', args, { timeout: 10_000 });
+      }
+      const buffer = fs.readFileSync(tmpFile);
+      return buffer.toString('base64');
+    } catch (e) {
+      log.warn('desktop_screenshot_failed_wayland', { error: e instanceof Error ? e.message : String(e) });
+      return '';
+    } finally {
+      if (fs.existsSync(tmpFile)) { try { fs.unlinkSync(tmpFile); } catch { /* ignore */ } }
+    }
+  }
+
+  async getScreenSize(): Promise<{ width: number; height: number }> {
+    try {
+      const output = execFileSync('swaymsg', ['-t', 'get_outputs'], { timeout: 5000 }).toString();
+      const outputs = JSON.parse(output) as Array<{ focused: boolean; current_mode?: { width: number; height: number } }>;
+      const focused = outputs.find((o) => o.focused) ?? outputs[0];
+      if (focused?.current_mode) return { width: focused.current_mode.width, height: focused.current_mode.height };
+    } catch { /* swaymsg unavailable */ }
+    return { width: 1920, height: 1080 };
+  }
+
+  protected async _moveMouse(x: number, y: number): Promise<void> {
+    const safeX = Math.max(0, Math.round(x));
+    const safeY = Math.max(0, Math.round(y));
+    if (this.hasYdotool) {
+      execFileSync('ydotool', ['mousemove', '--absolute', '-x', String(safeX), '-y', String(safeY)], { timeout: 5000 });
+    } else {
+      execFileSync('xdotool', ['mousemove', String(safeX), String(safeY)], { timeout: 5000 });
+    }
+  }
+
+  protected async _click(x?: number, y?: number, button: 'left' | 'right' | 'middle' = 'left'): Promise<void> {
+    const btnMap: Record<string, string> = { left: '1', middle: '2', right: '3' };
+    const btnNum = btnMap[button] || '1';
+    if (x !== undefined && y !== undefined) {
+      await this._moveMouse(x, y);
+    }
+    if (this.hasYdotool) {
+      const ydoBtn = button === 'right' ? '1' : button === 'middle' ? '2' : '0';
+      execFileSync('ydotool', ['click', ydoBtn], { timeout: 5000 });
+    } else {
+      execFileSync('xdotool', ['click', btnNum], { timeout: 5000 });
+    }
+  }
+
+  protected async _type(text: string): Promise<void> {
+    const safeText = sanitizeShellArg(text);
+    if (this.hasYdotool) {
+      execFileSync('ydotool', ['type', '--', safeText], { timeout: 5000 });
+    } else {
+      execFileSync('xdotool', ['type', '--', safeText], { timeout: 5000 });
+    }
+  }
+
+  protected async _scroll(amount: number, direction: 'up' | 'down' = 'down'): Promise<void> {
+    const safeAmount = Math.min(Math.max(Math.round(Number(amount) || 3), 1), 50);
+    if (this.hasYdotool) {
+      const ydoDir = direction === 'up' ? '0 1' : '0 -1';
+      for (let i = 0; i < safeAmount; i++) {
+        execFileSync('ydotool', ['mousemove', ydoDir], { timeout: 5000 });
+      }
+    } else {
+      const btnNum = direction === 'up' ? '4' : '5';
+      execFileSync('xdotool', ['click', '--repeat', String(safeAmount), btnNum], { timeout: 5000 });
+    }
+  }
+
+  protected async _keypress(key: string): Promise<void> {
+    const waylandKeyMap: Record<string, string> = {
+      enter: 'KEY_ENTER', return: 'KEY_ENTER', tab: 'KEY_TAB',
+      space: 'KEY_SPACE', backspace: 'KEY_BACKSPACE', delete: 'KEY_DELETE',
+      escape: 'KEY_ESC', esc: 'KEY_ESC', up: 'KEY_UP', down: 'KEY_DOWN',
+      left: 'KEY_LEFT', right: 'KEY_RIGHT', home: 'KEY_HOME', end: 'KEY_END',
+      pageup: 'KEY_PAGEUP', pagedown: 'KEY_PAGEDOWN',
+      f1: 'KEY_F1', f2: 'KEY_F2', f3: 'KEY_F3', f4: 'KEY_F4',
+      f5: 'KEY_F5', f6: 'KEY_F6', f7: 'KEY_F7', f8: 'KEY_F8',
+      f9: 'KEY_F9', f10: 'KEY_F10', f11: 'KEY_F11', f12: 'KEY_F12',
+      ctrl: 'KEY_LEFTCTRL', control: 'KEY_LEFTCTRL',
+      alt: 'KEY_LEFTALT', shift: 'KEY_LEFTSHIFT',
+      meta: 'KEY_LEFTMETA', super: 'KEY_LEFTMETA', win: 'KEY_LEFTMETA',
+    };
+    const mappedKey = waylandKeyMap[key.toLowerCase()];
+    if (!mappedKey) {
+      if (!this.hasYdotool) {
+        execFileSync('xdotool', ['key', key.toLowerCase()], { timeout: 5000 });
+        return;
+      }
+      log.warn('desktop_unknown_key_wayland', { key });
+      return;
+    }
+    if (this.hasYdotool) {
+      execFileSync('ydotool', ['key', `${mappedKey}:1`, `${mappedKey}:0`], { timeout: 5000 });
+    } else {
+      execFileSync('xdotool', ['key', key.toLowerCase()], { timeout: 5000 });
+    }
+  }
+}
+
 /* ── Headless Actuator Implementation (Docker / CI Fallback) ── */
 
 export class HeadlessActuator extends BaseDesktopActuator {
@@ -668,6 +817,9 @@ export async function createActuatorForMode(mode: ActuatorMode): Promise<Desktop
     case 'linux':
       actuator = new LinuxActuator();
       break;
+    case 'linux-wayland':
+      actuator = new LinuxWaylandActuator();
+      break;
     case 'headless':
     default:
       actuator = new HeadlessActuator();
@@ -689,6 +841,7 @@ export async function resolveActuatorMode(): Promise<ActuatorMode> {
   const envMode = (process.env.NEXUS_GUI_MODE || process.env.DESKTOP_ACTUATOR_MODE)?.toLowerCase();
   if (envMode === 'windows' || envMode === 'win32') return 'windows';
   if (envMode === 'mac' || envMode === 'darwin' || envMode === 'macos') return 'mac';
+  if (envMode === 'linux-wayland' || envMode === 'wayland') return 'linux-wayland';
   if (envMode === 'linux') return 'linux';
   if (envMode === 'headless') return 'headless';
 
@@ -698,6 +851,8 @@ export async function resolveActuatorMode(): Promise<ActuatorMode> {
     case 'darwin':
       return 'mac';
     case 'linux':
+      // Auto-detect Wayland session
+      if (process.env.WAYLAND_DISPLAY) return 'linux-wayland';
       return 'linux';
     default:
       return 'headless';

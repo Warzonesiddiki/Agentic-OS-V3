@@ -23,6 +23,7 @@ import "@xyflow/react/dist/base.css";
 import { Badge, Button, Card, Field, Input, Modal, Select, Textarea, cn } from "../components/ui";
 import { toast } from "../lib/toast";
 import { motion, AnimatePresence } from "motion/react";
+import { apiClient } from "../lib/api-client";
 
 /* ─── Block type registry ──────────────────────────────────────────────────── */
 
@@ -451,16 +452,15 @@ function PipelineBuilderInner() {
     });
   }, [setNodes, setEdges]);
 
-  const savePipeline = useCallback(() => {
+  const savePipeline = useCallback(async () => {
     const data: PipelineData = { nodes, edges };
-    const json = JSON.stringify(data, null, 2);
     try {
-      localStorage.setItem(`pipeline_${pipelineName}`, json);
-      const names = JSON.parse(localStorage.getItem("pipeline_names") ?? "[]") as string[];
-      if (!names.includes(pipelineName)) {
-        names.push(pipelineName);
-        localStorage.setItem("pipeline_names", JSON.stringify(names));
-      }
+      await apiClient.createPipeline({
+        name: pipelineName,
+        description: `Pipeline ${pipelineName}`,
+        nodes: nodes.map((n) => ({ id: n.id, type: n.type ?? 'transform', position: n.position, data: n.data })),
+        edges: edges.map((e) => ({ id: e.id, source: e.source, target: e.target })),
+      });
       toast.success(`Pipeline "${pipelineName}" saved`);
     } catch {
       toast.danger("Failed to save pipeline");
@@ -468,22 +468,30 @@ function PipelineBuilderInner() {
   }, [nodes, edges, pipelineName]);
 
   const loadPipelineList = useCallback((): string[] => {
-    try {
-      return JSON.parse(localStorage.getItem("pipeline_names") ?? "[]") as string[];
-    } catch {
-      return [];
-    }
+    // Synchronous stub: the real list is fetched asynchronously via refreshPipelineList().
+    // Return [] here; callers should use the async path.
+    return [];
   }, []);
 
   const loadPipeline = useCallback(
-    (name: string) => {
+    async (name: string) => {
       try {
-        const raw = localStorage.getItem(`pipeline_${name}`);
-        if (!raw) { toast.danger("Pipeline not found"); return; }
-        const data: PipelineData = JSON.parse(raw);
+        const pipeline = await apiClient.getPipeline(name);
         saveSnapshot();
-        setNodes(data.nodes);
-        setEdges(data.edges);
+        // Map API PipelineNode[] back to ReactFlow Node[]
+        const apiNodes: Node[] = pipeline.nodes.map((n) => ({
+          id: n.id,
+          type: n.type,
+          position: n.position,
+          data: n.data,
+        }));
+        const apiEdges: Edge[] = pipeline.edges.map((e) => ({
+          id: e.id,
+          source: e.source,
+          target: e.target,
+        }));
+        setNodes(apiNodes);
+        setEdges(apiEdges);
         setPipelineName(name);
         toast.success(`Pipeline "${name}" loaded`);
       } catch {
