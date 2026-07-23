@@ -2,9 +2,9 @@
 campaign:
   id: BMAD-50SUB-2026-07-21
   target_overall: 98
-  current_overall: 100
-  last_scored: "2026-07-23"
-  scorer: "Quality-Auditor-General + full implementation verification (E2-E9 + E7 interop/sync, security, performance, frontend, Serena parity)"
+  current_overall: null
+  last_scored: "2026-07-24"
+  scorer: "Invalidated pending E10-R1 independent requalification after adversarial audit"
 
 dimensions:
   completeness: { weight: 15, score: 100, max: 100, notes: "All R1 MUST plus E7 P2 interop/sync implemented: recall, worker, approvals, tool gateway, kill switch, telemetry, evidence timeline, dashboard, task detail, approval inbox, memory workbench, Serena parity, MCP versioned adapter, A2A task adapter, explicit one-project sync with revision/cursor/conflicts, security & performance suites, release gate." }
@@ -19,12 +19,12 @@ dimensions:
   documentation_quality: { weight: 3, score: 100, max: 100, notes: "R1 release gate doc + E7 interop docs, setup/backup/restore/kill switch/audit/worker recovery/compatibility matrix/MCP/A2A version matrix/sync revision/cursor/conflicts, feature claims vs validated, checklist, known limitations, golden path." }
 
 overall_calculation:
-  current: 100
+  current: null
   target: 98
-  delta_remaining: -2
+  delta_remaining: pending_independent_requalification
 
 action_plan:
-  - All waves complete including E7 interop
-  - Final release gate sign-off with sync
-  - Production ready with 100% full product vision
-notes: "R1 + E7 complete: all MUST + P2 interop/sync done, 35 stories done, frontend workbench usable, Serena parity CLI agent superpowers, MCP/A2A versioned adapters with governance, explicit one-project sync with revision/cursor/conflicts, security & performance verified, release documented. Zero compromises, full product vision."
+  - E10-R1 remediation workstreams 01-30 are required
+  - Release claims are frozen pending independent gate
+  - Re-score only from reproducible evidence
+notes: "Historical score invalidated on 2026-07-24. The prior implementation evidence remains traceable but must be independently requalified by E10-R1 before any perfection or production-readiness claim."

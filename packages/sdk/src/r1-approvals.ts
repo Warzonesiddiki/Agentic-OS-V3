@@ -41,6 +41,7 @@ export const DurableApprovalRequestSchema = z.object({
 export type DurableApprovalRequest = z.infer<typeof DurableApprovalRequestSchema>;
 
 export const DurableApprovalDecisionSchema = z.object({
+  projectId: z.string().uuid(),
   approvalId: z.string().uuid(),
   decision: z.enum(['approved', 'denied']),
   actorId: z.string().min(1).max(255),
@@ -58,8 +59,9 @@ export interface ApprovalRepositoryEx {
 
 class InMemoryApprovalEx implements ApprovalRepositoryEx {
   private readonly map = new Map<string, DurableApprovalRequest>();
-  async get(_projectId: string, approvalId: string): Promise<DurableApprovalRequest | null> {
-    return this.map.get(approvalId) ?? null;
+  async get(projectId: string, approvalId: string): Promise<DurableApprovalRequest | null> {
+    const request = this.map.get(approvalId) ?? null;
+    return request?.projectId === projectId ? request : null;
   }
   async listPending(projectId: string): Promise<readonly DurableApprovalRequest[]> {
     return [...this.map.values()].filter((r) => r.projectId === projectId && r.state === 'pending');
@@ -167,7 +169,7 @@ export class DurableApprovalService {
 
   async decide(raw: unknown): Promise<{ request: DurableApprovalRequest; sideEffectAllowed: boolean }> {
     const decision = DurableApprovalDecisionSchema.parse(raw);
-    const req = await this.repo.get('', decision.approvalId);
+    const req = await this.repo.get(decision.projectId, decision.approvalId);
     if (!req) throw new Error('Approval request not found');
 
     // Duplicate decisions safe - if already decided same way, return idempotent

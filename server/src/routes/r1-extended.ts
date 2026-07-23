@@ -229,6 +229,7 @@ export function createExtendedR1Router(runtime: ExtendedR1Runtime): Hono<NexusEn
     const before = await runtime.approvals.get(projectId, approvalId);
     const start = before ? new Date(before.createdAt).getTime() : Date.now();
     const result = await runtime.approvals.decide({
+      projectId,
       approvalId,
       decision: body.decision,
       actorId: principal.id,

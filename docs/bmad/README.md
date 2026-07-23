@@ -1,9 +1,9 @@
 # BMAD Workflow Documentation — NEXUS 2.0 / Agentic OS V3
 
-**Project:** Agentic OS V3 (NEXUS 2.0)  
-**BMAD Version:** 6.0.4 (as installed)  
-**Last Updated:** 2026-07-20 (UTC)  
-**Status:** Zero-Compromise Full Lifecycle Documentation — **50-SUBAGENT PERFECTION CAMPAIGN ACTIVE** (Score: 94/100) — Complete, Detailed, Production-Ready  
+**Project:** Agentic OS V3 (NEXUS 2.0)
+**BMAD Version:** 6.0.4 (as installed)
+**Last Updated:** 2026-07-20 (UTC)
+**Status:** **RELEASE BLOCKED PENDING E10-R1 REQUALIFICATION** — 2026-07-24 adversarial audit found source, test-suite, dependency-security, and operational-gate gaps. Historical campaign scores are not a release decision.
 **Primary Goal:** After executing the complete BMAD workflow, this project shall be in a perfect, auditable, implementable state with no compromises on quality, governance, documentation, traceability, or production readiness.
 
 ---
@@ -282,7 +282,7 @@ All BMAD decisions must be reconciled with these. When conflicts arise, escalate
 
 ---
 
-**This document and the artifacts under `docs/bmad/` represent the current highest-fidelity specification of NEXUS 2.0.**
+**This document and the artifacts under `docs/bmad/` are governed by the active E10-R1 remediation program. No artifact may be used to claim release readiness until the independent requalification gate passes.**
 
 **Execute BMAD workflows exactly. Update these docs. Achieve perfection.**
 

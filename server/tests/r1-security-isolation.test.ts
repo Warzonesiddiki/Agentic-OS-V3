@@ -74,7 +74,7 @@ describe('E8-S1 Security isolation', () => {
     const svc = new DurableApprovalService(repos);
     const approval = await svc.requestApproval({ projectId: projId, taskId, capabilityId: 'write-file', tool: 'write-file', args: { path: 'a.txt', content: 'hi' }, riskReason: 'high', policyVersion: 'v1', agentId: 'agent', actorId: 'user' });
     // attempt decide with wrong hash
-    await expect(svc.decide({ approvalId: approval.id, decision: 'approved', actorId: 'user', actionHash: 'wronghash', policyVersion: 'v1' })).rejects.toThrow(/hash mismatch/i);
+    await expect(svc.decide({ projectId: projId, approvalId: approval.id, decision: 'approved', actorId: 'user', actionHash: 'wronghash', policyVersion: 'v1' })).rejects.toThrow(/hash mismatch/i);
   });
 
   it('kill switch blocks mutations', async () => {

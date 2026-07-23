@@ -46,8 +46,8 @@ export type ToolResult = { ok: true; output: string; receiptId: string } | { ok:
 export interface ToolGatewayOptions {
   readonly now?: () => string;
   readonly projectRoots?: Map<string, string>; // projectId -> allowed root path
-  readonly isApprovalApproved?: (approvalId: string) => Promise<boolean>;
-  readonly sandboxExecutor?: (command: string, args: string[], timeoutMs: number) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
+  readonly isApprovalApproved?: (approvalId: string, projectId: string) => Promise<boolean>;
+  readonly sandboxExecutor?: (command: string, args: string[], timeoutMs: number, workingDirectory: string) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
   readonly fileReader?: (fullPath: string) => Promise<string>;
   readonly fileWriter?: (fullPath: string, content: string) => Promise<void>;
 }
@@ -95,7 +95,7 @@ function redactContent(content: string): string {
 export class BoundedToolGateway {
   private readonly now: () => string;
   private readonly projectRoots: Map<string, string>;
-  private readonly isApprovalApproved: (id: string) => Promise<boolean>;
+  private readonly isApprovalApproved: (id: string, projectId: string) => Promise<boolean>;
   private readonly sandboxExecutor: NonNullable<ToolGatewayOptions['sandboxExecutor']>;
   private readonly fileReader: NonNullable<ToolGatewayOptions['fileReader']>;
   private readonly fileWriter: NonNullable<ToolGatewayOptions['fileWriter']>;
@@ -171,7 +171,7 @@ export class BoundedToolGateway {
     const input = WriteFileInputSchema.parse(inputRaw);
     const correlationId = input.correlationId ?? randomUUID();
     // Require approval
-    const approved = await this.isApprovalApproved(input.approvalId);
+    const approved = await this.isApprovalApproved(input.approvalId, input.projectId);
     if (!approved) {
       const receipt = await this.recordReceipt({
         projectId: input.projectId,
@@ -216,7 +216,7 @@ export class BoundedToolGateway {
     const correlationId = input.correlationId ?? randomUUID();
 
     // Approve required
-    const approved = await this.isApprovalApproved(input.approvalId);
+    const approved = await this.isApprovalApproved(input.approvalId, input.projectId);
     if (!approved) {
       const receipt = await this.recordReceipt({
         projectId: input.projectId,
@@ -254,7 +254,8 @@ export class BoundedToolGateway {
     }
 
     try {
-      const result = await this.sandboxExecutor(input.command, input.args, input.timeoutMs);
+      const workingDirectory = this.resolvePath(input.projectId, '.');
+      const result = await this.sandboxExecutor(input.command, input.args, input.timeoutMs, workingDirectory);
       const receipt = await this.recordReceipt({
         projectId: input.projectId,
         correlationId,
