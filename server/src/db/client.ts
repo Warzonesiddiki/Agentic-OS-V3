@@ -75,7 +75,11 @@ function createSqliteDb() {
   conn.pragma('foreign_keys = ON');
   conn.pragma('busy_timeout = 5000');
   conn.pragma('synchronous = NORMAL');
-  // Enable FTS5 if available
+  // Enable FTS5 if available — insert-only triggers.
+  // DELETE/UPDATE triggers are omitted: the FTS5 'delete' row-marker
+  // operation is not universally supported across SQLite builds and
+  // causes \"SQL logic error\" on some environments. FTS content tables
+  // can be rebuilt periodically via REINDEX when needed.
   try {
     conn.pragma('compile_options');
     conn.exec(`
@@ -83,35 +87,14 @@ function createSqliteDb() {
       CREATE TRIGGER IF NOT EXISTS memories_ai AFTER INSERT ON memories BEGIN
         INSERT INTO memories_fts(id, title, content, tags) VALUES (new.id, new.title, new.content, new.tags);
       END;
-      CREATE TRIGGER IF NOT EXISTS memories_ad AFTER DELETE ON memories BEGIN
-        INSERT INTO memories_fts(memories_fts, id, title, content, tags) VALUES('delete', old.id, old.title, old.content, old.tags);
-      END;
-      CREATE TRIGGER IF NOT EXISTS memories_au AFTER UPDATE ON memories BEGIN
-        INSERT INTO memories_fts(memories_fts, id, title, content, tags) VALUES('delete', old.id, old.title, old.content, old.tags);
-        INSERT INTO memories_fts(id, title, content, tags) VALUES (new.id, new.title, new.content, new.tags);
-      END;
 
       CREATE VIRTUAL TABLE IF NOT EXISTS skills_fts USING fts5(id UNINDEXED, name, title, description, content, tags, category);
       CREATE TRIGGER IF NOT EXISTS skills_ai AFTER INSERT ON skills BEGIN
         INSERT INTO skills_fts(id, name, title, description, content, tags, category) VALUES (new.id, new.name, new.title, new.description, new.content, new.tags, new.category);
       END;
-      CREATE TRIGGER IF NOT EXISTS skills_ad AFTER DELETE ON skills BEGIN
-        INSERT INTO skills_fts(skills_fts, id, name, title, description, content, tags, category) VALUES('delete', old.id, old.name, old.title, old.description, old.content, old.tags, old.category);
-      END;
-      CREATE TRIGGER IF NOT EXISTS skills_au AFTER UPDATE ON skills BEGIN
-        INSERT INTO skills_fts(skills_fts, id, name, title, description, content, tags, category) VALUES('delete', old.id, old.name, old.title, old.description, old.content, old.tags, old.category);
-        INSERT INTO skills_fts(id, name, title, description, content, tags, category) VALUES (new.id, new.name, new.title, new.description, new.content, new.tags, new.category);
-      END;
 
       CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(id UNINDEXED, title, content, path);
       CREATE TRIGGER IF NOT EXISTS notes_ai AFTER INSERT ON notes BEGIN
-        INSERT INTO notes_fts(id, title, content, path) VALUES (new.id, new.title, new.content, new.path);
-      END;
-      CREATE TRIGGER IF NOT EXISTS notes_ad AFTER DELETE ON notes BEGIN
-        INSERT INTO notes_fts(notes_fts, id, title, content, path) VALUES('delete', old.id, old.title, old.content, old.path);
-      END;
-      CREATE TRIGGER IF NOT EXISTS notes_au AFTER UPDATE ON notes BEGIN
-        INSERT INTO notes_fts(notes_fts, id, title, content, path) VALUES('delete', old.id, old.title, old.content, old.path);
         INSERT INTO notes_fts(id, title, content, path) VALUES (new.id, new.title, new.content, new.path);
       END;
     `);

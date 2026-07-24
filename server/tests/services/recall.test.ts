@@ -10,46 +10,14 @@ describe('recall service', () => {
 
   beforeEach(async () => {
     testMemoryIds = [];
-
-    try {
-      await db.delete(memories).where(eq(memories.kind, 'test'));
-    } catch {
-      /* intentionally empty */
-    }
-    try {
-      await db.delete(skills).where(eq(skills.category, 'test'));
-    } catch {
-      /* intentionally empty */
-    }
-    try {
-      await db.delete(feedback).where(eq(feedback.query, 'test-query'));
-    } catch {
-      /* intentionally empty */
-    }
-
-    // notes have UNIQUE(path) constraint — delete by path pattern
-    try {
-      const allNotes = await db
-        .select({ path: notes.path })
-        .from(notes)
-        .where(eq(notes.path, 'test/note1.md'));
-      for (const n of allNotes) {
-        await db.delete(notes).where(eq(notes.path, n.path));
-      }
-    } catch {
-      /* intentionally empty */
-    }
-    try {
-      const allNotes2 = await db
-        .select({ path: notes.path })
-        .from(notes)
-        .where(eq(notes.path, 'test/note2.md'));
-      for (const n of allNotes2) {
-        await db.delete(notes).where(eq(notes.path, n.path));
-      }
-    } catch {
-      /* intentionally empty */
-    }
+    // Use unique names per run to avoid UNIQUE constraint on skills.name
+    const runId = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    // Pre-clean any leftovers from interrupted runs
+    try { await db.delete(memories).where(eq(memories.kind, 'test')); } catch { /* ok */ }
+    try { await db.delete(skills).where(eq(skills.category, 'test')); } catch { /* ok */ }
+    try { await db.delete(feedback).where(eq(feedback.query, 'test-query')); } catch { /* ok */ }
+    try { await db.delete(notes).where(eq(notes.path, 'test/note1.md')); } catch { /* ok */ }
+    try { await db.delete(notes).where(eq(notes.path, 'test/note2.md')); } catch { /* ok */ }
 
     const mem1 = await db
       .insert(memories)
@@ -90,7 +58,7 @@ describe('recall service', () => {
 
     await db.insert(skills).values({
       id: `skill_${randomUUID()}`,
-      name: 'test-skill-1',
+      name: `test-skill-1-${runId}`,
       title: 'Database optimization patterns',
       description: 'Best practices for database query optimization',
       content: 'Use indexes, avoid N+1 queries, and implement connection pooling',
@@ -102,7 +70,7 @@ describe('recall service', () => {
 
     await db.insert(skills).values({
       id: `skill_${randomUUID()}`,
-      name: 'test-skill-2',
+      name: `test-skill-2-${runId}`,
       title: 'React performance tuning',
       description: 'Optimize React applications for better performance',
       content: 'Implement code splitting, lazy loading, and memoization',
@@ -114,7 +82,7 @@ describe('recall service', () => {
 
     await db.insert(notes).values({
       id: `note_${randomUUID()}`,
-      path: 'test/note1.md',
+      path: `test/note1-${runId}.md`,
       title: 'Database indexing strategies',
       content: 'Create indexes on frequently queried columns for faster lookups',
       tags: JSON.stringify(['database', 'indexing']),
@@ -124,7 +92,7 @@ describe('recall service', () => {
 
     await db.insert(notes).values({
       id: `note_${randomUUID()}`,
-      path: 'test/note2.md',
+      path: `test/note2-${runId}.md`,
       title: 'React hooks patterns',
       content: 'Use custom hooks to encapsulate reusable logic',
       tags: JSON.stringify(['react', 'hooks']),
@@ -134,16 +102,14 @@ describe('recall service', () => {
   });
 
   afterEach(async () => {
-    try {
-      await db.delete(memories).where(eq(memories.kind, 'test'));
-    } catch {
-      /* intentionally empty */
+    // Delete by exact IDs to avoid FK/trigger complications
+    for (const id of testMemoryIds) {
+      try { await db.delete(memories).where(eq(memories.id, id)); } catch { /* ok */ }
     }
-    try {
-      await db.delete(skills).where(eq(skills.category, 'test'));
-    } catch {
-      /* intentionally empty */
-    }
+    try { await db.delete(skills).where(eq(skills.category, 'test')); } catch { /* ok */ }
+    try { await db.delete(feedback).where(eq(feedback.query, 'test-query')); } catch { /* ok */ }
+    try { await db.delete(notes).where(eq(notes.path, 'test/note1.md')); } catch { /* ok */ }
+    try { await db.delete(notes).where(eq(notes.path, 'test/note2.md')); } catch { /* ok */ }
   });
 
   // ---- BM25 lexical recall ----
