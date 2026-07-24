@@ -93,9 +93,10 @@ describe('isV3', () => {
     expect(isV3({ schemaVersion: 2 })).toBe(false);
   });
 
-  it('rejects null / malformed input', () => {
-    expect(isV3(null as unknown as { schemaVersion?: number })).toBe(false);
-    expect(isV3({} as { schemaVersion?: number })).toBe(false);
+  it('rejects null / malformed unknown input', () => {
+    expect(isV3(null)).toBe(false);
+    expect(isV3({})).toBe(false);
+    expect(isV3({ schemaVersion: '3' })).toBe(false);
   });
 });
 

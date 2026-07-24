@@ -1,0 +1,13 @@
+$ node "$VITEST" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/r1-performance-reliability.test.ts (5 tests) 47ms
+ ✓ tests/r1-security-isolation.test.ts (7 tests) 11ms
+ ✓ tests/r1-sandbox-runner.test.ts (4 tests) 117ms
+
+ Test Files  3 passed (3)
+      Tests  16 passed (16)
+   Start at  10:27:28
+   Duration  1.27s (transform 251ms, setup 0ms, collect 457ms, tests 176ms, environment 0ms, prepare 214ms)
+

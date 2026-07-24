@@ -52,6 +52,27 @@ describe('BoundedToolGateway effect idempotency', () => {
     expect(writes).toBe(1);
   });
 
+  it('derives a command working directory from trusted projectRootBase rather than request data', async () => {
+    const repositories = new InMemoryR1Repositories();
+    await repositories.projects.create(project);
+    await repositories.tasks.create(task);
+    let observedRoot = '';
+    const gateway = new BoundedToolGateway(repositories, {
+      projectRootBase: '/trusted/r1-projects',
+      isApprovalApproved: async () => true,
+      sandboxExecutor: async (_command, _args, _timeoutMs, workingDirectory) => {
+        observedRoot = workingDirectory;
+        return { stdout: 'ok', stderr: '', exitCode: 0 };
+      },
+    });
+
+    await expect(gateway.runConstrainedCommand({
+      projectId: project.id, taskId: task.id, command: 'echo', args: ['ok'],
+      approvalId: 'e1111111-1111-4111-8111-111111111111', correlationId: 'e2222222-2222-4222-8222-222222222222',
+    })).resolves.toMatchObject({ ok: true });
+    expect(observedRoot).toBe(`/trusted/r1-projects/${project.id}`);
+  });
+
   it('atomically claims a command before execution so a concurrent retry cannot repeat it', async () => {
     const repositories = new InMemoryR1Repositories();
     await repositories.projects.create(project);

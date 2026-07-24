@@ -32,6 +32,9 @@ let lastInfo: PanicInfo | undefined;
  * coalesced.
  */
 export function enterPanic(reason: string, extra?: Record<string, unknown>): void {
+  // A repeated panic must not re-run shutdown handlers or publish a second
+  // terminal event; callers can inspect the first durable panic dump instead.
+  if (emergency) return;
   const at = Date.now();
   lastInfo = { reason, extra, at };
   emergency = true; // flipped synchronously

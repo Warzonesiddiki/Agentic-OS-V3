@@ -2,12 +2,12 @@
  * memory-encryption.ts — AEAD encryption for memories at rest.
  * Phase 12, Task 12.21: Memory Encryption at Rest.
  *
- * Encrypts memory content using AES-256-GCM (AEAD) with per-memory nonces
- * derived from the memory ID. Keys are managed via the existing NEXUS_ENCRYPTION_KEY
+ * Encrypts memory content using AES-256-GCM (AEAD) with a fresh random nonce
+ * for every encryption. Keys are managed via the existing NEXUS_ENCRYPTION_KEY
  * environment variable.
  *
  * Design:
- *   - Nonce: derived from memory.id via HKDF (avoids nonce reuse)
+ *   - Nonce: random 96-bit value per encryption; persisted with ciphertext to prevent GCM nonce reuse
  *   - AAD: memory.id + kind (prevents cross-memory ciphertext swapping)
  *   - Skip encryption for importance < 0.2 (low-value, high-volume)
  *   - Decryption is transparent — callers get plaintext via getDecrypted()
@@ -15,7 +15,7 @@
  * @module services/memory-encryption
  */
 
-import { createCipheriv, createDecipheriv, randomBytes, createHash, hkdfSync } from 'node:crypto';
+import { createCipheriv, createDecipheriv, randomBytes, hkdfSync } from 'node:crypto';
 
 const ALGORITHM = 'aes-256-gcm';
 const KEY_LENGTH = 32; // 256 bits
@@ -48,14 +48,9 @@ function deriveKey(masterKey: string, memoryId: string): Buffer {
   return Buffer.from(derived);
 }
 
-/**
- * Derive a deterministic nonce from the memory ID.
- * Since memory IDs are UUIDs (unique), the nonce will be unique per memory.
- * We use a hash of the ID to get a fixed-length nonce.
- */
-function deriveNonce(memoryId: string): Buffer {
-  const hash = createHash('sha256').update(`nonce:${memoryId}`).digest();
-  return hash.subarray(0, NONCE_LENGTH);
+/** Generate a fresh 96-bit GCM nonce for every encryption operation. */
+function generateNonce(): Buffer {
+  return randomBytes(NONCE_LENGTH);
 }
 
 /**
@@ -74,7 +69,7 @@ export function encryptMemory(
   if (!content || content.length === 0) return null;
 
   const key = deriveKey(config.encryptionKey, memoryId);
-  const nonce = deriveNonce(memoryId);
+  const nonce = generateNonce();
   const aad = Buffer.from(`${memoryId}:${kind}`);
 
   const cipher = createCipheriv(ALGORITHM, key, nonce, { authTagLength: TAG_LENGTH });

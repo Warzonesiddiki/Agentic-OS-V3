@@ -49,7 +49,7 @@ export class BootstrapGraph {
       adj.set(name, []);
       for (const dep of svc.dependsOn ?? []) {
         if (!this.nodes.has(dep)) {
-          throw new Error(`BootstrapGraph: unknown dependency "${dep}" required by "${name}"`);
+          throw new Error(`BootstrapGraph: unknown service dependency "${dep}" required by "${name}"`);
         }
         adj.get(name)!.push(dep);
       }

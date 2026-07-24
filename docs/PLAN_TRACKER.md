@@ -1,3 +1,5 @@
+> **E10-R1 supersession notice (2026-07-24):** This pre-E10 operational record is retained for historical traceability. It is **not** current R1 release evidence and must not be used to claim a green gate, completed phase, perfection score, production readiness, or release qualification. The current R1 decision is **release blocked**; see `docs/bmad/baseline-2026-07-24-gate0.md` and the evidence ledger.
+
 # NEXUS 2.0 — Plan-Tracking Index (Phases 11–20)
 
 > **Single source of truth** for plan/progress tracking. Maintained by **Lorekeeper** (coherence anchor).

@@ -1,3 +1,5 @@
+> **Historical snapshot — not current R1 release evidence.** This dated record is preserved unchanged for traceability. It was superseded for current-state decisions on 2026-07-24 by `docs/bmad/baseline-2026-07-24-gate0.md` and the machine-readable release ledger. R1 is release blocked pending independent E10-S30 review.
+
 # Repository Validation Baseline — Verified Re-run (2026-07-21)
 
 **Supersedes the estimates in `baseline-2026-07-21.md`.** This file records a

@@ -1,0 +1,9 @@
+$ pnpm lint
+
+> agentic-os-v3@2.1.0 lint /home/user/Agentic-OS-V3
+> cd server && npm run lint
+
+
+> @agentic-os/server@2.1.0 lint
+> eslint src --ext .ts
+

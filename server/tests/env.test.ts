@@ -1,12 +1,16 @@
 /**
  * Environment config unit tests — validates env schema parsing.
  */
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 describe('env validation', () => {
   beforeEach(() => {
     // Reset module cache between tests
     vi.resetModules();
+  });
+
+  afterEach(() => {
+    delete process.env.NEXUS_PROJECT_ROOT;
   });
 
   it('parses default values correctly', async () => {
@@ -18,6 +22,20 @@ describe('env validation', () => {
     expect(e.NODE_ENV).toBe('development');
     expect(e.NEXUS_RATE_LIMIT_PER_MINUTE).toBe(120);
     expect(e.NEXUS_BUS_BACKEND).toBe('memory');
+    expect(e.NEXUS_PROJECT_ROOT).toBe('/tmp/projects');
+  });
+
+  it('accepts only an absolute trusted project-root configuration', async () => {
+    process.env.DATABASE_URL = 'postgresql://localhost:5432/test';
+    process.env.NODE_ENV = 'development';
+    process.env.NEXUS_PROJECT_ROOT = '/var/lib/nexus/projects';
+    const configured = await import('../src/lib/env.js');
+    expect(configured.getEnv().NEXUS_PROJECT_ROOT).toBe('/var/lib/nexus/projects');
+
+    vi.resetModules();
+    process.env.NEXUS_PROJECT_ROOT = 'relative-projects';
+    const invalid = await import('../src/lib/env.js');
+    expect(() => invalid.getEnv()).toThrow(/NEXUS_PROJECT_ROOT: must be an absolute path/);
   });
 
   it('defaults DATABASE_URL to empty string when missing', async () => {

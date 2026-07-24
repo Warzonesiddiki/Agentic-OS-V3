@@ -1,0 +1,21 @@
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-07-24T13:34:28.940Z"}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-07-24T13:34:28.942Z","instance":"container"}
+{"level":"error","msg":"kernel_panic","ts":"2026-07-24T13:34:28.943Z","reason":"test reason","extra":{"foo":"bar"}}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-07-24T13:34:28.945Z"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-07-24T13:34:28.946Z"}
+{"level":"error","msg":"kernel_panic","ts":"2026-07-24T13:34:28.946Z","reason":"first"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-07-24T13:34:28.947Z"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-07-24T13:34:28.947Z"}
+{"level":"error","msg":"kernel_panic","ts":"2026-07-24T13:34:28.947Z","reason":"reason"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-07-24T13:34:28.948Z"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-07-24T13:34:28.948Z"}
+ ✓ tests/kernel-panic.test.ts (3 tests) 15ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  13:34:28
+   Duration  436ms (transform 140ms, setup 0ms, collect 190ms, tests 15ms, environment 0ms, prepare 76ms)
+

@@ -1,41 +1,434 @@
 {
-  "schemaVersion": "nexus.r1.release-evidence-ledger.v1",
-  "generatedAt": "2026-07-24",
-  "repositoryCommit": "3da7f2d14bcfa4c0d71decf3a399cb9db4f70b4d",
+  "schemaVersion": "nexus.r1.release-evidence-ledger.v2",
+  "generatedAt": "2026-07-24T14:20:00.000Z",
+  "evidenceSource": {
+    "repositoryCommit": "67d43ae15c65d5c117169064f5af49542ce1eadf",
+    "branch": "arena/019f93a4-agentic-os-v3",
+    "note": "Fresh validation was executed against 67d43ae15c65d5c117169064f5af49542ce1eadf after constrained-runner hardening, project-root configuration, and twelve targeted full-suite repairs. Historical Gate 0 captures remain retained; the full suite remains blocked."
+  },
   "environment": {
     "node": "v22.22.3",
     "pnpm": "9.15.0",
     "platform": "Linux-6.1.158+-x86_64-with-glibc2.36",
     "installMode": "pnpm install --no-frozen-lockfile --ignore-scripts",
-    "databaseMode": "better-sqlite3 native binding unavailable in this sandbox; PGlite is required for supported DB contract validation"
+    "databaseMode": "better-sqlite3 native binding unavailable after ignore-scripts install; PGlite/PostgreSQL validation remains required for supported DB contracts"
   },
   "commands": [
     {
       "id": "full-suite",
+      "evidenceClass": "full-release",
       "command": "pnpm test",
-      "expected": "all configured server tests pass",
-      "actual": "exit 1; 98 failed files, 159 failed tests; 156 passed files, 1750 passed tests, 12 skipped",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "All configured server tests pass."
+      },
+      "actual": {
+        "exitCode": 1,
+        "summary": "88 failed files, 141 failed tests; 166 passed files, 1,777 passed tests, 12 skipped.",
+        "observedAt": "2026-07-24T13:49:00.000Z"
+      },
       "status": "blocked",
-      "artifact": "docs/bmad/releases/evidence/2026-07-24-full-suite.log",
-      "triage": "docs/bmad/releases/evidence/2026-07-24-full-suite-triage.json"
+      "blockingReason": "Full repository suite exited nonzero.",
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-health-and-security-remediation.log",
+          "sha256": "6f957016c93fed988259f19c33c202b39a96d382104241c8c4ce657d0d5d1a31",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-full-suite-triage.json",
+          "sha256": "608136f380623daaaec83fdfcc82b781c180c492bbe9eca93040ec34c6f18445",
+          "role": "triage"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "not_run",
+        "command": "pnpm test",
+        "evidencePath": null
+      }
     },
     {
       "id": "sdk-targeted",
-      "command": "cd packages/sdk && vitest run",
-      "expected": "all SDK tests pass",
-      "actual": "254 passed",
+      "evidenceClass": "targeted",
+      "command": "node \"$VITEST\" run",
+      "workingDirectory": "/home/user/Agentic-OS-V3/packages/sdk",
+      "expected": {
+        "exitCode": 0,
+        "description": "All SDK tests pass."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "13 test files and 256 tests passed.",
+        "observedAt": "2026-07-24T14:00:39.000Z"
+      },
       "status": "pass",
-      "artifact": "terminal validation output; rerun required at release gate"
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-sdk-targeted.log",
+          "sha256": "6a47b69a95a2cb7686e0c3f4538eb303c498aa849c0277b75153bd7b62084438",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "cd packages/sdk && node \"$VITEST\" run",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-sdk-targeted.log"
+      }
     },
     {
       "id": "r1-targeted-server",
-      "command": "cd server && vitest run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts",
-      "expected": "all targeted R1 tests pass",
-      "actual": "16 passed",
+      "evidenceClass": "targeted",
+      "command": "node \"$VITEST\" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts",
+      "workingDirectory": "/home/user/Agentic-OS-V3/server",
+      "expected": {
+        "exitCode": 0,
+        "description": "All targeted R1 server tests pass."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "3 test files and 24 tests passed, including 12 constrained-runner tests.",
+        "observedAt": "2026-07-24T14:00:43.000Z"
+      },
       "status": "pass",
-      "artifact": "terminal validation output; rerun required at release gate"
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-r1-targeted-server.log",
+          "sha256": "da1ffa2f391bb8d0d394b5900c2ada7c5037a45062e790bf3c16324136633bdd",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "cd server && node \"$VITEST\" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-r1-targeted-server.log"
+      }
+    },
+    {
+      "id": "sdk-build-typecheck",
+      "evidenceClass": "compile",
+      "command": "node \"$TSC\" -p tsconfig.json && node \"$TSC\" -p tsconfig.cjs.json && node \"$TSC\" -p tsconfig.json --noEmit && node \"$TSC\" -p tsconfig.cjs.json --noEmit",
+      "workingDirectory": "/home/user/Agentic-OS-V3/packages/sdk",
+      "expected": {
+        "exitCode": 0,
+        "description": "SDK ESM/CJS build and typechecks pass."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "All four SDK build/typecheck commands exited 0.",
+        "observedAt": "2026-07-24T10:27:00.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-sdk-build-typecheck.log",
+          "sha256": "c0ff31b68da525d0377f94380b50f00297efb5b7c02b1012e430dd985b9f49a5",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "See recorded SDK build/typecheck command.",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-sdk-build-typecheck.log"
+      }
+    },
+    {
+      "id": "a2a-build-typecheck",
+      "evidenceClass": "compile",
+      "command": "node \"$TSC\" -p tsconfig.json && node \"$TSC\" -p tsconfig.json --noEmit",
+      "workingDirectory": "/home/user/Agentic-OS-V3/packages/a2a-server",
+      "expected": {
+        "exitCode": 0,
+        "description": "A2A build and typecheck pass."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "Both A2A build/typecheck commands exited 0.",
+        "observedAt": "2026-07-24T10:27:00.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-a2a-build-typecheck.log",
+          "sha256": "cf79d5d6863b385ef9bffef5aa40278f6e0f12cc20199201f295aec509e02f3e",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "See recorded A2A build/typecheck command.",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-a2a-build-typecheck.log"
+      }
+    },
+    {
+      "id": "server-typecheck",
+      "evidenceClass": "compile",
+      "command": "node \"$TSC\" -p server/tsconfig.json --noEmit",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "Server typecheck passes."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "Server typecheck exited 0.",
+        "observedAt": "2026-07-24T10:27:00.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-server-typecheck.log",
+          "sha256": "794e26d5b510a94b4bf9ed8430c24d4aa024d124681995d50852da1f2cac7a14",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "node \"$TSC\" -p server/tsconfig.json --noEmit",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-server-typecheck.log"
+      }
+    },
+    {
+      "id": "server-lint",
+      "evidenceClass": "lint",
+      "command": "pnpm lint",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "Server lint has no warnings/errors."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "Server lint exited 0.",
+        "observedAt": "2026-07-24T10:27:00.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-server-lint.log",
+          "sha256": "620121cb29adc57423e3562fffb30a9cd774e02d928b6d92b9163b8f406d2d57",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "pnpm lint",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-server-lint.log"
+      }
+    },
+    {
+      "id": "production-dependency-audit",
+      "evidenceClass": "security",
+      "command": "pnpm audit --prod --json",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "No high or critical production dependency advisories without an approved exception."
+      },
+      "actual": {
+        "exitCode": 1,
+        "summary": "1 high and 4 moderate production dependency advisories: fast-uri, @hono/node-server, react-router, and react-router-dom.",
+        "observedAt": "2026-07-24T10:27:00.000Z"
+      },
+      "status": "blocked",
+      "blockingReason": "Unresolved production dependency advisories remain; E10-S27/E10-S28 work is required.",
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-production-dependency-audit.log",
+          "sha256": "60316fd01c787da054a77b12335e592b101d11ba81988a670ddcfeca96e3cf76",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "failed",
+        "command": "pnpm audit --prod --json",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-production-dependency-audit.log"
+      }
+    },
+    {
+      "id": "clean-machine-drill",
+      "evidenceClass": "integration",
+      "command": "Clean supported machine install/start/golden-path/worker-crash/export/import drill",
+      "workingDirectory": "clean supported machine",
+      "expected": {
+        "exitCode": 0,
+        "description": "Clean-machine drill passes with retained artifacts."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "Not executed at Gate 0.",
+        "observedAt": "2026-07-24T10:27:00.000Z"
+      },
+      "status": "not_run",
+      "blockingReason": "Clean-machine golden-path drill is not executed; E10-S29 owns closure.",
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-unperformed-release-gates.md",
+          "sha256": "81bf4edc3be1eedacf3cdd2ff51d41716a1ecd064eeecf6febf1fe5eee548d88",
+          "role": "summary"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "not_run",
+        "command": "E10-S29 documented clean-machine drill command",
+        "evidencePath": null
+      }
+    },
+    {
+      "id": "rollback-drill",
+      "evidenceClass": "integration",
+      "command": "Ordered 0049\u20130054 rollback, restore, and integrity drill on SQLite/PGlite/PostgreSQL",
+      "workingDirectory": "supported database runners",
+      "expected": {
+        "exitCode": 0,
+        "description": "Rollback/restore drill passes with retained artifacts."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "Not executed at Gate 0.",
+        "observedAt": "2026-07-24T10:27:00.000Z"
+      },
+      "status": "not_run",
+      "blockingReason": "Down migrations and rollback evidence are incomplete; E10-S16/E10-S17/E10-S29 own closure.",
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-unperformed-release-gates.md",
+          "sha256": "81bf4edc3be1eedacf3cdd2ff51d41716a1ecd064eeecf6febf1fe5eee548d88",
+          "role": "summary"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "not_run",
+        "command": "E10-S17 migration matrix and E10-S29 rollback drill",
+        "evidencePath": null
+      }
+    },
+    {
+      "id": "security-triage",
+      "evidenceClass": "security",
+      "command": "Security finding severity/owner/due-date/mitigation/retest matrix review",
+      "workingDirectory": "release evidence",
+      "expected": {
+        "exitCode": 0,
+        "description": "Formal security triage matrix is complete and independently reviewed."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "Not complete at Gate 0.",
+        "observedAt": "2026-07-24T10:27:00.000Z"
+      },
+      "status": "not_run",
+      "blockingReason": "Security-triage matrix and independent retest evidence are incomplete; E10-S28 owns closure.",
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-unperformed-release-gates.md",
+          "sha256": "81bf4edc3be1eedacf3cdd2ff51d41716a1ecd064eeecf6febf1fe5eee548d88",
+          "role": "summary"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "not_run",
+        "command": "E10-S28 security-triage matrix validation",
+        "evidencePath": null
+      }
+    },
+    {
+      "id": "evidence-validator-negative-tests",
+      "evidenceClass": "security",
+      "command": "pnpm exec tsx scripts/test-r1-release-evidence-validator.ts",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "Validator rejects invalid pass status, evidence path escape, manual release approval, and an unowned triage record."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "All four invalid evidence fixtures were rejected.",
+        "observedAt": "2026-07-24T10:40:00.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-evidence-validator-negative-tests.log",
+          "sha256": "a0de7bccf9c54218f8648c24fc48e91964c3f86020bf41281762265f13953cb7",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "pnpm exec tsx scripts/test-r1-release-evidence-validator.ts",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-evidence-validator-negative-tests.log"
+      }
     }
   ],
   "releaseDecision": "blocked",
-  "reviewer": "unassigned-independent-reviewer"
+  "decisionDerivation": {
+    "blockingCommandIds": [
+      "full-suite",
+      "production-dependency-audit",
+      "clean-machine-drill",
+      "rollback-drill",
+      "security-triage"
+    ],
+    "statement": "The decision is computed from all non-pass records. Passing targeted, compile, and lint evidence is insufficient to clear blocked full-suite, dependency, operations, and security-triage records."
+  },
+  "reviewer": {
+    "role": "independent E10-S30 reviewer",
+    "status": "unassigned"
+  }
 }

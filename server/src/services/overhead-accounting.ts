@@ -172,6 +172,7 @@ export interface OverheadTotals {
 }
 
 const _cat = new Map<string, number>();
+let _catSampleCount = 0;
 
 export function accountOverhead(category: string, ns: number): void {
   if (ns < 0) throw new Error(`overhead must be non-negative, got ${ns}`);
@@ -181,18 +182,17 @@ export function accountOverhead(category: string, ns: number): void {
   }
   const cur = _cat.get(category) ?? 0;
   _cat.set(category, cur + ns);
+  _catSampleCount += 1;
 }
 
 export function getOverhead(): OverheadTotals {
   let totalNs = 0;
   const byCategory: Record<string, number> = {};
-  let samples = 0;
   for (const [cat, ns] of _cat) {
     byCategory[cat] = ns;
     totalNs += ns;
-    samples++;
   }
-  return { totalNs, byCategory, samples };
+  return { totalNs, byCategory, samples: _catSampleCount };
 }
 
 export function resetOverhead(op?: string): void {
@@ -200,6 +200,7 @@ export function resetOverhead(op?: string): void {
   else {
     _acc.clear();
     _cat.clear();
+    _catSampleCount = 0;
   }
 }
 

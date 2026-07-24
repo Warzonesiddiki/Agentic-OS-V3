@@ -58,30 +58,35 @@ export function tarjanSCC(nodes: DepNode[]): string[][] {
 
 /** A topological ordering (Kahn) for a DAG of DepNodes. Throws on cycle. */
 export function topoSort(nodes: DepNode[]): string[] {
-  const indeg = new Map<string, number>();
+  const knownSlugs = new Set(nodes.map((node) => node.slug));
+  const remainingDependencies = new Map<string, number>();
+  const dependents = new Map<string, string[]>();
+
   for (const node of nodes) {
-    indeg.set(node.slug, indeg.get(node.slug) ?? 0);
-    for (const d of node.deps)
-      if (byHas(nodes, d.slug)) indeg.set(d.slug, (indeg.get(d.slug) ?? 0) + 1);
-  }
-  const order: string[] = [];
-  const q = [...indeg.entries()].filter(([, n]) => n === 0).map(([s]) => s);
-  const queue = [...q];
-  while (queue.length) {
-    const s = queue.shift()!;
-    order.push(s);
-    for (const node of nodes) {
-      if (node.deps.some((d) => d.slug === s)) {
-        const v = (indeg.get(node.slug) ?? 0) - 1;
-        indeg.set(node.slug, v);
-        if (v === 0) queue.push(node.slug);
-      }
+    const knownDependencies = node.deps.filter((dependency) => knownSlugs.has(dependency.slug));
+    remainingDependencies.set(node.slug, knownDependencies.length);
+    for (const dependency of knownDependencies) {
+      const entries = dependents.get(dependency.slug) ?? [];
+      entries.push(node.slug);
+      dependents.set(dependency.slug, entries);
     }
   }
+
+  const queue = nodes
+    .filter((node) => remainingDependencies.get(node.slug) === 0)
+    .map((node) => node.slug);
+  const order: string[] = [];
+
+  while (queue.length > 0) {
+    const slug = queue.shift()!;
+    order.push(slug);
+    for (const dependent of dependents.get(slug) ?? []) {
+      const remaining = (remainingDependencies.get(dependent) ?? 0) - 1;
+      remainingDependencies.set(dependent, remaining);
+      if (remaining === 0) queue.push(dependent);
+    }
+  }
+
   if (order.length !== nodes.length) throw new Error('graph contains a cycle');
   return order;
-}
-
-function byHas(nodes: DepNode[], slug: string): boolean {
-  return nodes.some((n) => n.slug === slug);
 }

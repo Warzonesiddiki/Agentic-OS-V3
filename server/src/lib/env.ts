@@ -4,6 +4,7 @@
  * Keep every runtime setting in this schema: callers must not reach into
  * process.env directly and unrecognised boolean strings must never become true.
  */
+import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 
 const integer = (fallback: number, min = 0) =>
@@ -108,6 +109,8 @@ const envSchema = z.object({
   NEXUS_MLFQ_BOOST_MS: integer(30_000, 1),
 
   NEXUS_SANDBOX_ENABLED: boolean(false),
+  /** Canonical parent directory for R1 project command roots; request data never controls it. */
+  NEXUS_PROJECT_ROOT: z.string().refine(isAbsolute, 'must be an absolute path').default('/tmp/projects'),
   NEXUS_SANDBOX_IMAGE: z.string().default('node:20-alpine'),
   NEXUS_SANDBOX_TIMEOUT_MS: integer(30_000, 1),
 

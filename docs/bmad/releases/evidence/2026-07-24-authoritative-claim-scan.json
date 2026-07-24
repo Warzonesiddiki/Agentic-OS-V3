@@ -1,0 +1,532 @@
+{
+  "schemaVersion": "nexus.r1.documentation-claim-scan.v1",
+  "generatedAt": "2026-07-24T00:00:00.000Z",
+  "scope": {
+    "included": [
+      "README.md",
+      "docs/bmad/**",
+      "docs/PRODUCTION_CHECKLIST.md",
+      "docs/PLAN_TRACKER.md",
+      "docs/PERFECTION_METRICS.md",
+      "docs/REDEMPTION_PLAN.md",
+      "_bmad-output/**"
+    ],
+    "excluded": [
+      "docs/omniroute/** (vendored/external reference material)",
+      "raw test logs",
+      "node_modules",
+      "build output"
+    ]
+  },
+  "patterns": [
+    "release-ready",
+    "release-candidate",
+    "production-ready",
+    "perfection-score",
+    "legacy-test-count",
+    "legacy-migration-range",
+    "zero-compromise",
+    "all-feature-claims"
+  ],
+  "summary": {
+    "findings": 61,
+    "unresolvedCurrentClaims": 0,
+    "classifications": {
+      "current-blocked-governance": 8,
+      "historical-campaign-record": 20,
+      "historical-review-record": 6,
+      "historical-snapshot": 15,
+      "planning-target": 12
+    }
+  },
+  "findings": [
+    {
+      "path": "_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md",
+      "line": 8,
+      "pattern": "perfection-score",
+      "excerpt": "**Trigger:** Adversarial repository audit after R1 was represented as complete, 100/100, zero-compromise, and release-ready.",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md",
+      "line": 8,
+      "pattern": "release-ready",
+      "excerpt": "**Trigger:** Adversarial repository audit after R1 was represented as complete, 100/100, zero-compromise, and release-ready.",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md",
+      "line": 37,
+      "pattern": "legacy-test-count",
+      "excerpt": "- Passing but insufficient checks: SDK 249/249, targeted R1 server 12/12, SDK/A2A/server typechecks, frontend build.",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md",
+      "line": 75,
+      "pattern": "perfection-score",
+      "excerpt": "1. Freeze all production-ready, 100/100, and zero-compromise claims immediately.",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md",
+      "line": 75,
+      "pattern": "production-ready",
+      "excerpt": "1. Freeze all production-ready, 100/100, and zero-compromise claims immediately.",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md",
+      "line": 147,
+      "pattern": "legacy-migration-range",
+      "excerpt": "| 16 | Add migration forward/backward plan | Migration strategist | Ordered up/down scripts and verification for 0049–0053 | 12, 15 |",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "docs/bmad/01-brainstorming.md",
+      "line": 6,
+      "pattern": "production-ready",
+      "excerpt": "**Outcome target:** Production-ready system with perfect traceability",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "docs/bmad/01-brainstorming.md",
+      "line": 75,
+      "pattern": "production-ready",
+      "excerpt": "For a production-ready outcome, begin with one thin vertical slice rather than attempting to productionize every documented subsystem at once. The strongest initial candidates are:",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-22.md",
+      "line": 190,
+      "pattern": "legacy-test-count",
+      "excerpt": "SDK 91/91 + build, `r1-application-sqlite-contract`,",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-final.md",
+      "line": 81,
+      "pattern": "legacy-test-count",
+      "excerpt": "- R1/BMAD-scope suites remain all-green: SDK 91/91, r1-application-sqlite-contract, r1-application-postgres-contract (PGlite), r1-project-transfer-contract 5/5, r1-routes 7/7, r1-sqlite-restart, capability-governance, security isolation, performance reliability.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-final.md",
+      "line": 106,
+      "pattern": "perfection-score",
+      "excerpt": "- Perfection score: 98/100 (target 98)",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-final.md",
+      "line": 126,
+      "pattern": "all-feature-claims",
+      "excerpt": "- All feature claims match validated behavior; simulations and deferred (E7) labeled.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-final.md",
+      "line": 129,
+      "pattern": "release-candidate",
+      "excerpt": "**Conclusion:** R1 Governed Agent Workbench release candidate ready for clean-machine walkthrough and production sign-off.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-validated.md",
+      "line": 119,
+      "pattern": "perfection-score",
+      "excerpt": "- Perfection score: 100/100 (target 98) ✅",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-validated.md",
+      "line": 167,
+      "pattern": "all-feature-claims",
+      "excerpt": "- All feature claims match validated behavior.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-validated.md",
+      "line": 168,
+      "pattern": "legacy-migration-range",
+      "excerpt": "- Checklist: SDK tests 249/249, server R1 12/12, migrations 0049-0053, security review triage, rollback (drop tables additive), known limitations documented, compatibility matrix Node>=20 pnpm 9.15 SQLite+PGlite PG15+pgvector MCP 2024-11-05 A2A 1.0.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-validated.md",
+      "line": 168,
+      "pattern": "legacy-test-count",
+      "excerpt": "- Checklist: SDK tests 249/249, server R1 12/12, migrations 0049-0053, security review triage, rollback (drop tables additive), known limitations documented, compatibility matrix Node>=20 pnpm 9.15 SQLite+PGlite PG15+pgvector MCP 2024-11-05 A2A 1.0.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-validated.md",
+      "line": 180,
+      "pattern": "legacy-migration-range",
+      "excerpt": "| Migrations | server/src/db/migrations/0049..0053 (10 files, SQL + SQLite variants) |",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-validated.md",
+      "line": 185,
+      "pattern": "production-ready",
+      "excerpt": "**Conclusion:** R1 Governed Agent Workbench release candidate validated with 249 SDK unit tests (up from 91) covering all 13 SDK modules including dedicated tests for E7/E9 interop and Serena parity. Production-ready for clean-machine walkthrough and sign-off.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-23-validated.md",
+      "line": 185,
+      "pattern": "release-candidate",
+      "excerpt": "**Conclusion:** R1 Governed Agent Workbench release candidate validated with 249 SDK unit tests (up from 91) covering all 13 SDK modules including dedicated tests for E7/E9 interop and Serena parity. Production-ready for clean-machine walkthrough and sign-off.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-24-gate0.md",
+      "line": 26,
+      "pattern": "perfection-score",
+      "excerpt": "| README 94/100 campaign status | Outdated campaign metadata | Replaced by release-blocked notice |",
+      "classification": "current-blocked-governance",
+      "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-24-gate0.md",
+      "line": 27,
+      "pattern": "perfection-score",
+      "excerpt": "| Sprint/campaign 98/100 | Historical planning score, not validation evidence | Invalid for release decision |",
+      "classification": "current-blocked-governance",
+      "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-24-gate0.md",
+      "line": 28,
+      "pattern": "perfection-score",
+      "excerpt": "| Validated baseline 100/100 / 249 SDK tests | Historical narrow-scope validation at the stated commit | Retained as historical snapshot; not current release proof |",
+      "classification": "current-blocked-governance",
+      "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
+    },
+    {
+      "path": "docs/bmad/baseline-2026-07-24-gate0.md",
+      "line": 30,
+      "pattern": "legacy-migration-range",
+      "excerpt": "| Release-gate 91-test/0049–0052 references | Historical values corrected in the release document | Current migration inventory is 0049–0054; validation remains incomplete |",
+      "classification": "current-blocked-governance",
+      "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 9,
+      "pattern": "perfection-score",
+      "excerpt": "**Status:** Research complete, implementation verified 98/100",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 177,
+      "pattern": "legacy-migration-range",
+      "excerpt": "| `baseline-*.md` | Repository validation snapshots with environment versions, command results, failure classification, deterministic entry point, install command, no suppression, rerunnable. Final `baseline-2026-07-23-final.md` shows typecheck PASS all packages, SDK 91/91, security 7/7, performance 5/5, migrations 0049-0052 apply, frontend states implemented. |",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 177,
+      "pattern": "legacy-test-count",
+      "excerpt": "| `baseline-*.md` | Repository validation snapshots with environment versions, command results, failure classification, deterministic entry point, install command, no suppression, rerunnable. Final `baseline-2026-07-23-final.md` shows typecheck PASS all packages, SDK 91/91, security 7/7, performance 5/5, migrations 0049-0052 apply, frontend states implemented. |",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 202,
+      "pattern": "legacy-test-count",
+      "excerpt": "- lint, typecheck, targeted tests pass when dependencies available (SDK 91/91, security 7/7, performance 5/5)",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 240,
+      "pattern": "perfection-score",
+      "excerpt": "- **Current:** All waves complete, score 98/100, delta 0, next final gate sign-off",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 398,
+      "pattern": "perfection-score",
+      "excerpt": "- **Specificity 98/100:** Exact Zod schemas, state machines, token estimator documented (chars/4), redaction patterns, lease TTL 30s heartbeat 30s, retry policy maxAttempts/backoff/timeout/classification, event cursor sequence, approval hash SHA256 canonical sorted keys",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 399,
+      "pattern": "perfection-score",
+      "excerpt": "- **Testability 98/100:** 91 SDK + 7 security + 5 performance = 103 tests passing, contract tests local+PG, crash injection, idempotency, approval replay hash mismatch, event replay idempotent",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 401,
+      "pattern": "perfection-score",
+      "excerpt": "- **Consistency 98/100:** PRD/UX/Arch/Epics/Stories/Sprints all aligned, Serena parity preserved",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 403,
+      "pattern": "perfection-score",
+      "excerpt": "- **Governance Evidence 98/100:** Append-only triggers `prevent_audit_log_mutation`, `prevent_r1_append_only_mutation`, receipts with normalized hash/actor/target/outcome/timing/correlation, kill switch audited, approval receipts, timeline joins all IDs, export integrity hash + redaction summary",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 405,
+      "pattern": "perfection-score",
+      "excerpt": "- **Documentation Quality 98/100:** Release gate doc with setup/backup/restore/kill switch/audit/worker recovery/compatibility matrix/feature claims vs validated/checklist/known limitations/golden path verification, plus 17 story files, baseline final, traceability, perfection scorecard",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 407,
+      "pattern": "perfection-score",
+      "excerpt": "**Overall 98/100** (target 98), delta 0 — **Ready for release gate sign-off.**",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 459,
+      "pattern": "perfection-score",
+      "excerpt": "13. `subagents/perfection-scorecard.yaml` — Dimensions weighted scores 98/100 target",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 471,
+      "pattern": "legacy-test-count",
+      "excerpt": "- **Before marking story Done:** AC verified by running acceptance steps (e.g., duplicate idempotency key returns original task, cross-project access denial, approval pause before side effect, checkpoint recovery no duplicate), unit+contract+integration tests pass (SDK 91/91, security 7/7, performance 5/5), audit/receipt confirmed (append-only triggers), no new any/unvalidated payloads/secret leakage (Zod parse at boundaries, redaction pattern, tsc --noEmit PASS), UI states loading/empty/error/o",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/BMAD-METHOD-RESEARCH.md",
+      "line": 472,
+      "pattern": "legacy-migration-range",
+      "excerpt": "- **Release Gate E8-S3:** Tests, migrations (0049-0052), security review (triage in E8-S1 story), rollback (drop tables additive), known limitations documented in release gate doc, compatibility matrix published, README feature claims match validated (19 features table), simulations and deferred (E7) labeled",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/README.md",
+      "line": 294,
+      "pattern": "zero-compromise",
+      "excerpt": "*Generated and maintained via BMAD methodology. Zero compromises.*",
+      "classification": "current-blocked-governance",
+      "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
+    },
+    {
+      "path": "docs/bmad/releases/R1-release-gate.md",
+      "line": 132,
+      "pattern": "legacy-test-count",
+      "excerpt": "- [ ] Current targeted SDK evidence: 255/255 passed on 2026-07-24, but it is insufficient to clear the blocked full suite; see the ledger. (The prior 91/91 checkmark is historical.)",
+      "classification": "current-blocked-governance",
+      "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
+    },
+    {
+      "path": "docs/bmad/retrospective-final.md",
+      "line": 69,
+      "pattern": "perfection-score",
+      "excerpt": "**Conclusion:** R1 + E7 complete, 35 stories done, perfection 100/100, ready for final release gate sign-off.",
+      "classification": "historical-review-record",
+      "disposition": "Retained as a dated prior review; E10-S30 must issue any fresh decision."
+    },
+    {
+      "path": "docs/bmad/reviews/E10-R1-gate0-independent-review-request.md",
+      "line": 24,
+      "pattern": "legacy-test-count",
+      "excerpt": "| Targeted fresh validation | SDK 255/255 and targeted server 16/16 passed | ledger raw artifacts; targeted evidence only |",
+      "classification": "historical-review-record",
+      "disposition": "Retained as a dated prior review; E10-S30 must issue any fresh decision."
+    },
+    {
+      "path": "docs/bmad/reviews/E10-R1-gate0-independent-review-request.md",
+      "line": 30,
+      "pattern": "release-ready",
+      "excerpt": "1. Regenerate the claim scan and inspect whether any current document can still be read as release-ready or score-qualified.",
+      "classification": "historical-review-record",
+      "disposition": "Retained as a dated prior review; E10-S30 must issue any fresh decision."
+    },
+    {
+      "path": "docs/bmad/reviews/implementation-readiness-final.md",
+      "line": 18,
+      "pattern": "legacy-migration-range",
+      "excerpt": "- Baseline: `baseline-2026-07-23-final.md` typecheck PASS, SDK 91/91, security 7/7, performance 5/5, migrations 0049-0053",
+      "classification": "historical-review-record",
+      "disposition": "Retained as a dated prior review; E10-S30 must issue any fresh decision."
+    },
+    {
+      "path": "docs/bmad/reviews/implementation-readiness-final.md",
+      "line": 18,
+      "pattern": "legacy-test-count",
+      "excerpt": "- Baseline: `baseline-2026-07-23-final.md` typecheck PASS, SDK 91/91, security 7/7, performance 5/5, migrations 0049-0053",
+      "classification": "historical-review-record",
+      "disposition": "Retained as a dated prior review; E10-S30 must issue any fresh decision."
+    },
+    {
+      "path": "docs/bmad/reviews/implementation-readiness-final.md",
+      "line": 56,
+      "pattern": "legacy-migration-range",
+      "excerpt": "- Architecture identifies service boundaries (R1Repositories, DomainStore), persistence (Postgres + SQLite adapters, triggers), eventing (outbox + SSE + cursor), security (8 layers, trust boundaries), integration adapters (MCP/A2A versioned), observability (W3C trace + OTel), failure/recovery (10 failures table), migration plan (0049-0053)",
+      "classification": "historical-review-record",
+      "disposition": "Retained as a dated prior review; E10-S30 must issue any fresh decision."
+    },
+    {
+      "path": "docs/bmad/stories/E10-S1-freeze-unsupported-release-and-perfection-claims.md",
+      "line": 16,
+      "pattern": "production-ready",
+      "excerpt": "1. Scan the defined documentation scope for release-ready, production-ready, perfection-score, all-green, test-count, migration-range, and zero-compromise assertions; publish findings with file, line, classification, and disposition.",
+      "classification": "current-blocked-governance",
+      "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
+    },
+    {
+      "path": "docs/bmad/stories/E10-S1-freeze-unsupported-release-and-perfection-claims.md",
+      "line": 16,
+      "pattern": "release-ready",
+      "excerpt": "1. Scan the defined documentation scope for release-ready, production-ready, perfection-score, all-green, test-count, migration-range, and zero-compromise assertions; publish findings with file, line, classification, and disposition.",
+      "classification": "current-blocked-governance",
+      "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
+    },
+    {
+      "path": "docs/bmad/stories/E2-S1-create-and-manage-provenance-backed-memories.md",
+      "line": 36,
+      "pattern": "legacy-test-count",
+      "excerpt": "- SDK: 91/91 tests, build clean; server `r1-routes` 7/7; SQLite restart 1/1;",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/stories/E2-S2-implement-token-budgeted-hybrid-recall.md",
+      "line": 37,
+      "pattern": "legacy-test-count",
+      "excerpt": "- SDK 91/91 pass; recall path exercised via API contract.",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/bmad/subagents/50-SUBAGENT-BMAD-PERFECTION-CAMPAIGN.md",
+      "line": 5,
+      "pattern": "production-ready",
+      "excerpt": "**Goal:** Achieve absolute zero-compromise state for all BMAD artifacts in `docs/bmad/`. Every document, section, requirement, story, decision, metric, and checklist must be complete, traceable, auditable, battle-tested in specification, and production-ready.",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/subagents/50-SUBAGENT-BMAD-PERFECTION-CAMPAIGN.md",
+      "line": 16,
+      "pattern": "perfection-score",
+      "excerpt": "- Perfection Scorecard must reach ≥ 98/100 before campaign close.",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/subagents/50-SUBAGENT-BMAD-PERFECTION-CAMPAIGN.md",
+      "line": 151,
+      "pattern": "perfection-score",
+      "excerpt": "**Target:** ≥ 98/100 overall. Any dimension < 95 triggers rework.",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/subagents/reports/Wave0-Setup-Report.md",
+      "line": 31,
+      "pattern": "zero-compromise",
+      "excerpt": "**Status:** ZERO COMPROMISES — Infrastructure battle-ready.",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/subagents/roles/01-BMAD-Master-Swarm-Orchestrator.md",
+      "line": 16,
+      "pattern": "perfection-score",
+      "excerpt": "- Declare campaign success only when overall ≥ 98/100 and all dimensions ≥ 95",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/bmad/subagents/traceability-matrix.md",
+      "line": 100,
+      "pattern": "perfection-score",
+      "excerpt": "- Traceability 100%, adversarial coverage 99%, perfection score 100/100.",
+      "classification": "historical-campaign-record",
+      "disposition": "Retained as campaign history; its score/completion language is not a release decision."
+    },
+    {
+      "path": "docs/PLAN_TRACKER.md",
+      "line": 211,
+      "pattern": "production-ready",
+      "excerpt": "- `README.md`: \"production ready\" badge → \"Phase 11+ in progress\" (honest state).",
+      "classification": "historical-snapshot",
+      "disposition": "Retained as dated historical evidence; it cannot be used as current R1 proof."
+    },
+    {
+      "path": "docs/REDEMPTION_PLAN.md",
+      "line": 5,
+      "pattern": "zero-compromise",
+      "excerpt": "**Target:** Open-Source Release on GitHub (Production Quality, Zero Faked Features, Zero Compromises)",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "docs/REDEMPTION_PLAN.md",
+      "line": 462,
+      "pattern": "production-ready",
+      "excerpt": "_Goal: Build production-ready MCP tool registry supporting stdio, HTTP-SSE, and streamable transport, tool discovery, resource reading, and security isolation._",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "docs/REDEMPTION_PLAN.md",
+      "line": 742,
+      "pattern": "production-ready",
+      "excerpt": "_Goal: Finalize repository documentation, license headers, release notes, security policies, and push a flawless, production-ready release to GitHub._",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    },
+    {
+      "path": "docs/REDEMPTION_PLAN.md",
+      "line": 780,
+      "pattern": "zero-compromise",
+      "excerpt": "2. **Zero Compromises:** No `any` type overrides, no `@ts-ignore` comments, no disabled lint rules without explicit justification.",
+      "classification": "planning-target",
+      "disposition": "A target or correction-plan statement, not a current validation claim."
+    }
+  ]
+}

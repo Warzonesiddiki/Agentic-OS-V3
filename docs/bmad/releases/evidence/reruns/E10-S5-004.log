@@ -1,0 +1,12 @@
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+{"level":"info","msg":"hsm.key.rotated","ts":"2026-07-24T13:52:06.508Z","backend":"local"}
+{"level":"info","msg":"hsm.key.rotated","ts":"2026-07-24T13:52:06.509Z","backend":"local"}
+ ✓ tests/crypto-audit.test.ts (21 tests) 20ms
+
+ Test Files  1 passed (1)
+      Tests  21 passed (21)
+   Start at  13:52:06
+   Duration  395ms (transform 122ms, setup 0ms, collect 156ms, tests 20ms, environment 0ms, prepare 74ms)
+

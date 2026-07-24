@@ -1,0 +1,23 @@
+$ node "$VITEST" run
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/packages/sdk
+
+ ✓ src/project-transfer.test.ts (12 tests) 41ms
+ ✓ src/r1-a2a-adapter.test.ts (41 tests) 29ms
+ ✓ src/r1-tool-gateway.test.ts (5 tests) 31ms
+ ✓ src/r1-mcp-adapter.test.ts (43 tests) 29ms
+ ✓ src/r1-serena.test.ts (49 tests) 31ms
+ ✓ src/r1-sync.test.ts (25 tests) 22ms
+ ✓ src/r1-types.test.ts (59 tests) 19ms
+ ✓ src/r1-services.test.ts (7 tests) 10ms
+ ✓ src/capability-policy.test.ts (4 tests) 9ms
+ ✓ src/capability-governance-store.test.ts (2 tests) 7ms
+ ✓ src/r1-task-worker.test.ts (2 tests) 6ms
+ ✓ src/sql-repositories.test.ts (4 tests) 6ms
+ ✓ src/in-memory-repositories.test.ts (3 tests) 6ms
+
+ Test Files  13 passed (13)
+      Tests  256 passed (256)
+   Start at  14:00:39
+   Duration  3.59s (transform 327ms, setup 0ms, collect 686ms, tests 246ms, environment 2ms, prepare 909ms)
+

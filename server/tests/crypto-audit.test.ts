@@ -34,6 +34,7 @@ import {
   encryptMemory,
   decryptMemory,
   isEncrypted,
+  type EncryptionConfig,
 } from '../src/services/memory-encryption.js';
 import { signArtifactEd25519, verifyArtifactEd25519, sha256Hex } from '../src/lib/crypto-sign.js';
 import { safeEqual, constantTimeEqual, genKey, KEY_LEN } from '../src/services/crypto-suite.js';
@@ -41,6 +42,20 @@ import { safeEqual, constantTimeEqual, genKey, KEY_LEN } from '../src/services/c
 // rate-limit must be imported AFTER NEXUS_RATE_LIMIT_PER_MINUTE is set so that
 // its cached `env` snapshot reflects the tight budget.
 const { consume, clientIpFromHeaders } = await import('../src/lib/rate-limit.js');
+
+const memoryEncryptionConfig: EncryptionConfig = {
+  encryptionKey: 'crypto-audit-memory-encryption-key-material',
+  enabled: true,
+  minImportance: 0.2,
+};
+const memoryId = 'crypto-audit-memory';
+const memoryKind = 'fact';
+
+function encryptAuditMemory(content: string) {
+  const payload = encryptMemory(content, memoryId, memoryKind, 0.9, memoryEncryptionConfig);
+  if (payload === null) throw new Error('memory encryption fixture unexpectedly returned null');
+  return payload;
+}
 
 /** Flips a single byte in a base64 string deterministically. */
 function tamperBase64(b64: string): string {
@@ -66,11 +81,11 @@ describe('SecB audit (a): ciphertext/IV uniqueness per encryption', () => {
     expect(a.split(':')[1]).not.toBe(b.split(':')[1]); // IV segment differs
   });
 
-  it('memory-encryption: same plaintext produces a different blob each time', async () => {
-    const a = await encryptMemory('a memory payload');
-    const b = await encryptMemory('a memory payload');
-    expect(a.ct).not.toBe(b.ct);
-    expect(a.iv).not.toBe(b.iv);
+  it('memory-encryption: same plaintext produces a different blob each time', () => {
+    const a = encryptAuditMemory('a memory payload');
+    const b = encryptAuditMemory('a memory payload');
+    expect(a.ciphertext).not.toBe(b.ciphertext);
+    expect(a.nonce).not.toBe(b.nonce);
     expect(a.tag).not.toBe(b.tag);
   });
 
@@ -120,15 +135,15 @@ describe('SecB audit (b): tampered ciphertext fails authentication', () => {
   });
 
   it('memory-encryption: tampering ciphertext fails decryptMemory', () => {
-    const blob = encryptMemory('memory');
-    const tampered = { ...blob, ct: tamperBase64(blob.ct) };
-    expect(() => decryptMemory(tampered)).toThrow();
+    const blob = encryptAuditMemory('memory');
+    const tampered = { ...blob, ciphertext: tamperBase64(blob.ciphertext) };
+    expect(() => decryptMemory(tampered, memoryId, memoryKind, memoryEncryptionConfig)).toThrow();
   });
 
   it('memory-encryption: tampered auth tag fails decrypt', () => {
-    const blob = encryptMemory('memory');
+    const blob = encryptAuditMemory('memory');
     const tampered = { ...blob, tag: tamperBase64(blob.tag) };
-    expect(() => decryptMemory(tampered)).toThrow();
+    expect(() => decryptMemory(tampered, memoryId, memoryKind, memoryEncryptionConfig)).toThrow();
   });
 
   it('memory-encryption: isEncrypted rejects malformed input', () => {

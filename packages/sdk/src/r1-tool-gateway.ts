@@ -47,6 +47,8 @@ export type ToolResult = { ok: true; output: string; receiptId: string } | { ok:
 export interface ToolGatewayOptions {
   readonly now?: () => string;
   readonly projectRoots?: Map<string, string>; // projectId -> allowed root path
+  /** Trusted runtime configuration; request data can never select this parent directory. */
+  readonly projectRootBase?: string;
   readonly isApprovalApproved?: (approvalId: string, projectId: string) => Promise<boolean>;
   readonly sandboxExecutor?: (command: string, args: string[], timeoutMs: number, workingDirectory: string) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
   readonly fileReader?: (fullPath: string) => Promise<string>;
@@ -97,6 +99,7 @@ function redactContent(content: string): string {
 export class BoundedToolGateway {
   private readonly now: () => string;
   private readonly projectRoots: Map<string, string>;
+  private readonly projectRootBase: string;
   private readonly isApprovalApproved: (id: string, projectId: string) => Promise<boolean>;
   private readonly sandboxExecutor: NonNullable<ToolGatewayOptions['sandboxExecutor']>;
   private readonly fileReader: NonNullable<ToolGatewayOptions['fileReader']>;
@@ -106,6 +109,7 @@ export class BoundedToolGateway {
   constructor(private readonly repos: R1Repositories, options: ToolGatewayOptions = {}) {
     this.now = options.now ?? (() => new Date().toISOString());
     this.projectRoots = options.projectRoots ?? new Map();
+    this.projectRootBase = options.projectRootBase ?? '/tmp/projects';
     this.isApprovalApproved = options.isApprovalApproved ?? (async () => false);
     this.sandboxExecutor = (options.sandboxExecutor ?? (async () => ({ stdout: 'sandbox executor not configured', stderr: '', exitCode: 0 }))) as NonNullable<ToolGatewayOptions['sandboxExecutor']>;
     this.fileReader = (options.fileReader ?? (async () => { throw new Error('fileReader not configured'); })) as NonNullable<ToolGatewayOptions['fileReader']>;
@@ -115,7 +119,7 @@ export class BoundedToolGateway {
 
   private resolvePath(projectId: string, requestedPath: string): string {
     if (isPathTraversal(requestedPath)) throw new Error('Path traversal or disallowed path');
-    const root = this.projectRoots.get(projectId) ?? `/tmp/projects/${projectId}`;
+    const root = this.projectRoots.get(projectId) ?? `${this.projectRootBase}/${projectId}`;
     // Enforce allowlist: requested must be inside root
     // Simplified check: must not start with / if root is absolute and requested is absolute outside
     // Normalize: if requested starts with '/', it must start with root
@@ -123,6 +127,7 @@ export class BoundedToolGateway {
       if (!requestedPath.startsWith(root)) throw new Error('Path outside project root');
       return requestedPath;
     }
+    if (requestedPath === '.') return root;
     // relative path: join with root but still check traversal already done
     return `${root}/${requestedPath}`.replace(/\/+/g, '/');
   }

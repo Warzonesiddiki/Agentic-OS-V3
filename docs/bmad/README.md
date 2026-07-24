@@ -1,10 +1,13 @@
 # BMAD Workflow Documentation — NEXUS 2.0 / Agentic OS V3
 
+> **Current R1 release authority (2026-07-24): RELEASE BLOCKED.** The authoritative delivery status is `docs/bmad/sprint-status.yaml`; reproducible command evidence is `docs/bmad/releases/evidence/2026-07-24-release-evidence-ledger.json`. Only an independent E10-S30 audit may change this decision. Historical campaign language below describes methodology or dated records, not current readiness, perfection, or production qualification.
+
+
 **Project:** Agentic OS V3 (NEXUS 2.0)
 **BMAD Version:** 6.0.4 (as installed)
 **Last Updated:** 2026-07-20 (UTC)
 **Status:** **RELEASE BLOCKED PENDING E10-R1 REQUALIFICATION** — 2026-07-24 adversarial audit found source, test-suite, dependency-security, and operational-gate gaps. Historical campaign scores are not a release decision.
-**Primary Goal:** After executing the complete BMAD workflow, this project shall be in a perfect, auditable, implementable state with no compromises on quality, governance, documentation, traceability, or production readiness.
+**Primary Goal:** Maintain auditable, implementable planning and remediation artifacts. Completing a workflow does not itself establish production readiness, release qualification, a perfection score, or a zero-compromise outcome; those require current independent evidence.
 
 ---
 
@@ -258,7 +261,7 @@ All BMAD decisions must be reconciled with these. When conflicts arise, escalate
 7. **Secure by Default** — Policy, scopes, redaction, adversarial cases built in.
 8. **Replicable** — Any developer (or future agent) can follow the same BMAD steps.
 
-**Target State After Full BMAD Completion:**
+**Historical methodology target — not a current release assertion:**
 - A solo developer can follow the golden path end-to-end using only the artifacts in `docs/bmad/`, `README.md`, and the codebase.
 - All production readiness gates (E8) are either passed or explicitly deferred with justification.
 - The project can be handed to a new team with zero loss of context.
@@ -284,7 +287,7 @@ All BMAD decisions must be reconciled with these. When conflicts arise, escalate
 
 **This document and the artifacts under `docs/bmad/` are governed by the active E10-R1 remediation program. No artifact may be used to claim release readiness until the independent requalification gate passes.**
 
-**Execute BMAD workflows exactly. Update these docs. Achieve perfection.**
+**Use these workflows to create evidence-based improvements. Do not infer release qualification from methodology language or historical scores.**
 
 ---
 

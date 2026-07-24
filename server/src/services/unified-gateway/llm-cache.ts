@@ -45,6 +45,7 @@ export interface LLMCacheOptions {
 
 export class LLMResponseCache {
   private readonly cache: LRUCache<string, unknown>;
+  private readonly inFlight = new Map<string, Promise<unknown>>();
   private readonly ttlMs: number;
   private readonly onlyDeterministic: boolean;
   public hits = 0;
@@ -89,11 +90,24 @@ export class LLMResponseCache {
       debugLog('hit', { provider: req.provider, model: req.model });
       return hit;
     }
+    const pending = this.inFlight.get(key) as Promise<T> | undefined;
+    if (pending !== undefined) {
+      debugLog('coalesced', { provider: req.provider, model: req.model });
+      return pending;
+    }
+
     this.misses++;
     debugLog('miss', { provider: req.provider, model: req.model });
-    const entry = await compute();
-    this.cache.set(key, entry);
-    return entry;
+    const calculation = compute().then((entry) => {
+      this.cache.set(key, entry);
+      return entry;
+    });
+    this.inFlight.set(key, calculation as Promise<unknown>);
+    try {
+      return await calculation;
+    } finally {
+      this.inFlight.delete(key);
+    }
   }
 
   stats() {

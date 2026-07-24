@@ -1,2 +1,6 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Preserve raw command transcripts exactly; they may include terminal whitespace.
+docs/bmad/releases/evidence/*.log -whitespace
+docs/bmad/releases/evidence/**/*.log -whitespace

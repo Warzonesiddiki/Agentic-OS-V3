@@ -88,9 +88,10 @@ function maskSecret(raw: string): string {
   return `${head}${'$'.repeat(Math.min(12, raw.length - 4))}${tail}`;
 }
 
-// Contextual markers that indicate a value is a dummy/example/test fixture.
+// Contextual markers that indicate a value is a dummy/test fixture. High-confidence
+// provider tokens are intentionally not suppressed merely because nearby prose says
+// “example”: leaked credentials are frequently labelled that way in comments.
 const DEFAULT_SUPPRESSORS: RegExp[] = [
-  /example/i,
   /sample/i,
   /dummy/i,
   /placeholder/i,

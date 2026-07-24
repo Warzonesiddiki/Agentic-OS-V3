@@ -1,3 +1,5 @@
+> **Historical Correct Course proposal.** This document records the 2026-07-24 change analysis and its then-current observations. It is not current validation evidence; the Gate 0 baseline, evidence ledger, and sprint status govern the blocked R1 decision.
+
 # Sprint Change Proposal — Remediation and Release Requalification
 
 **Project:** NEXUS 2.0 / Agentic OS V3  

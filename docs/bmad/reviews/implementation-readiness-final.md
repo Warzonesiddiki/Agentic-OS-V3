@@ -1,3 +1,5 @@
+> **Historical campaign/review record — not current R1 release evidence.** This document predates the 2026-07-24 E10-R1 adversarial audit. Its counts, scores, completion statements, and release language are preserved as history only. R1 is **release blocked** pending independent E10-S30 review.
+
 # Implementation Readiness Report — Final (2026-07-23 + E7)
 
 **Workflow:** `_bmad/bmm/workflows/3-solutioning/check-implementation-readiness/workflow.md`
