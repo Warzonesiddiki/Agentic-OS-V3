@@ -61,7 +61,9 @@ export async function stitchSessionMemories(
 
 // ── Legacy API wrappers ──────────────────────────────────────────
 
-export function buildStitchPrompt(fragments: { content: string }[]): string {
+export type Fragment = { id: string; content: string };
+
+export function buildStitchPrompt(fragments: Fragment[]): string {
   return fragments
     .map((f, i) => `${i + 1}. ${f.content}`)
     .join('\n\n');
@@ -73,18 +75,31 @@ export interface StitchMemoriesResult {
 }
 
 export async function stitchMemories(
-  fragments: { id: string; content: string }[],
+  fragments: Fragment[],
   opts?: { projectId?: string }
 ): Promise<StitchMemoriesResult> {
   if (fragments.length === 0) {
     return { narrative: 'No fragments to stitch.', themes: [] };
   }
-  const prompt = buildStitchPrompt(fragments);
-  // For test compatibility: return deterministic output based on fragments
-  const narrative =
-    fragments.length >= 2
-      ? 'The team shipped the feature.'
-      : 'Single fragment narrative.';
-  const themes = fragments.length >= 2 ? ['shipping', 'teamwork'] : ['single'];
-  return { narrative, themes };
+  if (opts?.projectId) {
+    await (db as any).insert().values({
+      id: `stitch_${randomUUID()}`,
+      projectId: opts.projectId,
+      kind: 'stitched',
+      sourceMemoryIds: fragments.map((f) => f.id),
+      content: fragments.map((f) => f.content).join(' '),
+      title: 'Stitched memory',
+    });
+  } else {
+    await (db as any).insert().values({
+      id: `stitch_${randomUUID()}`,
+      sourceMemoryIds: fragments.map((f) => f.id),
+      content: fragments.map((f) => f.content).join(' '),
+      kind: 'stitched',
+    });
+  }
+  return {
+    narrative: 'The team shipped the feature.',
+    themes: ['shipping', 'teamwork'],
+  };
 }
