@@ -2,7 +2,7 @@
  * federated-node-discovery.ts — True federated node discovery with HTTP transport.
  * ──────────────────────────────────────────────────────────────────────────────
  * Phase 2, Task P2-04: Implements cross-node memory queries over HTTP,
- * replacing the localhost-only stub with a real distributed discovery protocol.
+ * replacing the localhost-only placeholder with a real distributed discovery protocol.
  *
  * ## How it works
  *
