@@ -38,7 +38,12 @@ function relativeEvidencePath(name: string): string {
   return `docs/bmad/releases/evidence/${name}`;
 }
 
-function expectValidatorFailure(name: string, ledgerPath: string, triagePath: string): void {
+function expectValidatorFailure(
+  name: string,
+  ledgerPath: string,
+  triagePath: string,
+  expectedDiagnostic: string
+): void {
   const result = spawnSync(
     pnpmExecutable,
     ['exec', 'tsx', validatorPath, '--ledger', ledgerPath, '--triage', triagePath],
@@ -48,8 +53,10 @@ function expectValidatorFailure(name: string, ledgerPath: string, triagePath: st
     throw new Error(`${name}: validator unexpectedly accepted an invalid fixture`);
   }
   const output = `${result.stdout}\n${result.stderr}`;
-  if (!output.includes('validation failed')) {
-    throw new Error(`${name}: validator failed without its expected failure diagnostic`);
+  if (!output.includes('validation failed') || !output.includes(expectedDiagnostic)) {
+    throw new Error(
+      `${name}: validator failed without the mutation-specific diagnostic: ${expectedDiagnostic}`
+    );
   }
 }
 
@@ -71,7 +78,8 @@ function main(): void {
     expectValidatorFailure(
       'pass-with-nonzero-exit',
       relativeEvidencePath(`${suffix}-bad-exit.json`),
-      relativeEvidencePath('2026-07-24-full-suite-triage.json')
+      relativeEvidencePath('2026-07-24-full-suite-triage.json'),
+      'a pass record must have actual.exitCode = 0'
     );
 
     const unsafeArtifact = structuredClone(validLedger);
@@ -80,7 +88,8 @@ function main(): void {
     expectValidatorFailure(
       'artifact-path-escape',
       relativeEvidencePath(`${suffix}-unsafe-artifact.json`),
-      relativeEvidencePath('2026-07-24-full-suite-triage.json')
+      relativeEvidencePath('2026-07-24-full-suite-triage.json'),
+      'must be a repository-relative path under docs/bmad/releases/evidence/'
     );
 
     const wrongDecision = structuredClone(validLedger);
@@ -89,7 +98,8 @@ function main(): void {
     expectValidatorFailure(
       'manual-release-approval',
       relativeEvidencePath(`${suffix}-wrong-decision.json`),
-      relativeEvidencePath('2026-07-24-full-suite-triage.json')
+      relativeEvidencePath('2026-07-24-full-suite-triage.json'),
+      'releaseDecision must be derived as blocked'
     );
 
     const unownedTriage = structuredClone(validTriage);
@@ -98,7 +108,8 @@ function main(): void {
     expectValidatorFailure(
       'unowned-triage-record',
       relativeEvidencePath('2026-07-24-release-evidence-ledger.json'),
-      relativeEvidencePath(`${suffix}-unowned-triage.json`)
+      relativeEvidencePath(`${suffix}-unowned-triage.json`),
+      'must name one accountable CODEOWNER-style owner'
     );
 
     console.log(

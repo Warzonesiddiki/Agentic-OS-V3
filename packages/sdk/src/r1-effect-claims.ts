@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { SqlExecutor } from './sql-repositories.js';
 
 export type EffectClaimState = 'claimed' | 'completed';
@@ -23,6 +24,19 @@ export interface EffectClaimStore {
   /** Claimed effects are never replayed automatically; operators must reconcile them. */
   listStale(projectId: string, before: string): Promise<readonly EffectClaim[]>;
 }
+
+const sqlTimestampSchema = z
+  .union([z.string().datetime({ offset: true }), z.date()])
+  .transform((value) => value instanceof Date ? value.toISOString() : value);
+const sqlEffectClaimSchema = z.object({
+  projectId: z.string().min(1),
+  taskId: z.string().min(1),
+  correlationId: z.string().min(1),
+  operation: z.string().min(1),
+  state: z.enum(['claimed', 'completed']),
+  createdAt: sqlTimestampSchema,
+  completedAt: z.union([sqlTimestampSchema, z.null(), z.undefined()]),
+});
 
 export class InMemoryEffectClaimStore implements EffectClaimStore {
   private readonly claims = new Map<string, EffectClaim>();
@@ -57,7 +71,7 @@ export class SqlEffectClaimStore implements EffectClaimStore {
   constructor(private readonly sql: SqlExecutor) {}
 
   async claim(input: Omit<EffectClaim, 'state' | 'createdAt' | 'completedAt'> & { readonly createdAt: string }): Promise<EffectClaimResult> {
-    const rows = await this.sql.query<EffectClaim>(
+    const rows = await this.sql.query<Record<string, unknown>>(
       `INSERT INTO r1_effect_claims (project_id, task_id, correlation_id, operation, state, created_at)
        VALUES ($1,$2,$3,$4,'claimed',$5)
        ON CONFLICT (project_id, task_id, correlation_id, operation) DO NOTHING
@@ -66,7 +80,7 @@ export class SqlEffectClaimStore implements EffectClaimStore {
     );
     const created = rows[0];
     if (created) return { claim: normalizeClaim(created), acquired: true };
-    const existing = await this.sql.query<EffectClaim>(
+    const existing = await this.sql.query<Record<string, unknown>>(
       `SELECT project_id AS "projectId", task_id AS "taskId", correlation_id AS "correlationId", operation, state, created_at AS "createdAt", completed_at AS "completedAt"
        FROM r1_effect_claims WHERE project_id=$1 AND task_id=$2 AND correlation_id=$3 AND operation=$4`,
       [input.projectId, input.taskId, input.correlationId, input.operation],
@@ -77,7 +91,7 @@ export class SqlEffectClaimStore implements EffectClaimStore {
   }
 
   async complete(input: Pick<EffectClaim, 'projectId' | 'taskId' | 'correlationId' | 'operation'> & { readonly completedAt: string }): Promise<EffectClaim> {
-    const rows = await this.sql.query<EffectClaim>(
+    const rows = await this.sql.query<Record<string, unknown>>(
       `UPDATE r1_effect_claims SET state='completed', completed_at=$5
        WHERE project_id=$1 AND task_id=$2 AND correlation_id=$3 AND operation=$4 AND state='claimed'
        RETURNING project_id AS "projectId", task_id AS "taskId", correlation_id AS "correlationId", operation, state, created_at AS "createdAt", completed_at AS "completedAt"`,
@@ -89,7 +103,7 @@ export class SqlEffectClaimStore implements EffectClaimStore {
   }
 
   async listStale(projectId: string, before: string): Promise<readonly EffectClaim[]> {
-    const rows = await this.sql.query<EffectClaim>(
+    const rows = await this.sql.query<Record<string, unknown>>(
       `SELECT project_id AS "projectId", task_id AS "taskId", correlation_id AS "correlationId", operation, state, created_at AS "createdAt", completed_at AS "completedAt"
        FROM r1_effect_claims WHERE project_id=$1 AND state='claimed' AND created_at <= $2 ORDER BY created_at`,
       [projectId, before],
@@ -102,6 +116,9 @@ function claimKey(input: Pick<EffectClaim, 'projectId' | 'taskId' | 'correlation
   return `${input.projectId}:${input.taskId}:${input.correlationId}:${input.operation}`;
 }
 
-function normalizeClaim(claim: EffectClaim): EffectClaim {
-  return claim.completedAt == null ? { ...claim, completedAt: undefined } : claim;
+function normalizeClaim(claim: unknown): EffectClaim {
+  const parsed = sqlEffectClaimSchema.parse(claim);
+  return parsed.completedAt == null
+    ? { ...parsed, completedAt: undefined }
+    : { ...parsed, completedAt: parsed.completedAt };
 }

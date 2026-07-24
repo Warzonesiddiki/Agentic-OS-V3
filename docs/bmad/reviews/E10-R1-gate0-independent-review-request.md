@@ -19,10 +19,10 @@ Phase A establishes the truthful release-evidence baseline; it does not repair t
 | Check | Result | Evidence |
 |---|---|---|
 | Ledger/triage Zod validation | Passes; derived decision is `blocked` | `pnpm exec tsx scripts/validate-r1-release-evidence.ts` |
-| Documentation claim scan | Passes; 59 classified findings, 0 unresolved current claims | `pnpm exec tsx scripts/scan-r1-documentation-claims.ts --check` |
-| Full-suite remediation coverage | 98/98 baseline records have a unique ID/file, one accountable owner, action, and exact rerun command; 10 exact-file repairs are verified while 88 records remain open | `docs/bmad/releases/evidence/2026-07-24-full-suite-triage.json` |
-| Targeted fresh validation | SDK 255/255 and targeted server 16/16 passed | ledger raw artifacts; targeted evidence only |
-| Full suite | 88 files / 141 tests failed; 10 exact-file repairs verified | latest remediation raw log; unresolved blocker |
+| Documentation claim scan | Passes; latest count is recorded in the ledger, with 0 unresolved current claims | `pnpm exec tsx scripts/scan-r1-documentation-claims.ts --check` |
+| Full-suite remediation coverage | 98/98 baseline records have a unique ID/file, one accountable owner, action, and exact rerun command; 35 exact-file repairs are verified while 63 records remain open | `docs/bmad/releases/evidence/2026-07-24-full-suite-triage.json` |
+| Targeted fresh validation | SDK 257/257 and targeted E10-S8/S9 server 29/29 passed | ledger raw artifacts; targeted evidence only |
+| Full suite | 63 files / 200 tests failed; 192 files / 2,236 tests passed; 21 tests skipped; 2 unhandled errors; 35 exact-file repairs verified | latest retained raw log; unresolved blocker |
 | Dependency audit | 1 high and 4 moderate production advisories | production dependency-audit log; unresolved blocker |
 
 ## Mandatory adversarial review actions
@@ -35,7 +35,8 @@ Phase A establishes the truthful release-evidence baseline; it does not repair t
 
 ## Known open blockers
 
-- Eighty-eight triage records remain `open_release_blocker`. Ten exact-file repairs have passing rerun evidence and are pending a green full-suite confirmation; neither state clears the release block.
+- Sixty-three triage records remain `open_release_blocker`. Thirty-five exact-file repairs have passing rerun evidence and are pending a green full-suite confirmation; neither state clears the release block.
+- The prescribed native rebuild did not by itself produce a loadable binding. A later source build against local Node headers passed a smoke check, but clean-machine native preparation remains unproven.
 - Full repository suite remains failing.
 - Production dependency advisories remain unresolved.
 - Clean-machine, rollback/restore, security-triage, and independent-audit gates are not executed.

@@ -169,6 +169,10 @@ const triageClassificationSchema = z.enum([
   'environment_native_dependency_failure',
   'stale_or_broken_test',
 ]);
+const currentTriageClassificationSchema = z.enum([
+  ...triageClassificationSchema.options,
+  'behavioral_failure_exposed_after_native_build',
+]);
 
 const triageEntrySchema = z.object({
   id: z.string().regex(/^E10-S5-\d{3}$/u),
@@ -179,6 +183,7 @@ const triageEntrySchema = z.object({
     source: relativeEvidencePathSchema,
   }),
   classification: triageClassificationSchema,
+  current_classification: currentTriageClassificationSchema.nullable(),
   primary_signature: z.string().min(1),
   next_action: z.string().min(1),
   owner: z.object({
@@ -199,6 +204,7 @@ const triageEntrySchema = z.object({
       status: z.enum(['passed', 'failed']),
       observedAt: z.string().datetime({ offset: true }),
       evidencePath: relativeEvidencePathSchema,
+      evidenceSha256: sha256Schema,
       scope: z.enum(['full-suite', 'exact-file']),
     }),
     required: z.object({
@@ -230,8 +236,9 @@ const triageEntrySchema = z.object({
 
 const triageSchema = z
   .object({
-    schemaVersion: z.literal('nexus.r1.full-suite-triage.v2'),
+    schemaVersion: z.literal('nexus.r1.full-suite-triage.v3'),
     runLog: relativeEvidencePathSchema,
+    runLogSha256: sha256Schema,
     scope: z.string().min(1),
     summary: z.object({
       actual_product_defect: z.literal(51),
@@ -247,17 +254,21 @@ const triageSchema = z
     }),
     latestFullSuiteRerun: z.object({
       runLog: relativeEvidencePathSchema,
+      sha256: sha256Schema,
       observedAt: z.string().datetime({ offset: true }),
       failed_test_files: z.number().int().nonnegative(),
       failed_tests: z.number().int().nonnegative(),
       passed_test_files: z.number().int().nonnegative(),
       passed_tests: z.number().int().nonnegative(),
       skipped_tests: z.number().int().nonnegative(),
+      unhandled_errors: z.number().int().nonnegative(),
       classifications: z.object({
         actual_product_defect: z.number().int().nonnegative(),
         environment_native_dependency_failure: z.number().int().nonnegative(),
         stale_or_broken_test: z.number().int().nonnegative(),
+        behavioral_failure_exposed_after_native_build: z.number().int().nonnegative(),
       }),
+      environmentNote: z.string().min(1),
     }),
     failures: z.array(triageEntrySchema).length(98),
   })
@@ -318,17 +329,32 @@ const triageSchema = z
       }
     }
 
-    const unresolved = {
+    const unresolved: Record<z.infer<typeof currentTriageClassificationSchema>, number> = {
       actual_product_defect: 0,
       environment_native_dependency_failure: 0,
       stale_or_broken_test: 0,
+      behavioral_failure_exposed_after_native_build: 0,
     };
     for (const failure of triage.failures) {
       if (failure.disposition === 'open_release_blocker') {
-        unresolved[failure.classification] += 1;
+        if (failure.current_classification === null) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'an open record requires a current_classification',
+            path: ['failures', failure.id, 'current_classification'],
+          });
+        } else {
+          unresolved[failure.current_classification] += 1;
+        }
+      } else if (failure.current_classification !== null) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: 'a non-open record must have current_classification = null',
+          path: ['failures', failure.id, 'current_classification'],
+        });
       }
     }
-    for (const classification of triageClassificationSchema.options) {
+    for (const classification of currentTriageClassificationSchema.options) {
       if (
         unresolved[classification] !== triage.latestFullSuiteRerun.classifications[classification]
       ) {
@@ -399,21 +425,22 @@ function verifyLedgerArtifacts(ledger: Ledger): void {
 }
 
 function verifyTriageArtifacts(triage: Triage): void {
-  const runLogPath = absoluteRepositoryPath(triage.runLog);
-  if (!existsSync(runLogPath)) {
-    throw new Error(`Triage baseline raw log is missing: ${triage.runLog}`);
-  }
-  const latestFullSuitePath = absoluteRepositoryPath(triage.latestFullSuiteRerun.runLog);
-  if (!existsSync(latestFullSuitePath)) {
-    throw new Error(
-      `Triage latest full-suite rerun is missing: ${triage.latestFullSuiteRerun.runLog}`
-    );
-  }
+  verifyArtifact({
+    path: triage.runLog,
+    sha256: triage.runLogSha256,
+    role: 'raw-command-output',
+  });
+  verifyArtifact({
+    path: triage.latestFullSuiteRerun.runLog,
+    sha256: triage.latestFullSuiteRerun.sha256,
+    role: 'raw-command-output',
+  });
   for (const failure of triage.failures) {
-    const latestRerunPath = absoluteRepositoryPath(failure.rerun.latest.evidencePath);
-    if (!existsSync(latestRerunPath)) {
-      throw new Error(`Triage rerun evidence is missing: ${failure.rerun.latest.evidencePath}`);
-    }
+    verifyArtifact({
+      path: failure.rerun.latest.evidencePath,
+      sha256: failure.rerun.latest.evidenceSha256,
+      role: 'raw-command-output',
+    });
     if (failure.disposition === 'verified_fixed') {
       const rerunArtifactPath = absoluteRepositoryPath(failure.rerun.required.required_artifact);
       if (!existsSync(rerunArtifactPath)) {

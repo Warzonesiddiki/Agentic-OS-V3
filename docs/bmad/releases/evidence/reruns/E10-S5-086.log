@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/services/embeddings.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/services/embeddings.test.ts (16 tests) 464ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  19:24:26
+   Duration  1.30s (transform 204ms, setup 0ms, collect 628ms, tests 464ms, environment 0ms, prepare 68ms)
+
+
+[exit_code]=0

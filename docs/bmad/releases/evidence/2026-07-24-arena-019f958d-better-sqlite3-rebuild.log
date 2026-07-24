@@ -1,0 +1,3 @@
+$ pnpm rebuild better-sqlite3
+
+[exit_code]=0

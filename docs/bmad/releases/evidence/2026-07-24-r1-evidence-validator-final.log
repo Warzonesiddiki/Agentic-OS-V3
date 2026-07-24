@@ -1,0 +1,4 @@
+$ pnpm exec tsx scripts/validate-r1-release-evidence.ts
+R1 release evidence valid: decision=blocked; blockingCommands=full-suite,native-dependency-preparation,effect-claim-sql-contract,production-dependency-audit,clean-machine-drill,rollback-drill,security-triage; openTriageRecords=63.
+
+[exit_code]=0

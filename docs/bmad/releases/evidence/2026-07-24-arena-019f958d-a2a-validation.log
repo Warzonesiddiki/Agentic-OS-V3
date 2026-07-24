@@ -1,0 +1,8 @@
+
+$ node "$TSC" -p tsconfig.json
+[exit_code]=0
+
+$ node "$TSC" -p tsconfig.json --noEmit
+[exit_code]=0
+
+[sequence_exit_code]=0

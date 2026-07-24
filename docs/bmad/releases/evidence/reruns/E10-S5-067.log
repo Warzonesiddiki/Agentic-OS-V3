@@ -1,0 +1,14 @@
+$ cd server && pnpm exec vitest run tests/scheduler-phase11.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/scheduler-phase11.test.ts (8 tests) 988ms
+   ✓ Phase 11 Scheduling Policies > MLFQ ordering — highest queue (Q0) is picked first regardless of age  983ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  19:24:18
+   Duration  1.22s (transform 292ms, setup 0ms, collect 31ms, tests 988ms, environment 0ms, prepare 68ms)
+
+
+[exit_code]=0

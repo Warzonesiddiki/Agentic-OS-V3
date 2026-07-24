@@ -1,0 +1,51 @@
+$ node "$VITEST" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ❯ tests/r1-sandbox-runner.test.ts (14 tests | 1 failed) 1442ms
+   ✓ runR1ConstrainedCommand > executes an allowlisted command without a shell 8ms
+   ✓ runR1ConstrainedCommand > rejects a command outside the explicit allowlist before process creation 2ms
+   ✓ runR1ConstrainedCommand > defensively rejects timeout and argument limits before process creation 1ms
+   ✓ runR1ConstrainedCommand > kills a timed-out process and reports a timeout rather than a successful result 105ms
+   ✓ runR1ConstrainedCommand > preserves a nonzero exit result for the gateway to deny rather than simulating success 33ms
+   ✓ runR1ConstrainedCommand > rejects a symlinked working-directory alias 1ms
+   ✓ runR1ConstrainedCommand > executes real project-root cat and git inspection commands 13ms
+   ✓ runR1ConstrainedCommand > runs a real project-root command through approval, effect-claim, and receipt gateway composition 7ms
+   × runR1ConstrainedCommand > runs a controlled package-manager fixture only with separate high-risk policy authorization 394ms
+     → expected false to be true // Object.is equality
+   ✓ runR1ConstrainedCommand > fails closed for a network-capable command without separate deployment-policy authorization 2ms
+   ✓ runR1ConstrainedCommand > does not forward an ambient secret into a spawned command 31ms
+   ✓ runR1ConstrainedCommand > does not resolve an allowlisted command from a parent PATH hijack on supported POSIX platforms 4ms
+   ✓ runR1ConstrainedCommand > terminates a nested POSIX process tree after timeout or fails closed on Windows  806ms
+   ✓ runR1ConstrainedCommand > caps combined command output and reports an error instead of returning a truncated success 33ms
+ ✓ tests/r1-security-isolation.test.ts (7 tests) 11ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/r1-sandbox-runner.test.ts > runR1ConstrainedCommand > runs a controlled package-manager fixture only with separate high-risk policy authorization
+AssertionError: expected false to be true // Object.is equality
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[32m- true[39m
+[31m+ false[39m
+
+ ❯ tests/r1-sandbox-runner.test.ts:163:23
+    161|     });
+    162| 
+    163|     expect(result.ok).toBe(true);
+       |                       ^
+    164|     if (result.ok) expect(result.output).toContain('controlled-package…
+    165|     expect(policyChecks).toBe(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  1 failed | 20 passed (21)
+   Start at  19:35:40
+   Duration  2.30s (transform 268ms, setup 0ms, collect 452ms, tests 1.45s, environment 0ms, prepare 142ms)
+
+
+[exit_code]=1

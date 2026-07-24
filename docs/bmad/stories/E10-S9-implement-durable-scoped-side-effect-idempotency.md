@@ -2,7 +2,7 @@
 
 **Epic:** E10-R1 — Integrity, Security, and Release Requalification
 **Priority:** P0
-**Status:** backlog
+**Status:** in_progress
 **Accountable owner:** @Warzonesiddiki (persistence/R1 boundary)
 **Dependencies:** E10-S8
 **Release authority:** None. R1 remains blocked until an independent E10-S30 approval.
@@ -43,6 +43,13 @@ As a worker, I need project-scoped atomic effect claims on supported SQL engines
 - `packages/sdk/src/r1-effect-claims.ts`
 - `server/src/db/migrations/0054_r1_effect_claims.sql`
 - `server/src/db/migrations/0054_r1_effect_claims.sqlite.sql`
+- `server/tests/r1-effect-claims-contract.test.ts`
+- `docs/bmad/releases/evidence/2026-07-24-e10-s9-effect-claims-sqlite-pglite.log`
+- `docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log`
+- `docs/bmad/releases/evidence/2026-07-24-e10-s9-postgresql-not-run.log`
+
+SQLite and PGlite contract evidence is retained. A live PostgreSQL server was not configured in this environment, so the PostgreSQL-server acceptance leg remains open and this story is not complete.
+
 ## Non-negotiable delivery rules
 
 - R1 remains **release blocked**. This story cannot authorize a release, score, or production-readiness claim; only E10-S30 can issue an independent decision.

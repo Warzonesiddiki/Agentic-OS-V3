@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/migration.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/migration.test.ts (11 tests) 43ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  19:23:48
+   Duration  315ms (transform 55ms, setup 0ms, collect 55ms, tests 43ms, environment 0ms, prepare 73ms)
+
+
+[exit_code]=0

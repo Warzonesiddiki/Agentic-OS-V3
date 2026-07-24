@@ -1,0 +1,24 @@
+$ cd server && pnpm exec vitest run tests/e2e/system.e2e.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+{"level":"info","msg":"db_backend","ts":"2026-07-24T19:23:29.875Z","backend":"sqlite","path":"./agentic-os.db"}
+{"level":"info","msg":"warmup-scheduler: registered","ts":"2026-07-24T19:23:30.548Z","name":"perf-cache","weight":50}
+stdout | tests/e2e/system.e2e.test.ts
+[2026-07-24T19:23:30.548Z] [INFO] perf-bridge: booted {"seedNodes":0,"circuitBreakers":0}
+
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-07-24T19:23:31.077Z","intervalMs":60000}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-07-24T19:23:31.077Z","intervalMs":60000}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-07-24T19:23:31.077Z","intervalMs":60000}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-07-24T19:23:31.155Z","dir":"../dist","note":"API-only mode."}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-07-24T19:23:31.187Z","instance":"container"}
+{"level":"info","msg":"headless_actuator_screenshot","ts":"2026-07-24T19:23:31.195Z","cropped":false}
+ ✓ tests/e2e/system.e2e.test.ts (10 tests) 84ms
+
+ Test Files  1 passed (1)
+      Tests  10 passed (10)
+   Start at  19:23:28
+   Duration  2.73s (transform 1.27s, setup 0ms, collect 2.44s, tests 84ms, environment 0ms, prepare 69ms)
+
+
+[exit_code]=0

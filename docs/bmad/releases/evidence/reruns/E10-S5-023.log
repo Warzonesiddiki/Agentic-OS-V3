@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/lib/auth-context.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/lib/auth-context.test.ts (17 tests) 15ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  19:23:36
+   Duration  1.24s (transform 273ms, setup 0ms, collect 1.02s, tests 15ms, environment 0ms, prepare 68ms)
+
+
+[exit_code]=0

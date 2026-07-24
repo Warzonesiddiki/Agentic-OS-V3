@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/kernel-introspect.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/kernel-introspect.test.ts (2 tests) 10ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  19:23:34
+   Duration  1.25s (transform 309ms, setup 0ms, collect 1.04s, tests 10ms, environment 0ms, prepare 68ms)
+
+
+[exit_code]=0

@@ -1,0 +1,30 @@
+$ npm run install (in installed better-sqlite3 package)
+
+> better-sqlite3@11.10.0 install
+> prebuild-install || node-gyp rebuild --release
+
+prebuild-install warn install unable to verify the first certificate
+gyp info it worked if it ends with ok
+gyp info using node-gyp@11.5.0
+gyp info using node@22.22.3 | linux | x64
+gyp info find Python using Python version 3.11.2 found at "/usr/bin/python3"
+
+gyp http GET https://nodejs.org/download/release/v22.22.3/node-v22.22.3-headers.tar.gz
+gyp http fetch GET https://nodejs.org/download/release/v22.22.3/node-v22.22.3-headers.tar.gz attempt 1 failed with ECONNRESET
+gyp WARN install got an error, rolling back install
+gyp ERR! configure error 
+gyp ERR! stack FetchError: request to https://nodejs.org/download/release/v22.22.3/node-v22.22.3-headers.tar.gz failed, reason: Client network socket disconnected before secure TLS connection was established
+gyp ERR! stack at ClientRequest.<anonymous> (/usr/local/lib/node_modules/npm/node_modules/minipass-fetch/lib/index.js:130:14)
+gyp ERR! stack at ClientRequest.emit (node:events:519:28)
+gyp ERR! stack at emitErrorEvent (node:_http_client:108:11)
+gyp ERR! stack at _destroy (node:_http_client:967:9)
+gyp ERR! stack at onSocketNT (node:_http_client:987:5)
+gyp ERR! stack at process.processTicksAndRejections (node:internal/process/task_queues:90:21)
+gyp ERR! System Linux 6.1.158+
+gyp ERR! command "/usr/local/bin/node" "/usr/local/lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js" "rebuild" "--release"
+gyp ERR! cwd /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3
+gyp ERR! node -v v22.22.3
+gyp ERR! node-gyp -v v11.5.0
+gyp ERR! not ok 
+
+[exit_code]=1

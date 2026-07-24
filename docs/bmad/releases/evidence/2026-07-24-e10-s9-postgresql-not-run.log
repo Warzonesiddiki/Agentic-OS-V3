@@ -1,0 +1,4 @@
+$ verify live PostgreSQL test prerequisite without printing DATABASE_URL
+Live PostgreSQL contract not run: DATABASE_URL is not configured for PostgreSQL.
+
+[exit_code]=2

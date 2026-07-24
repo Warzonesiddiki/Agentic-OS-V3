@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/r1-routes.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/r1-routes.test.ts (7 tests) 34ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  19:24:14
+   Duration  1.46s (transform 439ms, setup 0ms, collect 1.22s, tests 34ms, environment 0ms, prepare 69ms)
+
+
+[exit_code]=0

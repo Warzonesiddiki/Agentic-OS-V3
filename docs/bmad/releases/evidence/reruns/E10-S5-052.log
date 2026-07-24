@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/pipeline-executor.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/pipeline-executor.test.ts (11 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  11 passed (11)
+   Start at  19:23:49
+   Duration  1.51s (transform 497ms, setup 0ms, collect 1.29s, tests 5ms, environment 0ms, prepare 69ms)
+
+
+[exit_code]=0

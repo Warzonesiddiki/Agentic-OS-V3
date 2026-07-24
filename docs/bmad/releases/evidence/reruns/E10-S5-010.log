@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/federated-recall.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/federated-recall.test.ts (15 tests) 10ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  19:23:32
+   Duration  1.30s (transform 380ms, setup 0ms, collect 1.08s, tests 10ms, environment 0ms, prepare 70ms)
+
+
+[exit_code]=0

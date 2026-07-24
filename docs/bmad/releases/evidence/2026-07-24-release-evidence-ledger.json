@@ -1,17 +1,17 @@
 {
   "schemaVersion": "nexus.r1.release-evidence-ledger.v2",
-  "generatedAt": "2026-07-24T14:22:00.000Z",
+  "generatedAt": "2026-07-24T20:01:00.000Z",
   "evidenceSource": {
-    "repositoryCommit": "52f5ed239071118f0c4c1cf628415e28f266fd9d",
-    "branch": "arena/019f93a4-agentic-os-v3",
-    "note": "Fresh validation was executed against 52f5ed239071118f0c4c1cf628415e28f266fd9d after constrained-runner hardening, project-root configuration, and twelve targeted full-suite repairs. Historical Gate 0 captures remain retained; the full suite remains blocked."
+    "repositoryCommit": "d467777dca79f7d88ca193c7be0b02b43558d02e",
+    "branch": "arena/019f958d-agentic-os-v3",
+    "note": "Validation was executed on the Arena-assigned branch from commit d467777dca79f7d88ca193c7be0b02b43558d02e with E10-S8 fail-closed admission/path/executor controls, partial E10-S9 SQL claim contracts, and evidence-control updates in the working tree. SQLite and PGlite effect-claim contracts passed; live PostgreSQL was unavailable. The latest full suite remains blocked."
   },
   "environment": {
     "node": "v22.22.3",
     "pnpm": "9.15.0",
     "platform": "Linux-6.1.158+-x86_64-with-glibc2.36",
     "installMode": "pnpm install --no-frozen-lockfile --ignore-scripts",
-    "databaseMode": "better-sqlite3 native binding unavailable after ignore-scripts install; PGlite/PostgreSQL validation remains required for supported DB contracts"
+    "databaseMode": "better-sqlite3 11.10.0 built from source against /usr/local Node headers after prescribed rebuild did not yield a loadable binding; final SQLite smoke passed; clean-machine preparation and complete SQLite/PGlite/PostgreSQL migration matrix remain unproven"
   },
   "commands": [
     {
@@ -25,20 +25,20 @@
       },
       "actual": {
         "exitCode": 1,
-        "summary": "88 failed files, 141 failed tests; 166 passed files, 1,777 passed tests, 12 skipped.",
-        "observedAt": "2026-07-24T13:49:00.000Z"
+        "summary": "63 failed files, 200 failed tests, 192 passed files, 2,236 passed tests, 21 skipped, and 2 unhandled errors.",
+        "observedAt": "2026-07-24T19:55:59.000Z"
       },
       "status": "blocked",
-      "blockingReason": "Full repository suite exited nonzero.",
+      "blockingReason": "Full repository suite exited nonzero and reported two unhandled errors.",
       "artifacts": [
         {
-          "path": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-health-and-security-remediation.log",
-          "sha256": "6f957016c93fed988259f19c33c202b39a96d382104241c8c4ce657d0d5d1a31",
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "sha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662",
           "role": "raw-command-output"
         },
         {
           "path": "docs/bmad/releases/evidence/2026-07-24-full-suite-triage.json",
-          "sha256": "608136f380623daaaec83fdfcc82b781c180c492bbe9eca93040ec34c6f18445",
+          "sha256": "2cfde884d3c096158959e766b3b795d2ffd53675e222bf13a08fe16444225afd",
           "role": "triage"
         }
       ],
@@ -47,9 +47,9 @@
         "status": "unassigned"
       },
       "rerun": {
-        "status": "not_run",
+        "status": "failed",
         "command": "pnpm test",
-        "evidencePath": null
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
       }
     },
     {
@@ -63,15 +63,15 @@
       },
       "actual": {
         "exitCode": 0,
-        "summary": "13 test files and 256 tests passed.",
-        "observedAt": "2026-07-24T14:00:39.000Z"
+        "summary": "13 test files and 257 tests passed after fail-closed executor coverage was added.",
+        "observedAt": "2026-07-24T19:55:12.000Z"
       },
       "status": "pass",
       "blockingReason": null,
       "artifacts": [
         {
-          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-sdk-targeted.log",
-          "sha256": "6a47b69a95a2cb7686e0c3f4538eb303c498aa849c0277b75153bd7b62084438",
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-sdk-final.log",
+          "sha256": "605db80490c8454bf2f1a25b122a737b4b67a1af28d7ea365d089f9905671a53",
           "role": "raw-command-output"
         }
       ],
@@ -82,13 +82,13 @@
       "rerun": {
         "status": "passed",
         "command": "cd packages/sdk && node \"$VITEST\" run",
-        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-sdk-targeted.log"
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-sdk-final.log"
       }
     },
     {
       "id": "r1-targeted-server",
       "evidenceClass": "targeted",
-      "command": "node \"$VITEST\" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts",
+      "command": "node \"$VITEST\" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts tests/r1-effect-claims-contract.test.ts",
       "workingDirectory": "/home/user/Agentic-OS-V3/server",
       "expected": {
         "exitCode": 0,
@@ -96,15 +96,15 @@
       },
       "actual": {
         "exitCode": 0,
-        "summary": "3 test files and 24 tests passed, including 12 constrained-runner tests.",
-        "observedAt": "2026-07-24T14:00:43.000Z"
+        "summary": "4 test files and 29 E10-S8/S9 targeted tests passed.",
+        "observedAt": "2026-07-24T19:55:22.000Z"
       },
       "status": "pass",
       "blockingReason": null,
       "artifacts": [
         {
-          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-r1-targeted-server.log",
-          "sha256": "da1ffa2f391bb8d0d394b5900c2ada7c5037a45062e790bf3c16324136633bdd",
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log",
+          "sha256": "6edb4fcd2bf493dc7dea6c52dce138ae7d2d64180a0d6a79c20262e8cfe1f6d4",
           "role": "raw-command-output"
         }
       ],
@@ -114,8 +114,8 @@
       },
       "rerun": {
         "status": "passed",
-        "command": "cd server && node \"$VITEST\" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts",
-        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-r1-targeted-server.log"
+        "command": "See recorded four-file E10-S8/S9 targeted server command.",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log"
       }
     },
     {
@@ -129,15 +129,15 @@
       },
       "actual": {
         "exitCode": 0,
-        "summary": "All four SDK build/typecheck commands exited 0.",
-        "observedAt": "2026-07-24T10:27:00.000Z"
+        "summary": "All four SDK build/typecheck commands and all 257 SDK tests exited 0.",
+        "observedAt": "2026-07-24T19:55:12.000Z"
       },
       "status": "pass",
       "blockingReason": null,
       "artifacts": [
         {
-          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-sdk-build-typecheck.log",
-          "sha256": "c0ff31b68da525d0377f94380b50f00297efb5b7c02b1012e430dd985b9f49a5",
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-sdk-final.log",
+          "sha256": "605db80490c8454bf2f1a25b122a737b4b67a1af28d7ea365d089f9905671a53",
           "role": "raw-command-output"
         }
       ],
@@ -147,8 +147,8 @@
       },
       "rerun": {
         "status": "passed",
-        "command": "See recorded SDK build/typecheck command.",
-        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-sdk-build-typecheck.log"
+        "command": "See recorded SDK validation sequence.",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-sdk-final.log"
       }
     },
     {
@@ -163,14 +163,14 @@
       "actual": {
         "exitCode": 0,
         "summary": "Both A2A build/typecheck commands exited 0.",
-        "observedAt": "2026-07-24T10:27:00.000Z"
+        "observedAt": "2026-07-24T19:19:42.000Z"
       },
       "status": "pass",
       "blockingReason": null,
       "artifacts": [
         {
-          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-a2a-build-typecheck.log",
-          "sha256": "cf79d5d6863b385ef9bffef5aa40278f6e0f12cc20199201f295aec509e02f3e",
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-a2a-validation.log",
+          "sha256": "d561bff561844f60b30eb076e38a935c04e2dfc4d396c6fb335fb409602e816b",
           "role": "raw-command-output"
         }
       ],
@@ -180,8 +180,8 @@
       },
       "rerun": {
         "status": "passed",
-        "command": "See recorded A2A build/typecheck command.",
-        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-a2a-build-typecheck.log"
+        "command": "See recorded A2A validation sequence.",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-a2a-validation.log"
       }
     },
     {
@@ -195,15 +195,15 @@
       },
       "actual": {
         "exitCode": 0,
-        "summary": "Server typecheck exited 0.",
-        "observedAt": "2026-07-24T10:27:00.000Z"
+        "summary": "Server typecheck exited 0 after final E10-S8/S9 changes.",
+        "observedAt": "2026-07-24T19:55:50.000Z"
       },
       "status": "pass",
       "blockingReason": null,
       "artifacts": [
         {
-          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-server-typecheck.log",
-          "sha256": "794e26d5b510a94b4bf9ed8430c24d4aa024d124681995d50852da1f2cac7a14",
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-server-typecheck-final.log",
+          "sha256": "0494d3b1d8c28394f465b41c27a33bdf3309803d2a2160d09a20f360773c1ddb",
           "role": "raw-command-output"
         }
       ],
@@ -214,7 +214,7 @@
       "rerun": {
         "status": "passed",
         "command": "node \"$TSC\" -p server/tsconfig.json --noEmit",
-        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-server-typecheck.log"
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-server-typecheck-final.log"
       }
     },
     {
@@ -228,15 +228,15 @@
       },
       "actual": {
         "exitCode": 0,
-        "summary": "Server lint exited 0.",
-        "observedAt": "2026-07-24T10:27:00.000Z"
+        "summary": "Server lint exited 0 after final E10-S8/S9 changes.",
+        "observedAt": "2026-07-24T19:55:42.000Z"
       },
       "status": "pass",
       "blockingReason": null,
       "artifacts": [
         {
-          "path": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-server-lint.log",
-          "sha256": "620121cb29adc57423e3562fffb30a9cd774e02d928b6d92b9163b8f406d2d57",
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-server-lint-final.log",
+          "sha256": "a5e8c4af949cb6e8deb17afce73df1c05637386b0da37ced10adb2049685fd77",
           "role": "raw-command-output"
         }
       ],
@@ -247,7 +247,194 @@
       "rerun": {
         "status": "passed",
         "command": "pnpm lint",
-        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-remediation-iteration-2-server-lint.log"
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-server-lint-final.log"
+      }
+    },
+    {
+      "id": "dependency-install",
+      "evidenceClass": "compile",
+      "command": "npm install -g pnpm@9.15.0 && pnpm install --no-frozen-lockfile --ignore-scripts",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "Pinned pnpm installation and workspace dependency installation exit 0."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "pnpm 9.15.0 installation and the 686-package workspace install exited 0; lifecycle scripts were intentionally ignored.",
+        "observedAt": "2026-07-24T19:18:00.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-pnpm-global-install.log",
+          "sha256": "db9bce1f714231931685b185aa2fb6528c4070eedf6a30f49ef313c1b3376cc0",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-pnpm-install.log",
+          "sha256": "13aca3f4b1fbfb7fe0cd0a3605a244656e167de53255c2dd2d7422df2ba9e786",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "pnpm install --no-frozen-lockfile --ignore-scripts",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-pnpm-install.log"
+      }
+    },
+    {
+      "id": "native-dependency-preparation",
+      "evidenceClass": "integration",
+      "command": "pnpm rebuild better-sqlite3 && node <binding-smoke>; fallback package install/build and smoke",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "The prescribed native rebuild produces a loadable better-sqlite3 binding reproducibly."
+      },
+      "actual": {
+        "exitCode": 1,
+        "summary": "pnpm rebuild returned 0 but the first binding smoke failed; direct package install then failed fetching Node headers. A source build against local Node headers and its final smoke passed, but the prescribed clean preparation path was not green.",
+        "observedAt": "2026-07-24T19:18:30.000Z"
+      },
+      "status": "blocked",
+      "blockingReason": "Native preparation required a local-header workaround after the prescribed rebuild path failed to produce a loadable binding; clean-machine reproducibility remains unproven.",
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-better-sqlite3-rebuild.log",
+          "sha256": "e565ba6d348614e1c44ac0fcb1c048dd5f35b146d3dfdd7cb44b23dab105aa57",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-better-sqlite3-smoke.log",
+          "sha256": "5727df0ae4c49695731cc426511b2f95e001688f7482a1d30ba90d45849d9736",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-better-sqlite3-direct-install.log",
+          "sha256": "152447e216f1bcd5d48d1b998a57f938d96f841ddf1accee27cbe67cf5949631",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-better-sqlite3-local-headers-build.log",
+          "sha256": "c1cd15db88bea07f58090bd1c580de0aa9e88d71d02e5ecbc44838002b5fc3e5",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-better-sqlite3-smoke-after-local-build.log",
+          "sha256": "616d2b0c8e3bd7455f85c23592ec8b4e81bb1667f9351558c99129fd1fb933e6",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "failed",
+        "command": "pnpm rebuild better-sqlite3 && node <binding-smoke>",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-better-sqlite3-smoke.log"
+      }
+    },
+    {
+      "id": "runner-network-risk-policy",
+      "evidenceClass": "security",
+      "command": "node \"$VITEST\" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts",
+      "workingDirectory": "/home/user/Agentic-OS-V3/server",
+      "expected": {
+        "exitCode": 0,
+        "description": "Controlled package-manager execution requires separate high-risk policy authorization, and network-capable commands default deny before spawn."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "The final four-file target passed 29 tests, including fail-closed executor configuration, default-deny high-risk policy, controlled package-manager execution, and file path/symlink boundaries.",
+        "observedAt": "2026-07-24T19:55:22.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-network-policy-server.log",
+          "sha256": "6106589fd3a1fc8860d62354fcc8a63a9f129a2d7731f96532eb2703bcba4f61",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-network-policy-server-rerun.log",
+          "sha256": "b465f03f1fce4176e7ecb2d1548dc7fd622967f04d6e634c114be5ddfeb4f5f4",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-network-policy-sdk.log",
+          "sha256": "8b24ce6802efbd857862be8f6612a19807e0587e8bef334948794ee63fdd8bad",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-path-boundary-targeted-server.log",
+          "sha256": "ef745dc9d6b256d05b0773da6a27f0828e219c5aeaf05db62382491d3ca772f9",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log",
+          "sha256": "6edb4fcd2bf493dc7dea6c52dce138ae7d2d64180a0d6a79c20262e8cfe1f6d4",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "cd server && node \"$VITEST\" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log"
+      }
+    },
+    {
+      "id": "effect-claim-sql-contract",
+      "evidenceClass": "integration",
+      "command": "Run atomic scoped effect-claim contract on SQLite, PGlite, and a live PostgreSQL server",
+      "workingDirectory": "/home/user/Agentic-OS-V3/server",
+      "expected": {
+        "exitCode": 0,
+        "description": "Atomic scoped effect-claim contract passes on SQLite, PGlite, and live PostgreSQL."
+      },
+      "actual": {
+        "exitCode": 2,
+        "summary": "SQLite and PGlite contracts passed (2 tests); live PostgreSQL was not run because a PostgreSQL DATABASE_URL was not configured.",
+        "observedAt": "2026-07-24T19:48:25.000Z"
+      },
+      "status": "blocked",
+      "blockingReason": "The live PostgreSQL acceptance leg required by E10-S9 remains unexecuted.",
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s9-effect-claims-sqlite-pglite.log",
+          "sha256": "0dc5e75ff801ff7185fd47ad1f0822f1869c1cfcc67de69caf9b531bd7600576",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s9-postgresql-not-run.log",
+          "sha256": "8e95a1cf2e7973b41eec471f60b178c28e9f6d6991b61d7aebf06b206b69f1ab",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log",
+          "sha256": "6edb4fcd2bf493dc7dea6c52dce138ae7d2d64180a0d6a79c20262e8cfe1f6d4",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "failed",
+        "command": "Run server/tests/r1-effect-claims-contract.test.ts against configured live PostgreSQL in addition to SQLite/PGlite",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s9-postgresql-not-run.log"
       }
     },
     {
@@ -261,15 +448,15 @@
       },
       "actual": {
         "exitCode": 1,
-        "summary": "1 high and 4 moderate production dependency advisories: fast-uri, @hono/node-server, react-router, and react-router-dom.",
-        "observedAt": "2026-07-24T10:27:00.000Z"
+        "summary": "1 high and 4 moderate production dependency advisories remain: fast-uri, @hono/node-server, react-router, and react-router-dom.",
+        "observedAt": "2026-07-24T19:23:00.000Z"
       },
       "status": "blocked",
       "blockingReason": "Unresolved production dependency advisories remain; E10-S27/E10-S28 work is required.",
       "artifacts": [
         {
-          "path": "docs/bmad/releases/evidence/2026-07-24-production-dependency-audit.log",
-          "sha256": "60316fd01c787da054a77b12335e592b101d11ba81988a670ddcfeca96e3cf76",
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-production-dependency-audit.log",
+          "sha256": "5351292ccc57007944cd711004a74f5c2ad02e477b419c5c26f5c4267f7b4eae",
           "role": "raw-command-output"
         }
       ],
@@ -280,7 +467,83 @@
       "rerun": {
         "status": "failed",
         "command": "pnpm audit --prod --json",
-        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-production-dependency-audit.log"
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-production-dependency-audit.log"
+      }
+    },
+    {
+      "id": "documentation-claim-scan",
+      "evidenceClass": "security",
+      "command": "pnpm exec tsx scripts/scan-r1-documentation-claims.ts --check",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "No unresolved current release/perfection claims are found."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "60 classified findings and 0 unresolved current claims; the machine-readable report was regenerated.",
+        "observedAt": "2026-07-24T20:00:30.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-documentation-claim-scan-retained.log",
+          "sha256": "31429a0e48c2135df942d5aafc80f21aabeabd8079704120a903a96a97b476f1",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-documentation-claim-scan-final-write.log",
+          "sha256": "7783229d6ad3090b0d0ae118a72e065b7a5f4e5ac5a3d4bdf10a61e11c80dcdf",
+          "role": "raw-command-output"
+        },
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-authoritative-claim-scan.json",
+          "sha256": "77049be376ce1d74502651b52920f7c6820165fdb72d965f748c83c42586f212",
+          "role": "report"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "pnpm exec tsx scripts/scan-r1-documentation-claims.ts --check",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-documentation-claim-scan-retained.log"
+      }
+    },
+    {
+      "id": "evidence-validator-negative-tests",
+      "evidenceClass": "security",
+      "command": "pnpm exec tsx scripts/test-r1-release-evidence-validator.ts",
+      "workingDirectory": "/home/user/Agentic-OS-V3",
+      "expected": {
+        "exitCode": 0,
+        "description": "Validator rejects invalid pass status, evidence path escape, manual release approval, and an unowned triage record."
+      },
+      "actual": {
+        "exitCode": 0,
+        "summary": "All four invalid evidence fixtures were rejected.",
+        "observedAt": "2026-07-24T20:00:00.000Z"
+      },
+      "status": "pass",
+      "blockingReason": null,
+      "artifacts": [
+        {
+          "path": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-evidence-validator-negative-tests-retained.log",
+          "sha256": "373673cecd730e04935789ffa186d7dd6a992b47b036cc11dab1736ddf90ed52",
+          "role": "raw-command-output"
+        }
+      ],
+      "reviewer": {
+        "role": "independent release reviewer",
+        "status": "unassigned"
+      },
+      "rerun": {
+        "status": "passed",
+        "command": "pnpm exec tsx scripts/test-r1-release-evidence-validator.ts",
+        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-arena-019f958d-evidence-validator-negative-tests-retained.log"
       }
     },
     {
@@ -294,8 +557,8 @@
       },
       "actual": {
         "exitCode": 0,
-        "summary": "Not executed at Gate 0.",
-        "observedAt": "2026-07-24T10:27:00.000Z"
+        "summary": "Not executed as of this validation batch.",
+        "observedAt": "2026-07-24T19:25:00.000Z"
       },
       "status": "not_run",
       "blockingReason": "Clean-machine golden-path drill is not executed; E10-S29 owns closure.",
@@ -327,8 +590,8 @@
       },
       "actual": {
         "exitCode": 0,
-        "summary": "Not executed at Gate 0.",
-        "observedAt": "2026-07-24T10:27:00.000Z"
+        "summary": "Not executed as of this validation batch.",
+        "observedAt": "2026-07-24T19:25:00.000Z"
       },
       "status": "not_run",
       "blockingReason": "Down migrations and rollback evidence are incomplete; E10-S16/E10-S17/E10-S29 own closure.",
@@ -360,8 +623,8 @@
       },
       "actual": {
         "exitCode": 0,
-        "summary": "Not complete at Gate 0.",
-        "observedAt": "2026-07-24T10:27:00.000Z"
+        "summary": "Not executed as of this validation batch.",
+        "observedAt": "2026-07-24T19:25:00.000Z"
       },
       "status": "not_run",
       "blockingReason": "Security-triage matrix and independent retest evidence are incomplete; E10-S28 owns closure.",
@@ -381,51 +644,20 @@
         "command": "E10-S28 security-triage matrix validation",
         "evidencePath": null
       }
-    },
-    {
-      "id": "evidence-validator-negative-tests",
-      "evidenceClass": "security",
-      "command": "pnpm exec tsx scripts/test-r1-release-evidence-validator.ts",
-      "workingDirectory": "/home/user/Agentic-OS-V3",
-      "expected": {
-        "exitCode": 0,
-        "description": "Validator rejects invalid pass status, evidence path escape, manual release approval, and an unowned triage record."
-      },
-      "actual": {
-        "exitCode": 0,
-        "summary": "All four invalid evidence fixtures were rejected.",
-        "observedAt": "2026-07-24T10:40:00.000Z"
-      },
-      "status": "pass",
-      "blockingReason": null,
-      "artifacts": [
-        {
-          "path": "docs/bmad/releases/evidence/2026-07-24-evidence-validator-negative-tests.log",
-          "sha256": "a0de7bccf9c54218f8648c24fc48e91964c3f86020bf41281762265f13953cb7",
-          "role": "raw-command-output"
-        }
-      ],
-      "reviewer": {
-        "role": "independent release reviewer",
-        "status": "unassigned"
-      },
-      "rerun": {
-        "status": "passed",
-        "command": "pnpm exec tsx scripts/test-r1-release-evidence-validator.ts",
-        "evidencePath": "docs/bmad/releases/evidence/2026-07-24-evidence-validator-negative-tests.log"
-      }
     }
   ],
   "releaseDecision": "blocked",
   "decisionDerivation": {
     "blockingCommandIds": [
       "full-suite",
+      "native-dependency-preparation",
+      "effect-claim-sql-contract",
       "production-dependency-audit",
       "clean-machine-drill",
       "rollback-drill",
       "security-triage"
     ],
-    "statement": "The decision is computed from all non-pass records. Passing targeted, compile, and lint evidence is insufficient to clear blocked full-suite, dependency, operations, and security-triage records."
+    "statement": "The decision is computed from every non-pass record. Passing targeted, compile, lint, and documentation-control evidence cannot clear the failing full suite, non-reproducible prescribed native preparation, dependency advisories, or unperformed operations/security gates."
   },
   "reviewer": {
     "role": "independent E10-S30 reviewer",

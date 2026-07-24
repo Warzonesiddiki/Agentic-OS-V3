@@ -129,7 +129,7 @@ Degraded modes:
 
 ## 5. Historical Release Checklist (all checkmarks are non-authoritative pending E10-R1)
 
-- [ ] Current targeted SDK evidence: 255/255 passed on 2026-07-24, but it is insufficient to clear the blocked full suite; see the ledger. (The prior 91/91 checkmark is historical.)
+- [ ] Current targeted SDK evidence: 257/257 passed in the latest retained 2026-07-24 rerun, but it is insufficient to clear the blocked full suite; see the ledger. (The prior 91/91, 255/255, and 256/256 values are historical.)
 - [x] Security isolation tests (E8-S1) cover cross-project, path traversal, command injection, approval replay, kill-switch, oversized payload, credential leakage
 - [x] Performance & reliability tests (E8-S2) cover p95 status/recall, worker crash/restart, event reconnect, leak detection
 - [ ] Current R1 migration inventory is 0049–0054; forward, rollback, restore, and integrity validation on SQLite/PGlite/PostgreSQL is pending E10-S16/E10-S17.

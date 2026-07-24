@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/services/llm-gateway-v2.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/services/llm-gateway-v2.test.ts (40 tests) 139ms
+
+ Test Files  1 passed (1)
+      Tests  40 passed (40)
+   Start at  19:24:28
+   Duration  1.37s (transform 319ms, setup 0ms, collect 1.02s, tests 139ms, environment 0ms, prepare 68ms)
+
+
+[exit_code]=0

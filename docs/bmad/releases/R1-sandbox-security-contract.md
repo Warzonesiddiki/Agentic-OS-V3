@@ -13,7 +13,8 @@ The runner is a bounded local process runner, **not** a VM, container, or OS sec
 |---|---|
 | Approval | `runConstrainedCommand` requires a project-scoped approved durable approval before a claim or process spawn. |
 | Command identity | Exact allowlist only: `cat`, `echo`, `git`, `ls`, `node`, `npm`, `pnpm`, `pwd`. Shell commands, absolute paths, and aliases are not accepted by the gateway contract. |
-| Arguments | Zod limits to 20 arguments and 500 characters each; shell metacharacters and known destructive patterns are blocked before process spawn. |
+| High-risk command policy | `node`, `npm`, `pnpm`, and `git` operations outside the local read-only `rev-parse`/`status` subset are classified as network-capable/repository-code execution. They require a separate deployment-policy callback in addition to durable user approval and fail closed when that callback is absent or denies. This policy is admission control, not network isolation. |
+| Arguments | Zod limits to 20 arguments and 500 characters each; shell metacharacters and known destructive patterns are blocked before process spawn. `cat`/`ls` options are not admitted, and each requested path must canonicalize inside the project root so relative traversal and file symlink escape fail before spawn. |
 | Working directory | Project root only. The server Zod-validates an absolute `NEXUS_PROJECT_ROOT` parent and derives `<parent>/<projectId>`; the runner rejects a symlinked root alias. The runner never derives cwd from tool arguments. |
 | Environment | On supported POSIX hosts, minimal environment: fixed system `PATH` (`/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin`), project-root `HOME`, and `NO_COLOR=1`. Secrets and arbitrary parent environment variables are not forwarded. The fixed path prevents repository/parent-PATH hijack but does not prove executable provenance. |
 | Process launch | `spawn` uses `shell: false`, ignored stdin, detached POSIX process group, and explicit stdout/stderr pipes. Windows execution is explicitly rejected pending a separately tested platform implementation. |
@@ -30,10 +31,10 @@ The runner protects a trusted local operator from accidental shell expansion, re
 | Shell/metacharacter injection | Gateway schema and injection checks before `spawn`; runner uses `shell: false` | Gateway negative tests and direct runner absolute-command rejection | A permitted `node`, `npm`, `pnpm`, or `git` invocation can still interpret approved repository content; risk remains high and approval-gated. |
 | Parent/repository PATH hijack | Fixed POSIX system PATH, not inherited `PATH` | Test with a fake parent-PATH executable; real command must resolve to system path | The runner does not attest the binary in a system path; executable provenance remains outside this boundary. |
 | Secret inheritance | Minimal environment only | Child process reads an injected parent secret and observes absence | Secrets supplied as command arguments are governed separately and must be redacted. |
-| Symlink/cwd escape | Canonical project root; reject symlink root aliases; cwd never comes from tool arguments | Symlink-root and real project-root command tests | File arguments are controlled by the gateway path policy, not by this runner alone. |
+| Symlink/cwd escape | Canonical project root; reject symlink root aliases; cwd never comes from tool arguments; canonicalize `cat`/`ls` file arguments inside that root | Symlink-root, relative file traversal, file-symlink escape, and real project-root command tests | High-risk interpreters/package tools can still access paths under their separately authorized process privileges; host isolation remains required. |
 | Output/resource exhaustion | Combined stdout/stderr byte cap and process-group termination | Output flood test | No cgroup CPU/memory enforcement; deployment policy is required for high-risk operations. |
 | Timeout/orphan children | Detached POSIX process group and group kill | Nested-child marker test after timeout | Windows is unsupported pending a tested implementation. |
-| Network-risk command | Risk classification and durable approval; runner does not isolate egress | Policy/approval integration and clean-machine review | No network isolation. High-risk `npm`, `pnpm`, `node`, and `git` remain release-blocking without deployment controls. |
+| Network-risk command | Static risk classification plus durable approval and a separate fail-closed deployment-policy callback; runner does not isolate egress | Default-deny gateway test and explicitly authorized controlled local `pnpm run` fixture with no dependency fetch | No network isolation. The callback only admits execution; high-risk `npm`, `pnpm`, `node`, and non-local-read-only `git` remain release-blocking without host/deployment controls and clean-machine evidence. |
 | Crash after external effect | Durable scoped claim, receipt correlation, governed reconciliation | E10-S9–S11 real fault-injection evidence | Uncertain non-transactional effects must never replay automatically. |
 
 ## Effect and recovery contract
@@ -49,7 +50,7 @@ The runner protects a trusted local operator from accidental shell expansion, re
 
 - No CPU/memory cgroup enforcement currently exists; production deployment must provide OS/container policy before high-risk commands are enabled.
 - The allowlist alone does not establish executable provenance. Fixed POSIX PATH blocks parent/repository PATH hijack but does not attest system executables; E10-S8 must retain PATH/executable-spoofing evidence.
-- `npm`, `pnpm`, `node`, and `git` can execute repository-controlled code. They remain high-risk approved operations, not low-risk reads.
+- `npm`, `pnpm`, `node`, and non-local-read-only `git` operations can execute repository-controlled code or access the network. They fail closed without a separate deployment-policy authorization and remain high-risk operations even when that callback admits them.
 - Network egress is not independently isolated by this runner. Commands that can fetch remote content require separate policy and environment controls.
 
 ## Required adversarial proof before release

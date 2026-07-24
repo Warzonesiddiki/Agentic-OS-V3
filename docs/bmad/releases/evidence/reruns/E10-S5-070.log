@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/secrets-scanner.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/secrets-scanner.test.ts (20 tests) 11ms
+
+ Test Files  1 passed (1)
+      Tests  20 passed (20)
+   Start at  19:24:20
+   Duration  574ms (transform 105ms, setup 0ms, collect 354ms, tests 11ms, environment 0ms, prepare 69ms)
+
+
+[exit_code]=0

@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/ring-audit.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/ring-audit.test.ts (4 tests) 3ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  19:24:16
+   Duration  1.27s (transform 332ms, setup 0ms, collect 1.06s, tests 3ms, environment 0ms, prepare 66ms)
+
+
+[exit_code]=0

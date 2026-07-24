@@ -1,7 +1,7 @@
 {
-  "schemaVersion": "nexus.r1.full-suite-triage.v2",
+  "schemaVersion": "nexus.r1.full-suite-triage.v3",
   "runLog": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-  "scope": "One owned remediation record per failing test file; each record owns all failed cases for that file in the retained fresh full-suite rerun. No entry is excluded from release gating.",
+  "scope": "One owned baseline remediation record per file that failed in the retained 98-file Gate 0 run. Baseline classifications are preserved in `classification`; `current_classification` reports the latest rerun state. No entry is excluded from release gating, and verified exact-file repairs still require a fully green repository suite.",
   "summary": {
     "actual_product_defect": 51,
     "environment_native_dependency_failure": 26,
@@ -31,9 +31,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/a2a.test.ts",
@@ -50,8 +51,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/bench-scheduler.test.ts",
@@ -72,11 +74,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/bench-scheduler.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:26.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-002.log",
+          "scope": "exact-file",
+          "evidenceSha256": "a0c084d99e273c86ba750be1eb132e07f790a5e8d0a89917e9686ace699bf8dd"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/bench-scheduler.test.ts",
@@ -90,17 +93,18 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/brain-v3.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-003",
       "source_test_file": "tests/brain-v3.test.ts [ tests/brain-v3.test.ts ]",
       "owner": {
@@ -109,7 +113,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -117,9 +121,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/brain-v3.test.ts",
@@ -136,8 +141,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/crypto-audit.test.ts",
@@ -162,7 +168,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:52:07.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-004.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "83a750c2c8d8cbd288e3a18a3aec7f145eed7fb8066cbc08b1335be888b1c20b"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/crypto-audit.test.ts",
@@ -185,13 +192,14 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-health-and-security-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 88 other failing files and 141 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/db-concurrency.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-005",
       "source_test_file": "tests/db-concurrency.test.ts [ tests/db-concurrency.test.ts ]",
       "owner": {
@@ -200,7 +208,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -208,9 +216,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/db-concurrency.test.ts",
@@ -227,8 +236,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/e2e/system.e2e.test.ts",
@@ -249,11 +259,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/e2e/system.e2e.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:28.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-006.log",
+          "scope": "exact-file",
+          "evidenceSha256": "d54d056128b29c8cb58f1347c38057d4f31bf6a6ac22692618d7c188ff803fa0"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/e2e/system.e2e.test.ts",
@@ -267,11 +278,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/enterprise-rbac.test.ts",
@@ -294,9 +306,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/enterprise-rbac.test.ts",
@@ -313,8 +326,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/enterprise.test.ts",
@@ -337,9 +351,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/enterprise.test.ts",
@@ -356,8 +371,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/fairness-corrector.test.ts",
@@ -380,9 +396,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/fairness-corrector.test.ts",
@@ -399,8 +416,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/federated-recall.test.ts",
@@ -421,11 +439,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/federated-recall.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:32.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-010.log",
+          "scope": "exact-file",
+          "evidenceSha256": "1d6cfb5e821c5879785febe50b6f4478d59df24dddc7fbb2a962d04e4ff71400"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/federated-recall.test.ts",
@@ -439,11 +458,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/feedback.service.test.ts",
@@ -466,9 +486,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/feedback.service.test.ts",
@@ -485,8 +506,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/forge-live-seam.test.ts",
@@ -509,9 +531,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/forge-live-seam.test.ts",
@@ -528,8 +551,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/forge-selfheal.test.ts",
@@ -552,9 +576,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/forge-selfheal.test.ts",
@@ -571,8 +596,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/gap-items.test.ts",
@@ -595,9 +621,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/gap-items.test.ts",
@@ -614,8 +641,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/gate.test.ts",
@@ -638,9 +666,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/gate.test.ts",
@@ -657,8 +686,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/guardrails-negative.test.ts",
@@ -683,7 +713,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:34:30.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-016.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "8948bc2ed651b672703e29c078fe408a63d5a4d22def9d55d75987a402df889f"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/guardrails-negative.test.ts",
@@ -706,7 +737,8 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-and-health-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 91 other failing files and 148 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/guardrails-quarantine.test.ts",
@@ -731,7 +763,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:34:30.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-017.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "cabfba6d3a9e7ed5fccf20e4d9a4abaca1d8e1f49e2321cac8da0b66f2fc99d0"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/guardrails-quarantine.test.ts",
@@ -754,7 +787,8 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-and-health-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 91 other failing files and 148 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/health.test.ts",
@@ -777,9 +811,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/health.test.ts",
@@ -796,8 +831,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/kernel-bootstrap.test.ts",
@@ -822,7 +858,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:34:30.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-019.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "4c496471e39ce9c9226ab823b28adfff6b08b4b3a1134d82f2c168fa977f95c7"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/kernel-bootstrap.test.ts",
@@ -845,7 +882,8 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-and-health-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 91 other failing files and 148 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/kernel-introspect.test.ts",
@@ -866,11 +904,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/kernel-introspect.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:34.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-020.log",
+          "scope": "exact-file",
+          "evidenceSha256": "aeae08df26d793d5350ee204f3dddd9e41b11d8c02dbe7b45fdc441502611116"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/kernel-introspect.test.ts",
@@ -884,11 +923,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/kernel-panic.test.ts",
@@ -913,7 +953,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:34:30.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-021.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "c0899c696522cf7aa90889517a3dc15aabcea8f9714f5d3e5ceb7b26968d90cb"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/kernel-panic.test.ts",
@@ -936,13 +977,14 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-and-health-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 91 other failing files and 148 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/killswitch-race.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-022",
       "source_test_file": "tests/killswitch-race.test.ts [ tests/killswitch-race.test.ts ]",
       "owner": {
@@ -951,7 +993,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -959,9 +1001,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/killswitch-race.test.ts",
@@ -978,8 +1021,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/lib/auth-context.test.ts",
@@ -1000,11 +1044,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/lib/auth-context.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:36.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-023.log",
+          "scope": "exact-file",
+          "evidenceSha256": "8aaf27bb9f51b1d69cd60609a3311a0a06b365adf13074acfb72e38bcb28866a"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/lib/auth-context.test.ts",
@@ -1018,11 +1063,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/llm-coalesce.test.ts",
@@ -1047,7 +1093,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:34:30.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-024.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "775b88968c231502b1f16301755f7775f532901017937ac384008a2209c98a73"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/llm-coalesce.test.ts",
@@ -1070,7 +1117,8 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-and-health-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 91 other failing files and 148 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/marketplace.service.test.ts",
@@ -1093,9 +1141,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/marketplace.service.test.ts",
@@ -1112,8 +1161,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/marketplace.test.ts",
@@ -1138,7 +1188,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:34:30.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-026.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "3e87529a41598f4cf69f722b01e7aa81193b0852658cd9cf12d2bc105e4adefd"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/marketplace.test.ts",
@@ -1161,7 +1212,8 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-and-health-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 91 other failing files and 148 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/memory-analysis.test.ts",
@@ -1182,11 +1234,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/memory-analysis.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:38.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-027.log",
+          "scope": "exact-file",
+          "evidenceSha256": "9dcc7f406f55914f0535d03688a90768fce4e6348b7c79b2fbbaf9d301eb5162"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-analysis.test.ts",
@@ -1200,11 +1253,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/memory-attachments.store.test.ts",
@@ -1227,9 +1281,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-attachments.store.test.ts",
@@ -1246,8 +1301,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/memory-backup.test.ts",
@@ -1270,9 +1326,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-backup.test.ts",
@@ -1289,8 +1346,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/memory-batch.apply.test.ts",
@@ -1313,9 +1371,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-batch.apply.test.ts",
@@ -1332,8 +1391,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/memory-cluster.ops.test.ts",
@@ -1356,9 +1416,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-cluster.ops.test.ts",
@@ -1375,8 +1436,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/memory-cold-storage.test.ts",
@@ -1399,9 +1461,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-cold-storage.test.ts",
@@ -1418,8 +1481,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/memory-encryption.test.ts",
@@ -1444,7 +1508,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:52:07.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-033.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "f9788f527f7a33491a708dd66926c6b676bc650f1c2675b5c92005cc2ff94e6b"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-encryption.test.ts",
@@ -1467,7 +1532,8 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-health-and-security-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 88 other failing files and 141 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/memory-export-v3.test.ts",
@@ -1492,7 +1558,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:34:30.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-034.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "659998e85a0fa637370e79ee4125755908a4b92c8b3faa209a00527d72bd3746"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-export-v3.test.ts",
@@ -1515,7 +1582,8 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-and-health-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 91 other failing files and 148 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/memory-forget.test.ts",
@@ -1538,9 +1606,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-forget.test.ts",
@@ -1557,8 +1626,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/memory-lifecycle.test.ts",
@@ -1579,11 +1649,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/memory-lifecycle.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:40.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-036.log",
+          "scope": "exact-file",
+          "evidenceSha256": "c573c2f3e36dc3997f85a3a5a393200efb7e8c02af52c1760cc86321a6bbafa4"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-lifecycle.test.ts",
@@ -1597,17 +1668,18 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/memory-perfection.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-037",
       "source_test_file": "tests/memory-perfection.test.ts [ tests/memory-perfection.test.ts ]",
       "owner": {
@@ -1616,7 +1688,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -1624,9 +1696,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-perfection.test.ts",
@@ -1643,14 +1716,15 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/memory-priming.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-038",
       "source_test_file": "tests/memory-priming.test.ts [ tests/memory-priming.test.ts ]",
       "owner": {
@@ -1659,7 +1733,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -1667,9 +1741,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-priming.test.ts",
@@ -1686,8 +1761,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/memory-query.test.ts",
@@ -1708,11 +1784,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/memory-query.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:42.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-039.log",
+          "scope": "exact-file",
+          "evidenceSha256": "38dd256feb980c16d3a2ed45143b7297caaa8e5b3efe9ceda5e86ed2c3e3c51f"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-query.test.ts",
@@ -1726,11 +1803,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/memory-search-suggest.test.ts",
@@ -1751,11 +1829,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/memory-search-suggest.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:44.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-040.log",
+          "scope": "exact-file",
+          "evidenceSha256": "13d7a6c6259a71a2d04475aa6f6b914bced5a045112f6c14e6f82da7e5b9cc8b"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-search-suggest.test.ts",
@@ -1769,11 +1848,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/memory-stitcher.test.ts",
@@ -1796,9 +1876,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-stitcher.test.ts",
@@ -1815,8 +1896,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/memory-storage.test.ts",
@@ -1839,9 +1921,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-storage.test.ts",
@@ -1858,8 +1941,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/memory-tag-taxonomy.async.test.ts",
@@ -1880,11 +1964,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/memory-tag-taxonomy.async.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:46.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-043.log",
+          "scope": "exact-file",
+          "evidenceSha256": "f5bc11330254438cd20ca6bb01050d439e1c047e463d2473fd6929bf3c9b8e30"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/memory-tag-taxonomy.async.test.ts",
@@ -1898,11 +1983,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/metron-caches.test.ts",
@@ -1925,9 +2011,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/metron-caches.test.ts",
@@ -1944,8 +2031,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/metron-probe-health.test.ts",
@@ -1968,9 +2056,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/metron-probe-health.test.ts",
@@ -1987,8 +2076,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/metron-tracing.test.ts",
@@ -2011,9 +2101,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/metron-tracing.test.ts",
@@ -2030,8 +2121,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/migration.test.ts",
@@ -2052,11 +2144,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/migration.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:48.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-047.log",
+          "scope": "exact-file",
+          "evidenceSha256": "ddb7741a06e6f64c3723b2146da318524c1f6085055821b24c107b7aabde3dbb"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/migration.test.ts",
@@ -2070,11 +2163,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/overhead-accounting.test.ts",
@@ -2099,7 +2193,8 @@
           "status": "passed",
           "observedAt": "2026-07-24T13:52:07.000Z",
           "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-048.log",
-          "scope": "exact-file"
+          "scope": "exact-file",
+          "evidenceSha256": "65b7999127202389ec1228d34c78b5ee89a1f35f2008daec1dcea3a36967ad44"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/overhead-accounting.test.ts",
@@ -2122,7 +2217,8 @@
         "status": "fixed_pending_green_full_suite",
         "latestFullSuiteEvidence": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-health-and-security-remediation.log",
         "note": "The exact file passed and the latest full suite no longer lists it as failed. The release remains blocked by the 88 other failing files and 141 failing tests."
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/p2p-swarm.test.ts",
@@ -2145,9 +2241,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/p2p-swarm.test.ts",
@@ -2164,14 +2261,15 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/phase11-kernel.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: MODULE NOT IMPLEMENTED: ../src/services/kernel.js \u2014 Phase 11 agent has not landed this file yet. (Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-050",
       "source_test_file": "tests/phase11-kernel.test.ts",
       "owner": {
@@ -2180,7 +2278,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -2188,9 +2286,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/phase11-kernel.test.ts",
@@ -2207,8 +2306,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/phase14-security.test.ts",
@@ -2231,9 +2331,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/phase14-security.test.ts",
@@ -2250,8 +2351,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/pipeline-executor.test.ts",
@@ -2272,11 +2374,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/pipeline-executor.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:49.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-052.log",
+          "scope": "exact-file",
+          "evidenceSha256": "349ef402b9fed0d3f3419f2dac81953c73a2926ccd7517e12f7e427f2a6483f3"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/pipeline-executor.test.ts",
@@ -2290,11 +2393,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/plugin-manifest.test.ts",
@@ -2317,9 +2421,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/plugin-manifest.test.ts",
@@ -2336,8 +2441,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/preemption-leak-guard.test.ts",
@@ -2360,9 +2466,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/preemption-leak-guard.test.ts",
@@ -2379,8 +2486,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/project.service.test.ts",
@@ -2403,9 +2511,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/project.service.test.ts",
@@ -2422,8 +2531,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/r1-application-postgres-contract.test.ts",
@@ -2444,11 +2554,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/r1-application-postgres-contract.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:23:51.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-056.log",
+          "scope": "exact-file",
+          "evidenceSha256": "cc2b6c7aeae98aeb6f62bd87b67509e8ef46a364036c9eed6caee08fe229b102"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/r1-application-postgres-contract.test.ts",
@@ -2462,11 +2573,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/r1-application-sqlite-contract.test.ts",
@@ -2487,11 +2599,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/r1-application-sqlite-contract.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:02.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-057.log",
+          "scope": "exact-file",
+          "evidenceSha256": "99569999cc889b9c419f77b0f997cc017b6d4fed73bfac5f531004407c20e318"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/r1-application-sqlite-contract.test.ts",
@@ -2505,11 +2618,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/r1-project-transfer-contract.test.ts",
@@ -2530,11 +2644,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/r1-project-transfer-contract.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:05.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-058.log",
+          "scope": "exact-file",
+          "evidenceSha256": "5d33fe562cb7370b08f4ba806446f974ad886cd8eb891beae53f727ca389ce42"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/r1-project-transfer-contract.test.ts",
@@ -2548,11 +2663,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/r1-routes.test.ts",
@@ -2573,11 +2689,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/r1-routes.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:14.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-059.log",
+          "scope": "exact-file",
+          "evidenceSha256": "dd24e7697a923bd4035dc980eb17a13d847236175abeae77077dd8f0fb2204fb"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/r1-routes.test.ts",
@@ -2591,11 +2708,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/rateLimit.test.ts",
@@ -2618,9 +2736,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/rateLimit.test.ts",
@@ -2637,8 +2756,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/resource-quota.test.ts",
@@ -2661,9 +2781,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/resource-quota.test.ts",
@@ -2680,8 +2801,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/ring-audit.test.ts",
@@ -2702,11 +2824,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/ring-audit.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:16.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-062.log",
+          "scope": "exact-file",
+          "evidenceSha256": "93b33804a8a4308baee95089d6156f1044b27efe3f50698abcfc0e6215a91347"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/ring-audit.test.ts",
@@ -2720,11 +2843,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/routes/automation.test.ts",
@@ -2747,9 +2871,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/routes/automation.test.ts",
@@ -2766,8 +2891,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/routes/kernel-introspect.test.ts",
@@ -2790,9 +2916,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/routes/kernel-introspect.test.ts",
@@ -2809,8 +2936,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/routes/v3-upgrade.test.ts",
@@ -2833,9 +2961,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/routes/v3-upgrade.test.ts",
@@ -2852,8 +2981,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/scheduler-core.test.ts",
@@ -2876,9 +3006,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/scheduler-core.test.ts",
@@ -2895,8 +3026,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/scheduler-phase11.test.ts",
@@ -2917,11 +3049,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/scheduler-phase11.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:18.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-067.log",
+          "scope": "exact-file",
+          "evidenceSha256": "1bdd4ccd3f15c834ede7696e813976475e2b7daaa94d12f701b094ae4fee23cb"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/scheduler-phase11.test.ts",
@@ -2935,11 +3068,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/scheduler-property.test.ts",
@@ -2962,9 +3096,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/scheduler-property.test.ts",
@@ -2981,8 +3116,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/scheduler-resilience-risk.test.ts",
@@ -3005,9 +3141,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/scheduler-resilience-risk.test.ts",
@@ -3024,8 +3161,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/secrets-scanner.test.ts",
@@ -3046,11 +3184,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/secrets-scanner.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:20.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-070.log",
+          "scope": "exact-file",
+          "evidenceSha256": "406232c9c12dd397c975daf249efb1a210a560e98a45e98f041b92f4758cb045"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/secrets-scanner.test.ts",
@@ -3064,11 +3203,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/security-lib-negative.test.ts",
@@ -3091,9 +3231,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/security-lib-negative.test.ts",
@@ -3110,8 +3251,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/security-mcp.test.ts",
@@ -3134,9 +3276,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/security-mcp.test.ts",
@@ -3153,8 +3296,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/security.test.ts",
@@ -3175,11 +3319,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/security.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:22.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-073.log",
+          "scope": "exact-file",
+          "evidenceSha256": "b5b1f52d406b324cec4a4a923bdc5c5ff26efdbb197a4cdc4f99b03bfe85f030"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/security.test.ts",
@@ -3193,11 +3338,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/self-improvement-harness-control.test.ts",
@@ -3220,9 +3366,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/self-improvement-harness-control.test.ts",
@@ -3239,8 +3386,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/self-improvement-harness.test.ts",
@@ -3261,11 +3409,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/self-improvement-harness.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:24.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-075.log",
+          "scope": "exact-file",
+          "evidenceSha256": "216953d204018e3ff812f8675253634adc36568145159d0a8eb019c5aaf1a617"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/self-improvement-harness.test.ts",
@@ -3279,11 +3428,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/self-opt-adapters.test.ts",
@@ -3306,9 +3456,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/self-opt-adapters.test.ts",
@@ -3325,8 +3476,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/self-opt-controller.test.ts",
@@ -3349,9 +3501,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/self-opt-controller.test.ts",
@@ -3368,8 +3521,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/self-opt-emit.test.ts",
@@ -3392,9 +3546,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/self-opt-emit.test.ts",
@@ -3411,8 +3566,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/self-opt-telemetry.test.ts",
@@ -3435,9 +3591,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/self-opt-telemetry.test.ts",
@@ -3454,8 +3611,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/self-opt-tuners.test.ts",
@@ -3478,9 +3636,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/self-opt-tuners.test.ts",
@@ -3497,14 +3656,15 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/self-opt.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-081",
       "source_test_file": "tests/self-opt.test.ts [ tests/self-opt.test.ts ]",
       "owner": {
@@ -3513,7 +3673,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -3521,9 +3681,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/self-opt.test.ts",
@@ -3540,8 +3701,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/sentinel-core.test.ts",
@@ -3564,9 +3726,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/sentinel-core.test.ts",
@@ -3583,14 +3746,15 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/services/agent-runtime.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-083",
       "source_test_file": "tests/services/agent-runtime.test.ts [ tests/services/agent-runtime.test.ts ]",
       "owner": {
@@ -3599,7 +3763,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -3607,9 +3771,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/agent-runtime.test.ts",
@@ -3626,8 +3791,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/services/audit-routes.test.ts",
@@ -3650,9 +3816,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/audit-routes.test.ts",
@@ -3669,14 +3836,15 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "actual_product_defect"
     },
     {
       "test_file": "tests/services/brain.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-085",
       "source_test_file": "tests/services/brain.test.ts [ tests/services/brain.test.ts ]",
       "owner": {
@@ -3685,7 +3853,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -3693,9 +3861,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/brain.test.ts",
@@ -3712,8 +3881,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/services/embeddings.test.ts",
@@ -3734,11 +3904,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/services/embeddings.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:26.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-086.log",
+          "scope": "exact-file",
+          "evidenceSha256": "d43377b3541bf013d644a7b7b02a949ab874da191184c9579554fe84bbda0a43"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/embeddings.test.ts",
@@ -3752,11 +3923,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/services/feedback.service.test.ts",
@@ -3779,9 +3951,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/feedback.service.test.ts",
@@ -3798,8 +3971,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/services/kernel.test.ts",
@@ -3822,9 +3996,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/kernel.test.ts",
@@ -3841,8 +4016,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/services/llm-gateway-v2.pure.test.ts",
@@ -3865,9 +4041,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/llm-gateway-v2.pure.test.ts",
@@ -3884,8 +4061,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/services/llm-gateway-v2.test.ts",
@@ -3906,11 +4084,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/services/llm-gateway-v2.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:28.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-090.log",
+          "scope": "exact-file",
+          "evidenceSha256": "6376aac1736e94408803c7f4cf17e400bb0f9da36b6d85781d3592f42cb1c8aa"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/llm-gateway-v2.test.ts",
@@ -3924,17 +4103,18 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/services/recall.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-091",
       "source_test_file": "tests/services/recall.test.ts [ tests/services/recall.test.ts ]",
       "owner": {
@@ -3943,7 +4123,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -3951,9 +4131,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/recall.test.ts",
@@ -3970,8 +4151,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/services/scheduler-property.test.ts",
@@ -3992,11 +4174,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/services/scheduler-property.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:30.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-092.log",
+          "scope": "exact-file",
+          "evidenceSha256": "81fcae426458d7f88f157c85cd5256a685f8c74e3517e8a90b038aae291d7dd3"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/scheduler-property.test.ts",
@@ -4010,11 +4193,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/services/session-recorder.test.ts",
@@ -4037,9 +4221,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/session-recorder.test.ts",
@@ -4056,14 +4241,15 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     },
     {
       "test_file": "tests/services/skill-compiler-capability.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-094",
       "source_test_file": "tests/services/skill-compiler-capability.test.ts [ tests/services/skill-compiler-capability.test.ts ]",
       "owner": {
@@ -4072,7 +4258,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -4080,9 +4266,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/skill-compiler-capability.test.ts",
@@ -4099,14 +4286,15 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/services/skill-template-engine.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-095",
       "source_test_file": "tests/services/skill-template-engine.test.ts [ tests/services/skill-template-engine.test.ts ]",
       "owner": {
@@ -4115,7 +4303,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -4123,9 +4311,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/skill-template-engine.test.ts",
@@ -4142,14 +4331,15 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/services/wasm-capability-resolution.test.ts",
       "classification": "environment_native_dependency_failure",
       "primary_signature": "Error: Could not locate the bindings file. Tried:",
-      "next_action": "Run on a machine with better-sqlite3 native binding built; do not mark green until the same test passes there.",
+      "next_action": "The native binding now loads and this file exposes behavioral failures. Reproduce the current failure in isolation, classify it as product or contract debt, repair it, retain regression coverage, and rerun the full suite.",
       "id": "E10-S5-096",
       "source_test_file": "tests/services/wasm-capability-resolution.test.ts [ tests/services/wasm-capability-resolution.test.ts ]",
       "owner": {
@@ -4158,7 +4348,7 @@
         "reviewer": "@quill"
       },
       "remediation": {
-        "action": "Rebuild better-sqlite3 for the executing Node ABI on a supported runner, rerun this exact file, and create a separate product-defect record for every behavioral failure revealed after the binding loads.",
+        "action": "With the built better-sqlite3 binding, reproduce every current failure in this exact file, triage the exposed behavioral contract, repair production or test-contract behavior without weakening coverage, and retain the exact-file plus full-suite evidence.",
         "required_coverage": "Retain this test file; add a non-native contract seam only if it tests the same behavior and is reviewed as additional coverage.",
         "closure_criteria": "Passing exact-file rerun artifact plus passing full-suite evidence; independent review for any replacement/removal."
       },
@@ -4166,9 +4356,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/services/wasm-capability-resolution.test.ts",
@@ -4185,8 +4376,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "behavioral_failure_exposed_after_native_build"
     },
     {
       "test_file": "tests/smoke-new-services.test.ts",
@@ -4207,11 +4399,12 @@
       },
       "rerun": {
         "latest": {
-          "command": "pnpm test",
-          "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "command": "cd server && pnpm exec vitest run tests/smoke-new-services.test.ts",
+          "status": "passed",
+          "observedAt": "2026-07-24T19:24:33.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/reruns/E10-S5-097.log",
+          "scope": "exact-file",
+          "evidenceSha256": "a8909a2728d6e29c031bf9a1b10e286c28b3dc09ab02800d07467466d2296281"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/smoke-new-services.test.ts",
@@ -4225,11 +4418,12 @@
         "replacement_test": null,
         "approval_evidence": null
       },
-      "disposition": "open_release_blocker",
+      "disposition": "verified_fixed",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
         "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+      },
+      "current_classification": null
     },
     {
       "test_file": "tests/sse-bridge.test.ts",
@@ -4252,9 +4446,10 @@
         "latest": {
           "command": "pnpm test",
           "status": "failed",
-          "observedAt": "2026-07-24T10:54:14.000Z",
-          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log",
-          "scope": "full-suite"
+          "observedAt": "2026-07-24T19:55:59.000Z",
+          "evidencePath": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+          "scope": "full-suite",
+          "evidenceSha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
         },
         "required": {
           "command": "cd server && pnpm exec vitest run tests/sse-bridge.test.ts",
@@ -4271,8 +4466,9 @@
       "disposition": "open_release_blocker",
       "case_coverage": {
         "scope": "all_failed_cases_in_file",
-        "source": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log"
-      }
+        "source": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log"
+      },
+      "current_classification": "stale_or_broken_test"
     }
   ],
   "remediationPolicy": {
@@ -4281,17 +4477,22 @@
     "replacement": "No test may be removed without an approved equivalent replacement test and traceable review evidence."
   },
   "latestFullSuiteRerun": {
-    "runLog": "docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-health-and-security-remediation.log",
-    "observedAt": "2026-07-24T13:49:00.000Z",
-    "failed_test_files": 88,
-    "failed_tests": 141,
-    "passed_test_files": 166,
-    "passed_tests": 1777,
-    "skipped_tests": 12,
+    "runLog": "docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log",
+    "observedAt": "2026-07-24T19:55:59.000Z",
+    "failed_test_files": 63,
+    "failed_tests": 200,
+    "passed_test_files": 192,
+    "passed_tests": 2236,
+    "skipped_tests": 21,
+    "unhandled_errors": 2,
     "classifications": {
-      "actual_product_defect": 41,
-      "environment_native_dependency_failure": 26,
-      "stale_or_broken_test": 21
-    }
-  }
+      "actual_product_defect": 30,
+      "environment_native_dependency_failure": 0,
+      "stale_or_broken_test": 20,
+      "behavioral_failure_exposed_after_native_build": 13
+    },
+    "environmentNote": "better-sqlite3 loaded successfully after a local-header source build; the prescribed pnpm rebuild alone did not produce a loadable binding, and clean-machine native preparation remains unproven.",
+    "sha256": "da9c833c49d6450c2323230ab32b4776f1b75ac39e84493261e0e93b683e2662"
+  },
+  "runLogSha256": "4a82ea51df732bcaf0f551611bf72e0e7d8050a5848d2a4cf92f3abc8fafe4eb"
 }
