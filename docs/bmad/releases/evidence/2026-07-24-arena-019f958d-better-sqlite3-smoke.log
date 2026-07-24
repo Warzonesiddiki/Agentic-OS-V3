@@ -1,0 +1,49 @@
+$ node -e 'const Database=require("better-sqlite3"); const db=new Database(":memory:"); console.log(db.prepare("select 1 as ok").get()); db.close()'
+/home/user/Agentic-OS-V3/node_modules/.pnpm/bindings@1.5.0/node_modules/bindings/bindings.js:135
+  throw err;
+  ^
+
+Error: Could not locate the bindings file. Tried:
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/build/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/build/Debug/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/build/Release/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/out/Debug/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/Debug/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/out/Release/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/Release/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/build/default/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/compiled/22.22.3/linux/x64/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/addon-build/release/install-root/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/addon-build/debug/install-root/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/addon-build/default/install-root/better_sqlite3.node
+ → /home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/binding/node-v127-linux-x64/better_sqlite3.node
+    at bindings (/home/user/Agentic-OS-V3/node_modules/.pnpm/bindings@1.5.0/node_modules/bindings/bindings.js:126:9)
+    at new Database (/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/database.js:48:64)
+    at [eval]:1:52
+    at runScriptInThisContext (node:internal/vm:209:10)
+    at node:internal/process/execution:446:12
+    at [eval]-wrapper:6:24
+    at runScriptInContext (node:internal/process/execution:444:60)
+    at evalFunction (node:internal/process/execution:279:30)
+    at evalTypeScript (node:internal/process/execution:291:3)
+    at node:internal/main/eval_string:74:3 {
+  tries: [
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/build/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/build/Debug/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/build/Release/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/out/Debug/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/Debug/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/out/Release/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/Release/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/build/default/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/compiled/22.22.3/linux/x64/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/addon-build/release/install-root/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/addon-build/debug/install-root/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/addon-build/default/install-root/better_sqlite3.node',
+    '/home/user/Agentic-OS-V3/node_modules/.pnpm/better-sqlite3@11.10.0/node_modules/better-sqlite3/lib/binding/node-v127-linux-x64/better_sqlite3.node'
+  ]
+}
+
+Node.js v22.22.3
+
+[exit_code]=1

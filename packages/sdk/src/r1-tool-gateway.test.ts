@@ -52,6 +52,28 @@ describe('BoundedToolGateway effect idempotency', () => {
     expect(writes).toBe(1);
   });
 
+  it('fails closed instead of simulating command success when no process executor is configured', async () => {
+    const repositories = new InMemoryR1Repositories();
+    await repositories.projects.create(project);
+    await repositories.tasks.create(task);
+    const gateway = new BoundedToolGateway(repositories, {
+      projectRoots: new Map([[project.id, '/tmp/projects/gateway']]),
+      isApprovalApproved: async () => true,
+    });
+
+    await expect(gateway.runConstrainedCommand({
+      projectId: project.id,
+      taskId: task.id,
+      command: 'echo',
+      args: ['must-not-be-simulated'],
+      approvalId: 'a1111111-1111-4111-8111-111111111111',
+      correlationId: 'a2222222-2222-4222-8222-222222222222',
+    })).resolves.toMatchObject({
+      ok: false,
+      error: 'Constrained process executor is not configured',
+    });
+  });
+
   it('derives a command working directory from trusted projectRootBase rather than request data', async () => {
     const repositories = new InMemoryR1Repositories();
     await repositories.projects.create(project);

@@ -1,0 +1,67 @@
+$ pnpm install --no-frozen-lockfile --ignore-scripts
+Scope: all 6 workspace projects
+Lockfile is up to date, resolution step is skipped
+Progress: resolved 1, reused 0, downloaded 0, added 0
+Packages: +686
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+   ╭───────────────────────────────────────────────────────────────────╮
+   │                                                                   │
+   │                Update available! 9.15.0 → 11.17.0.                │
+   │   Changelog: https://github.com/pnpm/pnpm/releases/tag/v11.17.0   │
+   │                 Run "pnpm add -g pnpm" to update.                 │
+   │                                                                   │
+   ╰───────────────────────────────────────────────────────────────────╯
+
+Progress: resolved 686, reused 0, downloaded 31, added 20
+Progress: resolved 686, reused 0, downloaded 117, added 112
+Progress: resolved 686, reused 0, downloaded 258, added 244
+Progress: resolved 686, reused 0, downloaded 325, added 313
+Progress: resolved 686, reused 0, downloaded 457, added 449
+Progress: resolved 686, reused 0, downloaded 593, added 587
+Progress: resolved 686, reused 0, downloaded 685, added 686, done
+
+dependencies:
++ @tanstack/react-query 5.101.2
++ @tanstack/react-virtual 3.14.5
++ @xyflow/react 12.11.2
++ clsx 2.1.1
++ hash-wasm 4.12.0
++ jotai 2.20.1
++ motion 12.42.2
++ react 18.3.1
++ react-dom 18.3.1
++ react-router-dom 6.30.4
++ recharts 2.15.4
++ tailwind-merge 3.6.0
++ zod 3.25.76
++ zustand 5.0.14
+
+devDependencies:
++ @eslint/js 9.39.4
++ @playwright/test 1.61.1
++ @tailwindcss/vite 4.3.2
++ @testing-library/jest-dom 6.9.1
++ @testing-library/react 16.3.2
++ @types/react 18.3.31
++ @types/react-dom 18.3.7
++ @typescript-eslint/eslint-plugin 8.62.1
++ @typescript-eslint/parser 8.62.1
++ @vitejs/plugin-react 4.7.0
++ eslint 9.39.4
++ eslint-plugin-react 7.37.5
++ eslint-plugin-react-hooks 5.2.0
++ globals 15.15.0
++ husky 9.1.7
++ jsdom 26.1.0
++ lint-staged 17.0.8
++ prettier 3.9.4
++ tsx 4.22.5
++ typescript 5.8.3
++ vite 5.4.21
++ vite-plugin-singlefile 2.3.3
++ vitest 3.2.6
+
+Done in 7.6s
+
+[exit_code]=0

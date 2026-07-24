@@ -3,17 +3,17 @@
 **Status:** Release blocked. This document supersedes prior *current-state* claims but does not rewrite historical validation snapshots.
 **Authority:** `docs/bmad/sprint-status.yaml` for delivery status; `docs/bmad/releases/evidence/2026-07-24-release-evidence-ledger.json` for reproducible command evidence.
 **Decision owner:** Independent reviewer assigned by E10-S30.
-**Gate state:** In progress. This document does not close Gate 0; 88 full-suite remediation records remain open, ten exact-file repairs await a green full-suite confirmation, and independent review remains pending.
+**Gate state:** In progress. This document does not close Gate 0; the latest retained rerun has 63 full-suite remediation records open, 35 exact-file repairs still await a green full-suite confirmation, and independent review remains pending.
 
 ## Current evidence
 
 | Surface | Current result | Release interpretation |
 |---|---:|---|
-| SDK unit suite | 255 passed (fresh E10-S7 rerun; raw log retained) | Positive targeted evidence only |
-| Targeted R1 server suite | 24 passed (fresh E10-S7 rerun; raw log retained) | Positive targeted evidence only |
+| SDK unit suite | 257 passed (latest retained rerun; raw log and checksum retained) | Positive targeted evidence only |
+| Targeted E10-S8/S9 server suite | 29 passed across 4 files (latest retained rerun; raw log and checksum retained) | Positive targeted evidence only; live PostgreSQL remains unexecuted |
 | SDK/A2A/server typechecks | Pass | Compilation evidence only |
-| Server lint | 0 errors, 0 warnings (fresh E10-S7 rerun; raw log retained) | Static-style evidence only |
-| Full repository suite | **88 failed files; 141 failed tests; 1,777 passed; 12 skipped** (latest remediation rerun) | **Release blocker** |
+| Server lint | 0 errors, 0 warnings (latest retained E10-S8 rerun; raw log and checksum retained) | Static-style evidence only |
+| Full repository suite | **63 failed files; 200 failed tests; 192 passed files; 2,236 passed tests; 21 skipped; 2 unhandled errors** (latest retained rerun with a locally built native binding) | **Release blocker** |
 | Production dependency audit | Unresolved high/moderate findings | **Release blocker** |
 | Clean-machine golden path | Not executed | **Release blocker** |
 | R1 migration set | `0049–0054` present; forward/rollback/restore matrix not executed | **Release blocker** |
@@ -26,15 +26,17 @@
 | README 94/100 campaign status | Outdated campaign metadata | Replaced by release-blocked notice |
 | Sprint/campaign 98/100 | Historical planning score, not validation evidence | Invalid for release decision |
 | Validated baseline 100/100 / 249 SDK tests | Historical narrow-scope validation at the stated commit | Retained as historical snapshot; not current release proof |
-| Earlier ledger 254 SDK tests / handoff 255 SDK tests | 254 was an earlier targeted observation; 255 is the fresh 2026-07-24 rerun | The dated raw rerun log records 255; neither targeted total is whole-project proof |
+| Earlier ledger 254 SDK tests / handoff 255 SDK tests | 254 and 255 were earlier targeted observations; the latest retained 2026-07-24 rerun has 257 | The dated raw rerun logs preserve each result; no targeted total is whole-project proof |
 | Release-gate 91-test/0049–0052 references | Historical values corrected in the release document | Current migration inventory is 0049–0054; validation remains incomplete |
-| Fresh SDK result 255 | Reproducible targeted result from this remediation branch | Raw output and checksum are recorded in the evidence ledger; still insufficient alone |
+| Latest SDK result 257 | Reproducible targeted result from this validation batch | Raw output and checksum are recorded in the evidence ledger; still insufficient alone |
 
 ## Full-suite triage
 
 The current run is retained without suppression:
 
-- latest remediation rerun raw output: `docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-health-and-security-remediation.log`
+- latest retained rerun raw output: `docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log`
+- earlier native-enabled validation rerun retained as historical evidence: `docs/bmad/releases/evidence/2026-07-24-arena-019f958d-full-suite.log`
+- earlier root/health/security remediation rerun retained as historical evidence: `docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-health-and-security-remediation.log`
 - earlier root/health remediation rerun retained as historical evidence: `docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-root-and-health-remediation.log`
 - E10-S7 baseline rerun retained as historical evidence: `docs/bmad/releases/evidence/2026-07-24-full-suite-e10-s7-rerun.log`
 - earlier Gate 0 rerun retained as historical evidence: `docs/bmad/releases/evidence/2026-07-24-full-suite-rerun-current.log`
@@ -45,11 +47,12 @@ The triage records one primary category per failing test file, while retaining a
 
 | Category | Failing test files | Required disposition |
 |---|---:|---|
-| Actual product defect | 51 baseline; **41 open in latest rerun** | Reproduce, assign owner, repair, add regression evidence |
-| Environment/native dependency failure | 26 baseline; **26 open in latest rerun** | Run with built `better-sqlite3`; then preserve/fix any remaining behavioral failure |
-| Stale/broken test or mock/import contract | 21 baseline; **21 open in latest rerun** | Repair test/code contract, or replace only through approved evidence-preserving change |
+| Actual product defect | 51 baseline; **30 open in the same current classification** | Reproduce, assign owner, repair, add regression evidence |
+| Environment/native dependency failure | 26 baseline; **0 current failures remain classified solely as native-load failures in this local run**; prescribed clean preparation is still not reproducibly green | Do not treat the local-header workaround as clean-machine proof; retain preparation failures and rerun on the supported clean environment |
+| Behavioral failure exposed after native build | **13 open records originated in the native baseline category** | Reproduce and classify each exposed failure as product or contract debt, repair it, and retain regression evidence |
+| Stale/broken test or mock/import contract | 21 baseline; **20 open in latest rerun** | Repair test/code contract, or replace only through approved evidence-preserving change |
 
-No category is an exclusion. Every entry remains a release blocker until it has a green replacement result or an explicit approved removal with equivalent coverage.
+No category is an exclusion. Thirty-five baseline records now have passing exact-file evidence, but they do not establish a green repository suite. The 63 records corresponding to currently failing files remain open release blockers; every verified repair still awaits a fully green suite or an explicit independently approved replacement with equivalent coverage.
 
 ## Gate 0 exit criteria
 

@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import { realpath } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { isAbsolute, relative, resolve } from 'node:path';
 
 export interface R1SandboxRunInput {
   readonly command: string;
@@ -31,6 +31,29 @@ function minimalEnvironment(projectRoot: string): NodeJS.ProcessEnv {
   return { PATH: POSIX_EXECUTION_PATH, HOME: projectRoot, NO_COLOR: '1' };
 }
 
+async function validateProjectScopedFileArguments(
+  command: string,
+  args: readonly string[],
+  projectRoot: string,
+): Promise<void> {
+  if (command !== 'cat' && command !== 'ls') return;
+
+  for (const argument of args) {
+    if (argument === '--') continue;
+    if (argument.startsWith('-')) {
+      throw new Error(`${command} options are not admitted by the constrained runner`);
+    }
+    if (isAbsolute(argument)) {
+      throw new Error(`${command} path must be relative to the project root`);
+    }
+    const candidate = await realpath(resolve(projectRoot, argument));
+    const pathFromRoot = relative(projectRoot, candidate);
+    if (pathFromRoot === '..' || pathFromRoot.startsWith('../') || isAbsolute(pathFromRoot)) {
+      throw new Error(`${command} path resolves outside the project root`);
+    }
+  }
+}
+
 /**
  * Execute a deliberately small, shell-free command allowlist in a project root.
  * This is a bounded process runner, not a container/VM. Callers must treat its
@@ -41,20 +64,21 @@ export async function runR1ConstrainedCommand(input: R1SandboxRunInput): Promise
     throw new Error('Windows constrained-command execution is unsupported pending E10-S8 platform validation');
   }
   if (!ALLOWED_COMMANDS.has(input.command)) {
-    throw new Error(`Command not allowed in sandbox: ${input.command}`);
+    throw new Error(`Command not allowed by constrained runner: ${input.command}`);
   }
   if (!Number.isInteger(input.timeoutMs) || input.timeoutMs < MIN_TIMEOUT_MS || input.timeoutMs > MAX_TIMEOUT_MS) {
-    throw new Error(`Sandbox timeout must be an integer between ${MIN_TIMEOUT_MS} and ${MAX_TIMEOUT_MS}ms`);
+    throw new Error(`Constrained runner timeout must be an integer between ${MIN_TIMEOUT_MS} and ${MAX_TIMEOUT_MS}ms`);
   }
   if (input.args.length > MAX_ARGUMENTS || input.args.some((argument) => argument.length > MAX_ARGUMENT_LENGTH)) {
-    throw new Error(`Sandbox command accepts at most ${MAX_ARGUMENTS} arguments of ${MAX_ARGUMENT_LENGTH} characters`);
+    throw new Error(`Constrained runner accepts at most ${MAX_ARGUMENTS} arguments of ${MAX_ARGUMENT_LENGTH} characters`);
   }
 
   const root = await realpath(input.workingDirectory);
   const requested = resolve(input.workingDirectory);
   if (root !== requested) {
-    throw new Error('Sandbox working directory must resolve without symlink traversal');
+    throw new Error('Constrained runner working directory must resolve without symlink traversal');
   }
+  await validateProjectScopedFileArguments(input.command, input.args, root);
 
   return new Promise<R1SandboxRunResult>((resolveResult, reject) => {
     const child = spawn(input.command, [...input.args], {
@@ -104,11 +128,11 @@ export async function runR1ConstrainedCommand(input: R1SandboxRunInput): Promise
     child.once('error', (error: Error) => finish(() => reject(error)));
     child.once('close', (code: number | null, signal: NodeJS.Signals | null) => finish(() => {
       if (timedOut) {
-        reject(new Error(`Sandbox command timed out after ${input.timeoutMs}ms`));
+        reject(new Error(`Constrained command timed out after ${input.timeoutMs}ms`));
         return;
       }
       if (outputBytes > MAX_OUTPUT_BYTES) {
-        reject(new Error(`Sandbox command exceeded ${MAX_OUTPUT_BYTES} output bytes`));
+        reject(new Error(`Constrained command exceeded ${MAX_OUTPUT_BYTES} output bytes`));
         return;
       }
       resolveResult({ stdout, stderr: signal ? `${stderr}\nterminated by ${signal}`.trim() : stderr, exitCode: code ?? 1 });

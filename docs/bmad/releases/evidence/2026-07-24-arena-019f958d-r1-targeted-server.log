@@ -1,0 +1,16 @@
+$ node "$VITEST" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/r1-sandbox-runner.test.ts (12 tests) 1034ms
+   ✓ runR1ConstrainedCommand > terminates a nested POSIX process tree after timeout or fails closed on Windows  807ms
+ ✓ tests/r1-performance-reliability.test.ts (5 tests) 43ms
+ ✓ tests/r1-security-isolation.test.ts (7 tests) 11ms
+
+ Test Files  3 passed (3)
+      Tests  24 passed (24)
+   Start at  19:20:05
+   Duration  2.19s (transform 278ms, setup 0ms, collect 526ms, tests 1.09s, environment 1ms, prepare 197ms)
+
+
+[exit_code]=0

@@ -1,0 +1,14 @@
+$ node "$VITEST" run tests/r1-effect-claims-contract.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/r1-effect-claims-contract.test.ts (2 tests) 2669ms
+   ✓ E10-S9 SQL effect-claim contract > atomically scopes claims on PGlite PostgreSQL semantics  2650ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  19:48:18
+   Duration  3.29s (transform 248ms, setup 0ms, collect 384ms, tests 2.67s, environment 0ms, prepare 71ms)
+
+
+[exit_code]=0

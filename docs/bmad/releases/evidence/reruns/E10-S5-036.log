@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/memory-lifecycle.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/memory-lifecycle.test.ts (7 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  7 passed (7)
+   Start at  19:23:40
+   Duration  1.20s (transform 273ms, setup 0ms, collect 984ms, tests 5ms, environment 0ms, prepare 71ms)
+
+
+[exit_code]=0

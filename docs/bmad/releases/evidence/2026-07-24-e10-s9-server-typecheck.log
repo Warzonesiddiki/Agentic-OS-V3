@@ -1,0 +1,3 @@
+$ node "$TSC" -p server/tsconfig.json --noEmit
+
+[exit_code]=0

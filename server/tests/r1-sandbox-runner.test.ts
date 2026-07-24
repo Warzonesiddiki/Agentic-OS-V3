@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { access, chmod, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { BoundedToolGateway, InMemoryR1Repositories } from '@agentic-os/sdk';
@@ -36,7 +36,7 @@ describe('runR1ConstrainedCommand', () => {
 
     await expect(runR1ConstrainedCommand({
       command: 'sh', args: ['-c', 'echo unsafe'], timeoutMs: 1_000, workingDirectory,
-    })).rejects.toThrow('Command not allowed in sandbox');
+    })).rejects.toThrow('Command not allowed by constrained runner');
   });
 
   it('defensively rejects timeout and argument limits before process creation', async () => {
@@ -44,10 +44,10 @@ describe('runR1ConstrainedCommand', () => {
 
     await expect(runR1ConstrainedCommand({
       command: 'echo', args: [], timeoutMs: 99, workingDirectory,
-    })).rejects.toThrow('Sandbox timeout must be an integer');
+    })).rejects.toThrow('Constrained runner timeout must be an integer');
     await expect(runR1ConstrainedCommand({
       command: 'echo', args: Array.from({ length: 21 }, () => 'x'), timeoutMs: 1_000, workingDirectory,
-    })).rejects.toThrow('Sandbox command accepts at most');
+    })).rejects.toThrow('Constrained runner accepts at most');
   });
 
   it('kills a timed-out process and reports a timeout rather than a successful result', async () => {
@@ -75,6 +75,27 @@ describe('runR1ConstrainedCommand', () => {
     await expect(runR1ConstrainedCommand({
       command: 'pwd', args: [], timeoutMs: 1_000, workingDirectory: alias,
     })).rejects.toThrow('symlink traversal');
+  });
+
+  it('rejects cat paths that traverse or resolve through a symlink outside the project root', async () => {
+    const workingDirectory = await temporaryDirectory();
+    const outsideDirectory = await temporaryDirectory();
+    const outsideFile = join(outsideDirectory, 'outside.txt');
+    await writeFile(outsideFile, 'outside', 'utf8');
+    await symlink(outsideFile, join(workingDirectory, 'outside-link.txt'));
+
+    await expect(runR1ConstrainedCommand({
+      command: 'cat',
+      args: [`../${basename(outsideDirectory)}/outside.txt`],
+      timeoutMs: 1_000,
+      workingDirectory,
+    })).rejects.toThrow('resolves outside the project root');
+    await expect(runR1ConstrainedCommand({
+      command: 'cat',
+      args: ['outside-link.txt'],
+      timeoutMs: 1_000,
+      workingDirectory,
+    })).rejects.toThrow('resolves outside the project root');
   });
 
   it('executes real project-root cat and git inspection commands', async () => {
@@ -113,6 +134,97 @@ describe('runR1ConstrainedCommand', () => {
     });
 
     expect(result).toMatchObject({ ok: true, output: '{"name":"gateway-fixture"}\n' });
+  });
+
+  it('runs a controlled package-manager fixture only with separate high-risk policy authorization', async () => {
+    const workingDirectory = await temporaryDirectory();
+    await writeFile(
+      join(workingDirectory, 'package.json'),
+      JSON.stringify({
+        name: 'r1-package-manager-fixture',
+        private: true,
+        scripts: { 'r1-fixture': 'node fixture.cjs' },
+      }),
+      'utf8',
+    );
+    await writeFile(
+      join(workingDirectory, 'fixture.cjs'),
+      "process.stdout.write('controlled-package-manager-fixture')\n",
+      'utf8',
+    );
+    const repositories = new InMemoryR1Repositories();
+    const projectId = randomUUID();
+    let policyChecks = 0;
+    const gateway = new BoundedToolGateway(repositories, {
+      projectRoots: new Map([[projectId, workingDirectory]]),
+      isApprovalApproved: async () => true,
+      authorizeHighRiskCommand: async (request) => {
+        policyChecks += 1;
+        expect(request.risk).toMatchObject({
+          level: 'high',
+          networkCapable: true,
+          repositoryCodeExecution: true,
+        });
+        return request.command === 'pnpm';
+      },
+      sandboxExecutor: async (command, args, timeoutMs, root) =>
+        runR1ConstrainedCommand({ command, args, timeoutMs, workingDirectory: root }),
+    });
+
+    const result = await gateway.runConstrainedCommand({
+      projectId,
+      taskId: randomUUID(),
+      command: 'pnpm',
+      args: ['run', 'r1-fixture'],
+      approvalId: randomUUID(),
+      timeoutMs: 5_000,
+      correlationId: randomUUID(),
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.output).toContain('controlled-package-manager-fixture');
+    expect(policyChecks).toBe(1);
+  });
+
+  it('fails closed for a network-capable command without separate deployment-policy authorization', async () => {
+    const workingDirectory = await temporaryDirectory();
+    const repositories = new InMemoryR1Repositories();
+    const projectId = randomUUID();
+    const taskId = randomUUID();
+    let executions = 0;
+    const gateway = new BoundedToolGateway(repositories, {
+      projectRoots: new Map([[projectId, workingDirectory]]),
+      isApprovalApproved: async () => true,
+      sandboxExecutor: async () => {
+        executions += 1;
+        return { stdout: 'must-not-run', stderr: '', exitCode: 0 };
+      },
+    });
+
+    const result = await gateway.runConstrainedCommand({
+      projectId,
+      taskId,
+      command: 'node',
+      args: ['--version'],
+      approvalId: randomUUID(),
+      timeoutMs: 1_000,
+      correlationId: randomUUID(),
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      error: 'High-risk command requires separate deployment-policy authorization',
+    });
+    expect(executions).toBe(0);
+    const receipts = await repositories.receipts.listForTask(projectId, taskId);
+    expect(receipts).toHaveLength(1);
+    expect(receipts[0]).toMatchObject({ decision: 'deny' });
+    expect(receipts[0]?.payload).toMatchObject({
+      command: 'node',
+      networkCapable: true,
+      repositoryCodeExecution: true,
+    });
+    expect(receipts[0]?.payload).not.toHaveProperty('args');
   });
 
   it('does not forward an ambient secret into a spawned command', async () => {

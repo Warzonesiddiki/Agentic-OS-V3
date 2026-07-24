@@ -1,0 +1,27 @@
+
+$ node "$TSC" -p tsconfig.json
+[exit_code]=0
+
+$ node "$TSC" -p tsconfig.cjs.json
+[exit_code]=0
+
+$ node "$TSC" -p tsconfig.json --noEmit
+[exit_code]=0
+
+$ node "$TSC" -p tsconfig.cjs.json --noEmit
+[exit_code]=0
+
+$ node "$VITEST" run src/r1-tool-gateway.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/packages/sdk
+
+ ✓ src/r1-tool-gateway.test.ts (5 tests) 30ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  19:35:35
+   Duration  379ms (transform 102ms, setup 0ms, collect 144ms, tests 30ms, environment 0ms, prepare 74ms)
+
+[exit_code]=0
+
+[sequence_exit_code]=0

@@ -29,12 +29,12 @@
     "all-feature-claims"
   ],
   "summary": {
-    "findings": 61,
+    "findings": 60,
     "unresolvedCurrentClaims": 0,
     "classifications": {
       "current-blocked-governance": 8,
       "historical-campaign-record": 20,
-      "historical-review-record": 6,
+      "historical-review-record": 5,
       "historical-snapshot": 15,
       "planning-target": 12
     }
@@ -356,7 +356,7 @@
       "path": "docs/bmad/releases/R1-release-gate.md",
       "line": 132,
       "pattern": "legacy-test-count",
-      "excerpt": "- [ ] Current targeted SDK evidence: 255/255 passed on 2026-07-24, but it is insufficient to clear the blocked full suite; see the ledger. (The prior 91/91 checkmark is historical.)",
+      "excerpt": "- [ ] Current targeted SDK evidence: 257/257 passed in the latest retained 2026-07-24 rerun, but it is insufficient to clear the blocked full suite; see the ledger. (The prior 91/91, 255/255, and 256/256 values are historical.)",
       "classification": "current-blocked-governance",
       "disposition": "Retained only in a document whose preamble says the R1 decision is blocked and whose legacy sections are historical."
     },
@@ -365,14 +365,6 @@
       "line": 69,
       "pattern": "perfection-score",
       "excerpt": "**Conclusion:** R1 + E7 complete, 35 stories done, perfection 100/100, ready for final release gate sign-off.",
-      "classification": "historical-review-record",
-      "disposition": "Retained as a dated prior review; E10-S30 must issue any fresh decision."
-    },
-    {
-      "path": "docs/bmad/reviews/E10-R1-gate0-independent-review-request.md",
-      "line": 24,
-      "pattern": "legacy-test-count",
-      "excerpt": "| Targeted fresh validation | SDK 255/255 and targeted server 16/16 passed | ledger raw artifacts; targeted evidence only |",
       "classification": "historical-review-record",
       "disposition": "Retained as a dated prior review; E10-S30 must issue any fresh decision."
     },

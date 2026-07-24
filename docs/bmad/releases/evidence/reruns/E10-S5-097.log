@@ -1,0 +1,15 @@
+$ cd server && pnpm exec vitest run tests/smoke-new-services.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+{"level":"info","msg":"message_bus_initialized","ts":"2026-07-24T19:24:34.864Z","instance":"container"}
+{"level":"info","msg":"guardrail.threshold.updated","ts":"2026-07-24T19:24:34.964Z","id":"smoke.concurrency","metric":"concurrency"}
+ ✓ tests/smoke-new-services.test.ts (32 tests) 104ms
+
+ Test Files  1 passed (1)
+      Tests  32 passed (32)
+   Start at  19:24:33
+   Duration  1.72s (transform 585ms, setup 0ms, collect 1.40s, tests 104ms, environment 0ms, prepare 73ms)
+
+
+[exit_code]=0

@@ -1,0 +1,22 @@
+$ cd server && pnpm exec vitest run tests/bench-scheduler.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+stdout | tests/bench-scheduler.test.ts > scheduler pick hot-path benchmark > MLFQPolicy.pick is O(N) with no sort over 10000 tasks (p95 < threshold)
+[scheduler bench] MLFQ pick n=10000 iters=1000 avg=0.1209ms p95=0.1472ms
+
+stdout | tests/bench-scheduler.test.ts > scheduler pick hot-path benchmark > EDFPolicy.pick is O(N) with no sort over 10000 tasks
+[scheduler bench] EDF pick n=10000 iters=1000 avg=0.0644ms p95=0.0893ms
+
+stdout | tests/bench-scheduler.test.ts > scheduler pick hot-path benchmark > FairSharePolicy.pick is O(N) single pass over 10000 tasks
+[scheduler bench] FairShare pick n=10000 iters=1000 avg=0.2206ms p95=0.2496ms
+
+ ✓ tests/bench-scheduler.test.ts (4 tests) 430ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  19:23:26
+   Duration  1.64s (transform 316ms, setup 0ms, collect 1.00s, tests 430ms, environment 0ms, prepare 69ms)
+
+
+[exit_code]=0

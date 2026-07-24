@@ -2,7 +2,7 @@
  * E4-S3 Bounded native tool gateway
  * - read-file enforces project-root/path allowlist
  * - write-file requires approval and receipt
- * - constrained-command runs only in selected sandbox with timeout and resource limits
+ * - constrained-command runs only through the configured bounded process runner with timeout and output limits
  * - inputs/outputs schema-validated and redacted where needed
  * - network, credentials, path traversal, command injection tests fail closed
  */
@@ -42,6 +42,71 @@ export const ConstrainedCommandInputSchema = z.object({
 });
 export type ConstrainedCommandInput = z.infer<typeof ConstrainedCommandInputSchema>;
 
+export const ALLOWED_CONSTRAINED_COMMANDS = [
+  'cat',
+  'echo',
+  'git',
+  'ls',
+  'node',
+  'npm',
+  'pnpm',
+  'pwd',
+] as const;
+
+const allowedConstrainedCommandSet = new Set<string>(ALLOWED_CONSTRAINED_COMMANDS);
+const localReadOnlyGitCommands = new Set(['rev-parse', 'status']);
+
+export interface ConstrainedCommandRisk {
+  readonly level: 'low' | 'high';
+  readonly networkCapable: boolean;
+  readonly repositoryCodeExecution: boolean;
+  readonly reason: string;
+}
+
+export interface HighRiskCommandAuthorizationRequest {
+  readonly projectId: string;
+  readonly taskId: string;
+  readonly approvalId: string;
+  readonly correlationId: string;
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly risk: ConstrainedCommandRisk;
+}
+
+/**
+ * Static admission classification, not network isolation. Commands classified as
+ * high risk require a separate deployment-policy decision in addition to durable
+ * user approval. The bounded runner cannot prevent an authorized process from
+ * opening sockets.
+ */
+export function classifyConstrainedCommandRisk(
+  command: string,
+  args: readonly string[],
+): ConstrainedCommandRisk {
+  if (command === 'node' || command === 'npm' || command === 'pnpm') {
+    return {
+      level: 'high',
+      networkCapable: true,
+      repositoryCodeExecution: true,
+      reason: `${command} can execute repository-controlled code and open network connections`,
+    };
+  }
+  if (command === 'git' && !localReadOnlyGitCommands.has(args[0] ?? '')) {
+    return {
+      level: 'high',
+      networkCapable: true,
+      repositoryCodeExecution: true,
+      reason: 'git operation is outside the local read-only subcommand policy',
+    };
+  }
+  return {
+    level: 'low',
+    networkCapable: false,
+    repositoryCodeExecution: false,
+    reason: command === 'git' ? 'local read-only git inspection' : 'bounded local inspection command',
+  };
+}
+
 export type ToolResult = { ok: true; output: string; receiptId: string } | { ok: false; error: string; receiptId: string };
 
 export interface ToolGatewayOptions {
@@ -50,6 +115,12 @@ export interface ToolGatewayOptions {
   /** Trusted runtime configuration; request data can never select this parent directory. */
   readonly projectRootBase?: string;
   readonly isApprovalApproved?: (approvalId: string, projectId: string) => Promise<boolean>;
+  /**
+   * Separate deployment-policy decision for network-capable or repository-code
+   * execution. Durable user approval alone is insufficient. This callback does
+   * not provide network isolation; callers must enforce the documented host policy.
+   */
+  readonly authorizeHighRiskCommand?: (request: HighRiskCommandAuthorizationRequest) => Promise<boolean>;
   readonly sandboxExecutor?: (command: string, args: string[], timeoutMs: number, workingDirectory: string) => Promise<{ stdout: string; stderr: string; exitCode: number }>;
   readonly fileReader?: (fullPath: string) => Promise<string>;
   readonly fileWriter?: (fullPath: string, content: string) => Promise<void>;
@@ -101,6 +172,7 @@ export class BoundedToolGateway {
   private readonly projectRoots: Map<string, string>;
   private readonly projectRootBase: string;
   private readonly isApprovalApproved: (id: string, projectId: string) => Promise<boolean>;
+  private readonly authorizeHighRiskCommand: NonNullable<ToolGatewayOptions['authorizeHighRiskCommand']>;
   private readonly sandboxExecutor: NonNullable<ToolGatewayOptions['sandboxExecutor']>;
   private readonly fileReader: NonNullable<ToolGatewayOptions['fileReader']>;
   private readonly fileWriter: NonNullable<ToolGatewayOptions['fileWriter']>;
@@ -111,7 +183,10 @@ export class BoundedToolGateway {
     this.projectRoots = options.projectRoots ?? new Map();
     this.projectRootBase = options.projectRootBase ?? '/tmp/projects';
     this.isApprovalApproved = options.isApprovalApproved ?? (async () => false);
-    this.sandboxExecutor = (options.sandboxExecutor ?? (async () => ({ stdout: 'sandbox executor not configured', stderr: '', exitCode: 0 }))) as NonNullable<ToolGatewayOptions['sandboxExecutor']>;
+    this.authorizeHighRiskCommand = options.authorizeHighRiskCommand ?? (async () => false);
+    this.sandboxExecutor = options.sandboxExecutor ?? (async () => {
+      throw new Error('Constrained process executor is not configured');
+    });
     this.fileReader = (options.fileReader ?? (async () => { throw new Error('fileReader not configured'); })) as NonNullable<ToolGatewayOptions['fileReader']>;
     this.fileWriter = (options.fileWriter ?? (async () => { throw new Error('fileWriter not configured'); })) as NonNullable<ToolGatewayOptions['fileWriter']>;
     this.effectClaims = options.effectClaims ?? new InMemoryEffectClaimStore();
@@ -267,7 +342,7 @@ export class BoundedToolGateway {
     const previous = await this.findCompletedEffect(input.projectId, input.taskId, correlationId, 'constrained-command');
     if (previous) return previous;
 
-    // Approve required
+    // Durable user approval is required for every command.
     const approved = await this.isApprovalApproved(input.approvalId, input.projectId);
     if (!approved) {
       const receipt = await this.recordReceipt({
@@ -302,6 +377,58 @@ export class BoundedToolGateway {
         payload: { operation: 'constrained-command', command: input.command, reason: 'disallowed command' },
       });
       return { ok: false, error: 'Disallowed command blocked', receiptId: receipt.id };
+    }
+    if (!allowedConstrainedCommandSet.has(input.command)) {
+      const receipt = await this.recordReceipt({
+        projectId: input.projectId,
+        correlationId,
+        kind: 'tool_call',
+        actor: actorId,
+        decision: 'deny',
+        payload: {
+          operation: 'constrained-command',
+          command: input.command,
+          taskId: input.taskId,
+          reason: 'command not in exact allowlist',
+        },
+      });
+      return { ok: false, error: 'Command is not in the exact allowlist', receiptId: receipt.id };
+    }
+
+    const risk = classifyConstrainedCommandRisk(input.command, input.args);
+    if (
+      risk.level === 'high' &&
+      !(await this.authorizeHighRiskCommand({
+        projectId: input.projectId,
+        taskId: input.taskId,
+        approvalId: input.approvalId,
+        correlationId,
+        command: input.command,
+        args: input.args,
+        risk,
+      }))
+    ) {
+      const receipt = await this.recordReceipt({
+        projectId: input.projectId,
+        correlationId,
+        kind: 'tool_call',
+        actor: actorId,
+        decision: 'deny',
+        payload: {
+          operation: 'constrained-command',
+          command: input.command,
+          taskId: input.taskId,
+          riskLevel: risk.level,
+          networkCapable: risk.networkCapable,
+          repositoryCodeExecution: risk.repositoryCodeExecution,
+          reason: 'separate high-risk deployment policy denied command',
+        },
+      });
+      return {
+        ok: false,
+        error: 'High-risk command requires separate deployment-policy authorization',
+        receiptId: receipt.id,
+      };
     }
 
     const claimBlocked = await this.claimEffect(input.projectId, input.taskId, correlationId, 'constrained-command');

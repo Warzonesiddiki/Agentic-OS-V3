@@ -1,0 +1,16 @@
+$ cd server && pnpm exec vitest run tests/r1-application-postgres-contract.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/r1-application-postgres-contract.test.ts (3 tests) 8675ms
+   ✓ R1 PostgreSQL application contract > runs the full R1 repository, idempotency and append-only contract on PostgreSQL  4529ms
+   ✓ R1 PostgreSQL application contract > persists and evaluates governed capabilities and the policy API on PostgreSQL  1845ms
+   ✓ R1 PostgreSQL application contract > preserves committed project and task state across an engine restart  2290ms
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  19:23:51
+   Duration  10.21s (transform 466ms, setup 0ms, collect 1.29s, tests 8.67s, environment 0ms, prepare 76ms)
+
+
+[exit_code]=0

@@ -1,0 +1,19 @@
+$ node "$VITEST" run tests/r1-sandbox-runner.test.ts tests/r1-security-isolation.test.ts tests/r1-performance-reliability.test.ts tests/r1-effect-claims-contract.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/r1-effect-claims-contract.test.ts (2 tests) 2688ms
+   ✓ E10-S9 SQL effect-claim contract > atomically scopes claims on PGlite PostgreSQL semantics  2669ms
+ ✓ tests/r1-sandbox-runner.test.ts (15 tests) 1492ms
+   ✓ runR1ConstrainedCommand > runs a controlled package-manager fixture only with separate high-risk policy authorization  442ms
+   ✓ runR1ConstrainedCommand > terminates a nested POSIX process tree after timeout or fails closed on Windows  806ms
+ ✓ tests/r1-performance-reliability.test.ts (5 tests) 47ms
+ ✓ tests/r1-security-isolation.test.ts (7 tests) 12ms
+
+ Test Files  4 passed (4)
+      Tests  29 passed (29)
+   Start at  19:55:22
+   Duration  5.83s (transform 270ms, setup 0ms, collect 653ms, tests 4.24s, environment 1ms, prepare 293ms)
+
+
+[exit_code]=0

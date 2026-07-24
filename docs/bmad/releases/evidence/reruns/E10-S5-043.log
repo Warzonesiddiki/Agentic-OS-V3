@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/memory-tag-taxonomy.async.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/memory-tag-taxonomy.async.test.ts (12 tests) 9ms
+
+ Test Files  1 passed (1)
+      Tests  12 passed (12)
+   Start at  19:23:46
+   Duration  525ms (transform 110ms, setup 0ms, collect 306ms, tests 9ms, environment 0ms, prepare 72ms)
+
+
+[exit_code]=0

@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/memory-analysis.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/memory-analysis.test.ts (8 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  19:23:38
+   Duration  1.32s (transform 358ms, setup 0ms, collect 1.09s, tests 5ms, environment 0ms, prepare 72ms)
+
+
+[exit_code]=0

@@ -43,7 +43,9 @@ As a security reviewer, I need adversarial evidence against the real runner, so 
 - `server/tests/r1-sandbox-runner.test.ts`
 - `server/tests/r1-security-isolation.test.ts`
 - `docs/bmad/releases/R1-sandbox-security-contract.md`
-- `docs/bmad/releases/evidence/2026-07-24-e10-s7-r1-targeted-server.log`
+- `docs/bmad/releases/evidence/2026-07-24-e10-s8-network-policy-server-rerun.log`
+- `docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log`
+- `docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-full-suite-final.log`
 - `docs/bmad/releases/evidence/`
 
 ## Non-negotiable delivery rules

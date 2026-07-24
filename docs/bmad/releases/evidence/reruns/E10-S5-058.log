@@ -1,0 +1,14 @@
+$ cd server && pnpm exec vitest run tests/r1-project-transfer-contract.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/r1-project-transfer-contract.test.ts (5 tests) 6705ms
+   ✓ E1-S3 transfer — PostgreSQL engine > round-trips a redacted bundle between two PostgreSQL databases and rejects tampering  6551ms
+
+ Test Files  1 passed (1)
+      Tests  5 passed (5)
+   Start at  19:24:05
+   Duration  8.17s (transform 443ms, setup 0ms, collect 1.22s, tests 6.71s, environment 0ms, prepare 70ms)
+
+
+[exit_code]=0

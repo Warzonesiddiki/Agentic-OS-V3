@@ -1,0 +1,14 @@
+$ cd server && pnpm exec vitest run tests/r1-application-sqlite-contract.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/r1-application-sqlite-contract.test.ts (2 tests) 877ms
+   ✓ R1 SQLite application-client contract > runs repository contracts through the application SQLite client  826ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  19:24:02
+   Duration  1.46s (transform 413ms, setup 0ms, collect 362ms, tests 877ms, environment 0ms, prepare 76ms)
+
+
+[exit_code]=0

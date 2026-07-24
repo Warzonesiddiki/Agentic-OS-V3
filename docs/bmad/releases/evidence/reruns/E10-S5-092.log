@@ -1,0 +1,13 @@
+$ cd server && pnpm exec vitest run tests/services/scheduler-property.test.ts
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/services/scheduler-property.test.ts (16 tests) 209ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  19:24:30
+   Duration  1.46s (transform 308ms, setup 0ms, collect 1.03s, tests 209ms, environment 0ms, prepare 75ms)
+
+
+[exit_code]=0

@@ -657,16 +657,23 @@ stories:
       - docs/bmad/stories/E10-S8-adversarially-test-sandbox-execution.md
       - server/tests/r1-sandbox-runner.test.ts
       - docs/bmad/releases/R1-sandbox-security-contract.md
+      - docs/bmad/releases/evidence/2026-07-24-e10-s8-network-policy-server-rerun.log
+      - docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log
   E10-S9:
     epic: E10-R1
     title: Implement durable scoped side-effect idempotency
     points: 5
     priority: P0
-    status: backlog
+    status: in_progress
     sprint: sprint-8
     dependencies: [E10-S8]
     evidence:
       - docs/bmad/stories/E10-S9-implement-durable-scoped-side-effect-idempotency.md
+      - packages/sdk/src/r1-effect-claims.ts
+      - server/tests/r1-effect-claims-contract.test.ts
+      - docs/bmad/releases/evidence/2026-07-24-e10-s9-effect-claims-sqlite-pglite.log
+      - docs/bmad/releases/evidence/2026-07-24-e10-s8-s9-targeted-server-final.log
+      - docs/bmad/releases/evidence/2026-07-24-e10-s9-postgresql-not-run.log
   E10-S10:
     epic: E10-R1
     title: Implement durable recovery state machine
