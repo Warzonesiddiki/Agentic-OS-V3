@@ -92,3 +92,60 @@ export async function buildSessionPriming(
     truncated,
   };
 }
+
+// ── Legacy API wrappers (Phase 12 refactor) ──────────────────────
+
+export interface PrimingBudget {
+  topK: number;
+  perItemTokens: number;
+  totalTokens: number;
+}
+
+export function computePrimingBudget(
+  topK?: number,
+  totalTokens?: number
+): PrimingBudget {
+  const k = topK ?? PRIMING_TOP_K;
+  const total = totalTokens ?? PRIMING_BUDGET_TOKENS;
+  return {
+    topK: k,
+    perItemTokens: k > 0 ? Math.floor(total / k) : 0,
+    totalTokens: total,
+  };
+}
+
+export interface PrimingCandidate {
+  id: string;
+  priority: number;
+  tokenCost: number;
+}
+
+export interface SelectPrimingResult {
+  selected: PrimingCandidate[];
+  budgetConsumed: number;
+}
+
+export function selectPrimingCandidates(
+  items: PrimingCandidate[],
+  opts: { tokenBudget: number; limit: number }
+): SelectPrimingResult {
+  const sorted = [...items].sort((a, b) => b.priority - a.priority);
+  const selected: PrimingCandidate[] = [];
+  let consumed = 0;
+  for (const item of sorted) {
+    if (selected.length >= opts.limit) break;
+    if (consumed + item.tokenCost > opts.tokenBudget) break;
+    selected.push(item);
+    consumed += item.tokenCost;
+  }
+  return { selected, budgetConsumed: consumed };
+}
+
+export async function primingScopeForContext(opts: {
+  context: string;
+  agentId?: string;
+}): Promise<{ items: PrimingItem[]; budget: PrimingBudget }> {
+  const result = await buildSessionPriming(opts.context, { actor: opts.agentId });
+  const budget = computePrimingBudget(PRIMING_TOP_K, PRIMING_BUDGET_TOKENS);
+  return { items: result.items, budget };
+}

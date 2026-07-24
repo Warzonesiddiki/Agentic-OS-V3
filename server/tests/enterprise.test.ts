@@ -254,7 +254,7 @@ import {
   paymentMethods,
   crossOrgShares,
   onboardingState,
-} from '../db/schema.js';
+} from '../src/db/schema.js';
 
 // import AFTER mocks so the service picks up the fake db
 const enterprise = await import('../src/services/enterprise.service.js');

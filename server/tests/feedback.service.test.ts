@@ -4,15 +4,18 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const txMock: any = {
-  insert: vi.fn(() => ({ values: vi.fn(() => Promise.resolve()) })),
-  query: { feedback: { findFirst: vi.fn(() => Promise.resolve(null)) } },
-};
-const dbMock: any = {
-  insert: vi.fn(() => ({ values: vi.fn(() => Promise.resolve()) })),
-  query: { feedback: { findFirst: vi.fn(() => Promise.resolve(null)) } },
-  transaction: vi.fn((fn: any) => fn(txMock)),
-};
+const { dbMock, txMock } = vi.hoisted(() => {
+  const tx: any = {
+    insert: vi.fn(() => ({ values: vi.fn(() => Promise.resolve()) })),
+    query: { feedback: { findFirst: vi.fn(() => Promise.resolve(null)) } },
+  };
+  const db: any = {
+    insert: vi.fn(() => ({ values: vi.fn(() => Promise.resolve()) })),
+    query: { feedback: { findFirst: vi.fn(() => Promise.resolve(null)) } },
+    transaction: vi.fn((fn: any) => fn(tx)),
+  };
+  return { dbMock: db, txMock: tx };
+});
 vi.mock('../src/db/client.js', () => ({ db: dbMock, isSqlite: false, isPg: true }));
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/services/safety.service.js', () => ({ assertOperational: vi.fn(() => Promise.resolve()) }));

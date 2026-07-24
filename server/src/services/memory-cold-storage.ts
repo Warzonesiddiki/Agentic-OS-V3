@@ -231,3 +231,27 @@ export function initColdStorageScheduler(): void {
     /* best-effort */
   }
 }
+
+// ── Legacy API wrappers (Phase 12 refactor) ──────────────────────
+
+export async function archiveMemory(
+  memoryId: string,
+  location: string
+): Promise<void> {
+  if (!location) throw new Error('BAD_REQUEST');
+  await db
+    .update(memories as never)
+    .set({ coldStorageAt: new Date().toISOString(), coldStorageLocation: location } as never)
+    .where(eq((memories as any).id, memoryId));
+}
+
+export async function restoreMemory(memoryId: string): Promise<void> {
+  await db
+    .update(memories as never)
+    .set({ coldStorageAt: null, coldStorageLocation: null } as never)
+    .where(eq((memories as any).id, memoryId));
+}
+
+export function isColdStored(memory: { coldStorageAt?: string | null }): boolean {
+  return memory.coldStorageAt != null;
+}

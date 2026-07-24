@@ -355,6 +355,17 @@ server/src/lib/logger.ts                  @Warzonesiddiki
 server/src/services/system.service.ts     @Warzonesiddiki
 src/skill-registry.ts                     @Warzonesiddiki
 
+# R1 infrastructure (sandbox runner, runtime, routes, governance)
+server/src/services/r1-sandbox-runner.ts     @Warzonesiddiki
+server/src/services/r1-extended-runtime.ts   @Warzonesiddiki
+server/src/services/r1-runtime.ts            @Warzonesiddiki
+server/src/services/capability-governance.ts @Warzonesiddiki
+server/src/routes/r1-extended.ts             @Warzonesiddiki
+server/src/routes/r1.ts                      @Warzonesiddiki
+
+# BMAD workflow planning artifacts
+_bmad-output/                                @lorekeeper
+
 # Repo-wide dotfiles / lockfiles / meta not covered above.
 .gitignore                                @Warzonesiddiki
 .gitattributes                            @Warzonesiddiki
