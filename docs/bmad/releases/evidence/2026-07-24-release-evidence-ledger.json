@@ -1,10 +1,10 @@
 {
   "schemaVersion": "nexus.r1.release-evidence-ledger.v2",
-  "generatedAt": "2026-07-24T14:20:00.000Z",
+  "generatedAt": "2026-07-24T14:22:00.000Z",
   "evidenceSource": {
-    "repositoryCommit": "67d43ae15c65d5c117169064f5af49542ce1eadf",
+    "repositoryCommit": "52f5ed239071118f0c4c1cf628415e28f266fd9d",
     "branch": "arena/019f93a4-agentic-os-v3",
-    "note": "Fresh validation was executed against 67d43ae15c65d5c117169064f5af49542ce1eadf after constrained-runner hardening, project-root configuration, and twelve targeted full-suite repairs. Historical Gate 0 captures remain retained; the full suite remains blocked."
+    "note": "Fresh validation was executed against 52f5ed239071118f0c4c1cf628415e28f266fd9d after constrained-runner hardening, project-root configuration, and twelve targeted full-suite repairs. Historical Gate 0 captures remain retained; the full suite remains blocked."
   },
   "environment": {
     "node": "v22.22.3",
