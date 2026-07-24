@@ -1,0 +1,1 @@
+$ node "$TSC" -p server/tsconfig.json --noEmit

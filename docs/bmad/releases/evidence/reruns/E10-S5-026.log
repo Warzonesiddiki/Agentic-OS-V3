@@ -1,0 +1,10 @@
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/marketplace.test.ts (8 tests) 9ms
+
+ Test Files  1 passed (1)
+      Tests  8 passed (8)
+   Start at  13:34:30
+   Duration  287ms (transform 52ms, setup 0ms, collect 54ms, tests 9ms, environment 0ms, prepare 73ms)
+

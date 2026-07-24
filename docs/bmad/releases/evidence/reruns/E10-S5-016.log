@@ -1,0 +1,10 @@
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/guardrails-negative.test.ts (19 tests) 17ms
+
+ Test Files  1 passed (1)
+      Tests  19 passed (19)
+   Start at  13:34:25
+   Duration  444ms (transform 150ms, setup 0ms, collect 196ms, tests 17ms, environment 0ms, prepare 78ms)
+

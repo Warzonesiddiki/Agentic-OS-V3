@@ -33,6 +33,9 @@ function hotp(secretHex: string, counter: number): string {
 }
 
 export function verifyTotp(secretHex: string, token: string, now: number = Date.now()): boolean {
+  // Validate shape before timingSafeEqual: Node throws if buffer lengths differ,
+  // which would turn malformed attacker input into a 500 instead of a denial.
+  if (!/^\d{6}$/.test(token)) return false;
   const counter = Math.floor(now / 1000 / STEP_SECONDS);
   for (let w = -WINDOW; w <= WINDOW; w++) {
     if (

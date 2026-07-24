@@ -1,37 +1,62 @@
 # E10-S1 — Freeze Unsupported Release and Perfection Claims
 
-**Epic:** E10-R1 Integrity, Security, and Release Requalification  
-**Priority:** P0  
-**Status:** in_progress  
-**Trigger:** 2026-07-24 adversarial audit found that completion/perfection claims exceeded executable evidence.
+**Epic:** E10-R1 — Integrity, Security, and Release Requalification
+**Priority:** P0
+**Status:** in_progress
+**Accountable owner:** @lorekeeper (documentation authority)
+**Dependencies:** None
+**Release authority:** None. R1 remains blocked until an independent E10-S30 approval.
 
 ## User story
 
-As a release stakeholder, I need every public and internal release claim to state only what current reproducible evidence proves, so I am not misled into deploying an unqualified system.
+As a release stakeholder, I need current documentation to distinguish verified evidence from historical campaign assertions, so no stakeholder is misled into deploying an unqualified release.
 
-## Acceptance criteria
+## Scope and acceptance criteria
 
-1. README, sprint status, scorecard, release gate, and current baseline all state `release blocked` until E10-S30 independently approves release.
-2. Historical snapshots remain dated and are never silently rewritten as current evidence.
-3. No current artifact presents 94, 98, or 100 as a release/perfection decision.
-4. Every release claim links to a dated evidence ledger and command artifact.
-5. Search-based regression check proves that `production-ready`, `release candidate`, `100/100`, and `zero compromises` are either historical/contextual or explicitly blocked.
-6. An adversarial documentation reviewer verifies that stale feature claims cannot be mistaken for current validation.
+1. Scan the defined documentation scope for release-ready, production-ready, perfection-score, all-green, test-count, migration-range, and zero-compromise assertions; publish findings with file, line, classification, and disposition.
+2. Make the Gate 0 baseline and machine-readable ledger the only current R1 evidence authorities; every current R1 release-facing document must state that release is blocked pending E10-S30.
+3. Label historical snapshots, campaign reports, and planning targets as historical or non-authoritative without deleting the record they preserve.
+4. The scan must fail if a current-authority document contains an unqualified release/perfection assertion or a stale count/range not tagged as historical.
+5. Record reviewer ownership and the command that regenerates the claim scan.
 
-## Negative cases
+## Negative and adversarial cases
 
-- A historical 249-test snapshot must not be deleted or relabeled as a 254-test current run.
-- A passing targeted suite must not clear a failing full-suite blocker.
-- A release checklist item may not be checked merely because an implementation exists.
+- A passing targeted suite, legacy score, or unchecked checklist must not be represented as a release decision.
+- The scan must not suppress historical documents; it must classify them and preserve their source text.
 
-## Evidence
+## Delivery tasks
 
-- `docs/bmad/README.md`
-- `docs/bmad/releases/R1-release-gate.md`
-- `docs/bmad/subagents/perfection-scorecard.yaml`
+- [ ] Define the scan scope, dangerous-claim patterns, exclusions, and classifications.
+- [ ] Repair or explicitly historical-label every finding in an authority document.
+- [ ] Generate and validate the claim-scan evidence artifact; add it to release-gate CI.
+- [ ] Obtain an adversarial documentation review that attempts to locate a misleading current claim.
+
+## Required validation
+
+- Run the story-specific unit, contract, integration, and E2E checks and retain raw output in the release evidence directory.
+- Run relevant TypeScript typechecks and lint; for production changes, run the prescribed targeted R1 tests and the full suite according to the ledger policy.
+- Re-run the evidence ledger/triage validator and documentation claim scan when evidence, status, or release wording changes.
+- Record an adversarial review that attempts the negative cases above. A self-authored implementation note is not that review.
+
+## Expected evidence
+
+- `docs/bmad/releases/evidence/2026-07-24-authoritative-claim-scan.json`
+- `scripts/scan-r1-documentation-claims.ts`
 - `docs/bmad/baseline-2026-07-24-gate0.md`
-- `docs/bmad/releases/evidence/2026-07-24-release-evidence-ledger.json`
+## Non-negotiable delivery rules
+
+- R1 remains **release blocked**. This story cannot authorize a release, score, or production-readiness claim; only E10-S30 can issue an independent decision.
+- Do not delete, skip, or weaken a failing test to make a command green. Preserve historical evidence and label it historical rather than rewriting it.
+- Use Zod at external or unknown data boundaries; introduce no explicit `any` in R1 production code; never place secrets in fixtures, logs, telemetry, receipts, evidence, or exports.
+- Before a story can move to `done`, its acceptance tests, relevant lint/typecheck/integration checks, documentation/status evidence, and an adversarial review must be recorded. A plan or an implementation-only assertion is not completion evidence.
 
 ## Definition of done
 
-All acceptance criteria pass, affected documentation is reviewed adversarially, sprint status records real paths, and E10-S2 confirms a single current authority.
+This story remains `in_progress`, `review`, or `blocked` until every acceptance criterion has passing, retained evidence and an adversarial review. It may not be marked `done` by the author or used to advance the R1 release decision.
+
+## References
+
+- `docs/bmad/baseline-2026-07-24-gate0.md`
+- `docs/bmad/releases/R1-release-gate.md`
+- `_bmad-output/planning-artifacts/sprint-change-proposal-2026-07-24.md`
+- `docs/bmad/sprint-status.yaml`

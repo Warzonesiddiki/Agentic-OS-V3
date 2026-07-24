@@ -59,7 +59,7 @@ export function quarantineAgent(
   if (!agentId || !reason || reason.trim().length < 4) {
     throw new ApiError(
       'QUARANTINE_BAD_REQUEST',
-      'Quarantine requires a non-empty agentId and reason.'
+      'QUARANTINE_BAD_REQUEST: quarantine requires a non-empty agentId and reason.'
     );
   }
   const id = 'Q-' + randomUUID().slice(0, 8);
@@ -88,10 +88,10 @@ export function quarantineAgent(
   req.status = 'active';
   req.adjudication = 'auto-approved: safety-first; kernel isolation pending';
   revokeAll(agentId); // revoke every scope for the quarantined agent
-  // Drop to safe tier so the agent cannot escalate or take new work during quarantine.
-  const prevTier = getTier();
-  if (prevTier !== 'safe') setTier('safe', `quarantine:${agentId}`);
-  const remediation = heal(); // self-heal remediation (reset breakers, recover tier later)
+  // Run non-isolation remediation first, then make the safe-tier decision last.
+  // `heal()` can raise a recovered tier; it must never undo a live quarantine.
+  const remediation = heal();
+  if (getTier() !== 'safe') setTier('safe', `quarantine:${agentId}`);
   void appendAudit(
     'quarantine.active',
     { id, agentId, tier: getTier() },

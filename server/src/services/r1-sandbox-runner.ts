@@ -17,6 +17,19 @@ export interface R1SandboxRunResult {
 
 const ALLOWED_COMMANDS = new Set(['cat', 'echo', 'git', 'ls', 'node', 'npm', 'pnpm', 'pwd']);
 const MAX_OUTPUT_BYTES = 1_000_000;
+const MIN_TIMEOUT_MS = 100;
+const MAX_TIMEOUT_MS = 60_000;
+const MAX_ARGUMENTS = 20;
+const MAX_ARGUMENT_LENGTH = 500;
+const POSIX_EXECUTION_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
+
+function minimalEnvironment(projectRoot: string): NodeJS.ProcessEnv {
+  // Do not inherit the server PATH: npm scripts and hostile repositories can prepend
+  // project-controlled bin directories. This is an executable-location control, not
+  // executable provenance; an attacker controlling a trusted system directory remains
+  // outside the bounded runner's security boundary.
+  return { PATH: POSIX_EXECUTION_PATH, HOME: projectRoot, NO_COLOR: '1' };
+}
 
 /**
  * Execute a deliberately small, shell-free command allowlist in a project root.
@@ -24,8 +37,17 @@ const MAX_OUTPUT_BYTES = 1_000_000;
  * explicit limits as part of their policy decision and never pass untrusted env.
  */
 export async function runR1ConstrainedCommand(input: R1SandboxRunInput): Promise<R1SandboxRunResult> {
+  if (process.platform === 'win32') {
+    throw new Error('Windows constrained-command execution is unsupported pending E10-S8 platform validation');
+  }
   if (!ALLOWED_COMMANDS.has(input.command)) {
     throw new Error(`Command not allowed in sandbox: ${input.command}`);
+  }
+  if (!Number.isInteger(input.timeoutMs) || input.timeoutMs < MIN_TIMEOUT_MS || input.timeoutMs > MAX_TIMEOUT_MS) {
+    throw new Error(`Sandbox timeout must be an integer between ${MIN_TIMEOUT_MS} and ${MAX_TIMEOUT_MS}ms`);
+  }
+  if (input.args.length > MAX_ARGUMENTS || input.args.some((argument) => argument.length > MAX_ARGUMENT_LENGTH)) {
+    throw new Error(`Sandbox command accepts at most ${MAX_ARGUMENTS} arguments of ${MAX_ARGUMENT_LENGTH} characters`);
   }
 
   const root = await realpath(input.workingDirectory);
@@ -37,8 +59,8 @@ export async function runR1ConstrainedCommand(input: R1SandboxRunInput): Promise
   return new Promise<R1SandboxRunResult>((resolveResult, reject) => {
     const child = spawn(input.command, [...input.args], {
       cwd: root,
-      detached: process.platform !== 'win32',
-      env: { PATH: process.env.PATH ?? '', HOME: root, NO_COLOR: '1' },
+      detached: true,
+      env: minimalEnvironment(root),
       shell: false,
       stdio: ['ignore', 'pipe', 'pipe'],
       windowsHide: true,
@@ -60,12 +82,10 @@ export async function runR1ConstrainedCommand(input: R1SandboxRunInput): Promise
 
     const stop = (): void => {
       if (child.pid === undefined) return;
-      if (process.platform === 'win32') {
-        void import('node:child_process').then(({ execFile }) => {
-          execFile('taskkill', ['/pid', String(child.pid), '/t', '/f']);
-        });
-      } else {
-        try { process.kill(-child.pid, 'SIGKILL'); } catch { child.kill('SIGKILL'); }
+      try {
+        process.kill(-child.pid, 'SIGKILL');
+      } catch {
+        child.kill('SIGKILL');
       }
     };
 

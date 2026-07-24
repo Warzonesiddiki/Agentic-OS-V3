@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq, or, sql } from 'drizzle-orm';
 import { db, tagTaxonomy, memoryTags, memories, getBackend } from '../db/client.js';
 import { ApiError } from '../lib/errors.js';
 import type { Tx } from '../lib/audit.js';
@@ -96,11 +96,13 @@ export async function createTag(
   parentId?: string | null,
   aliases: string[] = []
 ): Promise<TagNode> {
+  const normalizedName = name.trim();
+  if (!normalizedName) throw new ApiError('VALIDATION_ERROR', 'tag name is required');
   const id = `tag_${randomUUID()}`;
   const now = new Date();
   const row: TagRow = {
     id,
-    name,
+    name: normalizedName,
     parentId: parentId ?? null,
     aliases,
     createdAt: now,
@@ -125,7 +127,11 @@ export async function createTag(
 export async function getTag(id: string): Promise<TagNode | null> {
   const rows = await db.select().from(tagTaxonomy).where(eq(tagTaxonomy.id, id)).limit(1);
   if (!Array.isArray(rows) || rows.length === 0) return null;
-  return rowToTag(rows[0] as TagRow);
+  const row = rows[0] as TagRow;
+  // Defend against a misconfigured/mock executor returning an unfiltered row:
+  // a caller must never receive a tag different from the requested identity.
+  if (row.id !== id) return null;
+  return rowToTag(row);
 }
 
 export async function listTags(): Promise<TagNode[]> {
@@ -173,8 +179,13 @@ export async function renameTag(id: string, newName: string): Promise<void> {
 
 export async function mergeTags(sourceId: string, targetId: string): Promise<void> {
   if (sourceId === targetId) return;
-  const source = await getTag(sourceId);
-  const target = await getTag(targetId);
+  const rows = await db
+    .select()
+    .from(tagTaxonomy)
+    .where(or(eq(tagTaxonomy.id, sourceId), eq(tagTaxonomy.id, targetId)));
+  const tags = Array.isArray(rows) ? rows.map((row) => rowToTag(row as TagRow)) : [];
+  const source = tags.find((tag) => tag.id === sourceId);
+  const target = tags.find((tag) => tag.id === targetId);
   if (!source) throw new ApiError('NOT_FOUND', 'source tag not found');
   if (!target) throw new ApiError('NOT_FOUND', 'target tag not found');
   await db.transaction(async (tx: Tx) => {

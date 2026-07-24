@@ -10,6 +10,7 @@
 import { db } from '../db/client.js';
 import { memories, memoryClusters, memoryClusterMembers, memoryCausalEdges } from '../db/client.js';
 import { and, eq, isNull } from 'drizzle-orm';
+import { z } from 'zod';
 import { applyZone, PrivacyZone } from './memory-privacy-zones.js';
 
 export const EXPORT_SCHEMA_VERSION = 3;
@@ -94,7 +95,11 @@ export async function exportBrainV3(
   };
 }
 
-/** Validate an imported bundle is v3. */
-export function isV3(brain: { schemaVersion?: number }): boolean {
-  return brain.schemaVersion === EXPORT_SCHEMA_VERSION;
+const BrainV3MarkerSchema = z.object({
+  schemaVersion: z.literal(EXPORT_SCHEMA_VERSION),
+}).passthrough();
+
+/** Validate an unknown imported bundle has the v3 schema marker. */
+export function isV3(brain: unknown): boolean {
+  return BrainV3MarkerSchema.safeParse(brain).success;
 }

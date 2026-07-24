@@ -1,0 +1,147 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://agentic-os.local/schemas/nexus.r1.release-evidence-ledger.v2.json",
+  "title": "NEXUS R1 release evidence ledger v2",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "generatedAt",
+    "evidenceSource",
+    "environment",
+    "commands",
+    "releaseDecision",
+    "decisionDerivation",
+    "reviewer"
+  ],
+  "properties": {
+    "schemaVersion": { "const": "nexus.r1.release-evidence-ledger.v2" },
+    "generatedAt": { "type": "string", "format": "date-time" },
+    "evidenceSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repositoryCommit", "branch", "note"],
+      "properties": {
+        "repositoryCommit": { "type": "string", "pattern": "^[a-f0-9]{40}$" },
+        "branch": { "type": "string", "minLength": 1 },
+        "note": { "type": "string", "minLength": 1 }
+      }
+    },
+    "environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node", "pnpm", "platform", "installMode", "databaseMode"],
+      "properties": {
+        "node": { "type": "string", "minLength": 1 },
+        "pnpm": { "type": "string", "minLength": 1 },
+        "platform": { "type": "string", "minLength": 1 },
+        "installMode": { "type": "string", "minLength": 1 },
+        "databaseMode": { "type": "string", "minLength": 1 }
+      }
+    },
+    "commands": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/command" }
+    },
+    "releaseDecision": { "enum": ["blocked", "approved"] },
+    "decisionDerivation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["blockingCommandIds", "statement"],
+      "properties": {
+        "blockingCommandIds": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+        },
+        "statement": { "type": "string", "minLength": 1 }
+      }
+    },
+    "reviewer": { "$ref": "#/$defs/reviewer" }
+  },
+  "$defs": {
+    "evidencePath": {
+      "type": "string",
+      "pattern": "^docs/bmad/releases/evidence/(?!.*\\.\\.)[^/].*$"
+    },
+    "reviewer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "status"],
+      "properties": {
+        "role": { "type": "string", "minLength": 1 },
+        "status": { "enum": ["unassigned", "reviewed", "not_required"] }
+      }
+    },
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "role"],
+      "properties": {
+        "path": { "$ref": "#/$defs/evidencePath" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "role": { "enum": ["raw-command-output", "triage", "summary", "report"] }
+      }
+    },
+    "command": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "evidenceClass",
+        "command",
+        "workingDirectory",
+        "expected",
+        "actual",
+        "status",
+        "blockingReason",
+        "artifacts",
+        "reviewer",
+        "rerun"
+      ],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "evidenceClass": {
+          "enum": ["full-release", "targeted", "compile", "lint", "integration", "security"]
+        },
+        "command": { "type": "string", "minLength": 1 },
+        "workingDirectory": { "type": "string", "minLength": 1 },
+        "expected": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["exitCode", "description"],
+          "properties": {
+            "exitCode": { "type": "integer", "minimum": 0 },
+            "description": { "type": "string", "minLength": 1 }
+          }
+        },
+        "actual": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["exitCode", "summary", "observedAt"],
+          "properties": {
+            "exitCode": { "type": "integer", "minimum": 0 },
+            "summary": { "type": "string", "minLength": 1 },
+            "observedAt": { "type": "string", "format": "date-time" }
+          }
+        },
+        "status": { "enum": ["pass", "blocked", "failed", "not_run"] },
+        "blockingReason": { "type": ["string", "null"] },
+        "artifacts": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/artifact" } },
+        "reviewer": { "$ref": "#/$defs/reviewer" },
+        "rerun": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "command", "evidencePath"],
+          "properties": {
+            "status": { "enum": ["not_run", "passed", "failed"] },
+            "command": { "type": "string", "minLength": 1 },
+            "evidencePath": { "anyOf": [{ "$ref": "#/$defs/evidencePath" }, { "type": "null" }] }
+          }
+        }
+      }
+    }
+  },
+  "description": "The executable validator in scripts/validate-r1-release-evidence.ts is authoritative for cross-record and artifact/hash invariants that JSON Schema cannot express alone."
+}

@@ -31,8 +31,38 @@ export interface GuardrailThreshold {
 
 const registry = new Map<string, GuardrailThreshold>();
 
+function assertValidThreshold(threshold: GuardrailThreshold): void {
+  if (!threshold.id.trim()) {
+    throw new ApiError('GUARDRAIL_INVALID', 'GUARDRAIL_INVALID: guardrail ID is required.');
+  }
+  for (const value of [threshold.min, threshold.max, threshold.warnAt]) {
+    if (value !== undefined && !Number.isFinite(value)) {
+      throw new ApiError('GUARDRAIL_INVALID', 'GUARDRAIL_INVALID: threshold values must be finite numbers.');
+    }
+  }
+  if (threshold.min != null && threshold.max != null && threshold.min > threshold.max) {
+    throw new ApiError(
+      'GUARDRAIL_INVALID_RANGE',
+      `GUARDRAIL_INVALID_RANGE: guardrail ${threshold.id} has min ${threshold.min} > max ${threshold.max}`,
+    );
+  }
+  if (threshold.warnAt != null && threshold.max != null && threshold.warnAt > threshold.max) {
+    throw new ApiError(
+      'GUARDRAIL_INVALID_WARN',
+      `GUARDRAIL_INVALID_WARN: guardrail ${threshold.id} has warnAt ${threshold.warnAt} above max ${threshold.max}`,
+    );
+  }
+  if (threshold.warnAt != null && threshold.min != null && threshold.warnAt < threshold.min) {
+    throw new ApiError(
+      'GUARDRAIL_INVALID_WARN',
+      `GUARDRAIL_INVALID_WARN: guardrail ${threshold.id} has warnAt ${threshold.warnAt} below min ${threshold.min}`,
+    );
+  }
+}
+
 export function registerGuardrail(t: GuardrailThreshold): void {
-  registry.set(t.id, t);
+  assertValidThreshold(t);
+  registry.set(t.id, { ...t });
 }
 
 export function getGuardrailThreshold(id: string): GuardrailThreshold | undefined {
@@ -52,12 +82,12 @@ export function setGuardrailThreshold(
   const existing = registry.get(id);
   if (!existing) throw new ApiError('GUARDRAIL_UNKNOWN', `No guardrail ${id}`);
   const next: GuardrailThreshold = { ...existing, ...partial, id };
-  if (next.min != null && next.max != null && next.min > next.max) {
-    throw new ApiError(
-      'GUARDRAIL_INVALID_RANGE',
-      `Guardrail ${id}: min ${next.min} > max ${next.max}`
-    );
+  if (partial.max !== undefined && partial.warnAt === undefined && existing.warnAt !== undefined) {
+    // Preserve a safe warning relationship when a tuner reduces the hard cap.
+    // Existing warnAt=80 with max reduced to 50 becomes 45, not a silent no-warn zone.
+    next.warnAt = Math.min(existing.warnAt, partial.max * 0.9);
   }
+  assertValidThreshold(next);
   registry.set(id, next);
   void appendAudit(
     'guardrail.threshold.set',

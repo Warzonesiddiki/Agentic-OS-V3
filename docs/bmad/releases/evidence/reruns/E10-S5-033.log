@@ -1,0 +1,10 @@
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/memory-encryption.test.ts (4 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  4 passed (4)
+   Start at  13:52:06
+   Duration  272ms (transform 49ms, setup 0ms, collect 50ms, tests 6ms, environment 0ms, prepare 72ms)
+

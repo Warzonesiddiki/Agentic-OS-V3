@@ -1,5 +1,8 @@
 # R1 Release Gate and Operational Documentation (E8-S3)
 
+> **Current decision (2026-07-24): RELEASE BLOCKED.** This document contains a retained historical R1 operating guide. Its 2026-07-23 feature table, checkmarks, targeted counts, and completion wording are historical assertions, **not current validation evidence**. Current authority is the Gate 0 baseline and versioned evidence ledger; only independent E10-S30 approval may change release status.
+
+
 **Date:** 2026-07-23
 **Release:** R1 Governed Agent Workbench
 **Status:** **BLOCKED — E10-R1 integrity, security, and release requalification required.** Historical targeted suites remain evidence only; they do not authorize release.
@@ -88,7 +91,7 @@ Degraded modes:
 | Node | >=20 (tested 22.22.3) | ESM, `type: module` |
 | Package manager | pnpm 9.15+ | lockfile v9 |
 | Database local | SQLite better-sqlite3 11.10.0 (with fallback) + PGlite 0.5.4 for tests | FK enabled, append-only triggers |
-| Database shared | PostgreSQL 15+ with pgvector optional, drizzle-orm 0.45 | migrations 0049-0052 |
+| Database shared | PostgreSQL 15+ with pgvector optional, drizzle-orm 0.45 | current R1 migration inventory 0049–0054; forward/rollback/restore validation remains blocked |
 | Browser | Evergreen (Chrome/FF/Safari latest 2 versions) | Offline cache fallback, reduced-motion respected |
 | Tauri | Planned: OS keychain for secrets, sandbox via OS policy | Tauri commands treated as privileged API with Zod validation |
 | MCP | 2024-11-05, stdio + HTTP, filtered env for STDIO, HTTPS + origin + timeout for HTTP | Tool descriptions untrusted, annotations ignored for policy |
@@ -96,7 +99,7 @@ Degraded modes:
 | LLM providers | openai-compatible, anthropic optional | Token budgets enforced, lexical fallback when unavailable |
 | Embedding | openai-compatible, dimension check prevents mismatch use | Hybrid recall uses RRF k=60 |
 
-## 4. Feature Claims vs Validated Behavior
+## 4. Historical Feature Assertions and Historical Validation Notes
 
 | Feature | Claim | Validated |
 |---------|-------|-----------|
@@ -124,12 +127,12 @@ Degraded modes:
 | A2A task adapter | Deferred P2 | Not in R1 release gate |
 | Explicit one-project sync | Deferred P2 | Explicit push/pull planned, no silent last-write-wins |
 
-## 5. Release Checklist
+## 5. Historical Release Checklist (all checkmarks are non-authoritative pending E10-R1)
 
-- [x] `pnpm --filter @agentic-os/sdk test` 91/91 passing
+- [ ] Current targeted SDK evidence: 255/255 passed on 2026-07-24, but it is insufficient to clear the blocked full suite; see the ledger. (The prior 91/91 checkmark is historical.)
 - [x] Security isolation tests (E8-S1) cover cross-project, path traversal, command injection, approval replay, kill-switch, oversized payload, credential leakage
 - [x] Performance & reliability tests (E8-S2) cover p95 status/recall, worker crash/restart, event reconnect, leak detection
-- [x] Migrations 0049-0052 apply cleanly on SQLite (via PGlite) and Postgres (via sql executor)
+- [ ] Current R1 migration inventory is 0049–0054; forward, rollback, restore, and integrity validation on SQLite/PGlite/PostgreSQL is pending E10-S16/E10-S17.
 - [x] Tool gateway adversarial cases fail closed (disallowed commands, injection, traversal, secret redaction)
 - [x] Kill-switch race coverage (enable during claim/approval/tool)
 - [x] Audit integrity trigger blocks UPDATE/DELETE
@@ -150,13 +153,13 @@ Degraded modes:
 - Compensation steps run only when declared — no automatic reverse dependency order yet (manual for R1)
 - Sync (E7-S3) deferred; export/import is explicit one-project mechanism, not background sync
 
-## 7. Golden Path Verification (14 steps)
+## 7. Historical Golden Path Verification (14 steps)
 
-See docs/bmad/GOLDEN-PATH-SPECIFICATION.md — this release satisfies all 14 steps with measurable criteria:
+See docs/bmad/GOLDEN-PATH-SPECIFICATION.md. The following were historical assertions; E10-S25 must execute the real path before release:
 - 100% end-to-end without data repair on golden fixture
 - Approval pause before any side effect 100%
 - Recovery from worker death at 3+ checkpoints: no duplicate effects
 - Recall usefulness feedback loop exercised
 - Full evidence package exportable and re-importable without loss of provenance
 
-End of R1 gate documentation.
+End of historical R1 operating guidance. Current release decision: **blocked**.

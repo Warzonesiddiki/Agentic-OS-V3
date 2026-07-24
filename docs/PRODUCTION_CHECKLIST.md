@@ -1,3 +1,5 @@
+> **E10-R1 supersession notice (2026-07-24):** This pre-E10 operational record is retained for historical traceability. It is **not** current R1 release evidence and must not be used to claim a green gate, completed phase, perfection score, production readiness, or release qualification. The current R1 decision is **release blocked**; see `docs/bmad/baseline-2026-07-24-gate0.md` and the evidence ledger.
+
 # Production Checklist
 
 Checklist for deploying NEXUS Agentic OS to production. Each item is a

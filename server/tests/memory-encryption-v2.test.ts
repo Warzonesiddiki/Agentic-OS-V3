@@ -69,12 +69,10 @@ describe('memory-encryption', () => {
     expect(key1.length).toBe(64); // 32 bytes hex
   });
 
-  it('produces deterministic nonces per memory ID', () => {
+  it('uses a fresh nonce for every encryption, including repeated writes to one memory', () => {
     const enc1 = encryptMemory('a', 'mem-same', 'fact', 0.8, config);
     const enc2 = encryptMemory('b', 'mem-same', 'fact', 0.8, config);
-    // Same memory ID → same nonce
-    expect(enc1!.nonce).toBe(enc2!.nonce);
-    // But different content → different ciphertext
+    expect(enc1!.nonce).not.toBe(enc2!.nonce);
     expect(enc1!.ciphertext).not.toBe(enc2!.ciphertext);
   });
 });

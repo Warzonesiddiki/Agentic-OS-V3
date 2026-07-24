@@ -41,6 +41,7 @@ import {
   type EffectClaimStore,
 } from '@agentic-os/sdk';
 import { CapabilityGovernanceService } from './capability-governance.js';
+import { getEnv } from '../lib/env.js';
 import { runR1ConstrainedCommand } from './r1-sandbox-runner.js';
 
 export interface ExtendedR1Runtime {
@@ -94,13 +95,19 @@ export function createExtendedSqlR1Runtime(
   const toolGateway = new BoundedToolGateway(repos, {
     now: options.now,
     projectRoots: options.projectRoots,
+    projectRootBase: getEnv().NEXUS_PROJECT_ROOT,
     effectClaims,
     isApprovalApproved: async (id: string, projectId: string) => {
       const appr = await durableApprovalsRepo.get(projectId, id);
       return appr?.state === 'approved';
     },
-    sandboxExecutor: async (command, args, timeoutMs, workingDirectory) =>
-      runR1ConstrainedCommand({ command, args, timeoutMs, workingDirectory }),
+    sandboxExecutor: async (command, args, timeoutMs, workingDirectory) => {
+      // `workingDirectory` is derived from trusted runtime configuration plus project ID
+      // by the gateway; create only that directory before the runner canonicalizes it.
+      const { mkdir } = await import('node:fs/promises');
+      await mkdir(workingDirectory, { recursive: true, mode: 0o700 });
+      return runR1ConstrainedCommand({ command, args, timeoutMs, workingDirectory });
+    },
     fileReader: async (fullPath: string) => {
       // Enforce project root already done in gateway; here we simulate read
       const { readFile } = await import('node:fs/promises');

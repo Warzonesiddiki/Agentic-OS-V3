@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../src/db/client.js', () => ({
   db: { select: vi.fn(), insert: vi.fn(), update: vi.fn() },
@@ -15,28 +15,45 @@ vi.mock('../src/db/client.js', () => ({
 }));
 
 import {
-  encryptMemory,
   decryptMemory,
+  encryptMemory,
   isEncrypted,
+  type EncryptionConfig,
 } from '../src/services/memory-encryption.js';
+
+const config: EncryptionConfig = {
+  encryptionKey: 'test-memory-encryption-key-material-32-bytes',
+  enabled: true,
+  minImportance: 0.2,
+};
+const memoryId = 'memory-encryption-test';
+const kind = 'fact';
+
+function encrypted(content: string) {
+  const payload = encryptMemory(content, memoryId, kind, 0.9, config);
+  if (payload === null) throw new Error('test fixture encryption unexpectedly returned null');
+  return payload;
+}
 
 describe('memory-encryption — round trip', () => {
   it('encrypts to a blob and decrypts back to the original', () => {
-    const blob = encryptMemory('hello world');
-    expect(typeof blob).toBe('object');
-    const back = decryptMemory(blob);
-    expect(back).toBe('hello world');
+    const blob = encrypted('hello world');
+    expect(decryptMemory(blob, memoryId, kind, config)).toBe('hello world');
   });
-  it('produces a different ciphertext than the plaintext', () => {
-    const blob: any = encryptMemory('secret');
-    expect(JSON.stringify(blob)).not.toContain('secret');
+
+  it('uses a fresh nonce and does not expose plaintext in ciphertext', () => {
+    const first = encrypted('secret');
+    const second = encrypted('secret');
+    expect(first.nonce).not.toBe(second.nonce);
+    expect(JSON.stringify(first)).not.toContain('secret');
   });
 });
 
 describe('memory-encryption — isEncrypted', () => {
   it('returns true for an encrypted blob', () => {
-    expect(isEncrypted(encryptMemory('x'))).toBe(true);
+    expect(isEncrypted(encrypted('x'))).toBe(true);
   });
+
   it('returns false for plain strings and objects', () => {
     expect(isEncrypted('plain')).toBe(false);
     expect(isEncrypted({ foo: 'bar' })).toBe(false);

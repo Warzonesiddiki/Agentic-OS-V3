@@ -1,0 +1,10 @@
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+ ✓ tests/llm-coalesce.test.ts (2 tests) 20ms
+
+ Test Files  1 passed (1)
+      Tests  2 passed (2)
+   Start at  13:34:29
+   Duration  287ms (transform 60ms, setup 0ms, collect 54ms, tests 20ms, environment 0ms, prepare 74ms)
+

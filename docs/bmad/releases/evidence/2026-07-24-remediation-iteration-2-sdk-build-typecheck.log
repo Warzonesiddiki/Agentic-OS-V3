@@ -1,0 +1,4 @@
+$ node "$TSC" -p tsconfig.json
+$ node "$TSC" -p tsconfig.cjs.json
+$ node "$TSC" -p tsconfig.json --noEmit
+$ node "$TSC" -p tsconfig.cjs.json --noEmit

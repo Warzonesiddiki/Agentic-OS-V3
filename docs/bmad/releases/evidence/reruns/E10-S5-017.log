@@ -1,0 +1,11 @@
+
+ RUN  v3.2.6 /home/user/Agentic-OS-V3/server
+
+{"level":"info","msg":"guardrail.threshold.updated","ts":"2026-07-24T13:34:27.119Z","id":"g1","metric":"tokens"}
+ ✓ tests/guardrails-quarantine.test.ts (6 tests) 13ms
+
+ Test Files  1 passed (1)
+      Tests  6 passed (6)
+   Start at  13:34:26
+   Duration  443ms (transform 148ms, setup 0ms, collect 208ms, tests 13ms, environment 0ms, prepare 71ms)
+

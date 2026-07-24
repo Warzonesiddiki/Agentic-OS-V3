@@ -1,3 +1,5 @@
+> **Historical campaign/review record — not current R1 release evidence.** This document predates the 2026-07-24 E10-R1 adversarial audit. Its counts, scores, completion statements, and release language are preserved as history only. R1 is **release blocked** pending independent E10-S30 review.
+
 # Master Bidirectional Traceability Matrix
 ## NEXUS 2.0 BMAD R1 — Zero-Compromise
 
