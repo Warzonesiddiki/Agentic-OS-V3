@@ -65,15 +65,15 @@ export class LRUCache<K, V> {
 
   set(key: K, value: V, ttlMs?: number): void {
     let expiresAt: number;
-    const effectiveTtl = ttlMs !== undefined ? ttlMs : this.defaultTtlMs;
-    if (effectiveTtl > 0) {
-      expiresAt = Date.now() + effectiveTtl;
-    } else if (effectiveTtl === 0) {
-      // Explicit 0 with defaultTtlMs=0 → immediate expiry (for deterministic tests)
-      // Explicit 0 with defaultTtlMs>0 → never expire (no TTL override)
-      expiresAt = this.defaultTtlMs === 0 ? Date.now() : Number.MAX_SAFE_INTEGER;
+    if (ttlMs === undefined) {
+      // No explicit TTL: use default. defaultTtlMs=0 means never expire.
+      expiresAt = this.defaultTtlMs > 0 ? Date.now() + this.defaultTtlMs : Number.MAX_SAFE_INTEGER;
+    } else if (ttlMs > 0) {
+      expiresAt = Date.now() + ttlMs;
     } else {
-      expiresAt = Number.MAX_SAFE_INTEGER;
+      // Explicit 0: immediate expiry only when the constructor TTL is also 0.
+      // Otherwise (e.g. defaultTtlMs=10 → explicit 0 = "no expiry override").
+      expiresAt = (this.defaultTtlMs === 0 && ttlMs === 0) ? Date.now() : Number.MAX_SAFE_INTEGER;
     }
     if (this.map.has(key)) {
       this.map.delete(key);

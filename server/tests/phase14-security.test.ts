@@ -4,6 +4,9 @@
  */
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 
+// Set HSM key before any env-caching module loads
+process.env.HSM_LOCAL_KEY = Buffer.alloc(32, 7).toString('base64');
+
 vi.mock('../src/db/client.js', () => ({ db: {}, systemMeta: {}, auditLog: {} }));
 vi.mock('../src/lib/audit.js', () => ({
   appendAudit: vi.fn(async () => {}),
@@ -72,10 +75,6 @@ import {
 } from '../src/services/compliance-reporter.js';
 import { encryptField, decryptField } from '../src/services/db-encryption.js';
 import { detectTyposquat } from '../src/services/supply-chain.js';
-
-beforeAll(() => {
-  process.env.HSM_LOCAL_KEY = Buffer.alloc(32, 7).toString('base64');
-});
 
 describe('zero-trust attestation', () => {
   it('issues and verifies a valid token', () => {
