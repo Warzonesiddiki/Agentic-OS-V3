@@ -18,8 +18,8 @@
 | 7 | `07-epics-and-stories.md` | ✅ complete |
 | 8 | `08-sprint-planning.md` | ✅ complete |
 | 9 | `09-story-spec.md` | ✅ complete |
-| 10 | `10-dev-story.md` | 🔄 in progress |
-| 11 | `11-code-review.md` | ⬜ |
+| 10 | `10-dev-story.md` | ✅ complete |
+| 11 | `11-code-review.md` | ✅ complete (APPROVED) |
 
 ## Acceptance criteria (definition of done for S01)
 1. `pnpm install` completes successfully (incl. native `better-sqlite3`) on the workspace.
