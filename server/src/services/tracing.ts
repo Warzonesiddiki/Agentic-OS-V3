@@ -230,9 +230,11 @@ export function getTraceProvider(): {
 /** withSpan — generic active-span wrapper that accounts wall time (p95 latency). */
 export async function withSpan<T>(
   name: string,
-  fn: (span: InternalSpan) => Promise<T>,
-  opts: { attributes?: Record<string, string | number | boolean> } = {}
+  fnOrOpts: ((span: InternalSpan) => Promise<T>) | { attributes?: Record<string, string | number | boolean> },
+  fnOrUndefined?: (span: InternalSpan) => Promise<T>
 ): Promise<T> {
+  const fn = (typeof fnOrOpts === 'function' ? fnOrOpts : fnOrUndefined)!;
+  const opts = (typeof fnOrOpts === 'object' && fnOrOpts !== null ? fnOrOpts : {}) as { attributes?: Record<string, string | number | boolean> };
   const handle = startToolSpan(name, opts.attributes);
   try {
     const result = await fn(handle.span);
@@ -245,4 +247,10 @@ export async function withSpan<T>(
   } finally {
     handle.span.end();
   }
+}
+
+/** getTraceContext from the active tracing context store. */
+export function getTraceContext(): TraceContext | undefined {
+  for (const ctx of _activeContext.values()) return ctx;
+  return undefined;
 }
