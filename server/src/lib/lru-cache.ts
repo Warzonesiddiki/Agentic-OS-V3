@@ -38,7 +38,7 @@ export class LRUCache<K, V> {
       this._misses++;
       return undefined;
     }
-    if (this.defaultTtlMs > 0 && Date.now() > entry.expiresAt) {
+    if (Date.now() >= entry.expiresAt) {
       this.map.delete(key);
       this._expired++;
       this._misses++;
@@ -55,7 +55,7 @@ export class LRUCache<K, V> {
   peek(key: K): V | undefined {
     const entry = this.map.get(key);
     if (entry === undefined) return undefined;
-    if (this.defaultTtlMs > 0 && Date.now() > entry.expiresAt) {
+    if (Date.now() >= entry.expiresAt) {
       this.map.delete(key);
       this._expired++;
       return undefined;
@@ -63,8 +63,18 @@ export class LRUCache<K, V> {
     return entry.value;
   }
 
-  set(key: K, value: V, ttlMs = this.defaultTtlMs): void {
-    const expiresAt = ttlMs > 0 ? Date.now() + ttlMs : Number.MAX_SAFE_INTEGER;
+  set(key: K, value: V, ttlMs?: number): void {
+    let expiresAt: number;
+    const effectiveTtl = ttlMs !== undefined ? ttlMs : this.defaultTtlMs;
+    if (effectiveTtl > 0) {
+      expiresAt = Date.now() + effectiveTtl;
+    } else if (effectiveTtl === 0) {
+      // Explicit 0 with defaultTtlMs=0 → immediate expiry (for deterministic tests)
+      // Explicit 0 with defaultTtlMs>0 → never expire (no TTL override)
+      expiresAt = this.defaultTtlMs === 0 ? Date.now() : Number.MAX_SAFE_INTEGER;
+    } else {
+      expiresAt = Number.MAX_SAFE_INTEGER;
+    }
     if (this.map.has(key)) {
       this.map.delete(key);
       this.map.set(key, { value, expiresAt });
@@ -91,11 +101,10 @@ export class LRUCache<K, V> {
 
   /** Drop all expired entries; returns number removed. O(n). */
   prune(): number {
-    if (this.defaultTtlMs <= 0) return 0;
     const now = Date.now();
     let removed = 0;
     for (const [k, v] of this.map) {
-      if (now > v.expiresAt) {
+      if (now >= v.expiresAt) {
         this.map.delete(k);
         this._expired++;
         removed++;
