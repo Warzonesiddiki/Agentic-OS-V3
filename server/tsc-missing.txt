@@ -1,2 +1,0 @@
-
-@hono/zod-validator or its corresponding type declarations

@@ -58,3 +58,23 @@ pnpm-lock.yaml
 yarn.lock
 .aider*
 server/data/
+
+# --- Revenue Engine (S01) hygiene: scratch/output patterns ---
+# Lint / typecheck / test scratch dumps (do not commit)
+server/tsc-*.txt
+server/tsc*.txt
+server/eslint_*.json
+server/eslint_tests.txt
+server/*_out.txt
+server/lint-out.txt
+server/err.txt
+__check*.cjs
+__check*.mjs
+__check_tables.mjs
+agent-dag-real.txt
+dd-real.txt
+# Local editor/agent temp files
+**/.hermes-tmp.*
+*.hermes-tmp.*
+# BMAD run logs
+_bmad-output/*.err
