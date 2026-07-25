@@ -12,8 +12,8 @@ import { runShadowCycle as _shadowRunShadowCycle } from './shadow-daemon.js';
 
 /** Re-export the shadow-daemon's cycle as part of the health-monitor surface
  *  (Forge's task-worker calls `healthMonitor.runShadowCycle()`). */
-export function runShadowCycle(): void {
-  void _shadowRunShadowCycle();
+export async function runShadowCycle(): Promise<any> {
+  return _shadowRunShadowCycle();
 }
 export type HealthLevel = 'ok' | 'degraded' | 'down';
 
@@ -46,10 +46,19 @@ const _state = new Map<
   { lastCheckedAt: number; restartAttempts: number; lastRestartAt: number }
 >();
 
-export function registerHealthCheck(check: HealthCheck): void {
-  _checks.set(check.subsystem, check);
-  if (!_state.has(check.subsystem)) {
-    _state.set(check.subsystem, {
+export function registerHealthCheck(check: HealthCheck | { id: string; fn: () => Promise<HealthLevel> | HealthLevel }): void {
+  const subsystem = 'subsystem' in check ? check.subsystem : (check as { id: string }).id;
+  const checkFn = 'check' in check ? check.check : (check as { fn: () => Promise<HealthLevel> | HealthLevel }).fn;
+  const normalized: HealthCheck = {
+    subsystem,
+    check: checkFn,
+    restart: 'restart' in check ? check.restart : undefined,
+    maxRestartAttempts: 'maxRestartAttempts' in check ? check.maxRestartAttempts : 3,
+    cooldownMs: 'cooldownMs' in check ? check.cooldownMs : 5000,
+  };
+  _checks.set(subsystem, normalized);
+  if (!_state.has(subsystem)) {
+    _state.set(subsystem, {
       lastCheckedAt: 0,
       restartAttempts: 0,
       lastRestartAt: 0,
