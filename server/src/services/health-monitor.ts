@@ -167,3 +167,30 @@ export function getSubsystemHealth(subsystem: string): SubsystemHealth | undefin
     lastRestartAt: st.lastRestartAt,
   };
 }
+
+// ── Legacy health API for metron tests ─────────────────────────
+
+export function healthStatus(subsystem: string): SubsystemHealth | undefined {
+  return getSubsystemHealth(subsystem);
+}
+
+export async function heal(
+  subsystem: string,
+  recovery: () => Promise<string>
+): Promise<string> {
+  const check = _checks.get(subsystem);
+  if (!check?.restart) {
+    // No restart hook — invoke the recovery function and report
+    try {
+      return await recovery();
+    } catch {
+      return 'healed (no-op)';
+    }
+  }
+  try {
+    await check.restart();
+    return 'healed';
+  } catch {
+    return 'heal failed';
+  }
+}

@@ -107,3 +107,27 @@ export function stopProbeHarness(): void {
 export function getProbeResults(): ProbeResult[] {
   return [..._results];
 }
+
+// ── Legacy probe runner for metron tests ───────────────────────
+let _probeLoopInterval: ReturnType<typeof setInterval> | null = null;
+
+export async function runProbe(name: string): Promise<ProbeResult> {
+  const probe = _probes.get(name);
+  if (!probe) throw new Error(`Probe '${name}' not registered`);
+  return executeProbe(name);
+}
+
+export function startProbeLoop(intervalMs: number): void {
+  stopProbeLoop();
+  _probeLoopInterval = setInterval(() => {
+    void runAllProbes().catch(() => undefined);
+  }, intervalMs);
+  if (typeof _probeLoopInterval === 'object' && _probeLoopInterval !== null &&
+      typeof (_probeLoopInterval as { unref?: () => void }).unref === 'function') {
+    (_probeLoopInterval as { unref: () => void }).unref();
+  }
+}
+
+export function stopProbeLoop(): void {
+  if (_probeLoopInterval) { clearInterval(_probeLoopInterval); _probeLoopInterval = null; }
+}
