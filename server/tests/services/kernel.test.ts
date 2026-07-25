@@ -200,6 +200,18 @@ vi.mock('../../src/db/client.js', async () => {
       .default(sql`(CURRENT_TIMESTAMP)`),
   });
 
+  const ringPolicies = sqliteTable('ring_policies', {
+    id: text('id').primaryKey(),
+    ring: integer('ring').notNull().unique(),
+    tools: text('tools').notNull().default('[]'),
+    maxConcurrency: integer('max_concurrency').notNull().default(0),
+    maxTokensPerMin: integer('max_tokens_per_min').notNull().default(0),
+    maxApiCallsPerMin: integer('max_api_calls_per_min').notNull().default(0),
+    updatedAt: text('updated_at')
+      .notNull()
+      .default(sql`(CURRENT_TIMESTAMP)`),
+  });
+
   return {
     default: { db, agents, agentTasks },
     db,
@@ -217,6 +229,7 @@ vi.mock('../../src/db/client.js', async () => {
     auditLog,
     toolReceipts,
     compiledScripts,
+    ringPolicies,
   };
 });
 

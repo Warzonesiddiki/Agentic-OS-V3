@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { Hono } from 'hono';
-import { ApiError } from '../lib/errors.js';
-import { hasScope } from '../lib/security.js';
+import { ApiError } from '../src/lib/errors.js';
+import { hasScope } from '../src/lib/security.js';
 
 // --- in-memory fake Drizzle interpreter (validated against drizzle-orm operators) ---
 function isConnector(c: any): boolean {
@@ -239,8 +239,8 @@ vi.mock('../lib/auth-context.js', () => ({
   },
 }));
 
-import { orgs } from '../db/schema.js';
-import { enterpriseRouter } from '../routes/enterprise.js';
+import { orgs } from '../src/db/schema.js';
+import { enterpriseRouter } from '../src/routes/enterprise.js';
 
 const app = new Hono();
 app.route('/', enterpriseRouter);

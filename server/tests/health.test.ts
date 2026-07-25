@@ -13,6 +13,13 @@ vi.mock("../src/db/client.js", () => ({
     from: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
   },
+  createApplicationSqlExecutor: vi.fn().mockReturnValue({
+    executeApplicationSql: vi.fn().mockResolvedValue(undefined),
+  }),
+  executeApplicationSql: vi.fn().mockResolvedValue(undefined),
+  withTransaction: vi.fn().mockImplementation((fn: Function) => fn({})),
+  getBackend: vi.fn().mockReturnValue("sqlite"),
+  getDbLockStatus: vi.fn().mockResolvedValue({ locked: false }),
 }));
 
 vi.mock("../src/lib/audit.js", () => ({

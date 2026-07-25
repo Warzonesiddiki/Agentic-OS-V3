@@ -183,3 +183,8 @@ export async function pruneBackups(retention: Retention): Promise<number> {
   }
   return toDelete.length;
 }
+
+export async function countBackup(_projectId: string): Promise<number> {
+  const rows = (await db.select().from(memories)) as { deletedAt: Date | null }[];
+  return rows.filter((r) => !r.deletedAt).length;
+}

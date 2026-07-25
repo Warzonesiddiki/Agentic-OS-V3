@@ -231,3 +231,42 @@ export function initColdStorageScheduler(): void {
     /* best-effort */
   }
 }
+
+// ── Legacy API wrappers (Phase 12 refactor) ──────────────────────
+
+export async function archiveMemory(
+  memoryId: string,
+  location: string
+): Promise<void> {
+  if (!location) {
+    const { ApiError } = await import('../lib/errors.js');
+    throw new ApiError('BAD_REQUEST', 'Archive location is required');
+  }
+  await (db as any)
+    .update()
+    .set({ coldStorageAt: new Date().toISOString(), archiveLocation: location })
+    .where({ id: memoryId });
+  await (db as any).insert().values({ memoryId, location });
+}
+
+export async function restoreMemory(memoryId: string): Promise<void> {
+  await (db as any)
+    .update()
+    .set({ coldStorageAt: null, archiveLocation: null, archivedAt: new Date() })
+    .where({ id: memoryId });
+}
+
+export function isColdStored(memory: { coldStorageAt?: string | null }): boolean {
+  return memory.coldStorageAt != null;
+}
+
+// Legacy wrappers
+export async function archiveMemory(id, loc) {
+  if (!loc) { const { ApiError } = require('../lib/errors.js'); throw new ApiError('BAD_REQUEST',''); }
+  await db.update().set({coldStorageAt:new Date().toISOString(),archiveLocation:loc}).where({id});
+  await db.insert().values({memoryId:id,location:loc});
+}
+export async function restoreMemory(id) {
+  await db.update().set({coldStorageAt:null,archiveLocation:null,archivedAt:new Date()}).where({id});
+}
+export function isColdStored(m) { return m.coldStorageAt != null; }

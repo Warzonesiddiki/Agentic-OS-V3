@@ -92,5 +92,6 @@ export function buildClientMock(store: ChainStore = {}) {
     tagTaxonomy: {},
     memoryClusters: {},
     memoryClusterMembers: {},
+    systemMeta: { key: 'key', value: 'value' },
   };
 }

@@ -264,3 +264,21 @@ export function classificationReport(result: ClassificationResult): string {
   }
   return lines.join('\n');
 }
+
+// ── Legacy aliases for phase14-security test compatibility ─────
+
+export function classify(input: string | unknown): string {
+  if (typeof input !== 'string') throw new Error('classify requires a string input');
+  const result = classifyContent(input);
+  return result.level;
+}
+
+export function requiredControls(level: ClassificationLevel): string[] {
+  const controls: Record<string, string[]> = {
+    public: [],
+    internal: ['access-log'],
+    confidential: ['access-log', 'encrypt-at-rest'],
+    restricted: ['access-log', 'encrypt-at-rest', 'audit-chain', 'redaction'],
+  };
+  return controls[level] ?? [];
+}

@@ -5,37 +5,40 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const chain = () => {
-  const o: any = {};
-  o.from = () => o;
-  o.leftJoin = () => o;
-  o.where = () => o;
-  o.orderBy = () => o;
-  o.limit = () => Promise.resolve([]);
-  o.findFirst = () => Promise.resolve(null);
-  o.findMany = () => Promise.resolve([]);
-  return o;
-};
-const returningChain = (rows: unknown[] = [{}]) => {
-  const p: any = Promise.resolve(rows);
-  p.$dynamic = () => Promise.resolve(rows);
-  return p;
-};
-const insertChain = () => ({
-  values: vi.fn(() => ({
-    onConflictDoNothing: vi.fn(() => Promise.resolve()),
-    onConflictDoUpdate: vi.fn(() => ({ returning: vi.fn(() => returningChain([{}])) })),
-    returning: vi.fn(() => returningChain([{}])),
-  })),
+const { dbMock } = vi.hoisted(() => {
+  const chain = () => {
+    const o: any = {};
+    o.from = () => o;
+    o.leftJoin = () => o;
+    o.where = () => o;
+    o.orderBy = () => o;
+    o.limit = () => Promise.resolve([]);
+    o.findFirst = () => Promise.resolve(null);
+    o.findMany = () => Promise.resolve([]);
+    return o;
+  };
+  const returningChain = (rows: unknown[] = [{}]) => {
+    const p: any = Promise.resolve(rows);
+    p.$dynamic = () => Promise.resolve(rows);
+    return p;
+  };
+  const insertChain = () => ({
+    values: vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => Promise.resolve()),
+      onConflictDoUpdate: vi.fn(() => ({ returning: vi.fn(() => returningChain([{}])) })),
+      returning: vi.fn(() => returningChain([{}])),
+    })),
+  });
+  const db: any = {
+    select: vi.fn(() => chain()),
+    insert: vi.fn(() => insertChain()),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => ({ returning: vi.fn(() => returningChain([{}])) })) })) })),
+    delete: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })),
+    query: { marketplacePlugins: chain(), pluginInstallations: chain(), pluginRatings: chain() },
+    transaction: vi.fn((fn: any) => fn(db)),
+  };
+  return { dbMock: db };
 });
-const dbMock: any = {
-  select: vi.fn(() => chain()),
-  insert: vi.fn(() => insertChain()),
-  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => ({ returning: vi.fn(() => returningChain([{}])) })) })) })),
-  delete: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })),
-  query: { marketplacePlugins: chain(), pluginInstallations: chain(), pluginRatings: chain() },
-  transaction: vi.fn((fn: any) => fn(dbMock)),
-};
 vi.mock('../src/db/client.js', () => ({ db: dbMock, isSqlite: false, isPg: true }));
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/lib/logging.js', () => ({ log: { info: vi.fn(), warn: vi.fn(), error: vi.fn() } }));

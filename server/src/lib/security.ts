@@ -91,7 +91,7 @@ export type Scope =
   | 'selfopt:write';
 
 /** Scopes defined in this application — ideally this would live in a config table. */
-const ALL_SCOPES = [
+export const ALL_SCOPES = [
   'chat.*',
   'chat.read',
   'chat.write',
