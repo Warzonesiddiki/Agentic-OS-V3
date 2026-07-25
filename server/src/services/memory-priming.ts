@@ -92,3 +92,83 @@ export async function buildSessionPriming(
     truncated,
   };
 }
+
+// ── Legacy API wrappers (Phase 12 refactor) ──────────────────────
+
+export interface PrimingCandidate {
+  id: string;
+  importance: number;
+  recency: number;
+  accessCount: number;
+  influenceCount: number;
+  decayedImportance: number;
+  tokenEstimate: number;
+}
+
+export interface PrimingBudget {
+  topK: number;
+  perItemTokens: number;
+  totalTokens: number;
+}
+
+export function computePrimingBudget(topK?: number, totalTokens?: number): PrimingBudget {
+  const k = topK ?? PRIMING_TOP_K;
+  const total = totalTokens ?? PRIMING_BUDGET_TOKENS;
+  return {
+    topK: k,
+    perItemTokens: k > 0 ? Math.floor(total / k) : 0,
+    totalTokens: total,
+  };
+}
+
+export interface SelectPrimingResult {
+  selected: PrimingCandidate[];
+  budgetConsumed: number;
+}
+
+export function selectPrimingCandidates(
+  items: PrimingCandidate[],
+  opts: { tokenBudget: number; limit: number }
+): SelectPrimingResult {
+  const sorted = [...items].sort((a, b) => {
+    const pa = a.importance + a.recency;
+    const pb = b.importance + b.recency;
+    return pb - pa;
+  });
+  const selected: PrimingCandidate[] = [];
+  let consumed = 0;
+  for (const item of sorted) {
+    if (consumed + item.tokenEstimate > opts.tokenBudget) continue;
+    if (selected.length >= opts.limit) break;
+    selected.push(item);
+    consumed += item.tokenEstimate;
+  }
+  return { selected, budgetConsumed: consumed };
+}
+
+export async function primingScopeForContext(opts: {
+  context: string;
+  agentId?: string;
+}): Promise<{ items: PrimingItem[]; budget: PrimingBudget }> {
+  const recalled = (await recall(opts.context, PRIMING_RECALL_BUDGET, opts.agentId ?? 'system', { limit: PRIMING_TOP_K })) as any;
+  const candidates = Array.isArray(recalled) ? recalled : (recalled?.returned ?? recalled?.items ?? []);
+  const items: PrimingItem[] = candidates.slice(0, PRIMING_TOP_K).map((c: any, i: number) => ({
+    memoryId: c.id ?? `mem-${i}`,
+    compressed: c.content ?? '',
+    tokens: Math.ceil((c.content?.length ?? 0) / 4),
+    similarityScore: c.score ?? 0.5,
+  }));
+  try {
+    await recordMemoryInfluences(
+      items.map((item, index) => ({
+        memoryId: item.memoryId,
+        contextKey: `session-${randomUUID()}`,
+        reason: 'priming' as const,
+        tokens: item.tokens,
+        position: index,
+      }))
+    );
+  } catch { /* best-effort */ }
+  const budget = computePrimingBudget(PRIMING_TOP_K, PRIMING_BUDGET_TOKENS);
+  return { items, budget };
+}

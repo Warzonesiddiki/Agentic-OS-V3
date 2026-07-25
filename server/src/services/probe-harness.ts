@@ -32,8 +32,11 @@ const _probes = new Map<string, Probe>();
 const _results: ProbeResult[] = [];
 const _timers = new Map<string, ReturnType<typeof setInterval>>();
 
-export function registerProbe(probe: Probe): void {
-  _probes.set(probe.name, probe);
+export function registerProbe(probe: Probe | { id: string; fn: ProbeFn; intervalMs?: number }): void {
+  const name = 'name' in probe ? probe.name : (probe as { id: string }).id;
+  const run: ProbeFn = 'run' in probe ? probe.run : (probe as { fn: ProbeFn }).fn;
+  const intervalMs = 'intervalMs' in probe ? probe.intervalMs : ((probe as { intervalMs?: number }).intervalMs ?? 5000);
+  _probes.set(name, { name, run, intervalMs });
 }
 
 export function unregisterProbe(name: string): void {
@@ -106,4 +109,28 @@ export function stopProbeHarness(): void {
 
 export function getProbeResults(): ProbeResult[] {
   return [..._results];
+}
+
+// ── Legacy probe runner for metron tests ───────────────────────
+let _probeLoopInterval: ReturnType<typeof setInterval> | null = null;
+
+export async function runProbe(name: string): Promise<ProbeResult> {
+  const probe = _probes.get(name);
+  if (!probe) throw new Error(`Probe '${name}' not registered`);
+  return executeProbe(name);
+}
+
+export function startProbeLoop(intervalMs: number): void {
+  stopProbeLoop();
+  _probeLoopInterval = setInterval(() => {
+    void runAllProbes().catch(() => undefined);
+  }, intervalMs);
+  if (typeof _probeLoopInterval === 'object' && _probeLoopInterval !== null &&
+      typeof (_probeLoopInterval as { unref?: () => void }).unref === 'function') {
+    (_probeLoopInterval as { unref: () => void }).unref();
+  }
+}
+
+export function stopProbeLoop(): void {
+  if (_probeLoopInterval) { clearInterval(_probeLoopInterval); _probeLoopInterval = null; }
 }

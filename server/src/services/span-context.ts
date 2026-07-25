@@ -63,3 +63,29 @@ export function headersWithTrace(extra: Record<string, string> = {}): Record<str
 
 // Aliases used by app.ts / tracing.ts consumers.
 export { parseTraceParent as parseTraceparent, formatTraceParent as formatTraceparent };
+
+// ── Legacy SpanContext wrapper for metron tracing tests ────────
+export class SpanContext {
+  traceId: string;
+  spanId: string;
+
+  constructor(opts: { traceId: string; spanId: string }) {
+    this.traceId = opts.traceId;
+    this.spanId = opts.spanId;
+  }
+}
+
+export function parseSpanContext(serialized: string): TraceContext | null {
+  const tp = parseTraceParent(serialized);
+  return tp ?? null;
+}
+
+export function formatSpanContext(ctx: TraceContext): string {
+  return formatTraceParent(ctx);
+}
+
+export function randomHex(len: number): string {
+  return Array.from({ length: len }, () =>
+    Math.floor(Math.random() * 16).toString(16)
+  ).join('');
+}

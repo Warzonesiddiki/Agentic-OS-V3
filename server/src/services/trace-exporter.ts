@@ -278,3 +278,11 @@ export class BatchedSpanProcessor implements SpanProcessor {
     await this._exporter.shutdown();
   }
 }
+
+/** NoopSpanProcessor — inert processor for metron tracing tests. */
+export class NoopSpanProcessor implements SpanProcessor {
+  onStart(_span: unknown): void { /* no-op */ }
+  onEnd(_span: unknown): void { /* no-op */ }
+  async forceFlush(): Promise<void> { /* no-op */ }
+  async shutdown(): Promise<void> { /* no-op */ }
+}

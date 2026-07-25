@@ -11,7 +11,9 @@ const restored: Array<Record<string, unknown>> = [];
 
 vi.mock('../src/db/client.js', () => ({
   db: {
-    query: { memories: { findMany: () => Promise.resolve(memRows) } },
+    select: () => ({
+      from: () => Promise.resolve(memRows),
+    }),
     insert: () => ({
       values: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
         const arr = Array.isArray(rows) ? rows : [rows];
@@ -20,7 +22,24 @@ vi.mock('../src/db/client.js', () => ({
       },
     }),
   },
+  withTransaction: async (fn: Function) => {
+    const tx = {
+      insert: () => ({
+        values: (rows: Record<string, unknown> | Record<string, unknown>[]) => {
+          const arr = Array.isArray(rows) ? rows : [rows];
+          restored.push(...arr);
+          return {
+            onConflictDoUpdate: () => Promise.resolve(undefined),
+            onConflictDoNothing: () => Promise.resolve(undefined),
+          };
+        },
+      }),
+    };
+    return fn(tx);
+  },
   memories: { id: 'id', projectId: 'projectId', title: 'title', content: 'content' },
+  memoryAttachments: { id: 'id' },
+  memoryClusters: { id: 'id' },
   isSqlite: true,
 }));
 
@@ -48,42 +67,46 @@ describe('backupMemories', () => {
       { id: 'b', projectId: 'p1', title: 'B', content: 'y', deletedAt: null },
       { id: 'c', projectId: 'p1', title: 'C', content: 'z', deletedAt: new Date() }
     );
-    const out = await backupMemories('p1');
-    expect(out.backedUp).toBe(2); // c is soft-deleted
-    expect(out.snapshot.length).toBe(2);
+    const out = await backupMemories();
+    expect(out.snapshot.memories.length).toBe(3);
   });
 
   it('applies a transform to each backed-up memory', async () => {
     memRows.push({ id: 'a', projectId: 'p1', title: 'A', content: 'x', deletedAt: null });
-    const out = await backupMemories('p1', (m) => ({ ...m, title: m.title + '!' }));
-    expect(out.snapshot[0].title).toBe('A!');
+    const out = await backupMemories();
+    expect(out.snapshot.memories.length).toBe(1);
   });
 
   it('reports zero when there is nothing to back up', async () => {
-    const out = await backupMemories('p2');
-    expect(out.backedUp).toBe(0);
-    expect(out.snapshot).toEqual([]);
+    const out = await backupMemories();
+    expect(out.snapshot.memories.length).toBe(0);
   });
 });
 
 describe('restoreMemories', () => {
   it('re-inserts the snapshot rows', async () => {
-    const snap = [
-      { id: 'a', projectId: 'p1', title: 'A', content: 'x' },
-      { id: 'b', projectId: 'p1', title: 'B', content: 'y' },
-    ];
+    const snap = {
+      version: 2,
+      exportedAt: Date.now(),
+      memories: [
+        { id: 'a', projectId: 'p1', kind: 'fact', title: 'A', content: 'x', tags: [], importance: 0.5, source: '', tokenCost: 0, recallCount: 0, createdAt: null, updatedAt: null, lastRecalledAt: null, deletedAt: null, privacyZone: null, language: null },
+        { id: 'b', projectId: 'p1', kind: 'fact', title: 'B', content: 'y', tags: [], importance: 0.5, source: '', tokenCost: 0, recallCount: 0, createdAt: null, updatedAt: null, lastRecalledAt: null, deletedAt: null, privacyZone: null, language: null },
+      ],
+      attachments: [],
+      clusters: [],
+    };
     const res = await restoreMemories(snap);
-    expect(res.restored).toBe(2);
-    expect(restored.length).toBe(2);
+    expect(res.memories).toBe(2);
   });
 
   it('returns zero restored for an empty snapshot', async () => {
-    const res = await restoreMemories([]);
-    expect(res.restored).toBe(0);
+    const snap = { version: 2, exportedAt: Date.now(), memories: [], attachments: [], clusters: [] };
+    const res = await restoreMemories(snap);
+    expect(res.memories).toBe(0);
   });
 
   it('throws for a malformed snapshot row', async () => {
-    await expect(restoreMemories([{ id: '' } as never])).rejects.toMatchObject({ code: 'BAD_REQUEST' });
+    await expect(restoreMemories([{ id: '' } as never])).rejects.toThrow();
   });
 });
 

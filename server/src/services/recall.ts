@@ -15,7 +15,7 @@
  * degrades to BM25-only (lexical mode).
  */
 import { inArray, sql, isNotNull, desc } from 'drizzle-orm';
-import { db, isSqlite } from '../db/client.js';
+import { db, isSqlite, withTransaction } from '../db/client.js';
 import { memories, skills, tokenLedger, notes } from '../db/client.js';
 import { bm25, estimateTokens, packByBudget } from '../lib/tokens.js';
 import { appendAudit, type Tx } from '../lib/audit.js';
@@ -457,7 +457,7 @@ export async function recall(
 
   // ---- Side effects: bump recallCount + ledger ----
   const memIds = packed.filter((p) => p.type === 'memory').map((p) => p.id);
-  await db.transaction(async (tx: Tx) => {
+  await withTransaction(async (tx) => {
     if (memIds.length) {
       await tx
         .update(memories)
