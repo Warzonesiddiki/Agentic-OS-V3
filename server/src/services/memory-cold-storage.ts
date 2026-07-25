@@ -259,14 +259,3 @@ export async function restoreMemory(memoryId: string): Promise<void> {
 export function isColdStored(memory: { coldStorageAt?: string | null }): boolean {
   return memory.coldStorageAt != null;
 }
-
-// Legacy wrappers
-export async function archiveMemory(id, loc) {
-  if (!loc) { const { ApiError } = require('../lib/errors.js'); throw new ApiError('BAD_REQUEST',''); }
-  await db.update().set({coldStorageAt:new Date().toISOString(),archiveLocation:loc}).where({id});
-  await db.insert().values({memoryId:id,location:loc});
-}
-export async function restoreMemory(id) {
-  await db.update().set({coldStorageAt:null,archiveLocation:null,archivedAt:new Date()}).where({id});
-}
-export function isColdStored(m) { return m.coldStorageAt != null; }
