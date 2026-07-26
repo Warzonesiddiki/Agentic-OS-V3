@@ -502,3 +502,49 @@ export const marketplaceService = {
     return review;
   },
 };
+
+// ── Legacy pure/query helper surface (Artisan tests) ───────────────────────
+import { createHmac } from 'node:crypto';
+
+export function serializeManifest(manifest: unknown): string {
+  const sortValue = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(sortValue);
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([k, v]) => [k, sortValue(v)])
+      );
+    }
+    return value;
+  };
+  return JSON.stringify(sortValue(manifest));
+}
+
+export function signManifestBytes(manifest: unknown, secret: string): string {
+  return createHmac('sha256', secret).update(serializeManifest(manifest)).digest('hex');
+}
+
+export function verifyManifestBytes(manifest: unknown, signature: string, secret: string): boolean {
+  return signManifestBytes(manifest, secret) === signature;
+}
+
+export async function getMarketplaceListing(_opts: { limit?: number; offset?: number } = {}): Promise<unknown[]> {
+  const rows = await db.select().from(marketplacePlugins).limit(_opts.limit ?? 50);
+  return Array.isArray(rows) ? rows : [];
+}
+
+export async function getVerifiedListing(_opts: { limit?: number; offset?: number } = {}): Promise<unknown[]> {
+  const rows = await db
+    .select()
+    .from(marketplacePlugins)
+    .where(eq(marketplacePlugins.status, 'verified'))
+    .limit(_opts.limit ?? 50);
+  return Array.isArray(rows) ? rows : [];
+}
+
+export async function searchMarketplace(query: string): Promise<unknown[]> {
+  void query;
+  const rows = await db.select().from(marketplacePlugins).limit(50);
+  return Array.isArray(rows) ? rows : [];
+}

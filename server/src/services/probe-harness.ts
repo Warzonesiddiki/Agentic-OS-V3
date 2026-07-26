@@ -11,9 +11,10 @@ import { log } from '../lib/logging.js';
 export interface ProbeResult {
   probe: string;
   ok: boolean;
-  status: 'ok' | 'degraded' | 'down';
+  status: 'ok' | 'degraded' | 'down' | 'fail';
   latencyMs: number;
   message: string;
+  error?: string;
   at: number;
 }
 
@@ -35,7 +36,7 @@ const _timers = new Map<string, ReturnType<typeof setInterval>>();
 export function registerProbe(probe: Probe | { id: string; fn: ProbeFn; intervalMs?: number }): void {
   const name = 'name' in probe ? probe.name : (probe as { id: string }).id;
   const run: ProbeFn = 'run' in probe ? probe.run : (probe as { fn: ProbeFn }).fn;
-  const intervalMs = 'intervalMs' in probe ? probe.intervalMs : ((probe as { intervalMs?: number }).intervalMs ?? 5000);
+  const intervalMs = ('intervalMs' in probe ? probe.intervalMs : undefined) ?? 5000;
   _probes.set(name, { name, run, intervalMs });
 }
 
@@ -63,12 +64,14 @@ async function executeProbe(name: string): Promise<ProbeResult> {
     if (_results.length > MAX_RESULTS) _results.shift();
     return result;
   } catch (e) {
+    const error = e instanceof Error ? e.message : String(e);
     const result: ProbeResult = {
       probe: name,
       ok: false,
-      status: 'down',
+      status: 'fail',
       latencyMs: Date.now() - start,
-      message: e instanceof Error ? e.message : String(e),
+      message: error,
+      error,
       at: Date.now(),
     };
     _results.push(result);

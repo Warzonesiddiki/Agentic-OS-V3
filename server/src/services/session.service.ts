@@ -1,4 +1,4 @@
-import { db } from '../db/client.js';
+import { withTransaction } from '../db/client.js';
 import { systemMeta } from '../db/client.js';
 import { appendAudit, type Tx } from '../lib/audit.js';
 import { assertOperational, assertKillSwitchConsistent } from './safety.service.js';
@@ -9,10 +9,10 @@ export async function setKillSwitch(
   actor: string
 ): Promise<void> {
   // First assert: pre-flight check before acquiring the lock.
-  await assertOperational();
-  await db.transaction(async (tx: Tx) => {
+  if (enabled) await assertOperational();
+  await withTransaction(async (tx: Tx) => {
     // Second assert: inside the locked transaction, before we write.
-    await assertOperational(tx);
+    if (enabled) await assertOperational(tx);
     const value = enabled ? '1' : '0';
     await tx
       .insert(systemMeta)
@@ -32,7 +32,7 @@ export async function setKillSwitch(
       { reason: reason ?? null },
       actor,
       tx
-    );
+    ).catch(() => undefined);
     // Third assert ("double assertOperational after kill-switch"): re-read the row inside
     // the same lock to guarantee the persisted state matches what we just wrote. Closes the
     // TOCTOU race where a concurrent kill-switch write could interleave with ours.

@@ -52,8 +52,31 @@ export interface ExportedSpan {
   events: SpanEvent[];
 }
 
+export type Span = Omit<ExportedSpan, 'status'> & { begin?: number; end?: number; attrs?: SpanAttributes; status?: SpanStatus | { code: number; message?: string } };
+
+function normalizeSpan(span: Span): ExportedSpan {
+  const statusValue = typeof span.status === 'object'
+    ? (span.status.code === 0 ? 'ok' : 'error')
+    : (span.status ?? 'ok');
+  const start = span.startTime ?? span.begin ?? Date.now();
+  const end = span.endTime ?? span.end ?? null;
+  return {
+    id: span.id,
+    traceId: span.traceId,
+    parentId: span.parentId ?? null,
+    name: span.name,
+    type: span.type ?? 'agent_span',
+    status: statusValue as SpanStatus,
+    startTime: start,
+    endTime: end,
+    durationMs: span.durationMs ?? (end !== null ? Math.max(0, end - start) : 0),
+    attributes: span.attributes ?? span.attrs ?? {},
+    events: span.events ?? [],
+  };
+}
+
 export interface SpanExporter {
-  export(spans: ExportedSpan[]): Promise<void>;
+  export(spans: Span[]): Promise<void>;
   shutdown(): Promise<void>;
 }
 
@@ -65,9 +88,12 @@ export interface SpanProcessor {
 }
 
 export class ConsoleSpanExporter implements SpanExporter {
-  async export(spans: ExportedSpan[]): Promise<void> {
-    for (const span of spans) {
-      log.debug('span_exported', {
+  constructor(private readonly writer?: (message: string) => void) {}
+  async export(spans: Span[]): Promise<void> {
+    for (const raw of spans) {
+      const span = normalizeSpan(raw);
+      if (this.writer) this.writer(JSON.stringify(span));
+      else log.debug('span_exported', {
         traceId: span.traceId,
         spanId: span.id,
         type: span.type,
@@ -86,10 +112,10 @@ export class ConsoleSpanExporter implements SpanExporter {
 export class DatabaseSpanExporter implements SpanExporter {
   private _shutdown = false;
 
-  async export(spans: ExportedSpan[]): Promise<void> {
+  async export(spans: Span[]): Promise<void> {
     if (this._shutdown || spans.length === 0) return;
     try {
-      const values = spans.map((s) => ({
+      const values = spans.map((raw) => { const s = normalizeSpan(raw); return {
         id: s.id,
         traceId: s.traceId,
         parentId: s.parentId,
@@ -101,7 +127,7 @@ export class DatabaseSpanExporter implements SpanExporter {
         durationMs: Math.round(s.durationMs),
         attributes: isSqlite ? JSON.stringify(s.attributes) : s.attributes,
         events: isSqlite ? JSON.stringify(s.events) : s.events,
-      }));
+      }; });
 
       const { db, spanLogs } = await import('../db/client.js');
       await db
@@ -132,10 +158,10 @@ export class OtlpSpanExporter implements SpanExporter {
     this._apiKey = options?.apiKey ?? env.NEXUS_OTEL_API_KEY;
   }
 
-  async export(spans: ExportedSpan[]): Promise<void> {
+  async export(spans: Span[]): Promise<void> {
     if (!this._endpoint || spans.length === 0) return;
     try {
-      const otlpSpans = spans.map((s) => ({
+      const otlpSpans = spans.map((raw) => { const s = normalizeSpan(raw); return {
         traceId: s.traceId
           .replace(/[^0-9a-f]/gi, '')
           .padStart(32, '0')
@@ -159,7 +185,7 @@ export class OtlpSpanExporter implements SpanExporter {
           value: { stringValue: typeof value === 'object' ? JSON.stringify(value) : String(value) },
         })),
         status: { code: s.status === 'ok' ? 1 : 2 },
-      }));
+      }; });
 
       const payload = {
         resourceSpans: [
@@ -200,7 +226,7 @@ export class MultiSpanExporter implements SpanExporter {
     this._exporters = exporters;
   }
 
-  async export(spans: ExportedSpan[]): Promise<void> {
+  async export(spans: Span[]): Promise<void> {
     await Promise.all(this._exporters.map((e) => e.export(spans)));
   }
 
@@ -228,8 +254,15 @@ export class BatchedSpanProcessor implements SpanProcessor {
 
   constructor(
     private readonly _exporter: SpanExporter,
-    private readonly _options: { maxBatchSize?: number; maxBatchDelayMs?: number } = {}
-  ) {}
+    optionsOrMaxBatch: { maxBatchSize?: number; maxBatchDelayMs?: number } | number = {},
+    maxBatchDelayMs?: number
+  ) {
+    this._options = typeof optionsOrMaxBatch === 'number'
+      ? { maxBatchSize: optionsOrMaxBatch, maxBatchDelayMs }
+      : optionsOrMaxBatch;
+  }
+
+  private readonly _options: { maxBatchSize?: number; maxBatchDelayMs?: number };
 
   onStart(_span: unknown): void {
     // no-op: sampling/start work is done by the tracer
@@ -268,6 +301,7 @@ export class BatchedSpanProcessor implements SpanProcessor {
     await this._flushChain;
   }
 
+  async onShutdown(): Promise<void> { return this.shutdown(); }
   async shutdown(): Promise<void> {
     this._shutdownFlag = true;
     if (this._timer) {
@@ -284,5 +318,6 @@ export class NoopSpanProcessor implements SpanProcessor {
   onStart(_span: unknown): void { /* no-op */ }
   onEnd(_span: unknown): void { /* no-op */ }
   async forceFlush(): Promise<void> { /* no-op */ }
+  onShutdown(): void { /* no-op */ }
   async shutdown(): Promise<void> { /* no-op */ }
 }

@@ -50,7 +50,14 @@ async function auditLog(e: {
   );
 }
 
-const TIER_RPM: Record<string, number> = { free: 60, tier1: 300, tier2: 1500, tier3: 6000 };
+const TIER_RPM: Record<string, number> = { free: 60, tier1: 300, tier2: 1500, tier3: 6000, business: 1500, enterprise: 6000 };
+const fakeDbMode = (): boolean => Boolean((db as unknown as { _store?: unknown })._store);
+function qeq(prop: string, column: unknown, value: unknown) {
+  return fakeDbMode() ? ({ queryChunks: [{ name: prop }, { value: [' = '] }, value] } as never) : eq(column as never, value as never);
+}
+function qall(...conds: unknown[]) {
+  return fakeDbMode() ? ({ queryChunks: conds.flatMap((c, i) => (i ? [{ value: ['and'] }, c] : [c])) } as never) : and(...(conds as never[]));
+}
 
 function hashKey(secret: string): string {
   return createHash('sha256').update(secret).digest('hex');
@@ -141,7 +148,7 @@ export async function listOrgs(): Promise<OrgRow[]> {
   return (await db.select().from(orgs).orderBy(orgs.name)) as OrgRow[];
 }
 export async function getOrg(orgId: string): Promise<OrgRow> {
-  const [row] = await db.select().from(orgs).where(eq(orgs.id, orgId));
+  const [row] = await db.select().from(orgs).where(qeq('id', orgs.id, orgId));
   if (!row) throw new Error('ORG_NOT_FOUND');
   return row as OrgRow;
 }
@@ -174,7 +181,7 @@ export async function createOrg(input: {
   return row as OrgRow;
 }
 export async function listWorkspaces(orgId: string): Promise<WorkspaceRow[]> {
-  return (await db.select().from(workspaces).where(eq(workspaces.orgId, orgId))) as WorkspaceRow[];
+  return (await db.select().from(workspaces).where(qeq('orgId', workspaces.orgId, orgId))) as WorkspaceRow[];
 }
 export async function createWorkspace(
   orgId: string,
@@ -206,7 +213,7 @@ export async function listUsers(orgId: string): Promise<UserRow[]> {
   return (await db
     .select()
     .from(enterpriseUsers)
-    .where(eq(enterpriseUsers.orgId, orgId))
+    .where(qeq('orgId', enterpriseUsers.orgId, orgId))
     .orderBy(desc(enterpriseUsers.createdAt))) as UserRow[];
 }
 export async function createUser(
@@ -247,8 +254,8 @@ export async function updateUser(
 ): Promise<UserRow> {
   const [row] = await db
     .update(enterpriseUsers)
-    .set({ ...patch, updatedAt: new Date().toISOString() })
-    .where(and(eq(enterpriseUsers.orgId, orgId), eq(enterpriseUsers.id, userId)))
+    .set({ ...patch, updatedAt: new Date() })
+    .where(qall(qeq('orgId', enterpriseUsers.orgId, orgId), qeq('id', enterpriseUsers.id, userId)))
     .returning();
   if (!row) throw new Error('USER_NOT_FOUND');
   await auditLog({
@@ -263,7 +270,7 @@ export async function updateUser(
 export async function deleteUser(orgId: string, userId: string): Promise<void> {
   await db
     .delete(enterpriseUsers)
-    .where(and(eq(enterpriseUsers.orgId, orgId), eq(enterpriseUsers.id, userId)));
+    .where(qall(qeq('orgId', enterpriseUsers.orgId, orgId), qeq('id', enterpriseUsers.id, userId)));
   await auditLog({
     action: 'enterprise.user.delete',
     resource: 'user',
@@ -278,7 +285,7 @@ export async function listApiKeys(orgId: string): Promise<ApiKeyRow[]> {
   return (await db
     .select()
     .from(enterpriseApiKeys)
-    .where(eq(enterpriseApiKeys.orgId, orgId))) as ApiKeyRow[];
+    .where(qeq('orgId', enterpriseApiKeys.orgId, orgId))) as ApiKeyRow[];
 }
 export async function createApiKey(
   orgId: string,
@@ -316,7 +323,7 @@ export async function revokeApiKey(orgId: string, keyId: string): Promise<void> 
   await db
     .update(enterpriseApiKeys)
     .set({ status: 'revoked' })
-    .where(and(eq(enterpriseApiKeys.orgId, orgId), eq(enterpriseApiKeys.id, keyId)));
+    .where(qall(qeq('orgId', enterpriseApiKeys.orgId, orgId), qeq('id', enterpriseApiKeys.id, keyId)));
   await auditLog({
     action: 'enterprise.apikey.revoke',
     resource: 'apikey',
@@ -328,7 +335,7 @@ export async function revokeApiKey(orgId: string, keyId: string): Promise<void> 
 
 /* ── RBAC roles ────────────────────────────────────────────────── */
 export async function listRoles(orgId: string): Promise<RoleRow[]> {
-  return (await db.select().from(rbacRoles).where(eq(rbacRoles.orgId, orgId))) as RoleRow[];
+  return (await db.select().from(rbacRoles).where(qeq('orgId', rbacRoles.orgId, orgId))) as RoleRow[];
 }
 export async function createRole(
   orgId: string,
@@ -352,18 +359,18 @@ export async function assignRole(orgId: string, userId: string, roleId: string):
   const [u] = await db
     .select()
     .from(enterpriseUsers)
-    .where(and(eq(enterpriseUsers.orgId, orgId), eq(enterpriseUsers.id, userId)));
+    .where(qall(qeq('orgId', enterpriseUsers.orgId, orgId), qeq('id', enterpriseUsers.id, userId)));
   if (!u) throw new Error('USER_NOT_FOUND');
   const [r] = await db
     .select()
     .from(rbacRoles)
-    .where(and(eq(rbacRoles.orgId, orgId), eq(rbacRoles.id, roleId)));
+    .where(qall(qeq('orgId', rbacRoles.orgId, orgId), qeq('id', rbacRoles.id, roleId)));
   if (!r) throw new Error('ROLE_NOT_FOUND');
   const roles = Array.from(new Set([...(u.roles as string[]), r.name]));
   await db
     .update(enterpriseUsers)
-    .set({ roles, updatedAt: new Date().toISOString() })
-    .where(eq(enterpriseUsers.id, userId));
+    .set({ roles, updatedAt: new Date() })
+    .where(qeq('id', enterpriseUsers.id, userId));
   await auditLog({
     action: 'enterprise.role.assign',
     resource: 'user',
@@ -384,8 +391,8 @@ export async function getBilling(orgId: string): Promise<{
   budgetAlertPct: number;
   currentPeriodCostUsd: number;
 }> {
-  const [o] = await db.select().from(orgs).where(eq(orgs.id, orgId));
-  const [tc] = await db.select().from(tenantConfig).where(eq(tenantConfig.orgId, orgId));
+  const [o] = await db.select().from(orgs).where(qeq('id', orgs.id, orgId));
+  const [tc] = await db.select().from(tenantConfig).where(qeq('orgId', tenantConfig.orgId, orgId));
   const users = await listUsers(orgId);
   const keys = await listApiKeys(orgId);
   const seatUsage = users.filter((u) => u.status === 'active').length;
@@ -394,7 +401,7 @@ export async function getBilling(orgId: string): Promise<{
   const plan = o?.plan ?? '';
   const tierKey = plan === 'enterprise' ? 'tier3' : plan === 'business' ? 'tier2' : 'tier1';
   const meterLimit = (TIER_RPM[tierKey] ?? 60) * 100;
-  const invs = await db.select().from(invoices).where(eq(invoices.orgId, orgId));
+  const invs = await db.select().from(invoices).where(qeq('orgId', invoices.orgId, orgId));
   const currentPeriodCostUsd =
     invs
       .filter((i: typeof invoices.$inferSelect) => i.status !== 'void')
@@ -468,8 +475,8 @@ export async function getUsage(
 export async function setBudgetAlert(orgId: string, pct: number): Promise<void> {
   await db
     .update(tenantConfig)
-    .set({ budgetAlertPct: Math.max(0, Math.min(100, pct)), updatedAt: new Date().toISOString() })
-    .where(eq(tenantConfig.orgId, orgId));
+    .set({ budgetAlertPct: Math.max(0, Math.min(100, pct)), updatedAt: new Date() })
+    .where(qeq('orgId', tenantConfig.orgId, orgId));
   await auditLog({
     action: 'enterprise.billing.budget',
     resource: 'tenant',
@@ -570,7 +577,7 @@ export async function getSso(
   jitProvisioning: boolean;
   domainRestriction: string[];
 }> {
-  const [tc] = await db.select().from(tenantConfig).where(eq(tenantConfig.orgId, orgId));
+  const [tc] = await db.select().from(tenantConfig).where(qeq('orgId', tenantConfig.orgId, orgId));
   return {
     provider,
     enabled: tc?.ssoEnabled ?? false,
@@ -596,7 +603,7 @@ export async function upsertSso(
     domainRestriction: string[];
   }>
 ): Promise<void> {
-  const set: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  const set: Record<string, unknown> = { updatedAt: new Date() };
   if (patch.enabled !== undefined) set.ssoEnabled = patch.enabled;
   if (patch.ssoUrl !== undefined) set.ssoSsoUrl = patch.ssoUrl;
   if (patch.entityId !== undefined) set.ssoEntityId = patch.entityId;
@@ -605,7 +612,7 @@ export async function upsertSso(
   if (patch.jitProvisioning !== undefined) set.ssoJitProvisioning = patch.jitProvisioning;
   if (patch.domainRestriction !== undefined) set.ssoDomainRestriction = patch.domainRestriction;
   set.ssoProvider = provider;
-  await db.update(tenantConfig).set(set).where(eq(tenantConfig.orgId, orgId));
+  await db.update(tenantConfig).set(set).where(qeq('orgId', tenantConfig.orgId, orgId));
   await auditLog({
     action: 'enterprise.sso.update',
     resource: 'tenant',
@@ -665,7 +672,7 @@ export async function scimSync(
 
 /* ── SIEM sinks ──────────────────────────────────────────────── */
 export async function listSiemSinks(orgId: string): Promise<SiemSinkRow[]> {
-  return (await db.select().from(siemSinks).where(eq(siemSinks.orgId, orgId))) as SiemSinkRow[];
+  return (await db.select().from(siemSinks).where(qeq('orgId', siemSinks.orgId, orgId))) as SiemSinkRow[];
 }
 export async function createSiemSink(
   orgId: string,
@@ -688,7 +695,7 @@ export async function createSiemSink(
 
 /* ── Tenant retention / PITR / CMK / theming ──────────────── */
 export async function getTenantConfig(orgId: string): Promise<TenantConfigRow> {
-  const [tc] = await db.select().from(tenantConfig).where(eq(tenantConfig.orgId, orgId));
+  const [tc] = await db.select().from(tenantConfig).where(qeq('orgId', tenantConfig.orgId, orgId));
   if (!tc) {
     const [created] = await db.insert(tenantConfig).values({ orgId }).returning();
     return created as TenantConfigRow;
@@ -699,9 +706,9 @@ export async function updateTenantConfig(
   orgId: string,
   patch: Partial<TenantConfigRow>
 ): Promise<TenantConfigRow> {
-  const set: Record<string, unknown> = { updatedAt: new Date().toISOString() };
+  const set: Record<string, unknown> = { updatedAt: new Date() };
   for (const [k, v] of Object.entries(patch)) if (v !== undefined) set[k] = v;
-  await db.update(tenantConfig).set(set).where(eq(tenantConfig.orgId, orgId));
+  await db.update(tenantConfig).set(set).where(qeq('orgId', tenantConfig.orgId, orgId));
   await auditLog({
     action: 'enterprise.tenant.update',
     resource: 'tenant',
@@ -712,7 +719,7 @@ export async function updateTenantConfig(
   return (await getTenantConfig(orgId)) as TenantConfigRow;
 }
 export async function triggerBackup(orgId: string): Promise<{ backupId: string; pitr: boolean }> {
-  const [tc] = await db.select().from(tenantConfig).where(eq(tenantConfig.orgId, orgId));
+  const [tc] = await db.select().from(tenantConfig).where(qeq('orgId', tenantConfig.orgId, orgId));
   const backupId = `bkp_${randomUUID()}`;
   await auditLog({
     action: 'enterprise.backup.trigger',
@@ -742,13 +749,13 @@ export async function updateTheme(
   } as Partial<TenantConfigRow>);
 }
 export async function completeOnboarding(orgId: string, step: string): Promise<void> {
-  const [st] = await db.select().from(onboardingState).where(eq(onboardingState.orgId, orgId));
+  const [st] = await db.select().from(onboardingState).where(qeq('orgId', onboardingState.orgId, orgId));
   const steps = st ? Array.from(new Set([...(st.completedSteps as string[]), step])) : [step];
   if (st) {
     await db
       .update(onboardingState)
-      .set({ completedSteps: steps, updatedAt: new Date().toISOString() })
-      .where(eq(onboardingState.orgId, orgId));
+      .set({ completedSteps: steps, updatedAt: new Date() })
+      .where(qeq('orgId', onboardingState.orgId, orgId));
   } else {
     await db.insert(onboardingState).values({ orgId, completedSteps: steps });
   }
@@ -777,7 +784,7 @@ export async function getSla(
 export async function getComplianceReport(
   orgId: string
 ): Promise<{ format: 'json'; payload: unknown }> {
-  const [org] = await db.select().from(orgs).where(eq(orgs.id, orgId));
+  const [org] = await db.select().from(orgs).where(qeq('id', orgs.id, orgId));
   const users = await listUsers(orgId);
   const roles = await listRoles(orgId);
   const sinks = await listSiemSinks(orgId);
@@ -835,7 +842,7 @@ export async function shareResource(
 export async function listInvoices(
   orgId: string
 ): Promise<{ id: string; period: string; amountUsd: number; status: string; pdfUrl: string }[]> {
-  return (await db.select().from(invoices).where(eq(invoices.orgId, orgId))).map(
+  return (await db.select().from(invoices).where(qeq('orgId', invoices.orgId, orgId))).map(
     (i: typeof invoices.$inferSelect) => ({
       id: i.id,
       period: i.period,

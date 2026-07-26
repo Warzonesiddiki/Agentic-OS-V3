@@ -491,8 +491,7 @@ v3upgrade.post("/api/v1/pipelines", async (c) => {
 v3upgrade.get("/api/v1/pipelines", async (c) => {
   await requireScope(c, "pipeline:admin");
   const items = await listPipelines();
-  // Return just the names for the PipelineBuilder list
-  return c.json(ok(items.map((p: { name: string }) => p.name), c.get("requestId") ?? ""));
+  return c.json(ok({ items, names: items.map((p: { name: string }) => p.name) }, c.get("requestId") ?? ""));
 });
 
 v3upgrade.get("/api/v1/pipelines/:name", async (c) => {

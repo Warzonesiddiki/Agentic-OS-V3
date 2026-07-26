@@ -9,10 +9,11 @@
  * restart storms. `getHealthSummary()` is consumed by the perf/analytics routes.
  */
 import { runShadowCycle as _shadowRunShadowCycle } from './shadow-daemon.js';
+import type { ShadowReport } from './shadow-daemon.js';
 
 /** Re-export the shadow-daemon's cycle as part of the health-monitor surface
  *  (Forge's task-worker calls `healthMonitor.runShadowCycle()`). */
-export async function runShadowCycle(): Promise<any> {
+export async function runShadowCycle(): Promise<ShadowReport> {
   return _shadowRunShadowCycle();
 }
 export type HealthLevel = 'ok' | 'degraded' | 'down';
@@ -46,19 +47,31 @@ const _state = new Map<
   { lastCheckedAt: number; restartAttempts: number; lastRestartAt: number }
 >();
 
-export function registerHealthCheck(check: HealthCheck | { id: string; fn: () => Promise<HealthLevel> | HealthLevel }): void {
-  const subsystem = 'subsystem' in check ? check.subsystem : (check as { id: string }).id;
-  const checkFn = 'check' in check ? check.check : (check as { fn: () => Promise<HealthLevel> | HealthLevel }).fn;
-  const normalized: HealthCheck = {
-    subsystem,
-    check: checkFn,
-    restart: 'restart' in check ? check.restart : undefined,
-    maxRestartAttempts: 'maxRestartAttempts' in check ? check.maxRestartAttempts : 3,
-    cooldownMs: 'cooldownMs' in check ? check.cooldownMs : 5000,
-  };
-  _checks.set(subsystem, normalized);
-  if (!_state.has(subsystem)) {
-    _state.set(subsystem, {
+type LegacyHealthCheck = { id: string; fn: () => Promise<HealthLevel> | HealthLevel };
+
+function healthLevelToStatus(level: HealthLevel): HealthStatus {
+  return { level, message: level };
+}
+
+export function registerHealthCheck(check: HealthCheck | LegacyHealthCheck): void {
+  const normalized: HealthCheck = 'check' in check
+    ? {
+        subsystem: check.subsystem,
+        check: check.check,
+        restart: check.restart,
+        maxRestartAttempts: check.maxRestartAttempts ?? 3,
+        cooldownMs: check.cooldownMs ?? 5000,
+      }
+    : {
+        subsystem: check.id,
+        check: async () => healthLevelToStatus(await check.fn()),
+        maxRestartAttempts: 3,
+        cooldownMs: 5000,
+      };
+
+  _checks.set(normalized.subsystem, normalized);
+  if (!_state.has(normalized.subsystem)) {
+    _state.set(normalized.subsystem, {
       lastCheckedAt: 0,
       restartAttempts: 0,
       lastRestartAt: 0,
@@ -75,6 +88,8 @@ export interface RunResult {
   summary: { ok: number; degraded: number; down: number };
   subsystems: SubsystemHealth[];
   healed: string[];
+  total: number;
+  status: HealthLevel;
 }
 
 export async function runHealthChecks(): Promise<RunResult> {
@@ -86,10 +101,7 @@ export async function runHealthChecks(): Promise<RunResult> {
 
   for (const [name, check] of _checks) {
     const st = _state.get(name)!;
-    let status: HealthStatus =
-      typeof check.check === 'function'
-        ? await (check.check as () => Promise<HealthStatus>)()
-        : (check.check as HealthStatus);
+    let status = await check.check();
 
     if (status.level === 'ok') {
       ok++;
@@ -110,7 +122,7 @@ export async function runHealthChecks(): Promise<RunResult> {
           st.restartAttempts++;
           st.lastRestartAt = now;
           // Re-check after restart.
-          const after = await (check.check as () => Promise<HealthStatus>)();
+          const after = await check.check();
           if (after.level === 'ok') {
             healed.push(name);
             ok++;
@@ -140,7 +152,8 @@ export async function runHealthChecks(): Promise<RunResult> {
     });
   }
 
-  return { summary: { ok, degraded, down }, subsystems, healed };
+  const status: HealthLevel = down > 0 ? 'down' : degraded > 0 ? 'degraded' : 'ok';
+  return { summary: { ok, degraded, down }, subsystems, healed, total: subsystems.length, status };
 }
 
 export function getHealthSummary(): {

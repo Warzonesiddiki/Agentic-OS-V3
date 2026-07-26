@@ -13,9 +13,6 @@ import { forward } from './siem-forwarder.js';
 import { log } from '../lib/logging.js';
 
 type MySev = 'low' | 'medium' | 'high' | 'critical';
-function toSiem(s: MySev): 'info' | 'warn' | 'error' | 'critical' {
-  return s === 'critical' ? 'critical' : s === 'high' ? 'error' : s === 'medium' ? 'warn' : 'info';
-}
 
 interface SimplePolicy {
   agentId: string;
@@ -151,14 +148,26 @@ function scopeMatches(rule: NetworkRule, ep: NetworkEndpoint): boolean {
   return true;
 }
 
+function ruleSpecificity(rule: NetworkRule): number {
+  let score = 0;
+  if (rule.cidr) {
+    const bits = Number(rule.cidr.split('/')[1] ?? 0);
+    score += 100 + (Number.isFinite(bits) ? bits : 0);
+  }
+  if (rule.host) score += rule.host === '*' ? 0 : rule.host.startsWith('*.') ? 40 : 80;
+  if (rule.ports?.length) score += 20;
+  if (rule.schemes?.length) score += 10;
+  if (rule.principals?.length) score += 5;
+  if (rule.agents?.length) score += 5;
+  return score;
+}
+
 export class NetworkPolicyEngine {
   private rules: NetworkRule[] = [];
   private version = 0;
 
   setRules(rules: NetworkRule[]): void {
-    this.rules = [...rules].sort(
-      (a, b) => (a.effect === 'deny' ? -1 : 1) - (b.effect === 'deny' ? -1 : 1)
-    );
+    this.rules = [...rules];
     this.version++;
   }
 
@@ -171,32 +180,24 @@ export class NetworkPolicyEngine {
   }
 
   evaluate(ep: NetworkEndpoint, direction: Direction = 'egress'): PolicyDecision {
-    for (const rule of this.rules) {
-      if (rule.direction !== direction) continue;
-      if (!scopeMatches(rule, ep)) continue;
-      const hostOk = rule.host ? hostMatches(rule.host, ep.host) : true;
-      const cidrOk = rule.cidr ? inCidr(ep.host, rule.cidr) : true;
-      const schemeOk = rule.schemes?.length
-        ? ep.scheme
-          ? rule.schemes.includes(ep.scheme)
-          : false
-        : true;
-      const portOk = portInRanges(ep.port, rule.ports);
-      if (!(hostOk && cidrOk && schemeOk && portOk)) continue;
-      if (rule.effect === 'deny') {
-        if (rule.denySeverity) {
-          void forward({
-            ts: Date.now(),
-            kind: 'network.policy_violation',
-            severity: toSiem(rule.denySeverity),
-            attrs: { ruleId: rule.id, host: ep.host, agentId: ep.agentId },
-          }).catch(() => undefined);
-        }
-        return { allowed: false, rule, reason: `Denied by ${rule.id}` };
-      }
-      return { allowed: true, rule, reason: `Allowed by ${rule.id}` };
-    }
-    return { allowed: false, reason: 'Default-deny: no matching allow rule' };
+    const matches = this.rules
+      .filter((rule) => rule.direction === direction && scopeMatches(rule, ep))
+      .filter((rule) => {
+        const hostOk = rule.host ? hostMatches(rule.host, ep.host) : true;
+        const cidrOk = rule.cidr ? inCidr(ep.host, rule.cidr) : true;
+        const schemeOk = rule.schemes?.length ? (ep.scheme ? rule.schemes.includes(ep.scheme) : false) : true;
+        const portOk = portInRanges(ep.port, rule.ports);
+        return hostOk && cidrOk && schemeOk && portOk;
+      })
+      .sort((a, b) => {
+        const diff = ruleSpecificity(b) - ruleSpecificity(a);
+        if (diff !== 0) return diff;
+        return (a.effect === 'deny' ? -1 : 1) - (b.effect === 'deny' ? -1 : 1);
+      });
+    const rule = matches[0];
+    if (!rule) return { allowed: false, reason: 'Default-deny: no matching allow rule' };
+    if (rule.effect === 'deny') return { allowed: false, rule, reason: `Denied by ${rule.id}` };
+    return { allowed: true, rule, reason: `Allowed by ${rule.id}` };
   }
 }
 

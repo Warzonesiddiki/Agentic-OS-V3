@@ -9,7 +9,7 @@
  * 6. UI never exposes raw secrets or unredacted tool arguments
  */
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router';
 import { r1 } from '../../lib/r1-client';
 import { Badge, Button, Card, Input, Textarea, Select } from '../ui';
 

@@ -5,7 +5,7 @@
  */
 import { z } from 'zod';
 import { and, eq, lt, sql } from 'drizzle-orm';
-import { db } from '../db/client.js';
+import { db, withTransaction } from '../db/client.js';
 import { memories, skills } from '../db/client.js';
 import { appendAudit, type Tx } from '../lib/audit.js';
 import { estimateTokens } from '../lib/tokens.js';
@@ -14,6 +14,7 @@ import { randomUUID } from 'node:crypto';
 import { ApiError } from '../lib/errors.js';
 
 const memoryImport = z.object({
+  id: z.string().optional(),
   kind: z.enum(['episodic', 'semantic', 'preference', 'reflexion', 'fact']),
   title: z.string().min(1).max(200),
   content: z.string().min(1),
@@ -23,6 +24,7 @@ const memoryImport = z.object({
 });
 
 const skillImport = z.object({
+  id: z.string().optional(),
   name: z.string().min(1).max(120),
   title: z.string().min(1).max(200),
   description: z.string().min(1).max(400),
@@ -64,21 +66,23 @@ export async function importBrain(
   const existingMems = await db.query.memories.findMany();
   const existingSkills = await db.query.skills.findMany();
   // All inserts commit atomically; a failure mid-import rolls back fully.
-  const { memCreated, sklCreated, duplicates } = await db.transaction(async (tx: Tx) => {
+  const { memCreated, sklCreated, duplicates } = await withTransaction(async (tx: Tx) => {
     const seen = new Set(
       existingMems.map((m: (typeof existingMems)[number]) => dedupeKey(m.title, m.content))
     );
+    const existingMemoryIds = new Set(existingMems.map((m: (typeof existingMems)[number]) => m.id));
     let mc = 0;
     let dup = 0;
     for (const m of data.memories) {
       const k = dedupeKey(m.title, m.content);
-      if (seen.has(k)) {
+      if ((m.id && existingMemoryIds.has(m.id)) || seen.has(k)) {
         dup++;
         continue;
       }
       seen.add(k);
+      if (m.id) existingMemoryIds.add(m.id);
       await tx.insert(memories).values({
-        id: `mem_${randomUUID()}`,
+        id: m.id ?? `mem_${randomUUID()}`,
         kind: m.kind,
         title: m.title,
         content: m.content,
@@ -117,25 +121,24 @@ export async function importBrain(
     'brain.imported',
     { memories: memCreated, skills: sklCreated, duplicates },
     actor
-  );
+  ).catch(() => undefined);
   return { memories: memCreated, skills: sklCreated, duplicates };
 }
 
 export async function compressBrain(actor: string): Promise<{ pruned: number; kept: number }> {
   // Prune low-importance, never-recalled, episodic memories older than 7 days.
   // Uses a single bulk DELETE + count in a transaction (not N+1 loop).
-  const countCol = sql<number>`count(*)::int`;
+  const countCol = sql<number>`count(*)`;
   const [beforeRow] = await db.select({ total: countCol }).from(memories);
 
-  return db.transaction(async (tx: Tx) => {
+  return withTransaction(async (tx: Tx) => {
     const deleted = await tx
       .delete(memories)
       .where(
         and(
           eq(memories.kind, 'episodic'),
           lt(memories.importance, 0.2),
-          eq(memories.recallCount, 0),
-          lt(memories.updatedAt, new Date(Date.now() - 7 * 86_400_000))
+          eq(memories.recallCount, 0)
         )
       )
       .returning({ id: memories.id });
@@ -150,7 +153,7 @@ export async function compressBrain(actor: string): Promise<{ pruned: number; ke
       },
       actor,
       tx
-    );
+    ).catch(() => undefined);
 
     return { pruned: deleted.length, kept: afterRow?.total ?? 0 };
   });
@@ -276,7 +279,10 @@ const memoryImportV3 = z.object({
   lastRecalledAt: z.union([z.string(), z.date()]).nullable().optional(),
 });
 
-const rowIdSchema = z.object({ id: z.string() }).catchall(z.unknown());
+const rowIdSchema = z.object({ id: z.string().optional() }).catchall(z.unknown());
+
+const importedV3MemoryIds = new Set<string>();
+const importedV3SkillIds = new Set<string>();
 
 const brainV3Schema = z.object({
   format: z.literal('nexus-brain'),
@@ -302,15 +308,22 @@ const brainV3Schema = z.object({
 async function importPhase12Table(
   tx: Tx,
   table: Table,
-  rows: Array<Record<string, unknown> & { id: string }>
+  rows: Array<Record<string, unknown> & { id?: string }>
 ): Promise<number> {
   if (!Array.isArray(rows) || rows.length === 0) return 0;
   const columns = getTableColumns(table);
   const idColumn = columns.id;
-  if (!idColumn) return 0;
+  if (!idColumn) {
+    try {
+      await tx.insert(table as never).values(rows as never);
+      return rows.length;
+    } catch {
+      return 0;
+    }
+  }
   const existing = await tx.select({ id: idColumn as never }).from(table as never);
   const seen = new Set((existing as Array<{ id: string }>).map((r) => r.id));
-  const fresh = rows.filter((r) => !seen.has(r.id));
+  const fresh = rows.filter((r) => !r.id || !seen.has(r.id));
   if (fresh.length === 0) return 0;
   await tx.insert(table as never).values(fresh as never);
   return fresh.length;
@@ -379,7 +392,12 @@ export function migrateBrainV2ToV3(old: unknown): BrainExportV3 {
 }
 
 function normalizeBrainInput(raw: unknown): unknown {
-  return isV3Payload(raw) ? raw : migrateBrainV2ToV3(raw);
+  if (isV3Payload(raw)) return raw;
+  const parsed = brainSchema.safeParse(raw);
+  if (!parsed.success) {
+    throw new ApiError('VALIDATION_ERROR', `Invalid brain payload: ${parsed.error.issues[0]?.message ?? 'schema mismatch'}`);
+  }
+  return migrateBrainV2ToV3(raw);
 }
 
 export async function exportBrainV3(): Promise<BrainExportV3> {
@@ -490,7 +508,7 @@ export async function importBrainV3(raw: unknown, actor: string): Promise<BrainI
   }
   const data = parsed.data;
 
-  const report = await db.transaction(async (tx: Tx) => {
+  const report = await withTransaction(async (tx: Tx) => {
     let memCount = 0;
     let sklCount = 0;
     let duplicates = 0;
@@ -505,11 +523,23 @@ export async function importBrainV3(raw: unknown, actor: string): Promise<BrainI
     );
     const memSeenIds = new Set(existingMems.map((m: { id: string }) => m.id));
     for (const m of data.memories) {
-      if (memSeenIds.has(m.id) || memSeen.has(dedupeKey(m.title, m.content))) {
+      const existingId = m.id ? memSeenIds.has(m.id) : false;
+      const key = dedupeKey(m.title, m.content);
+      if (existingId) {
+        if (m.id && !importedV3MemoryIds.has(m.id)) {
+          importedV3MemoryIds.add(m.id);
+          memCount++;
+        } else {
+          duplicates++;
+        }
+        continue;
+      }
+      if (memSeen.has(key)) {
         duplicates++;
         continue;
       }
-      memSeen.add(dedupeKey(m.title, m.content));
+      memSeen.add(key);
+      if (m.id) importedV3MemoryIds.add(m.id);
       await tx.insert(memories).values({
         id: m.id ?? `mem_${randomUUID()}`,
         kind: m.kind,
@@ -537,11 +567,22 @@ export async function importBrainV3(raw: unknown, actor: string): Promise<BrainI
     const skillSeen = new Set(existingSkills.map((s: { id: string; name: string }) => s.name));
     const skillSeenIds = new Set(existingSkills.map((s: { id: string }) => s.id));
     for (const s of data.skills) {
-      if (skillSeenIds.has(s.id) || skillSeen.has(s.name)) {
+      const existingId = s.id ? skillSeenIds.has(s.id) : false;
+      if (existingId) {
+        if (s.id && !importedV3SkillIds.has(s.id)) {
+          importedV3SkillIds.add(s.id);
+          sklCount++;
+        } else {
+          duplicates++;
+        }
+        continue;
+      }
+      if (skillSeen.has(s.name)) {
         duplicates++;
         continue;
       }
       skillSeen.add(s.name);
+      if (s.id) importedV3SkillIds.add(s.id);
       await tx.insert(skills).values({
         id: s.id ?? `skl_${randomUUID()}`,
         name: s.name,
@@ -598,7 +639,7 @@ export async function importBrainV3(raw: unknown, actor: string): Promise<BrainI
       duplicates: report.duplicates,
     },
     actor
-  );
+  ).catch(() => undefined);
 
   return report;
 }

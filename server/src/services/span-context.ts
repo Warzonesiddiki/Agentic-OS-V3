@@ -20,18 +20,16 @@ const _store = new AsyncLocalStorage<TraceContext | undefined>();
 
 export function parseTraceParent(header: string | undefined | null): TraceContext | undefined {
   if (!header) return undefined;
-  const m = TRACEPARENT_RE.exec(header.trim());
-  if (!m) return undefined;
-  return {
-    version: m[1] ?? '',
-    traceId: m[2] ?? '',
-    spanId: m[3] ?? '',
-    flags: m[4] ?? '01',
-  };
+  const trimmed = header.trim();
+  const m = TRACEPARENT_RE.exec(trimmed);
+  if (m) return { version: m[1] ?? '00', traceId: m[2] ?? '', spanId: m[3] ?? '', flags: m[4] ?? '01' };
+  const parts = trimmed.split('-');
+  if (parts.length === 4) return { version: parts[0] || '00', traceId: parts[1] || '', spanId: parts[2] || '', flags: parts[3] || '01' };
+  return undefined;
 }
 
 export function formatTraceParent(tp: TraceContext): string {
-  return `${tp.version}-${tp.traceId}-${tp.spanId}-${tp.flags}`;
+  return `${tp.version ?? '00'}-${tp.traceId}-${tp.spanId}-${tp.flags ?? '01'}`;
 }
 
 export function randomTraceParent(): TraceContext {
@@ -51,14 +49,13 @@ export function getTraceContext(): TraceContext | undefined {
 }
 
 /** Build a `traceparent` header for outgoing requests from the active context. */
-export function outgoingTraceParent(): string | undefined {
-  const tp = getTraceContext();
-  return tp ? formatTraceParent(tp) : undefined;
+export function outgoingTraceParent(): TraceContext | undefined {
+  return getTraceContext();
 }
 
 export function headersWithTrace(extra: Record<string, string> = {}): Record<string, string> {
   const tp = outgoingTraceParent();
-  return tp ? { ...extra, traceparent: tp } : extra;
+  return tp ? { ...extra, traceparent: formatTraceParent(tp) } : extra;
 }
 
 // Aliases used by app.ts / tracing.ts consumers.
@@ -69,9 +66,13 @@ export class SpanContext {
   traceId: string;
   spanId: string;
 
-  constructor(opts: { traceId: string; spanId: string }) {
+  version = '00';
+  flags = '01';
+
+  constructor(opts: { traceId: string; spanId: string; sampled?: boolean }) {
     this.traceId = opts.traceId;
     this.spanId = opts.spanId;
+    this.flags = opts.sampled === false ? '00' : '01';
   }
 }
 
@@ -81,7 +82,7 @@ export function parseSpanContext(serialized: string): TraceContext | null {
 }
 
 export function formatSpanContext(ctx: TraceContext): string {
-  return formatTraceParent(ctx);
+  return formatTraceParent({ version: ctx.version ?? '00', traceId: ctx.traceId, spanId: ctx.spanId, flags: ctx.flags ?? '01' });
 }
 
 export function randomHex(len: number): string {

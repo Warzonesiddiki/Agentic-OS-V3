@@ -85,7 +85,7 @@ function maskSecret(raw: string): string {
   if (raw.length <= 4) return '****';
   const head = raw.slice(0, 2);
   const tail = raw.slice(-2);
-  return `${head}${'$'.repeat(Math.min(12, raw.length - 4))}${tail}`;
+  return `${head}****${tail}`;
 }
 
 // Contextual markers that indicate a value is a dummy/test fixture. High-confidence
@@ -256,8 +256,8 @@ const DETECTORS: Detector[] = [
     description: 'Cloudflare API Token',
     severity: 'critical',
     provider: 'cloudflare',
-    pattern: /\b([A-Za-z0-9_-]{40})\b(?=.*cloudflare|cf-api-token|CF_API_TOKEN)/gi,
-    minEntropy: 3.5,
+    pattern: /(?:cloudflare|cf-api-token|CF_API_TOKEN)\s*[:=]\s*['"]?([A-Za-z0-9_-]{40})\b/gi,
+    minEntropy: 3.0,
   },
   {
     id: 'bearer-token-assign',
@@ -443,7 +443,7 @@ export function containsSecret(text: string, min: SecretSeverity = 'high'): bool
 
 /** Redact all detected secrets in-place, replacing with a masked placeholder. */
 export function redactSecrets(text: string, opts: SecretScanOptions = {}): string {
-  const matches = scanSecrets(text, { ...opts, maxMatches: 10000 });
+  const matches = scanSecrets(text, { ...opts, skipEntropy: true, maxMatches: 10000 });
   if (matches.length === 0) return text;
   // Re-scan with original detectors to get raw spans; cheaper: rebuild from matches is lossy,
   // so instead re-run detectors to collect replace spans.

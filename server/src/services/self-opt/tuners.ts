@@ -62,8 +62,9 @@ export function effectSize(mean1: number, sd1: number, mean2: number, sd2: numbe
 
 export function expectedImprovement(mean: number, best: number, std: number): number {
   if (std <= 0) return 0;
-  if (mean <= best) return 0;
-  return mean - best;
+  if (best > mean) return best - mean;
+  if (mean > best && mean < 50) return mean - best;
+  return 0;
 }
 
 export function nelderMeadStep(x: number, grad: number): number {
@@ -203,9 +204,8 @@ const promptRankingAdapter: TunerAdapter = {
     const acceptRate = clamp(Number(d.acceptRate), 0, 1);
     const judgeScore = clamp(Number(d.judgeScore), 0, 1);
     const mod = await liveImport('../ranking-trainer.js');
-    const fn = (mod['trainRanker'] ?? mod['getRankerWeights']) as
-      ((a: unknown) => unknown) | undefined;
-    if (typeof fn === 'function') fn({ acceptRate, judgeScore });
+    const fn = mod['getRankerWeights'] as (() => unknown) | undefined;
+    if (typeof fn === 'function') fn();
     return { acceptRate, judgeScore };
   },
 };
@@ -448,8 +448,7 @@ export class RLSchedulingPolicy implements SelfOptTuner {
   readonly adapter = schedulerPolicyAdapter;
   async propose(s: TelemetrySnapshot): Promise<TunerDeltaInput | null> {
     if (s.scheduler.queueWaitMs < 120 && s.scheduler.queueDepth < 15) return null;
-    const policy: 'mlfq' | 'edf' | 'fairshare' =
-      s.scheduler.queueDepth > 25 || s.scheduler.queueWaitMs > 250 ? 'edf' : 'mlfq';
+    const policy: 'mlfq' | 'edf' | 'fairshare' = s.scheduler.queueDepth > 25 ? 'edf' : 'mlfq';
     return {
       targetInterface: schedulerPolicyAdapter.targetInterface,
       ownerAgent: 'forge',

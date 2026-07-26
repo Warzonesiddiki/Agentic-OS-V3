@@ -11,7 +11,7 @@ CREATE INDEX `agent_mem_quota_agent_idx` ON `agent_memory_quotas` (`agent_id`);-
 CREATE TABLE `agent_tasks` (
 	`id` text PRIMARY KEY NOT NULL,
 	`agent_id` text NOT NULL,
-	`label` text NOT NULL,
+	`label` text DEFAULT '' NOT NULL,
 	`kind` text DEFAULT 'interactive' NOT NULL,
 	`queue` text DEFAULT 'Q1' NOT NULL,
 	`priority` integer DEFAULT 80 NOT NULL,
@@ -43,7 +43,7 @@ CREATE INDEX `agent_tasks_queued_priority_created_idx` ON `agent_tasks` (`priori
 CREATE INDEX `agent_tasks_agent_status_idx` ON `agent_tasks` (`agent_id`,`status`);--> statement-breakpoint
 CREATE TABLE `agents` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`kind` text DEFAULT 'sub-agent' NOT NULL,
 	`parent_id` text,
 	`ring` integer DEFAULT 1 NOT NULL,
@@ -82,7 +82,7 @@ CREATE INDEX `anchor_checkpoint_idx` ON `anchored_roots` (`checkpoint_id`);--> s
 CREATE INDEX `anchor_root_idx` ON `anchored_roots` (`merkle_root`);--> statement-breakpoint
 CREATE TABLE `api_keys` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`key_hash` text NOT NULL,
 	`scopes` text DEFAULT '[]' NOT NULL,
 	`status` text DEFAULT 'active' NOT NULL,
@@ -127,7 +127,7 @@ CREATE UNIQUE INDEX `script_sig_unique` ON `compiled_scripts` (`pattern_signatur
 CREATE INDEX `script_status_idx` ON `compiled_scripts` (`status`);--> statement-breakpoint
 CREATE TABLE `cron_jobs` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`cron` text NOT NULL,
 	`agent_kind` text DEFAULT 'daemon' NOT NULL,
 	`task_label` text NOT NULL,
@@ -156,7 +156,7 @@ CREATE INDEX `cos_org_idx` ON `cross_org_shares` (`org_id`);--> statement-breakp
 CREATE TABLE `enterprise_api_keys` (
 	`id` text PRIMARY KEY NOT NULL,
 	`org_id` text NOT NULL,
-	`label` text NOT NULL,
+	`label` text DEFAULT '' NOT NULL,
 	`prefix` text NOT NULL,
 	`key_hash` text NOT NULL,
 	`tier` text DEFAULT 'free' NOT NULL,
@@ -175,7 +175,7 @@ CREATE TABLE `enterprise_users` (
 	`id` text PRIMARY KEY NOT NULL,
 	`org_id` text NOT NULL,
 	`email` text NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`roles` text DEFAULT '[]' NOT NULL,
 	`status` text DEFAULT 'active' NOT NULL,
 	`mfa_enabled` integer DEFAULT false NOT NULL,
@@ -282,7 +282,7 @@ CREATE INDEX `llm_budget_expires_idx` ON `llm_token_budgets` (`expires_at`);--> 
 CREATE TABLE `marketplace_integrations` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`description` text DEFAULT '' NOT NULL,
 	`provider_kind` text NOT NULL,
 	`config_schema` text DEFAULT '{}' NOT NULL,
@@ -299,7 +299,7 @@ CREATE INDEX `mi_kind_idx` ON `marketplace_integrations` (`provider_kind`);--> s
 CREATE TABLE `marketplace_plugins` (
 	`id` text PRIMARY KEY NOT NULL,
 	`slug` text NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`description` text DEFAULT '' NOT NULL,
 	`author_id` text NOT NULL,
 	`author_name` text DEFAULT '' NOT NULL,
@@ -387,7 +387,7 @@ CREATE INDEX `mem_project_idx` ON `memories` (`project_id`);--> statement-breakp
 CREATE INDEX `memories_kind_importance_idx` ON `memories` (`kind`,`importance`);--> statement-breakpoint
 CREATE TABLE `memory_archive` (
 	`id` text PRIMARY KEY NOT NULL,
-	`original_id` text NOT NULL,
+	`original_id` text DEFAULT '' NOT NULL,
 	`kind` text DEFAULT 'fact' NOT NULL,
 	`title` text NOT NULL,
 	`content` text NOT NULL,
@@ -420,7 +420,7 @@ CREATE TABLE `memory_causal_edges` (
 	`id` text PRIMARY KEY NOT NULL,
 	`from_memory_id` text NOT NULL,
 	`to_memory_id` text NOT NULL,
-	`relation` text NOT NULL,
+	`relation` text DEFAULT 'related' NOT NULL,
 	`confidence` real DEFAULT 1 NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL
 );
@@ -438,7 +438,7 @@ CREATE INDEX `mem_cluster_members_mem_idx` ON `memory_cluster_members` (`memory_
 CREATE TABLE `memory_clusters` (
 	`id` text PRIMARY KEY NOT NULL,
 	`project_id` text,
-	`label` text NOT NULL,
+	`label` text DEFAULT '' NOT NULL,
 	`centroid_embedding` text DEFAULT '{}' NOT NULL,
 	`singleton_ratio` real DEFAULT 0 NOT NULL,
 	`size` integer DEFAULT 0 NOT NULL,
@@ -449,9 +449,9 @@ CREATE TABLE `memory_clusters` (
 CREATE INDEX `mem_cluster_size_idx` ON `memory_clusters` (`size`);--> statement-breakpoint
 CREATE TABLE `memory_contradictions` (
 	`id` text PRIMARY KEY NOT NULL,
-	`memory_a` text NOT NULL,
-	`memory_b` text NOT NULL,
-	`relation` text NOT NULL,
+	`memory_a` text DEFAULT '' NOT NULL,
+	`memory_b` text DEFAULT '' NOT NULL,
+	`relation` text DEFAULT 'related' NOT NULL,
 	`resolution_of` text,
 	`resolved` integer DEFAULT false NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL
@@ -461,8 +461,8 @@ CREATE INDEX `mem_contradiction_resolved_idx` ON `memory_contradictions` (`resol
 CREATE TABLE `memory_diff_markers` (
 	`id` text PRIMARY KEY NOT NULL,
 	`memory_id` text NOT NULL,
-	`peer_id` text NOT NULL,
-	`hash` text NOT NULL,
+	`peer_id` text DEFAULT '' NOT NULL,
+	`hash` text DEFAULT '' NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL
 );
@@ -471,7 +471,7 @@ CREATE INDEX `mem_diff_peer_idx` ON `memory_diff_markers` (`peer_id`);--> statem
 CREATE TABLE `memory_emotions` (
 	`id` text PRIMARY KEY NOT NULL,
 	`memory_id` text NOT NULL,
-	`mood` text NOT NULL,
+	`mood` text DEFAULT 'neutral' NOT NULL,
 	`valence` real DEFAULT 0 NOT NULL,
 	`arousal` real DEFAULT 0 NOT NULL,
 	`model` text,
@@ -484,7 +484,7 @@ CREATE TABLE `memory_rehearsal_log` (
 	`memory_id` text NOT NULL,
 	`project_id` text,
 	`reviewed_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
-	`grade` real NOT NULL,
+	`grade` real DEFAULT 0 NOT NULL,
 	`interval_days` real DEFAULT 1 NOT NULL
 );
 --> statement-breakpoint
@@ -498,7 +498,7 @@ CREATE UNIQUE INDEX `memory_tags_pk` ON `memory_tags` (`memory_id`,`tag_id`);-->
 CREATE INDEX `memory_tags_tag_idx` ON `memory_tags` (`tag_id`);--> statement-breakpoint
 CREATE TABLE `memory_templates` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`spec` text DEFAULT '{}' NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
 	`updated_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL
@@ -551,7 +551,7 @@ CREATE TABLE `onboarding_state` (
 --> statement-breakpoint
 CREATE TABLE `orgs` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`slug` text NOT NULL,
 	`parent_id` text,
 	`plan` text DEFAULT 'free' NOT NULL,
@@ -591,7 +591,7 @@ CREATE INDEX `pipeline_run_created_idx` ON `pipeline_runs` (`created_at`);--> st
 CREATE INDEX `pipeline_runs_pipeline_status_idx` ON `pipeline_runs` (`pipeline_id`,`status`);--> statement-breakpoint
 CREATE TABLE `pipelines` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`description` text DEFAULT '' NOT NULL,
 	`dag` text NOT NULL,
 	`trigger` text DEFAULT '{}' NOT NULL,
@@ -719,7 +719,7 @@ CREATE TABLE `plugin_signing_keys` (
 CREATE INDEX `psk_author_idx` ON `plugin_signing_keys` (`author_id`);--> statement-breakpoint
 CREATE TABLE `plugins` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`version` text NOT NULL,
 	`description` text DEFAULT '' NOT NULL,
 	`author_pubkey` text NOT NULL,
@@ -744,7 +744,10 @@ CREATE INDEX `plugin_sha_idx` ON `plugins` (`content_sha256`);--> statement-brea
 CREATE INDEX `plugin_trust_idx` ON `plugins` (`trust_state`);--> statement-breakpoint
 CREATE TABLE `projects` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
+	`mode` text DEFAULT 'manual' NOT NULL,
+	`scope` text DEFAULT '{}' NOT NULL,
+	`idempotency_key` text,
 	`description` text DEFAULT '' NOT NULL,
 	`source` text DEFAULT 'manual' NOT NULL,
 	`status` text DEFAULT 'active' NOT NULL,
@@ -760,7 +763,7 @@ CREATE UNIQUE INDEX `project_name_unique` ON `projects` (`name`);--> statement-b
 CREATE TABLE `rbac_roles` (
 	`id` text PRIMARY KEY NOT NULL,
 	`org_id` text NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`is_custom` integer DEFAULT true NOT NULL,
 	`permissions` text DEFAULT '[]' NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,
@@ -881,8 +884,8 @@ CREATE INDEX `sopv_owner_idx` ON `self_opt_param_versions` (`owner_agent`);--> s
 CREATE INDEX `sopv_parent_idx` ON `self_opt_param_versions` (`parent_id`);--> statement-breakpoint
 CREATE INDEX `sopv_exp_idx` ON `self_opt_param_versions` (`experiment_id`);--> statement-breakpoint
 CREATE TABLE `session_links` (
-	`from_session` text NOT NULL,
-	`to_session` text NOT NULL,
+	`from_session` text DEFAULT '' NOT NULL,
+	`to_session` text DEFAULT '' NOT NULL,
 	`strength` real DEFAULT 1 NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL
 );
@@ -901,7 +904,7 @@ CREATE TABLE `siem_sinks` (
 CREATE INDEX `siem_org_idx` ON `siem_sinks` (`org_id`);--> statement-breakpoint
 CREATE TABLE `skills` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`title` text NOT NULL,
 	`description` text NOT NULL,
 	`content` text NOT NULL,
@@ -927,7 +930,7 @@ CREATE TABLE `span_logs` (
 	`id` text PRIMARY KEY NOT NULL,
 	`trace_id` text NOT NULL,
 	`parent_id` text,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`type` text NOT NULL,
 	`status` text DEFAULT 'ok' NOT NULL,
 	`start_time_ms` integer NOT NULL,
@@ -963,7 +966,7 @@ CREATE TABLE `system_meta` (
 --> statement-breakpoint
 CREATE TABLE `tag_taxonomy` (
 	`id` text PRIMARY KEY NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`parent` text,
 	`parent_id` text,
 	`kind` text DEFAULT 'user' NOT NULL
@@ -1040,7 +1043,7 @@ CREATE INDEX `traj_agent_idx` ON `trajectory_logs` (`agent_id`);--> statement-br
 CREATE TABLE `workspaces` (
 	`id` text PRIMARY KEY NOT NULL,
 	`org_id` text NOT NULL,
-	`name` text NOT NULL,
+	`name` text DEFAULT '' NOT NULL,
 	`region` text DEFAULT 'us-east-1' NOT NULL,
 	`data_residency` text DEFAULT 'us' NOT NULL,
 	`created_at` text DEFAULT (CURRENT_TIMESTAMP) NOT NULL,

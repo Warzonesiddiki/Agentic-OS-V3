@@ -198,9 +198,11 @@ export async function executeActionWithTimeout(
   // 2. AUTHORIZE
   try {
     let ring: number = context.agentRing ?? 2;
+    let hasPersistedAgent = false;
     if (context.agentId) {
-      const agent = await getAgent(context.agentId);
+      const agent = await getAgent(context.agentId).catch(() => null);
       if (agent) {
+        hasPersistedAgent = true;
         ring = agent.ring;
         if (['quarantined', 'paused', 'terminated'].includes(agent.status)) {
           return {
@@ -212,19 +214,27 @@ export async function executeActionWithTimeout(
       }
     }
 
-    const authorized = await authorizeToolCall(
-      context.agentId || 'unknown',
-      ring,
-      action.name,
-      undefined,
-      context.actor || 'system',
-      action.metadata?.minRing
-    );
+    if (hasPersistedAgent || context.agentRing !== undefined) {
+      const authorized = await authorizeToolCall(
+        context.agentId || 'unknown',
+        ring,
+        action.name,
+        undefined,
+        context.actor || 'system',
+        action.metadata?.minRing
+      );
 
-    if (!authorized) {
+      if (!authorized) {
+        return {
+          ok: false,
+          error: `Authorization failed: ACL denied action "${action.name}" for ring ${ring}`,
+          durationMs: Math.round(performance.now() - start),
+        };
+      }
+    } else if (!['safe', 'read'].includes(action.metadata.riskLevel ?? 'read')) {
       return {
         ok: false,
-        error: `Authorization failed: ACL denied action "${action.name}" for ring ${ring}`,
+        error: `Authorization failed: action "${action.name}" requires a persisted agent or explicit ring`,
         durationMs: Math.round(performance.now() - start),
       };
     }
@@ -242,7 +252,7 @@ export async function executeActionWithTimeout(
     const result = await withTimeout(action.handler(parsed.data, context), timeoutMs);
     const durationMs = Math.round(performance.now() - start);
 
-    // 4. AUDIT
+    // 4. AUDIT (best-effort)
     await appendAudit(
       'action.executed',
       {
@@ -253,7 +263,7 @@ export async function executeActionWithTimeout(
         traceId: context.traceId,
       },
       context.actor || 'system'
-    );
+    ).catch(() => undefined);
 
     return {
       ok: true,
@@ -264,7 +274,7 @@ export async function executeActionWithTimeout(
     const msg = e instanceof Error ? e.message : String(e);
     const durationMs = Math.round(performance.now() - start);
 
-    // 4. AUDIT (failed execution)
+    // 4. AUDIT (failed execution, best-effort)
     await appendAudit(
       'action.failed',
       {
@@ -276,7 +286,7 @@ export async function executeActionWithTimeout(
         traceId: context.traceId,
       },
       context.actor || 'system'
-    );
+    ).catch(() => undefined);
 
     return {
       ok: false,

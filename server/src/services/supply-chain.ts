@@ -41,7 +41,7 @@ export function detectTyposquat(name: string, trusted: string[]): boolean {
     const tl = t.toLowerCase().replace(/[-_.]/g, '');
     // Exact match after normalization is typosquatting
     // (different package name, same normalized identity)
-    if (tl === lower) return true;
+    if (tl === lower) return name.toLowerCase() !== t.toLowerCase();
     // Levenshtein <= 2 against a trusted name => suspicious.
     return levenshtein(lower, tl) <= 2;
   });

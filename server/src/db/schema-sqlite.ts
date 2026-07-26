@@ -57,7 +57,7 @@ export const memoryClusters = sqliteTable(
   {
     id: text('id').primaryKey(),
     projectId: text('project_id'),
-    label: text('label').notNull(),
+    label: text('label').notNull().default(''),
     centroidEmbedding: text('centroid_embedding').notNull().default('{}'),
     singletonRatio: real('singleton_ratio').notNull().default(0),
     size: integer('size').notNull().default(0),
@@ -90,8 +90,8 @@ export const memoryClusterMembers = sqliteTable(
 export const sessionLinks = sqliteTable(
   'session_links',
   {
-    fromSession: text('from_session').notNull(),
-    toSession: text('to_session').notNull(),
+    fromSession: text('from_session').notNull().default(''),
+    toSession: text('to_session').notNull().default(''),
     strength: real('strength').notNull().default(1),
     createdAt: timestampText('created_at')
       .notNull()
@@ -109,7 +109,7 @@ export const memoryCausalEdges = sqliteTable(
     id: text('id').primaryKey(),
     fromMemoryId: text('from_memory_id').notNull(),
     toMemoryId: text('to_memory_id').notNull(),
-    relation: text('relation').notNull(),
+    relation: text('relation').notNull().default('related'),
     confidence: real('confidence').notNull().default(1),
     createdAt: timestampText('created_at')
       .notNull()
@@ -126,9 +126,9 @@ export const memoryContradictions = sqliteTable(
   'memory_contradictions',
   {
     id: text('id').primaryKey(),
-    memoryA: text('memory_a').notNull(),
-    memoryB: text('memory_b').notNull(),
-    relation: text('relation').notNull(),
+    memoryA: text('memory_a').notNull().default(''),
+    memoryB: text('memory_b').notNull().default(''),
+    relation: text('relation').notNull().default('related'),
     resolutionOf: text('resolution_of'),
     resolved: integer('resolved', { mode: 'boolean' }).notNull().default(false),
     createdAt: timestampText('created_at')
@@ -144,7 +144,7 @@ export const memoryEmotions = sqliteTable(
   {
     id: text('id').primaryKey(),
     memoryId: text('memory_id').notNull(),
-    mood: text('mood').notNull(),
+    mood: text('mood').notNull().default('neutral'),
     valence: real('valence').notNull().default(0),
     arousal: real('arousal').notNull().default(0),
     model: text('model'),
@@ -160,7 +160,7 @@ export const tagTaxonomy = sqliteTable(
   'tag_taxonomy',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     parent: text('parent'),
     parentId: text('parent_id'),
     kind: text('kind').notNull().default('user'),
@@ -200,8 +200,8 @@ export const memoryDiffMarkers = sqliteTable(
   {
     id: text('id').primaryKey(),
     memoryId: text('memory_id').notNull(),
-    peerId: text('peer_id').notNull(),
-    hash: text('hash').notNull(),
+    peerId: text('peer_id').notNull().default(''),
+    hash: text('hash').notNull().default(''),
     createdAt: timestampText('created_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
@@ -222,7 +222,7 @@ export const memoryRehearsalLog = sqliteTable(
     reviewedAt: timestampText('reviewed_at')
       .notNull()
       .default(sql`(CURRENT_TIMESTAMP)`),
-    grade: real('grade').notNull(),
+    grade: real('grade').notNull().default(0),
     intervalDays: real('interval_days').notNull().default(1),
   },
   (t) => ({ memIdx: index('mem_rehearsal_mem_idx').on(t.memoryId) })
@@ -254,11 +254,11 @@ export const memoryArchive = sqliteTable(
   'memory_archive',
   {
     id: text('id').primaryKey(),
-    originalId: text('original_id').notNull(),
+    originalId: text('original_id').notNull().default(''),
     kind: text('kind').notNull().default('fact'),
     title: text('title').notNull(),
     content: text('content').notNull(),
-    tags: text('tags').notNull().default('[]'),
+    tags: text('tags', { mode: 'json' }).notNull().default([]),
     importance: real('importance').notNull().default(0.1),
     source: text('source').notNull().default('archived'),
     projectId: text('project_id'),
@@ -294,7 +294,7 @@ export const memories = sqliteTable(
     kind: text('kind').notNull(),
     title: text('title').notNull(),
     content: text('content').notNull(),
-    tags: text('tags').notNull().default('[]'),
+    tags: text('tags', { mode: 'json' }).notNull().default([]),
     importance: real('importance').notNull().default(0.5),
     source: text('source').notNull().default('manual'),
     projectId: text('project_id').references(() => projects.id, { onDelete: 'set null' }),
@@ -333,12 +333,12 @@ export const skills = sqliteTable(
   'skills',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     title: text('title').notNull(),
     description: text('description').notNull(),
     content: text('content').notNull(),
     category: text('category').notNull().default('general'),
-    tags: text('tags').notNull().default('[]'),
+    tags: text('tags', { mode: 'json' }).notNull().default([]),
     trigger: text('trigger'),
     rating: real('rating').notNull().default(0),
     useCount: integer('use_count').notNull().default(0),
@@ -367,7 +367,10 @@ export const projects = sqliteTable(
   'projects',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
+    mode: text('mode').notNull().default('manual'),
+    scope: text('scope', { mode: 'json' }).notNull().default({}),
+    idempotencyKey: text('idempotency_key'),
     description: text('description').notNull().default(''),
     source: text('source').notNull().default('manual'),
     status: text('status').notNull().default('active'),
@@ -395,7 +398,7 @@ export const notes = sqliteTable(
     title: text('title').notNull().default(''),
     content: text('content').notNull(),
     frontmatter: text('frontmatter').notNull().default('{}'),
-    tags: text('tags').notNull().default('[]'),
+    tags: text('tags', { mode: 'json' }).notNull().default([]),
     wikilinks: text('wikilinks').notNull().default('[]'),
     charCount: integer('char_count').notNull().default(0),
     mtime: text('mtime'),
@@ -510,7 +513,7 @@ export const apiKeys = sqliteTable(
   'api_keys',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     keyHash: text('key_hash').notNull(),
     scopes: text('scopes').notNull().default('[]'),
     status: text('status').notNull().default('active'),
@@ -579,7 +582,7 @@ export const agents = sqliteTable(
   'agents',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     kind: text('kind').notNull().default('sub-agent'),
     parentId: text('parent_id'),
     ring: integer('ring').notNull().default(1),
@@ -615,7 +618,7 @@ export const agentTasks = sqliteTable(
     agentId: text('agent_id')
       .notNull()
       .references(() => agents.id, { onDelete: 'cascade' }),
-    label: text('label').notNull(),
+    label: text('label').notNull().default(''),
     kind: text('kind').notNull().default('interactive'),
     queue: text('queue').notNull().default('Q1'),
     priority: integer('priority').notNull().default(80),
@@ -697,7 +700,7 @@ export const cronJobs = sqliteTable(
   'cron_jobs',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     cron: text('cron').notNull(),
     agentKind: text('agent_kind').notNull().default('daemon'),
     taskLabel: text('task_label').notNull(),
@@ -729,7 +732,7 @@ export const spanLogs = sqliteTable(
     id: text('id').primaryKey(),
     traceId: text('trace_id').notNull(),
     parentId: text('parent_id'),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     type: text('type').notNull(),
     status: text('status').notNull().default('ok'),
     startTimeMs: integer('start_time_ms').notNull(),
@@ -887,7 +890,7 @@ export const plugins = sqliteTable(
   'plugins',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     version: text('version').notNull(),
     description: text('description').notNull().default(''),
     authorPubkey: text('author_pubkey').notNull(),
@@ -1060,7 +1063,10 @@ export const pipelines = sqliteTable(
   'pipelines',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
+    mode: text('mode').notNull().default('manual'),
+    scope: text('scope', { mode: 'json' }).notNull().default({}),
+    idempotencyKey: text('idempotency_key'),
     description: text('description').notNull().default(''),
     dag: text('dag').notNull(),
     trigger: text('trigger').notNull().default('{}'),
@@ -1109,7 +1115,10 @@ export const marketplacePlugins = sqliteTable(
   {
     id: text('id').primaryKey(),
     slug: text('slug').notNull().unique(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
+    mode: text('mode').notNull().default('manual'),
+    scope: text('scope', { mode: 'json' }).notNull().default({}),
+    idempotencyKey: text('idempotency_key'),
     description: text('description').notNull().default(''),
     authorId: text('author_id').notNull(),
     authorName: text('author_name').notNull().default(''),
@@ -1279,7 +1288,10 @@ export const marketplaceIntegrations = sqliteTable(
   {
     id: text('id').primaryKey(),
     slug: text('slug').notNull().unique(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
+    mode: text('mode').notNull().default('manual'),
+    scope: text('scope', { mode: 'json' }).notNull().default({}),
+    idempotencyKey: text('idempotency_key'),
     description: text('description').notNull().default(''),
     providerKind: text('provider_kind').notNull(), // webhook | oauth | api-key | mcp
     configSchema: text('config_schema').notNull().default('{}'), // JSON schema
@@ -1425,7 +1437,7 @@ export const orgs = sqliteTable(
   'orgs',
   {
     id: text('id').primaryKey(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     slug: text('slug').notNull().unique(),
     parentId: text('parent_id'),
     plan: text('plan').notNull().default('free'),
@@ -1447,7 +1459,7 @@ export const workspaces = sqliteTable(
     orgId: text('org_id')
       .notNull()
       .references(() => orgs.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     region: text('region').notNull().default('us-east-1'),
     dataResidency: text('data_residency').notNull().default('us'),
     createdAt: timestampText('created_at')
@@ -1465,7 +1477,7 @@ export const enterpriseUsers = sqliteTable(
       .notNull()
       .references(() => orgs.id, { onDelete: 'cascade' }),
     email: text('email').notNull(),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     roles: text('roles', { mode: 'json' }).notNull().default([]),
     status: text('status').notNull().default('active'),
     mfaEnabled: integer('mfa_enabled', { mode: 'boolean' }).notNull().default(false),
@@ -1490,7 +1502,7 @@ export const enterpriseApiKeys = sqliteTable(
     orgId: text('org_id')
       .notNull()
       .references(() => orgs.id, { onDelete: 'cascade' }),
-    label: text('label').notNull(),
+    label: text('label').notNull().default(''),
     prefix: text('prefix').notNull(),
     keyHash: text('key_hash').notNull().unique(),
     tier: text('tier').notNull().default('free'),
@@ -1513,7 +1525,7 @@ export const rbacRoles = sqliteTable(
     orgId: text('org_id')
       .notNull()
       .references(() => orgs.id, { onDelete: 'cascade' }),
-    name: text('name').notNull(),
+    name: text('name').notNull().default(''),
     isCustom: integer('is_custom', { mode: 'boolean' }).notNull().default(true),
     permissions: text('permissions', { mode: 'json' }).notNull().default([]),
     createdAt: timestampText('created_at')

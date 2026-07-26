@@ -3,7 +3,7 @@ import type { NexusEnv } from "../lib/hono-env.js";
 import { requireScope, safeJson, parse } from "../lib/auth-context.js";
 import { z } from "zod";
 import { requestApproval, resolveApproval } from "../services/operations-ext.js";
-import { syncWorkspace } from "../services/workspace-sync.js";
+import { syncWorkspace } from "../services/file-watcher.js";
 import { safeVaultPath } from "../lib/guards.js";
 import { broadcastSSE } from "../services/sse-bus.js";
 import { ok, err } from "../lib/envelope.js";

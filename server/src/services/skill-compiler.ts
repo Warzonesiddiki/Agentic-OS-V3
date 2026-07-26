@@ -230,10 +230,7 @@ function compiledTask(input) {
   return output;
 }
 
-// Self-test: verify against historical samples
-const testResults = ${JSON.stringify((pattern.sampleOutputs || []).slice(0, 3), null, 2)};
-
-module.exports = { compiledTask, testResults };
+module.exports = { compiledTask };
 `;
 
   return {

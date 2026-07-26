@@ -43,7 +43,7 @@ export async function saveAgentProcessState(state: AgentExecutionState): Promise
       agentId: state.agentId,
       stepIndex: state.currentIteration,
       stepName: `step_${state.currentIteration}`,
-      context: state as unknown as Record<string, unknown>,
+      context: JSON.stringify(state),
       createdAt: new Date(),
     });
   } catch {

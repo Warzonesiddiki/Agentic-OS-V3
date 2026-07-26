@@ -48,12 +48,13 @@ export class MetricStore {
 
   snapshot(): TelemetrySnapshot {
     const s = defaultSnapshot();
-    const g = (k: string): number => this.store.get(k)?.value ?? 0;
+    const source = this.store.size > 0 ? this.store : metricStore.store;
+    const g = (k: string): number => source.get(k)?.value ?? 0;
     s.scheduler.queueDepth = g('scheduler_queue_depth') || s.scheduler.queueDepth;
     s.scheduler.queueWaitMs = g('scheduler_queue_wait_ms') || s.scheduler.queueWaitMs;
     s.scheduler.queueRejectRate = g('scheduler_queue_reject_rate') || s.scheduler.queueRejectRate;
     s.scheduler.boostMs = g('scheduler_boost_ms') || s.scheduler.boostMs;
-    const polIdx = this.store.get('scheduler_policy')?.value;
+    const polIdx = source.get('scheduler_policy')?.value;
     if (polIdx !== undefined) {
       s.scheduler.policy = policyNameFromIndex(polIdx);
     }

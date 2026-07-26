@@ -88,7 +88,10 @@ export type Scope =
   | 'integrations:read'
   | 'integrations:write'
   | 'selfopt:read'
-  | 'selfopt:write';
+  | 'selfopt:write'
+  | 'enterprise.*'
+  | 'enterprise:read'
+  | 'enterprise:write';
 
 /** Scopes defined in this application — ideally this would live in a config table. */
 export const ALL_SCOPES = [

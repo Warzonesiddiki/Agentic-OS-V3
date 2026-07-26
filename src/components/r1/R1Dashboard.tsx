@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 import { r1 } from '../../lib/r1-client';
 import { Badge, Button, Card, SectionTitle, Input, Select } from '../ui';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 
 interface ProjectHealth {
   mode: 'local' | 'shared';

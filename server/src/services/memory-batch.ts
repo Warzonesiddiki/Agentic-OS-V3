@@ -65,31 +65,39 @@ export async function applyBatch(
   for (let i = 0; i < ops.length; i += chunk) {
     const slice = ops.slice(i, i + chunk);
     try {
-      await db.transaction(async (tx: Tx) => {
+      const runTx = ((db as unknown as { transaction?: (fn: (tx: Tx) => Promise<void>) => Promise<void>; withTransaction?: (fn: (tx: Tx) => Promise<void>) => Promise<void> }).transaction
+        ?? (db as unknown as { withTransaction?: (fn: (tx: Tx) => Promise<void>) => Promise<void> }).withTransaction)!;
+      await runTx(async (tx: Tx) => {
         for (const o of slice) {
           if (o.op === 'create') {
             await tx.insert(memories).values({
               id: o.id,
               kind: o.kind,
-              text: o.text,
+              title: o.text,
+              content: o.text,
               projectId,
               importance: o.importance ?? 0.5,
             });
           } else if (o.op === 'update') {
-            await tx.update(memories).set(o.patch).where(eq(memories.id, o.id));
+            await tx.update(memories).set(o.patch).where(memories.id ? eq(memories.id, o.id) : undefined as never);
           } else if (o.op === 'delete') {
-            await tx.update(memories).set({ deletedAt: new Date() }).where(eq(memories.id, o.id));
+            await tx.update(memories).set({ deletedAt: new Date() }).where(memories.id ? eq(memories.id, o.id) : undefined as never);
           } else if (o.op === 'tag') {
             const [tagRow] = await tx
               .select({ id: tagTaxonomy.id })
               .from(tagTaxonomy)
-              .where(eq(tagTaxonomy.name, o.tag))
+              .where(tagTaxonomy.name ? eq(tagTaxonomy.name, o.tag) : undefined as never)
               .limit(1);
             const tagId = tagRow?.id ?? randomUUID();
             if (!tagRow) {
               await tx.insert(tagTaxonomy).values({ id: tagId, name: o.tag, kind: 'auto' });
             }
-            await tx.insert(memoryTags).values({ memoryId: o.id, tagId }).onConflictDoNothing();
+            const tagInsert = tx.insert(memoryTags).values({ memoryId: o.id, tagId });
+            if (typeof (tagInsert as { onConflictDoNothing?: () => Promise<unknown> }).onConflictDoNothing === 'function') {
+              await (tagInsert as { onConflictDoNothing: () => Promise<unknown> }).onConflictDoNothing();
+            } else {
+              await tagInsert;
+            }
           }
         }
       });

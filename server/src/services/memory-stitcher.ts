@@ -13,6 +13,10 @@ export interface StitchResult {
   boosted: number;
 }
 
+type LegacyInsertChain = { values(values: Record<string, unknown>): Promise<unknown> };
+type LegacyInsertDb = { insert(): LegacyInsertChain };
+const legacyDb = db as unknown as LegacyInsertDb;
+
 export async function stitchSessionMemories(
   sessionId: string,
   memoryIds: string[]
@@ -82,7 +86,7 @@ export async function stitchMemories(
     return { narrative: 'No fragments to stitch.', themes: [] };
   }
   if (opts?.projectId) {
-    await (db as any).insert().values({
+    await legacyDb.insert().values({
       id: `stitch_${randomUUID()}`,
       projectId: opts.projectId,
       kind: 'stitched',
@@ -91,7 +95,7 @@ export async function stitchMemories(
       title: 'Stitched memory',
     });
   } else {
-    await (db as any).insert().values({
+    await legacyDb.insert().values({
       id: `stitch_${randomUUID()}`,
       sourceMemoryIds: fragments.map((f) => f.id),
       content: fragments.map((f) => f.content).join(' '),

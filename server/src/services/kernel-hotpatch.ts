@@ -91,7 +91,7 @@ export interface HotpatchSpec {
 const hotpatchStore = new Map<string, HotpatchSpec>();
 
 export function applyHotpatch(spec: HotpatchSpec): string {
-  const id = spec.id ?? spec.name;
+  const id = spec.id ?? spec.name ?? `hotpatch_${Date.now()}`;
   hotpatchStore.set(id, spec);
   const result = spec.apply?.();
   if (result instanceof Promise) {
