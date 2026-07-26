@@ -18,7 +18,7 @@ import { inArray, sql, isNotNull, desc } from 'drizzle-orm';
 import { db, isSqlite, withTransaction } from '../db/client.js';
 import { memories, skills, tokenLedger, notes } from '../db/client.js';
 import { bm25, estimateTokens, packByBudget } from '../lib/tokens.js';
-import { appendAudit, type Tx } from '../lib/audit.js';
+import { appendAudit } from '../lib/audit.js';
 import { embedQuery, embeddingsAvailable } from './embeddings.js';
 import { randomUUID } from 'node:crypto';
 import { truncate } from '../lib/strings.js';

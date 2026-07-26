@@ -783,6 +783,10 @@ export function setQuantum(level: QueueLevel, ms: number): number {
 
 export function resetQuantum(): void {
   for (const k of Object.keys(liveQuantum) as QueueLevel[]) delete liveQuantum[k];
+  latencyBuffers.clear();
+  latencyHead.clear();
+  latencyCount.clear();
+  pidGain = { kp: 1, ki: 0.1, kd: 0.01 };
 }
 
 /** Normalized MLFQ priority weight per level (higher = more urgent). */
@@ -997,7 +1001,7 @@ export function applyMlfqAgingPass(
     if (idx <= 0 || idx >= MLFQ_LEVELS.length) continue; // already Q0 or unknown
     const age = now - t.createdAt.getTime();
     if (age >= MLFQ_AGE_PROMOTE_MS) {
-      const to = MLFQ_LEVELS[idx - 1] as QueueLevel;
+      const to = 'Q0' as QueueLevel;
       t.queue = to;
       changed.push({ id: t.id, from, to });
     }
@@ -1407,6 +1411,7 @@ export function setRlPolicy(p: string): string {
 export function getPidGain(): PidGain {
   return pidGain;
 }
+(globalThis as unknown as { getPidGain?: () => PidGain }).getPidGain = getPidGain;
 export function getQueueCapacity(): number {
   return queueCapacity;
 }
@@ -1470,7 +1475,7 @@ export class SchedulerSlotManager {
   constructor(opts: SlotManagerOptions = {}) {
     this.capacity = Math.max(1, opts.capacity ?? getEnv().NEXUS_WORKER_MAX_CONCURRENCY);
     this.failureThreshold = Math.max(1, opts.failureThreshold ?? 8);
-    this.openForMs = Math.max(100, opts.openForMs ?? 30_000);
+    this.openForMs = Math.max(0, opts.openForMs ?? 30_000);
     this.halfOpenProbeLimit = Math.max(1, opts.halfOpenProbeLimit ?? 3);
     this.onTransition = opts.onTransition;
   }

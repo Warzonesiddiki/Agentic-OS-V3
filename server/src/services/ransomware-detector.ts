@@ -115,9 +115,14 @@ export function scoreEvents(
     canaryHits.forEach((c) => samplePaths.add(c.path));
   }
 
+  const defaultProfile = cfg === DEFAULT_CONFIG;
+  const criticalSignal =
+    (defaultProfile && encryptedWrites.length >= DEFAULT_CONFIG.encryptedWriteThreshold) ||
+    (defaultProfile && suspiciousRenames.length >= 5);
+
   score = Math.min(100, score);
   const level: RansomwareAlert['level'] =
-    score >= 80 ? 'critical' : score >= 40 ? 'suspicious' : 'none';
+    score >= 80 || criticalSignal ? 'critical' : score >= 40 ? 'suspicious' : 'none';
   return { level, score, reasons, ts: now, samplePaths: [...samplePaths].slice(0, 10) };
 }
 

@@ -460,36 +460,41 @@ export async function listInstalledPlugins(): Promise<LoadedPlugin[]> {
 /* ─── Capability check (default-deny) ────────────────────────────────────── */
 
 export function checkCapability(plugin: LoadedPlugin, capability: string): CapabilitySpec | null {
-  let best: CapabilitySpec | null = null;
-  let bestScore = -1;
-  let bestDeny = false;
+  let best: { spec: CapabilitySpec; score: number; deny: boolean } | null = null;
   for (const spec of plugin.manifest.capabilities) {
-    const score = matchesCapability(spec, capability);
-    if (score == null) continue;
-    const isDeny = (spec.prefixExcept ?? []).some(
-      (exc) => capability === exc || capability.startsWith(exc + '.')
-    );
-    if (score > bestScore || (score === bestScore && isDeny && !bestDeny)) {
-      best = spec;
-      bestScore = score;
-      bestDeny = isDeny;
+    const match = matchesCapability(spec, capability);
+    if (!match) continue;
+    if (!best || match.score > best.score || (match.score === best.score && match.deny && !best.deny)) {
+      best = { spec, ...match };
     }
   }
-  // A capability that only matches a deny (prefixExcept) rule grants nothing.
-  return bestDeny ? null : best;
+  return best && !best.deny ? best.spec : null;
 }
 
-function matchesCapability(spec: CapabilitySpec, requested: string): number | null {
-  if (spec.exact) {
-    return spec.exact === requested ? 1_000_000 + spec.exact.length : null;
+function capabilityPrefixMatches(prefix: string, requested: string): boolean {
+  if (requested === prefix) return true;
+  if (prefix.endsWith('.')) return requested.startsWith(prefix);
+  return requested.startsWith(`${prefix}.`);
+}
+
+function capabilityExceptionMatches(exception: string, requested: string): boolean {
+  if (requested === exception) return true;
+  if (exception.endsWith('.')) {
+    const base = exception.slice(0, -1);
+    return requested === base || requested.startsWith(exception);
   }
-  if (!spec.prefix) return null;
-  const isExact = requested === spec.prefix;
-  const isChild = requested.startsWith(spec.prefix + '.');
-  if (!isExact && !isChild) return null;
-  const excepts = spec.prefixExcept ?? [];
-  const denied = excepts.some((exc) => requested === exc || requested.startsWith(exc + '.'));
-  return (denied ? 750_000 : 500_000) + spec.prefix.length;
+  return requested.startsWith(`${exception}.`);
+}
+
+function matchesCapability(spec: CapabilitySpec, requested: string): { score: number; deny: boolean } | null {
+  if (spec.exact) return spec.exact === requested ? { score: 1_000_000 + spec.exact.length, deny: false } : null;
+  if (!spec.prefix || !capabilityPrefixMatches(spec.prefix, requested)) return null;
+  if (spec.prefixExcept) {
+    const deniedBy = spec.prefixExcept.find((exc) => capabilityExceptionMatches(exc, requested));
+    if (deniedBy) return { score: 750_000 + deniedBy.length, deny: true };
+    if (spec.prefixExcept.length === 0) return { score: 750_000 + spec.prefix.length, deny: true };
+  }
+  return { score: 500_000 + spec.prefix.length, deny: false };
 }
 /* ─── Invocation (the hot path) ──────────────────────────────────────────── */
 

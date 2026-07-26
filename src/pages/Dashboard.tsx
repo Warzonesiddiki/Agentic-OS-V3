@@ -1,5 +1,5 @@
 import { useState, useEffect, useSyncExternalStore } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import type { PageId } from '../components/Shell';
 import { nexus, useNexus, useConfig, LOCAL_KEY } from '../store';
 import { Badge, Card, CodeBlock, SectionTitle, Stat } from '../components/ui';

@@ -233,10 +233,7 @@ function compiledTask(input) {
   return output;
 }
 
-// Self-test: verify against historical samples
-const testResults = ${JSON.stringify(pattern.sampleOutputs.slice(0, 3), null, 2)};
-
-module.exports = { compiledTask, testResults };
+module.exports = { compiledTask };
 `;
 
   return {
@@ -306,6 +303,18 @@ function inferOutputExpression(
       )
     ) {
       return `String(${variable}).trim()`;
+    }
+    if (
+      pairs.length > 0 &&
+      pairs.every((pair) => {
+        if (typeof pair.input !== 'string' || typeof pair.output !== 'string') return false;
+        const titleCased = pair.input
+          .trim()
+          .replace(/\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+        return pair.output === titleCased;
+      })
+    ) {
+      return `String(${variable}).trim().replace(/\\S+/g, (word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())`;
     }
   }
 

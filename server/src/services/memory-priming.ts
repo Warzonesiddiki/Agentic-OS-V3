@@ -14,6 +14,19 @@ export interface PrimingItem {
   similarityScore: number;
 }
 
+interface PrimingRecallCandidate { id?: unknown; content?: unknown; score?: unknown }
+function asPrimingCandidates(value: unknown): PrimingRecallCandidate[] {
+  if (Array.isArray(value)) return value as PrimingRecallCandidate[];
+  if (value !== null && typeof value === 'object') {
+    const record = value as { returned?: unknown; items?: unknown };
+    if (Array.isArray(record.returned)) return record.returned as PrimingRecallCandidate[];
+    if (Array.isArray(record.items)) return record.items as PrimingRecallCandidate[];
+  }
+  return [];
+}
+function stringValue(value: unknown, fallback: string): string { return typeof value === 'string' ? value : fallback; }
+function numberValue(value: unknown, fallback: number): number { return typeof value === 'number' && Number.isFinite(value) ? value : fallback; }
+
 export interface PrimingResult {
   sessionKey: string;
   context: string;
@@ -150,14 +163,17 @@ export async function primingScopeForContext(opts: {
   context: string;
   agentId?: string;
 }): Promise<{ items: PrimingItem[]; budget: PrimingBudget }> {
-  const recalled = (await recall(opts.context, PRIMING_RECALL_BUDGET, opts.agentId ?? 'system', { limit: PRIMING_TOP_K })) as any;
-  const candidates = Array.isArray(recalled) ? recalled : (recalled?.returned ?? recalled?.items ?? []);
-  const items: PrimingItem[] = candidates.slice(0, PRIMING_TOP_K).map((c: any, i: number) => ({
-    memoryId: c.id ?? `mem-${i}`,
-    compressed: c.content ?? '',
-    tokens: Math.ceil((c.content?.length ?? 0) / 4),
-    similarityScore: c.score ?? 0.5,
-  }));
+  const recalled: unknown = await recall(opts.context, PRIMING_RECALL_BUDGET, opts.agentId ?? 'system', { limit: PRIMING_TOP_K });
+  const candidates = asPrimingCandidates(recalled);
+  const items: PrimingItem[] = candidates.slice(0, PRIMING_TOP_K).map((candidate, index) => {
+    const content = stringValue(candidate.content, '');
+    return {
+      memoryId: stringValue(candidate.id, `mem-${index}`),
+      compressed: content,
+      tokens: Math.ceil(content.length / 4),
+      similarityScore: numberValue(candidate.score, 0.5),
+    };
+  });
   try {
     await recordMemoryInfluences(
       items.map((item, index) => ({

@@ -35,6 +35,13 @@ export interface RecallResult {
 
 const MS_PER_DAY = 86_400_000;
 
+type LegacyMutationChain = {
+  set(values: Record<string, unknown>): { where(condition: unknown): Promise<unknown> };
+};
+type LegacyInsertChain = { values(values: Record<string, unknown>): Promise<unknown> };
+type LegacyDb = { update(): LegacyMutationChain; insert(): LegacyInsertChain };
+const legacyDb = db as unknown as LegacyDb;
+
 function cutoffValue(ageDays: number): Date {
   return new Date(Date.now() - ageDays * MS_PER_DAY);
 }
@@ -242,15 +249,15 @@ export async function archiveMemory(
     const { ApiError } = await import('../lib/errors.js');
     throw new ApiError('BAD_REQUEST', 'Archive location is required');
   }
-  await (db as any)
+  await legacyDb
     .update()
     .set({ coldStorageAt: new Date().toISOString(), archiveLocation: location })
     .where({ id: memoryId });
-  await (db as any).insert().values({ memoryId, location });
+  await legacyDb.insert().values({ memoryId, location });
 }
 
 export async function restoreMemory(memoryId: string): Promise<void> {
-  await (db as any)
+  await legacyDb
     .update()
     .set({ coldStorageAt: null, archiveLocation: null, archivedAt: new Date() })
     .where({ id: memoryId });

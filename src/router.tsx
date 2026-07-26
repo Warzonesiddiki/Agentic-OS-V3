@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { createBrowserRouter, Navigate, Outlet, useLocation } from 'react-router';
 import { lazy, Suspense, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Shell } from './components/Shell';

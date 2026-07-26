@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { motion } from 'motion/react';
-import { useLocation, useNavigate, Outlet } from 'react-router-dom';
+import { useLocation, useNavigate, Outlet } from 'react-router';
 import { nexus, useNexus } from '../store';
 import { remoteEnabled } from '../lib/remote';
 import { useSSE } from '../lib/useSSE';

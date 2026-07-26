@@ -28,6 +28,9 @@ export interface ShadowInsight {
 export interface ShadowReport {
   insights: ShadowInsight[];
   runDurationMs: number;
+  proposed: number;
+  applied: number;
+  rolledback: number;
 }
 
 /* ── Main Daemon Entrypoint ── */
@@ -60,7 +63,7 @@ export async function runShadowCycle(): Promise<ShadowReport> {
     log.error('shadow_cycle_failed', { error: e instanceof Error ? e.message : String(e) });
   }
 
-  return { insights, runDurationMs: Date.now() - start };
+  return { insights, runDurationMs: Date.now() - start, proposed: insights.length, applied: 0, rolledback: 0 };
 }
 
 /* ── Anomaly Detection ── */

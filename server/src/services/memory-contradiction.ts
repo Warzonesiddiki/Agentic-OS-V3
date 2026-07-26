@@ -99,7 +99,7 @@ export function classifyByTags(
   // Tags are treated as supporting context; strong overlap (>= half of the
   // smaller set) signals the two memories describe the same subject.
   const overlapRatio = shared / Math.min(sa.size, sb.size);
-  return overlapRatio >= 0.5 ? 'supporting' : 'neutral';
+  return overlapRatio > 0.5 ? 'supporting' : 'neutral';
 }
 
 export async function judgeContradiction(

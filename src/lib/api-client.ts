@@ -250,7 +250,17 @@ export const apiClient = {
   listLedger: (): Promise<unknown[]> => request<unknown[]>('/api/v1/ledger'),
 
   // Pipelines
-  listPipelines: (): Promise<string[]> => request<string[]>('/api/v1/pipelines'),
+  listPipelines: async (): Promise<string[]> => {
+    const result = await request<string[] | { names?: string[]; items?: Array<string | { name?: string }> }>('/api/v1/pipelines');
+    if (Array.isArray(result)) return result;
+    if (Array.isArray(result.names)) return result.names;
+    if (Array.isArray(result.items)) {
+      return result.items
+        .map((item) => (typeof item === 'string' ? item : item.name))
+        .filter((name): name is string => typeof name === 'string');
+    }
+    return [];
+  },
   getPipeline: (name: string): Promise<Pipeline> =>
     request<Pipeline>(`/api/v1/pipelines/${encodeURIComponent(name)}`),
   createPipeline: (data: PipelineInput): Promise<Pipeline> =>

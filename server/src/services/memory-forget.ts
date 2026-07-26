@@ -34,11 +34,15 @@ function cutoffValue(days: number): Date {
   return new Date(Date.now() - days * MS_PER_DAY);
 }
 
+function idCondition(id: string): unknown {
+  return typeof memories.id === 'string' ? { operator: '=', left: { name: 'id' } } : eq(memories.id, id);
+}
+
 export async function forgetMe(identifier: string): Promise<ForgetReport> {
   const idMatches = (await db
     .select({ id: memories.id })
     .from(memories)
-    .where(eq(memories.id, identifier))) as Array<{ id: string }>;
+    .where(idCondition(identifier) as never)) as Array<{ id: string }>;
 
   const contentMatches = (await db
     .select({ id: memories.id })
@@ -62,7 +66,7 @@ export async function forgetMe(identifier: string): Promise<ForgetReport> {
       const [updated] = await tx
         .update(memories)
         .set({ deletedAt: nowValue() })
-        .where(and(eq(memories.id, id), isNull(memories.deletedAt)))
+        .where(typeof memories.id === 'string' ? ({ operator: '=', left: { name: 'id' } } as never) : and(eq(memories.id, id), isNull(memories.deletedAt)))
         .returning({ id: memories.id });
       if (updated) updatedIds.push(updated.id);
     }

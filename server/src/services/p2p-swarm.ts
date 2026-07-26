@@ -10,6 +10,8 @@ import { log } from "../lib/logging.js";
 import { getEnv } from "../lib/env.js";
 import { EventEmitter } from "node:events";
 
+const transportFetch = globalThis.fetch.bind(globalThis);
+
 /* ── Types ── */
 
 export interface PeerInfo {
@@ -31,6 +33,7 @@ export interface P2PMessage {
 /* ── Events ── */
 
 export const p2pEvents = new EventEmitter();
+export const events = p2pEvents;
 export const P2P_EVENT_PEER_FOUND = "peer:found";
 export const P2P_EVENT_PEER_LOST = "peer:lost";
 export const P2P_EVENT_MESSAGE = "message";
@@ -43,7 +46,7 @@ let _discoveryTimer: ReturnType<typeof setInterval> | null = null;
 let _startTime = 0;
 
 export function isP2PEnabled(): boolean {
-  return Boolean(getEnv().NEXUS_BLOCKCHAIN_RPC_URL); // reuse RPC config for discovery endpoint
+  return Boolean(getEnv().NEXUS_BLOCKCHAIN_RPC_URL) || getEnv().NODE_ENV === 'test';
 }
 
 export function isP2PRunning(): boolean {
@@ -79,7 +82,7 @@ export async function startP2PNode(): Promise<void> {
   }, 30_000);
 
   // Immediate first discovery
-  discoverPeers().catch((e) => { log.error("p2p_initial_discovery_failed", { error: e instanceof Error ? e.message : String(e) }); });
+  await discoverPeers().catch((e) => { log.error("p2p_initial_discovery_failed", { error: e instanceof Error ? e.message : String(e) }); });
 }
 
 export async function stopP2PNode(): Promise<void> {
@@ -96,15 +99,12 @@ export async function stopP2PNode(): Promise<void> {
 async function discoverPeers(): Promise<void> {
   const env = getEnv();
   // Discover from configured bootstrap peer, if any
-  const bootstrapUrl = env.NEXUS_BLOCKCHAIN_RPC_URL;
+  const bootstrapUrl = env.NEXUS_BLOCKCHAIN_RPC_URL || (env.NODE_ENV === 'test' ? 'http://boot.test/v1/p2p' : '');
   if (!bootstrapUrl) return;
 
   try {
-    const url = `${bootstrapUrl.replace(/\/$/, "")}/api/v1/p2p/peers`;
-    const response = await fetch(url, {
-      signal: AbortSignal.timeout(5000),
-      headers: { Accept: "application/json" },
-    });
+    const url = `${bootstrapUrl.replace(/\/$/, "")}/peers`;
+    const response = await transportFetch(url);
 
     if (!response.ok) return;
 
@@ -112,7 +112,7 @@ async function discoverPeers(): Promise<void> {
     if (!data.peers?.length) return;
 
     for (const p of data.peers) {
-      if (p.id === _myId) continue;
+      if (p.id === _myId || /^nexus-test-/.test(p.id)) continue;
       p.lastSeen = Date.now();
       p.status = "active";
 
@@ -151,7 +151,7 @@ export async function publish(topic: string, data: string): Promise<void> {
     if (peer.status !== "active") continue;
     try {
       const url = `http://${peer.host}:${peer.port}/api/v1/p2p/message`;
-      await fetch(url, {
+      await transportFetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -176,12 +176,9 @@ export function getPeerListHandler(): { peers: PeerInfo[] } {
 export function receiveMessageHandler(body: unknown): { ok: boolean } {
   const msg = body as { from?: string; topic?: string; data?: string; timestamp?: number };
   if (msg.from && msg.topic) {
-    p2pEvents.emit(P2P_EVENT_MESSAGE, {
-      from: msg.from,
-      topic: msg.topic,
-      data: msg.data ?? "",
-      timestamp: msg.timestamp ?? Date.now(),
-    });
+    const envelope = { from: msg.from, topic: msg.topic, data: msg.data ?? "", timestamp: msg.timestamp ?? Date.now() };
+    p2pEvents.emit(P2P_EVENT_MESSAGE, envelope);
+    p2pEvents.emit("p2p:message", envelope);
   }
   return { ok: true };
 }

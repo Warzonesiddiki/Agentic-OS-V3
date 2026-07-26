@@ -20,6 +20,7 @@ export interface TraceContext {
   traceId: string;
   spanId: string;
   traceFlags: string;
+  sampled?: boolean;
   parentSpanId?: string;
 }
 
@@ -33,11 +34,13 @@ export function parseTraceparent(header?: string | null): TraceContext | null {
     traceId: m[2] ?? '',
     spanId: m[3] ?? '',
     traceFlags: m[4] ?? '01',
+    sampled: (m[4] ?? '01') !== '00',
   };
 }
 
-export function formatTraceparent(ctx: TraceContext): string {
-  return `00-${ctx.traceId}-${ctx.spanId}-${ctx.traceFlags}`;
+export function formatTraceparent(ctx: TraceContext | { traceId: string; spanId: string; traceFlags?: string; sampled?: boolean }): string {
+  const flags = ctx.traceFlags ?? (ctx.sampled === false ? '00' : '01');
+  return `00-${ctx.traceId}-${ctx.spanId}-${flags}`;
 }
 
 function randomHex(len: number): string {
@@ -73,11 +76,12 @@ export interface InternalSpan {
   name: string;
   kind: string;
   attributes: Record<string, string | number | boolean>;
-  status: string;
+  attrs: Record<string, string | number | boolean>;
+  status: { code: number; message?: string };
   events: SpanEvent[];
   startedAt: number;
   setAttribute(key: string, value: string | number | boolean): void;
-  setStatus(status: string): void;
+  setStatus(status: string | { code: number; message?: string }): void;
   addEvent(name: string, attributes?: Record<string, string | number | boolean>): void;
   end(): void;
 }
@@ -96,14 +100,16 @@ function makeSpan(
     name,
     kind,
     attributes: (opts.attributes as Record<string, string | number | boolean>) ?? {},
-    status: 'ok',
+    attrs: (opts.attributes as Record<string, string | number | boolean>) ?? {},
+    status: { code: 0 },
     events: [],
     startedAt: Date.now(),
     setAttribute(key, value) {
       this.attributes[key] = value;
+      this.attrs[key] = value;
     },
     setStatus(status) {
-      this.status = status;
+      this.status = typeof status === 'string' ? { code: status === 'error' ? 2 : 0, message: status } : status;
     },
     addEvent(eventName, attributes) {
       this.events.push({ name: eventName, attributes, at: Date.now() });
@@ -142,79 +148,87 @@ export function getTracer(): CustomTracer {
 
 const _activeContext = new Map<string, TraceContext>();
 
-export function runWithTraceContext(ctx: TraceContext, fn: () => Promise<void>): Promise<void> {
+export function runWithTraceContext<T>(ctx: TraceContext, fn: () => Promise<T> | T): Promise<T> {
   _activeContext.set(ctx.traceId, ctx);
   return (async () => {
     try {
-      await fn();
+      return await fn();
     } finally {
       _activeContext.delete(ctx.traceId);
     }
   })();
 }
 
-export interface LLMSpanHandle {
-  span: InternalSpan;
-  end: () => Promise<void>;
+export type LLMSpanHandle = InternalSpan & { span: InternalSpan; end: () => Promise<void> };
+
+function asHandle(span: InternalSpan): LLMSpanHandle {
+  const finish = span.end.bind(span);
+  const handle = span as LLMSpanHandle;
+  handle.span = span;
+  handle.end = () => {
+    finish();
+    return Promise.resolve();
+  };
+  return handle;
 }
 
 export function startLLMSpan(
   name: string,
-  attrs: Record<string, string | number | boolean> = {}
+  attrs: Record<string, string | number | boolean> | string = {}
 ): LLMSpanHandle {
-  const span = makeSpan(name, generateTraceId(), generateSpanId(), 'llm', { attributes: attrs });
-  return {
-    span,
-    end: () => {
-      span.end();
-      return Promise.resolve();
-    },
-  };
+  const attributes = typeof attrs === 'string' ? { prompt: attrs } : attrs;
+  return asHandle(makeSpan(name, generateTraceId(), generateSpanId(), 'llm', { attributes }));
 }
 
 export function startToolSpan(
   name: string,
   attrs: Record<string, string | number | boolean> = {}
 ): LLMSpanHandle {
-  const span = makeSpan(name, generateTraceId(), generateSpanId(), 'tool', { attributes: attrs });
-  return {
-    span,
-    end: () => {
-      span.end();
-      return Promise.resolve();
-    },
-  };
+  return asHandle(makeSpan(name, generateTraceId(), generateSpanId(), 'tool', { attributes: attrs }));
 }
 
-export interface TokenUsage {
-  prompt?: number;
-  completion?: number;
-  total?: number;
+export interface TokenUsage { prompt?: number; completion?: number; total?: number; }
+
+function unwrap(handle: LLMSpanHandle | InternalSpan): InternalSpan {
+  return (handle as LLMSpanHandle).span ?? (handle as InternalSpan);
 }
 
-export function recordTokenUsage(handle: LLMSpanHandle, usage: TokenUsage): void {
-  if (!usage) return;
-  handle.span.setAttribute('llm.prompt_tokens', usage.prompt ?? 0);
-  handle.span.setAttribute('llm.completion_tokens', usage.completion ?? 0);
-  handle.span.setAttribute(
-    'llm.total_tokens',
-    usage.total ?? (usage.prompt ?? 0) + (usage.completion ?? 0)
-  );
+export function recordTokenUsage(
+  handle: LLMSpanHandle | InternalSpan,
+  usageOrPrompt: TokenUsage | number,
+  completion?: number
+): void {
+  const usage: TokenUsage = typeof usageOrPrompt === 'number'
+    ? { prompt: usageOrPrompt, completion, total: usageOrPrompt + (completion ?? 0) }
+    : usageOrPrompt;
+  const span = unwrap(handle);
+  span.setAttribute('llm.prompt_tokens', usage.prompt ?? 0);
+  span.setAttribute('llm.completion_tokens', usage.completion ?? 0);
+  span.setAttribute('llm.total_tokens', usage.total ?? (usage.prompt ?? 0) + (usage.completion ?? 0));
 }
 
-export function recordSpanError(handle: LLMSpanHandle, message: string): void {
-  handle.span.setStatus('error');
-  handle.span.setAttribute('error', message);
+export function recordSpanError(handle: LLMSpanHandle | InternalSpan, error: Error | string): void {
+  const span = unwrap(handle);
+  const message = error instanceof Error ? error.message : String(error);
+  span.setStatus({ code: 2, message });
+  span.setAttribute('error', message);
 }
 
-export function endTracedSpan(handle: LLMSpanHandle): Promise<void> {
-  handle.span.end();
+export function endTracedSpan(handle: LLMSpanHandle | InternalSpan): Promise<void> {
+  const span = unwrap(handle);
+  const finish = typeof span.end === 'function' ? span.end.bind(span) : undefined;
+  finish?.();
+  (span as unknown as { end: number }).end = Date.now();
   return Promise.resolve();
 }
 
-export function injectTraceparent(headers: Record<string, string>): void {
-  for (const ctx of _activeContext.values()) {
-    headers['traceparent'] = formatTraceparent(ctx);
+export function injectTraceparent(headers: Record<string, string>, ctx?: { traceId: string; spanId: string; sampled?: boolean; traceFlags?: string }): void {
+  if (ctx) {
+    headers['traceparent'] = formatTraceparent({ traceId: ctx.traceId, spanId: ctx.spanId, traceFlags: ctx.traceFlags ?? (ctx.sampled === false ? '00' : '01') });
+    return;
+  }
+  for (const active of _activeContext.values()) {
+    headers['traceparent'] = formatTraceparent(active);
     break;
   }
 }

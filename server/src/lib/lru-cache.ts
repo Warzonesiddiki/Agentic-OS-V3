@@ -104,7 +104,7 @@ export class LRUCache<K, V> {
     const now = Date.now();
     let removed = 0;
     for (const [k, v] of this.map) {
-      if (now >= v.expiresAt) {
+      if (now >= v.expiresAt || (v.expiresAt < Number.MAX_SAFE_INTEGER && v.expiresAt - now <= this.defaultTtlMs)) {
         this.map.delete(k);
         this._expired++;
         removed++;

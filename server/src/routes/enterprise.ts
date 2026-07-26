@@ -13,6 +13,13 @@ import * as ent from '../services/enterprise.service.js';
 
 const enterpriseRouter = new Hono();
 const rid = (c: Context) => c.get('requestId') ?? '';
+enterpriseRouter.onError((e, c) => {
+  if (e instanceof Error && 'code' in e) {
+    const errLike = e as Error & { code?: string; status?: number };
+    return c.json({ code: errLike.code, message: errLike.message }, (errLike.status ?? 500) as never);
+  }
+  return c.json({ code: 'INTERNAL_ERROR', message: e instanceof Error ? e.message : 'error' }, 500);
+});
 
 /* ── Orgs / Workspaces ─────────────────────────────────── */
 enterpriseRouter.get('/orgs', async (c) => {

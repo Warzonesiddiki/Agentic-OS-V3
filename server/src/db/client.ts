@@ -19,6 +19,9 @@
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 
+import { existsSync, readFileSync } from 'node:fs';
+import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { Mutex } from 'async-mutex';
 import type { Database as SqliteDatabase } from 'better-sqlite3';
 import type { Sql } from 'postgres';
@@ -68,13 +71,62 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function sqliteTableExists(conn: SqliteDatabase, table: string): boolean {
+  const row = conn
+    .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = ?")
+    .get(table);
+  return Boolean(row);
+}
+
+function findSqliteBaselinePath(): string | null {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const candidates = [
+    resolve(process.cwd(), 'drizzle/0000_baseline_schema.sql'),
+    resolve(process.cwd(), 'server/drizzle/0000_baseline_schema.sql'),
+    resolve(here, '../../drizzle/0000_baseline_schema.sql'),
+    resolve(here, '../../../server/drizzle/0000_baseline_schema.sql'),
+  ];
+  return candidates.find((candidate) => existsSync(candidate)) ?? null;
+}
+
+function shouldIgnoreSqliteSchemaError(error: unknown): boolean {
+  const msg = error instanceof Error ? error.message : String(error);
+  return /already exists|duplicate column name|duplicate index name/i.test(msg);
+}
+
+function ensureSqliteBaseline(conn: SqliteDatabase): void {
+  const requiredTables = ['agents', 'agent_tasks', 'memories', 'skills', 'audit_log', 'memory_rehearsal_log'];
+  if (requiredTables.every((table) => sqliteTableExists(conn, table))) return;
+
+  const baselinePath = findSqliteBaselinePath();
+  if (!baselinePath) return;
+
+  const sqlText = readFileSync(baselinePath, 'utf8');
+  const statements = sqlText
+    .split(/-->\s*statement-breakpoint/g)
+    .map((statement) => statement.trim())
+    .filter(Boolean);
+
+  for (const statement of statements) {
+    try {
+      conn.exec(statement);
+    } catch (e) {
+      if (!shouldIgnoreSqliteSchemaError(e)) throw e;
+    }
+  }
+}
+
 function createSqliteDb() {
   const Database = require('better-sqlite3');
   const conn = new Database(getEnv().NEXUS_SQLITE_PATH);
+  const originalPrepare = conn.prepare.bind(conn);
+  conn.prepare = ((source: string) =>
+    originalPrepare(source.replace(/::(?:int|integer|float|real|text)\b/g, ''))) as typeof conn.prepare;
   conn.pragma('journal_mode = WAL');
   conn.pragma('foreign_keys = ON');
   conn.pragma('busy_timeout = 5000');
   conn.pragma('synchronous = NORMAL');
+  ensureSqliteBaseline(conn);
   // Enable FTS5 if available — insert-only triggers.
   // DELETE/UPDATE triggers are omitted: the FTS5 'delete' row-marker
   // operation is not universally supported across SQLite builds and
@@ -131,6 +183,9 @@ export type DatabaseType = any;
 // DbTx is defined below, so we remove the duplicate at line 122
 
 const db: DatabaseType = isSqlite ? createSqliteDb() : createPgDb();
+if (isSqlite) {
+  db.transaction = async <T>(fn: (tx: DbTx) => Promise<T>): Promise<T> => withTransaction(fn);
+}
 
 /** Human-readable backend label. */
 export const getBackend = (): string => (isSqlite ? 'sqlite' : 'postgresql');

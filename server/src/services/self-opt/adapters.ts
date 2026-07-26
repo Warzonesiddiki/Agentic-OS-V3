@@ -69,7 +69,8 @@ export const queueAutoScalerAdapter: LiveWriteAdapter = {
   },
   async apply(delta) {
     const raw = Number(delta.desiredCapacity);
-    const clamped = Math.max(1, Math.min(50, Number.isFinite(raw) ? raw : 1));
+    if (!Number.isFinite(raw) || raw <= 0) return delta;
+    const clamped = Math.max(1, Math.min(50, raw));
     if (clamped >= 1 && clamped <= 50) {
       const mod = await import('../task-worker.js').catch(() => ({
         configureWorker: undefined as unknown,

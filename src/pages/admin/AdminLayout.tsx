@@ -1,4 +1,4 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { NavLink, Outlet, useNavigate } from 'react-router';
 import { useAuthStore } from '../../store/auth-store';
 import { apiClient } from '../../lib/api-client';
 import { useQuery } from '@tanstack/react-query';

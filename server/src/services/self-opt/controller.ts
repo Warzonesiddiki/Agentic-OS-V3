@@ -97,21 +97,26 @@ export class SelfOptController {
         action = this.dryRunDefault ? 'dry_run' : 'error';
 
         if (verdict.allowed && !this.dryRunDefault) {
-          await tuner.adapter.apply(deltaInput.after);
-          applied = true;
-          action = 'error';
-          // ML-003: feed observed metrics back into tuners
-          for (const [k, v] of Object.entries(deltaInput.after)) {
-            metricStore.set(`${tuner.id}_${k}`, Number(v) || 0);
-            exportMetric(tuner.id, Number(v) || 0);
+          try {
+            await tuner.adapter.apply(deltaInput.after);
+            applied = true;
+            action = 'dry_run';
+            // ML-003: feed observed metrics back into tuners
+            for (const [k, v] of Object.entries(deltaInput.after)) {
+              metricStore.set(`${tuner.id}_${k}`, Number(v) || 0);
+              exportMetric(tuner.id, Number(v) || 0);
+            }
+            if (tuner.evaluate) {
+              const sig = tuner.evaluate(deltaInput.before, deltaInput.after);
+              pValue = sig.pValue;
+              metricDelta = sig.metricDelta;
+              passed = sig.passed;
+            }
+            await this.persistResult(tuner, delta, applied, pValue, metricDelta);
+          } catch (e) {
+            action = 'error';
+            reason = e instanceof Error ? e.message : String(e);
           }
-          if (tuner.evaluate) {
-            const sig = tuner.evaluate(deltaInput.before, deltaInput.after);
-            pValue = sig.pValue;
-            metricDelta = sig.metricDelta;
-            passed = sig.passed;
-          }
-          await this.persistResult(tuner, delta, applied, pValue, metricDelta);
         }
       }
 

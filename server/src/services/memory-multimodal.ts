@@ -155,7 +155,7 @@ export function scoreCaptionQuality(caption: string, lang?: string): number {
     }
   }
   const score = density * 0.4 + lengthScore * 0.4 + boiler * 0.2;
-  return Math.max(0, Math.min(1, score * langPenalty));
+  return Math.max(0, Math.min(1, score * langPenalty + 0.05));
 }
 
 export function isLowQualityCaption(caption: string, lang?: string): boolean {

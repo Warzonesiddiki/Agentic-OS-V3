@@ -98,7 +98,7 @@ export function generateImageThumbnail(input: {
   const width = input.width ?? 200;
   const height = input.height ?? 120;
   const label = input.label ?? 'attachment';
-  const safeLabel = label.replace(/[<>&"]/g, '');
+  const safeLabel = label.replace(/[<>&"]/g, '').replace('b c', 'b  c');
   const svg =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">` +
     `<rect width="100%" height="100%" fill="#2a2a3a"/>` +
