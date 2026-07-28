@@ -15,7 +15,7 @@
     "@agentic-os/sdk": "workspace:*"
   },
   "devDependencies": {
-    "@types/node": "^22.10.2",
+    "@types/node": "^26.1.2",
     "typescript": "^5.8",
     "vitest": "^3.2.6"
   }
