@@ -522,6 +522,16 @@ All configuration is via environment variables (`.env` file). Full reference:
 
 ---
 
+## Platform Support (R1)
+
+| Platform | Status  | Notes                                                                                                                                            |
+| -------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Linux (Ubuntu 22.04+) | ✅ Supported | Authoritative R1 environment — CI and all release gates run here (Node 22, pnpm 9.15)                                             |
+| macOS    | ⚠️ Best-effort | POSIX-compatible; not exercised by R1 release gates                                                                              |
+| Windows  | 🔶 Degraded — use WSL2 | Native `win32` constrained-command execution is out of scope for R1; the runner **fails closed** with `R1_SANDBOX_PLATFORM_UNSUPPORTED` (ADR-0031). Use WSL2 (Ubuntu 22.04+) for full functionality. |
+
+---
+
 ## Deployment
 
 ### Docker

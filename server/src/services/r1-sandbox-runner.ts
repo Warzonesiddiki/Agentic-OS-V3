@@ -23,6 +23,25 @@ const MAX_ARGUMENTS = 20;
 const MAX_ARGUMENT_LENGTH = 500;
 const POSIX_EXECUTION_PATH = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
 
+/**
+ * R1 platform stance (ADR-0031, decision D4): the constrained runner is POSIX-first.
+ * Windows hosts must surface this as degraded mode instead of crashing — callers
+ * check `isR1ConstrainedExecutionSupported` and the runner fails closed with a
+ * typed error if invoked anyway.
+ */
+export function isR1ConstrainedExecutionSupported(platform: string = process.platform): boolean {
+  return platform !== 'win32';
+}
+
+export class R1PlatformUnsupportedError extends Error {
+  readonly code = 'R1_SANDBOX_PLATFORM_UNSUPPORTED';
+
+  constructor() {
+    super('Windows constrained-command execution is unsupported pending E10-S8 platform validation (R1 is POSIX-first per ADR-0031; use WSL2)');
+    this.name = 'R1PlatformUnsupportedError';
+  }
+}
+
 function minimalEnvironment(projectRoot: string): NodeJS.ProcessEnv {
   // Do not inherit the server PATH: npm scripts and hostile repositories can prepend
   // project-controlled bin directories. This is an executable-location control, not
@@ -60,9 +79,8 @@ async function validateProjectScopedFileArguments(
  * explicit limits as part of their policy decision and never pass untrusted env.
  */
 export async function runR1ConstrainedCommand(input: R1SandboxRunInput): Promise<R1SandboxRunResult> {
-  if (process.platform === 'win32') {
-    throw new Error('Windows constrained-command execution is unsupported pending E10-S8 platform validation');
-  }
+  // Pure input-policy validation fires on every platform before any platform gate:
+  // callers must be able to rely on identical rejection contracts for malformed input.
   if (!ALLOWED_COMMANDS.has(input.command)) {
     throw new Error(`Command not allowed by constrained runner: ${input.command}`);
   }
@@ -71,6 +89,11 @@ export async function runR1ConstrainedCommand(input: R1SandboxRunInput): Promise
   }
   if (input.args.length > MAX_ARGUMENTS || input.args.some((argument) => argument.length > MAX_ARGUMENT_LENGTH)) {
     throw new Error(`Constrained runner accepts at most ${MAX_ARGUMENTS} arguments of ${MAX_ARGUMENT_LENGTH} characters`);
+  }
+  if (!isR1ConstrainedExecutionSupported()) {
+    // Fail closed with surfaced degraded-mode status rather than attempting
+    // POSIX-path-semantics process creation on Windows (ADR-0031).
+    throw new R1PlatformUnsupportedError();
   }
 
   const root = await realpath(input.workingDirectory);

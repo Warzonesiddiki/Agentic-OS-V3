@@ -6,9 +6,14 @@ import { basename, join } from 'node:path';
 import { promisify } from 'node:util';
 import { randomUUID } from 'node:crypto';
 import { BoundedToolGateway, InMemoryR1Repositories } from '@agentic-os/sdk';
-import { runR1ConstrainedCommand } from '../src/services/r1-sandbox-runner.js';
+import {
+  isR1ConstrainedExecutionSupported,
+  R1PlatformUnsupportedError,
+  runR1ConstrainedCommand,
+} from '../src/services/r1-sandbox-runner.js';
 
 const executeFile = promisify(execFile);
+const supported = isR1ConstrainedExecutionSupported();
 
 const directories: string[] = [];
 
@@ -23,12 +28,34 @@ afterEach(async () => {
 });
 
 describe('runR1ConstrainedCommand', () => {
-  it('executes an allowlisted command without a shell', async () => {
-    const workingDirectory = await temporaryDirectory();
+  it('surfaces degraded-mode support status per ADR-0031 instead of crashing', async () => {
+    expect(isR1ConstrainedExecutionSupported('linux')).toBe(true);
+    expect(isR1ConstrainedExecutionSupported('darwin')).toBe(true);
+    expect(isR1ConstrainedExecutionSupported('win32')).toBe(false);
 
-    await expect(runR1ConstrainedCommand({
-      command: 'echo', args: ['governed runner'], timeoutMs: 1_000, workingDirectory,
-    })).resolves.toMatchObject({ stdout: 'governed runner\n', stderr: '', exitCode: 0 });
+    if (!supported) {
+      const workingDirectory = await temporaryDirectory();
+      const outcome = await runR1ConstrainedCommand({
+        command: 'pwd', args: [], timeoutMs: 1_000, workingDirectory,
+      }).then(
+        () => 'resolved',
+        (error: unknown) => error,
+      );
+      expect(outcome).toBeInstanceOf(R1PlatformUnsupportedError);
+      expect((outcome as R1PlatformUnsupportedError).code).toBe('R1_SANDBOX_PLATFORM_UNSUPPORTED');
+    }
+  });
+
+  it('executes an allowlisted command without a shell on supported platforms and fails closed otherwise', async () => {
+    const workingDirectory = await temporaryDirectory();
+    const input = { command: 'echo', args: ['governed runner'], timeoutMs: 1_000, workingDirectory } as const;
+
+    if (!supported) {
+      await expect(runR1ConstrainedCommand(input)).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
+
+    await expect(runR1ConstrainedCommand(input)).resolves.toMatchObject({ stdout: 'governed runner\n', stderr: '', exitCode: 0 });
   });
 
   it('rejects a command outside the explicit allowlist before process creation', async () => {
@@ -50,23 +77,43 @@ describe('runR1ConstrainedCommand', () => {
     })).rejects.toThrow('Constrained runner accepts at most');
   });
 
-  it('kills a timed-out process and reports a timeout rather than a successful result', async () => {
+  it('kills a timed-out process on supported platforms and fails closed otherwise', async () => {
     const workingDirectory = await temporaryDirectory();
+    const input = { command: 'node', args: ['-e', 'setTimeout(() => {}, 5000)'], timeoutMs: 100, workingDirectory } as const;
 
-    await expect(runR1ConstrainedCommand({
-      command: 'node', args: ['-e', 'setTimeout(() => {}, 5000)'], timeoutMs: 100, workingDirectory,
-    })).rejects.toThrow('timed out');
+    if (!supported) {
+      await expect(runR1ConstrainedCommand(input)).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
+
+    await expect(runR1ConstrainedCommand(input)).rejects.toThrow('timed out');
   });
 
   it('preserves a nonzero exit result for the gateway to deny rather than simulating success', async () => {
     const workingDirectory = await temporaryDirectory();
+    const input = {
+      command: 'node',
+      args: ['-e', "process.stderr.write('intentional failure'); process.exit(7)"],
+      timeoutMs: 1_000,
+      workingDirectory,
+    } as const;
 
-    await expect(runR1ConstrainedCommand({
-      command: 'node', args: ['-e', "process.stderr.write('intentional failure'); process.exit(7)"], timeoutMs: 1_000, workingDirectory,
-    })).resolves.toMatchObject({ stderr: 'intentional failure', exitCode: 7 });
+    if (!supported) {
+      await expect(runR1ConstrainedCommand(input)).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
+
+    await expect(runR1ConstrainedCommand(input)).resolves.toMatchObject({ stderr: 'intentional failure', exitCode: 7 });
   });
 
-  it('rejects a symlinked working-directory alias', async () => {
+  it('rejects a symlinked working-directory alias on supported platforms and fails closed otherwise', async () => {
+    if (!supported) {
+      const fallback = await temporaryDirectory();
+      await expect(runR1ConstrainedCommand({
+        command: 'pwd', args: [], timeoutMs: 1_000, workingDirectory: fallback,
+      })).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
     const workingDirectory = await temporaryDirectory();
     const alias = `${workingDirectory}-alias`;
     await symlink(workingDirectory, alias);
@@ -79,6 +126,12 @@ describe('runR1ConstrainedCommand', () => {
 
   it('rejects cat paths that traverse or resolve through a symlink outside the project root', async () => {
     const workingDirectory = await temporaryDirectory();
+    if (!supported) {
+      await expect(runR1ConstrainedCommand({
+        command: 'cat', args: ['any.txt'], timeoutMs: 1_000, workingDirectory,
+      })).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
     const outsideDirectory = await temporaryDirectory();
     const outsideFile = join(outsideDirectory, 'outside.txt');
     await writeFile(outsideFile, 'outside', 'utf8');
@@ -98,8 +151,14 @@ describe('runR1ConstrainedCommand', () => {
     })).rejects.toThrow('resolves outside the project root');
   });
 
-  it('executes real project-root cat and git inspection commands', async () => {
+  it('executes real project-root cat and git inspection commands on supported platforms', async () => {
     const workingDirectory = await temporaryDirectory();
+    if (!supported) {
+      await expect(runR1ConstrainedCommand({
+        command: 'cat', args: ['package.json'], timeoutMs: 1_000, workingDirectory,
+      })).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
     await writeFile(join(workingDirectory, 'package.json'), '{"name":"runner-fixture"}\n', 'utf8');
     await executeFile('git', ['init', '--quiet', workingDirectory]);
 
@@ -111,8 +170,14 @@ describe('runR1ConstrainedCommand', () => {
     })).resolves.toMatchObject({ stdout: `${workingDirectory}\n`, exitCode: 0 });
   });
 
-  it('runs a real project-root command through approval, effect-claim, and receipt gateway composition', async () => {
+  it('runs a real project-root command through approval, effect-claim, and receipt gateway composition on supported platforms', async () => {
     const workingDirectory = await temporaryDirectory();
+    if (!supported) {
+      await expect(runR1ConstrainedCommand({
+        command: 'cat', args: ['package.json'], timeoutMs: 1_000, workingDirectory,
+      })).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
     await writeFile(join(workingDirectory, 'package.json'), '{"name":"gateway-fixture"}\n', 'utf8');
     const repositories = new InMemoryR1Repositories();
     const projectId = randomUUID();
@@ -136,8 +201,14 @@ describe('runR1ConstrainedCommand', () => {
     expect(result).toMatchObject({ ok: true, output: '{"name":"gateway-fixture"}\n' });
   });
 
-  it('runs a controlled package-manager fixture only with separate high-risk policy authorization', async () => {
+  it('runs a controlled package-manager fixture only with separate high-risk policy authorization on supported platforms', async () => {
     const workingDirectory = await temporaryDirectory();
+    if (!supported) {
+      await expect(runR1ConstrainedCommand({
+        command: 'pnpm', args: ['run', 'x'], timeoutMs: 1_000, workingDirectory,
+      })).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
     await writeFile(
       join(workingDirectory, 'package.json'),
       JSON.stringify({
@@ -227,19 +298,26 @@ describe('runR1ConstrainedCommand', () => {
     expect(receipts[0]?.payload).not.toHaveProperty('args');
   });
 
-  it('does not forward an ambient secret into a spawned command', async () => {
+  it('does not forward an ambient secret into a spawned command on supported platforms', async () => {
     const workingDirectory = await temporaryDirectory();
     const key = 'R1_SANDBOX_TEST_SECRET';
     const original = process.env[key];
     process.env[key] = 'must-not-reach-child';
 
     try {
-      await expect(runR1ConstrainedCommand({
+      const input = {
         command: 'node',
         args: ['-e', `process.stdout.write(process.env.${key} ?? 'absent')`],
         timeoutMs: 1_000,
         workingDirectory,
-      })).resolves.toMatchObject({ stdout: 'absent', exitCode: 0 });
+      } as const;
+
+      if (!supported) {
+        await expect(runR1ConstrainedCommand(input)).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+        return;
+      }
+
+      await expect(runR1ConstrainedCommand(input)).resolves.toMatchObject({ stdout: 'absent', exitCode: 0 });
     } finally {
       if (original === undefined) delete process.env[key];
       else process.env[key] = original;
@@ -295,9 +373,18 @@ describe('runR1ConstrainedCommand', () => {
 
   it('caps combined command output and reports an error instead of returning a truncated success', async () => {
     const workingDirectory = await temporaryDirectory();
+    const input = {
+      command: 'node',
+      args: ['-e', "process.stdout.write('x'.repeat(1000001))"],
+      timeoutMs: 5_000,
+      workingDirectory,
+    } as const;
 
-    await expect(runR1ConstrainedCommand({
-      command: 'node', args: ['-e', "process.stdout.write('x'.repeat(1000001))"], timeoutMs: 5_000, workingDirectory,
-    })).rejects.toThrow('exceeded 1000000 output bytes');
+    if (!supported) {
+      await expect(runR1ConstrainedCommand(input)).rejects.toBeInstanceOf(R1PlatformUnsupportedError);
+      return;
+    }
+
+    await expect(runR1ConstrainedCommand(input)).rejects.toThrow('exceeded 1000000 output bytes');
   });
 });
