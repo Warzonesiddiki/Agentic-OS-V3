@@ -1,4 +1,6 @@
-# NEXUS 2.0 — Progress Report (Arena Session)
+﻿> ⚠️ **SUPERSEDED (2026-08-24, WS7 coherence sweep):** This is a campaign-era document retained for historical traceability only. Its completion claims, scores, and phase states are **NOT release evidence**. Current authority: `docs/bmad/baseline-2026-07-24-gate0.md` (Gate-0 baseline) and the ratified `docs/bmad/progression-plan-2026-08-21.md`; live evidence lives in `docs/bmad/releases/evidence/`.
+
+# NEXUS 2.0 â€” Progress Report (Arena Session)
 
 **Branch:** `arena/019f8e97-agentic-os-v3`
 **Date:** 2026-07-23
@@ -10,35 +12,35 @@ Completed 14 pending TASKBOARD items (P1 + P2 phases), added 2 new production mo
 
 ## Completed Tasks
 
-### P1 (Architectural Credibility) — ALL DONE
+### P1 (Architectural Credibility) â€” ALL DONE
 
 | Task | Status | Details |
 |------|--------|---------|
-| **P1-01** Connect Frontend to Server API | ✅ | PipelineBuilder.tsx migrated from localStorage to api-client.ts. engine.ts, store.ts, store-cache.ts already API-driven. |
-| **P1-03** GitHub Actions CI pipeline | ✅ | CI workflow has validate, integration-tests (pgvector), security-scan (CodeQL), docker-build-push (GHCR) jobs. |
-| **P1-04** Production Docker Config | ✅ | docker-compose.prod.yml has TLS certs, json-file logging with rotation, resource limits, health checks, restart policies. |
-| **P1-05** Real OmniRoute routing | ✅ | omniroute-bridge.ts has sub-5ms complexity classifier, dynamic provider health tracking, cost-tiered routing, HTTP 5xx failover. |
-| **P1-06** Error Boundaries | ✅ | ErrorBoundary, PageErrorBoundary, SectionErrorBoundary components exist. Router wraps all routes. |
-| **P1-07** Eliminate `any` types | ✅ | All file-level `eslint-disable no-explicit-any` converted to per-line with justification comments. |
-| **P1-08** Distributed locking | ✅ | audit.ts uses `pg_advisory_xact_lock(79231)`. Kill switch uses `SELECT ... FOR UPDATE`. |
-| **P1-09** Blockchain RPC | ✅ | blockchain.ts has real SHA-256 Merkle trees, RLP encoder, EVM encoder, `eth_sendRawTransaction`. |
-| **P1-10** Rename over-marketed services | ✅ | README updated with feature maturity badges (✅ Stable / ⚠️ Experimental / 🔬 Preview). Honest descriptions. |
+| **P1-01** Connect Frontend to Server API | âœ… | PipelineBuilder.tsx migrated from localStorage to api-client.ts. engine.ts, store.ts, store-cache.ts already API-driven. |
+| **P1-03** GitHub Actions CI pipeline | âœ… | CI workflow has validate, integration-tests (pgvector), security-scan (CodeQL), docker-build-push (GHCR) jobs. |
+| **P1-04** Production Docker Config | âœ… | docker-compose.prod.yml has TLS certs, json-file logging with rotation, resource limits, health checks, restart policies. |
+| **P1-05** Real OmniRoute routing | âœ… | omniroute-bridge.ts has sub-5ms complexity classifier, dynamic provider health tracking, cost-tiered routing, HTTP 5xx failover. |
+| **P1-06** Error Boundaries | âœ… | ErrorBoundary, PageErrorBoundary, SectionErrorBoundary components exist. Router wraps all routes. |
+| **P1-07** Eliminate `any` types | âœ… | All file-level `eslint-disable no-explicit-any` converted to per-line with justification comments. |
+| **P1-08** Distributed locking | âœ… | audit.ts uses `pg_advisory_xact_lock(79231)`. Kill switch uses `SELECT ... FOR UPDATE`. |
+| **P1-09** Blockchain RPC | âœ… | blockchain.ts has real SHA-256 Merkle trees, RLP encoder, EVM encoder, `eth_sendRawTransaction`. |
+| **P1-10** Rename over-marketed services | âœ… | README updated with feature maturity badges (âœ… Stable / âš ï¸ Experimental / ðŸ”¬ Preview). Honest descriptions. |
 
-### P2 (Feature Completeness) — 8/11 DONE
+### P2 (Feature Completeness) â€” 8/11 DONE
 
 | Task | Status | Details |
 |------|--------|---------|
-| **P2-01** WASM host functions | ✅ NEW | `wasm-host-functions.ts` — Full host function contract: HTTP fetch, file R/W, KV store, logging, random, time. Fuel-metered, capability-gated, sandbox-validated. Memory + DB-backed KV stores. |
-| **P2-02** DB-backed WASM plugin persistence | ✅ | `createDbKvStore()` provides persistent KV storage scoped to plugin installation. |
-| **P2-03** Statistical anomaly detection | ✅ NEW | `detectStatisticalAnomalies()` added to shadow-daemon.ts — z-score analysis on importance values, temporal spike/drop detection, recall frequency outliers. |
-| **P2-04** Federated node discovery | ✅ NEW | `federated-node-discovery.ts` — PeerRegistry with heartbeat monitoring, gossip protocol, fan-out queries, RRF merge. HTTP transport for cross-node memory queries. |
-| **P2-05** Frontend component tests | ⏳ | Needs jsdom/happy-dom environment setup. |
-| **P2-06** Playwright E2E tests | ⏳ | Needs Playwright installation. |
-| **P2-07** Skill compilation (AST) | ⏳ | Current compilation is template interpolation. AST parsing not yet implemented. |
-| **P2-08** Auto-migration runner | ✅ | `runMigrations()` in setup.ts runs drizzle-kit migrate on startup. |
-| **P2-09** DAG editor → pipeline execution | ✅ | PipelineBuilder connected to real API. Added `GET /api/v1/pipelines/:name` route and `getPipelineByName()` service function. |
-| **P2-10** Wayland support | ⏳ | Desktop actuator works on X11; Wayland needs separate implementation. |
-| **P2-11** TOML config persistence | ✅ NEW | Self-improvement harness now persists config changes to `nexus-config.toml` for cross-restart durability. `persistToToml()` + `loadTomlConfigOverrides()` + `ENV_TO_TOML_PATH` mapping. |
+| **P2-01** WASM host functions | âœ… NEW | `wasm-host-functions.ts` â€” Full host function contract: HTTP fetch, file R/W, KV store, logging, random, time. Fuel-metered, capability-gated, sandbox-validated. Memory + DB-backed KV stores. |
+| **P2-02** DB-backed WASM plugin persistence | âœ… | `createDbKvStore()` provides persistent KV storage scoped to plugin installation. |
+| **P2-03** Statistical anomaly detection | âœ… NEW | `detectStatisticalAnomalies()` added to shadow-daemon.ts â€” z-score analysis on importance values, temporal spike/drop detection, recall frequency outliers. |
+| **P2-04** Federated node discovery | âœ… NEW | `federated-node-discovery.ts` â€” PeerRegistry with heartbeat monitoring, gossip protocol, fan-out queries, RRF merge. HTTP transport for cross-node memory queries. |
+| **P2-05** Frontend component tests | â³ | Needs jsdom/happy-dom environment setup. |
+| **P2-06** Playwright E2E tests | â³ | Needs Playwright installation. |
+| **P2-07** Skill compilation (AST) | â³ | Current compilation is template interpolation. AST parsing not yet implemented. |
+| **P2-08** Auto-migration runner | âœ… | `runMigrations()` in setup.ts runs drizzle-kit migrate on startup. |
+| **P2-09** DAG editor â†’ pipeline execution | âœ… | PipelineBuilder connected to real API. Added `GET /api/v1/pipelines/:name` route and `getPipelineByName()` service function. |
+| **P2-10** Wayland support | â³ | Desktop actuator works on X11; Wayland needs separate implementation. |
+| **P2-11** TOML config persistence | âœ… NEW | Self-improvement harness now persists config changes to `nexus-config.toml` for cross-restart durability. `persistToToml()` + `loadTomlConfigOverrides()` + `ENV_TO_TOML_PATH` mapping. |
 
 ## New Files Created
 
@@ -73,13 +75,13 @@ Completed 14 pending TASKBOARD items (P1 + P2 phases), added 2 new production mo
 | `server/src/services/shadow-daemon.ts` | Added `detectStatisticalAnomalies()` with z-score analysis |
 | `server/src/services/self-improvement-harness.ts` | Added TOML config persistence (`persistToToml`, `loadTomlConfigOverrides`, `ENV_TO_TOML_PATH`) |
 | `README.md` | Added feature maturity badges to all feature tables, renamed over-marketed terms |
-| `TASKBOARD.md` | Updated P1 (all ✅) and P2 (8/11 ✅) status |
+| `TASKBOARD.md` | Updated P1 (all âœ…) and P2 (8/11 âœ…) status |
 
 ## Compilation Status
 
 ```
-Frontend (tsc --noEmit): 0 errors ✅
-Server (tsc --noEmit):   0 errors ✅
+Frontend (tsc --noEmit): 0 errors âœ…
+Server (tsc --noEmit):   0 errors âœ…
 ```
 
 ## Test Status
@@ -87,7 +89,7 @@ Server (tsc --noEmit):   0 errors ✅
 ```
 New tests added this session: 131 (all passing)
 Existing tests that pass: 1572
-Existing tests that fail: 159 (pre-existing better-sqlite3 native module ABI mismatch — environment constraint)
+Existing tests that fail: 159 (pre-existing better-sqlite3 native module ABI mismatch â€” environment constraint)
 ```
 
 ## Key Architecture Improvements
@@ -98,7 +100,7 @@ Existing tests that fail: 159 (pre-existing better-sqlite3 native module ABI mis
 
 3. **True Federated Recall**: Cross-node memory queries now work over HTTP with proper discovery (gossip protocol), health monitoring (heartbeats), and result merging (RRF).
 
-4. **Statistical Anomaly Detection**: The shadow daemon now uses z-score analysis to detect importance outliers, temporal spikes/drops in activity, and abnormal recall patterns — going beyond simple threshold counting.
+4. **Statistical Anomaly Detection**: The shadow daemon now uses z-score analysis to detect importance outliers, temporal spikes/drops in activity, and abnormal recall patterns â€” going beyond simple threshold counting.
 
 5. **Persistent Configuration**: Self-improvement harness changes now persist to TOML config file, surviving server restarts. This closes the loop between auto-tuning and runtime configuration.
 

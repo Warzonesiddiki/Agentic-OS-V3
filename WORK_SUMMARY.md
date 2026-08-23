@@ -1,8 +1,10 @@
+﻿> ⚠️ **SUPERSEDED (2026-08-24, WS7 coherence sweep):** This is a campaign-era document retained for historical traceability only. Its completion claims, scores, and phase states are **NOT release evidence**. Current authority: `docs/bmad/baseline-2026-07-24-gate0.md` (Gate-0 baseline) and the ratified `docs/bmad/progression-plan-2026-08-21.md`; live evidence lives in `docs/bmad/releases/evidence/`.
+
 # NEXUS 2.0 Analysis & Improvements Summary
 
 ## Project Analysis
 
-**Project:** NEXUS 2.0 — Agentic OS V3  
+**Project:** NEXUS 2.0 â€” Agentic OS V3  
 **Author:** Warzonesiddiki  
 **License:** Apache 2.0  
 **Status:** Phase 11+ in progress
@@ -97,18 +99,18 @@
 
 The following files should be refactored to reduce complexity:
 
-1. **scheduler.ts** (1,690 lines) → Split into:
+1. **scheduler.ts** (1,690 lines) â†’ Split into:
    - scheduler-core.ts (core logic)
    - scheduler-cron.ts (cron parsing)
    - scheduler-events.ts (event triggers)
 
-2. **kernel.ts** (1,456 lines) → Split into:
+2. **kernel.ts** (1,456 lines) â†’ Split into:
    - kernel-registry.ts (agent registry)
    - kernel-scheduler.ts (LLM scheduling)
    - kernel-rings.ts (ring policies)
    - kernel-syscall.ts (syscall handlers)
 
-3. **federated-recall.ts** (1,354 lines) → Split into:
+3. **federated-recall.ts** (1,354 lines) â†’ Split into:
    - federated-router.ts
    - federated-merge.ts
    - federated-consensus.ts

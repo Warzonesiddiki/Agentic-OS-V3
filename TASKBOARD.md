@@ -1,4 +1,6 @@
-# NEXUS 2.0 — Project Taskboard & Brutal Audit Findings
+﻿> ⚠️ **SUPERSEDED (2026-08-24, WS7 coherence sweep):** This is a campaign-era document retained for historical traceability only. Its completion claims, scores, and phase states are **NOT release evidence**. Current authority: `docs/bmad/baseline-2026-07-24-gate0.md` (Gate-0 baseline) and the ratified `docs/bmad/progression-plan-2026-08-21.md`; live evidence lives in `docs/bmad/releases/evidence/`.
+
+# NEXUS 2.0 â€” Project Taskboard & Brutal Audit Findings
 
 > **Generated:** 2026-07-05  
 > **Audit Method:** Three independent deep-dive code audits (Backend Services, Frontend/UX, Rust Crates)  
@@ -7,10 +9,10 @@
 
 ---
 
-## 🛑 THE CRITICAL ARCHITECTURAL FLAWS
+## ðŸ›‘ THE CRITICAL ARCHITECTURAL FLAWS
 
 1. **The Rust Codebase is an Orphan Island:** `crates/` contains ~565KB of genuine Goose-ported provider code (Anthropic, OpenAI, Ollama). **NOTHING in the TypeScript server calls it.** No FFI, no subprocess, no IPC. The Rust CLI binary is also a stub. ~15,000 lines of Rust code provide zero value to the running application.
-2. **Frontend vs Backend Disconnect (FRONTEND ONLY):** The React frontend pages (Kernel, Pipeline Builder, Agent Hub) currently use `localStorage`/`src/lib/engine.ts` for state — **not** the Hono backend. This is the open Phase 5 frontend-wiring gap (owner: Prism). **Caveat:** the _server-side_ implementations behind these pages ARE real — `server/src/services/kernel.ts` (ring kernel), `pipeline-executor.ts`, `message-bus.ts`, `sse-bus.ts` (SSE bridge), and `@agentic-os/a2a-server` are fully implemented and tested. Only the **UI layer** lags. Do not assume the backend is theater.
+2. **Frontend vs Backend Disconnect (FRONTEND ONLY):** The React frontend pages (Kernel, Pipeline Builder, Agent Hub) currently use `localStorage`/`src/lib/engine.ts` for state â€” **not** the Hono backend. This is the open Phase 5 frontend-wiring gap (owner: Prism). **Caveat:** the _server-side_ implementations behind these pages ARE real â€” `server/src/services/kernel.ts` (ring kernel), `pipeline-executor.ts`, `message-bus.ts`, `sse-bus.ts` (SSE bridge), and `@agentic-os/a2a-server` are fully implemented and tested. Only the **UI layer** lags. Do not assume the backend is theater.
 3. **Over-Marketing:** The project uses dramatic names for basic logic.
    - "Shadow Cognition Daemon" = A timer that counts errors.
    - "Neural Skill Compilation" = Template string interpolation.
@@ -22,22 +24,22 @@
 
 ---
 
-## 🛠️ TASK BACKLOG (PRIORITIZED)
+## ðŸ› ï¸ TASK BACKLOG (PRIORITIZED)
 
-### P0 — Must Fix Before GitHub Release (Critical Blocker)
+### P0 â€” Must Fix Before GitHub Release (Critical Blocker)
 
-- [x] **P0-01:** Rewrite `README.md` to remove false claims (PGlite, 160+ providers, production-ready badge). Add feature maturity badges (✅ Stable / ⚠️ Experimental / 🔬 Preview).
+- [x] **P0-01:** Rewrite `README.md` to remove false claims (PGlite, 160+ providers, production-ready badge). Add feature maturity badges (âœ… Stable / âš ï¸ Experimental / ðŸ”¬ Preview).
 - [x] **P0-02:** Fix `docker-compose.yml`. Create `Dockerfile.frontend` or update compose to use correct Dockerfile so it doesn't crash on `docker compose up`.
 - [x] **P0-03:** Update `CHANGELOG.md`. Mark v2.1.0 OmniRoute features as "Preview" or "Stub" rather than shipped.
 - [x] **P0-04:** Delete `HANDOVER.md` from the public repo. Internal project management docs exposing architectural weaknesses should not be public.
-- [x] **P0-05:** Fix `omniroute.ts` stub comment. Either implement the logic or remove the "⚠️ STUB" comment and document it honestly.
+- [x] **P0-05:** Fix `omniroute.ts` stub comment. Either implement the logic or remove the "âš ï¸ STUB" comment and document it honestly.
 - [x] **P0-06:** Verify `LICENSE` file exists and matches project intent.
 - [x] **P0-07:** Remove dangling file references like `.agentic-os-rules.md` from the configuration if they don't exist.
 
-### P1 — Fix Within 2 Weeks (Architectural Credibility)
+### P1 â€” Fix Within 2 Weeks (Architectural Credibility)
 
 - [x] **P1-01:** Connect Frontend to Server API. PipelineBuilder.tsx migrated from localStorage to api-client.ts. engine.ts already API-driven. store.ts + store-cache.ts + api-client.ts form the API layer.
-- [x] **P1-02:** Bridge Rust ↔ TypeScript or delete the Rust stubs. Decommissioned 4 stub crates (installer, safety, cli, observability) and preserved 5 real ones (core, config, provider-types, providers, tools) under Phase 7.
+- [x] **P1-02:** Bridge Rust â†” TypeScript or delete the Rust stubs. Decommissioned 4 stub crates (installer, safety, cli, observability) and preserved 5 real ones (core, config, provider-types, providers, tools) under Phase 7.
 - [x] **P1-03:** Implement GitHub Actions CI pipeline (`tsc --noEmit`, `eslint`, `vitest`, `cargo check`). CI workflow has validate, integration-tests (pgvector), security-scan (CodeQL), docker-build-push (GHCR) jobs.
 - [x] **P1-04:** Add Production Docker Config (Multi-stage build, Nginx reverse proxy, SSL termination, health probes). docker-compose.prod.yml exists with TLS certs, json-file logging, resource limits, health checks, restart policies.
 - [x] **P1-05:** Implement real OmniRoute routing logic. omniroute-bridge.ts has sub-5ms complexity classifier (keyword + token + vision heuristics), dynamic provider health tracking, cost-tiered routing, HTTP 5xx failover chains.
@@ -45,9 +47,9 @@
 - [x] **P1-07:** Eliminate 88 `any` type warnings across the 14 service files. All file-level `/* eslint-disable no-explicit-any */` converted to per-line `// eslint-disable-next-line ... -- justification` comments.
 - [x] **P1-08:** Add distributed locking to the scheduler (Postgres advisory locks or Redis-based lock). audit.ts uses `pg_advisory_xact_lock(79231)` for monotonic hash chain. Kill switch uses `SELECT ... FOR UPDATE`.
 - [x] **P1-09:** Implement actual blockchain RPC submission (`eth_sendRawTransaction`) in `blockchain.ts`. Real SHA-256 Merkle trees, RLP encoder, EVM transaction encoder, JSON-RPC client with `eth_sendRawTransaction`. Falls back to local logging when not configured.
-- [x] **P1-10:** Rename over-marketed services to honest names in code and docs. README updated with feature maturity badges (✅ Stable / ⚠️ Experimental / 🔬 Preview). "Neural skill compiler" → "Skill pattern matcher". Honest descriptions in all tables.
+- [x] **P1-10:** Rename over-marketed services to honest names in code and docs. README updated with feature maturity badges (âœ… Stable / âš ï¸ Experimental / ðŸ”¬ Preview). "Neural skill compiler" â†’ "Skill pattern matcher". Honest descriptions in all tables.
 
-### P2 — Fix Within 1 Month (Feature Completeness)
+### P2 â€” Fix Within 1 Month (Feature Completeness)
 
 - [x] **P2-01:** Implement real WASM host functions (`env_http_fetch`, `env_read_file`, `env_write_file`). Created `wasm-host-functions.ts` with full host function contract: HTTP fetch, file R/W, KV store, logging, random, time. Fuel-metered, capability-gated, sandbox-validated.
 - [x] **P2-02:** Add DB-backed WASM plugin persistence (replacing the in-memory `Map`). `createDbKvStore()` provides persistent key-value storage scoped to plugin installation, alongside the in-memory `createMemoryKvStore()` for testing.
@@ -55,7 +57,7 @@
 - [x] **P2-04:** Implement true federated node discovery with HTTP transport for cross-node queries. Created `federated-node-discovery.ts` with PeerRegistry, heartbeat monitoring, gossip protocol, fan-out queries, and Reciprocal Rank Fusion (RRF) merge.
 - [x] **P2-05:** Add frontend component tests (React Testing Library + Vitest). 33 component tests across ErrorBoundary (8), ui primitives (20), KillSwitchBanner (5). All use jsdom environment.
 - [x] **P2-06:** Add Playwright E2E browser tests for critical flows. Config + 3 spec files: dashboard navigation, API console interactions, memories page rendering, pipeline builder.
-- [x] **P2-07:** Implement actual skill compilation (AST parsing for deterministic functions). `skill-ast-compiler.ts` with 17 AST node types, code generator, pattern→AST compiler, transform classification (identity/field_mapping/computed_fields/array_transform/filter/aggregation/nested_extraction), determinism validation, capability inference. 36 tests.
+- [x] **P2-07:** Implement actual skill compilation (AST parsing for deterministic functions). `skill-ast-compiler.ts` with 17 AST node types, code generator, patternâ†’AST compiler, transform classification (identity/field_mapping/computed_fields/array_transform/filter/aggregation/nested_extraction), determinism validation, capability inference. 36 tests.
 - [x] **P2-08:** Add an auto-migration runner on server startup (`server/src/setup.ts`). `runMigrations()` in setup.ts runs `drizzle-kit migrate` on startup for both SQLite and PostgreSQL.
 - [x] **P2-09:** Connect the visual DAG editor in Pipeline Builder to real pipeline execution (`pipeline-executor.ts`). PipelineBuilder now uses api-client.ts for CRUD. Added `GET /api/v1/pipelines/:name` route and `getPipelineByName()` service function.
 - [x] **P2-10:** Add Wayland support to the Linux desktop actuator. LinuxWaylandActuator with ydotool/grim, auto-detection via WAYLAND_DISPLAY, XWayland fallback.
@@ -63,7 +65,7 @@
 
 ---
 
-## 🔎 DETAILED FILE-BY-FILE FINDINGS (ZERO COMPROMISES)
+## ðŸ”Ž DETAILED FILE-BY-FILE FINDINGS (ZERO COMPROMISES)
 
 ### 1. BACKEND & SERVICES AUDIT
 
@@ -120,7 +122,7 @@
 **`omniroute.ts` (211 lines)**
 
 - **Verdict: 30% REAL, mostly FAKE stubs**
-- **Findings:** Line 14 explicitly states `// ⚠️ STUB: OmniRoute integration pending Phase 7`. The routing logic uses trivial hardcoded logic (`evaluatePolicy()` returns true, `assess()` returns 1.0). The `omniroute-bridge.ts` file has a real catalog, but the core router is a stub.
+- **Findings:** Line 14 explicitly states `// âš ï¸ STUB: OmniRoute integration pending Phase 7`. The routing logic uses trivial hardcoded logic (`evaluatePolicy()` returns true, `assess()` returns 1.0). The `omniroute-bridge.ts` file has a real catalog, but the core router is a stub.
 
 **`routes.ts` & `services.ts`**
 
@@ -139,7 +141,7 @@
 **The LocalStorage Reality Check**
 
 - **Verdict: CRITICAL DISCONNECT**
-- **Findings:** The frontend browser dashboard uses **localStorage + in-memory state**, NOT the PostgreSQL/SQLite backend. `engine.ts` line 1: _"Holds the in-memory NexusState, persists to localStorage."_ The README claims "PGlite (embedded PostgreSQL WASM)" — this is a lie. The PipelineBuilder produces JSON but doesn't execute on the backend. The Kernel page is a UI over in-memory state (a demo).
+- **Findings:** The frontend browser dashboard uses **localStorage + in-memory state**, NOT the PostgreSQL/SQLite backend. `engine.ts` line 1: _"Holds the in-memory NexusState, persists to localStorage."_ The README claims "PGlite (embedded PostgreSQL WASM)" â€” this is a lie. The PipelineBuilder produces JSON but doesn't execute on the backend. The Kernel page is a UI over in-memory state (a demo).
 
 **`README.md` & Documentation**
 
@@ -166,14 +168,14 @@
 
 ---
 
-## 🏁 DEFINITION OF DONE (For All Tasks)
+## ðŸ DEFINITION OF DONE (For All Tasks)
 
 - [ ] Code compiles with `tsc --noEmit` (zero errors)
 - [ ] ESLint passes with configured `--max-warnings` threshold
 - [ ] All existing 255 tests continue to pass
-- [ ] New tests are written for new functionality (≥1 test per function)
+- [ ] New tests are written for new functionality (â‰¥1 test per function)
 - [ ] Code follows project conventions (2-space indent, single quotes, trailing commas)
-- [ ] No `console.log` — use structured `log` from `logging.ts`
+- [ ] No `console.log` â€” use structured `log` from `logging.ts`
 - [ ] No `any` types without explicit comment justification
 - [ ] Changes are committed with conventional commit messages
 - [ ] README/docs updated to reflect honest, user-facing behavior changes

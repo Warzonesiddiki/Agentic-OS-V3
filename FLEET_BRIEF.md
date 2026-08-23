@@ -1,13 +1,15 @@
-# FLEET BRIEF — NEXUS 2.0 / Agentic OS V3 (Fleet of 20, nonstop loop)
+﻿> ⚠️ **SUPERSEDED (2026-08-24, WS7 coherence sweep):** This is a campaign-era document retained for historical traceability only. Its completion claims, scores, and phase states are **NOT release evidence**. Current authority: `docs/bmad/baseline-2026-07-24-gate0.md` (Gate-0 baseline) and the ratified `docs/bmad/progression-plan-2026-08-21.md`; live evidence lives in `docs/bmad/releases/evidence/`.
 
-> ## RULE #1 — LOOP ENGINEERING DISCIPLINE (all work is AUTOMATIC)
+# FLEET BRIEF â€” NEXUS 2.0 / Agentic OS V3 (Fleet of 20, nonstop loop)
+
+> ## RULE #1 â€” LOOP ENGINEERING DISCIPLINE (all work is AUTOMATIC)
 >
 > You (every agent) AND the dispatcher are autonomous loop-engineering control loops. No
 > hand-holding between iterations. Run forever: TRIGGER -> ACT -> VERIFY -> REMEMBER -> CONTINUE.
 >
 > - **VERIFY** = run the fleet gate after EVERY change (from repo root):
 >   `powershell -ExecutionPolicy Bypass -File fleet/verify-gate.ps1`
->   It writes the live `fleet/scoreboard.json` (server/root tsc + rust check + PERFECT flag) — the
+>   It writes the live `fleet/scoreboard.json` (server/root tsc + rust check + PERFECT flag) â€” the
 >   fleet-level feedback signal.
 > - **CLAIM** work from `fleet/BACKLOG.md` (append your claim) so no two agents double up.
 > - The dispatcher owns the control plane (`fleet/` gate/scoreboard/backlog/contracts); you own your
@@ -25,7 +27,7 @@ BRANCH: feat/phases-11-20
 COMMON OPERATING RULES (apply to every agent)
 ================================================================================
 
-ENVIRONMENT GOTCHAS (learned the hard way — follow EXACTLY):
+ENVIRONMENT GOTCHAS (learned the hard way â€” follow EXACTLY):
 
 1. The default `node` on PATH is v9.9.1 and CRASHES on ESM `import`. ALWAYS prepend the hermes
    node first (PowerShell):
@@ -59,7 +61,7 @@ implemented')`.
 - TS strict mode + camelCase; Rust snake_case + thiserror (never `Box<dyn Error>`); structured
   logging (TS: src/lib/logging.ts `log`; Rust: `tracing`).
 - Wire features to the kernel/scheduler seam (enqueueTask / pickNextTask) via the PUBLIC interface
-  ONLY — never edit another agent's file.
+  ONLY â€” never edit another agent's file.
 
 HARD RULES:
 
@@ -69,8 +71,8 @@ HARD RULES:
   server/src/lib/{envelope,errors,id,hono-env,env,guards,http,zvalidator,schemas,strings,
   payload-limit,protocol-integration,logging,logger}.ts; src/skill-registry.ts.
 - If you need a change in a FROZEN file or another agent's namespace, STOP and report it to the
-  dispatcher (Leader) — do not edit it.
-- If a feature needs new DB tables/columns, DO NOT edit db/schema*.ts — propose the migration to
+  dispatcher (Leader) â€” do not edit it.
+- If a feature needs new DB tables/columns, DO NOT edit db/schema*.ts â€” propose the migration to
   the dispatcher and code against a graceful degradation path.
 - Do NOT run `npm`/`pnpm install` (shared node_modules contention). Do not edit package.json
   (Bastion owns it) unless your namespace explicitly includes it.
@@ -91,7 +93,7 @@ LOOP ENGINEERING DISCIPLINE (how every agent must operate)
 This fleet IS the application of AI-agent Loop Engineering (term coined June 2026 by Addy Osmani &
 Boris Cherny): instead of being hand-prompted each turn, each agent designs and runs its OWN
 autonomous loop that triggers, acts, verifies, remembers, and reruns itself. You are not a
-one-shot executor — you are a self-sustaining control loop with a measurable setpoint (the
+one-shot executor â€” you are a self-sustaining control loop with a measurable setpoint (the
 Perfection Bar). Distinct from harness engineering: the harness is the execution environment
 (context, tool perms, retries, logging, state); loop engineering is the iterative orchestration
 ON TOP of it. You own the loop; the platform provides the harness.
@@ -110,11 +112,11 @@ Within a single loop iteration you MAY parallelize well-scoped sub-tasks by spaw
 Rules for fan-out: - Every subagent you spawn MUST be pointed ONLY at files INSIDE your exclusive namespace. You
 remain responsible for the result; a subagent editing outside your namespace is a breach. - Give each subagent a self-contained prompt (file paths + goal + the verify command). - Aggregate subagent outputs, verify the WHOLE area still compiles/tests, then continue.
 If your toolset does not expose subagents---run_task / tasks---create_task, proceed sequentially
-— the loop still holds.
+â€” the loop still holds.
 
 ADVISORY GATE PATTERN (canonical example: server/src/services/self-opt/tuners.ts):
 Pulse's tuners are the reference implementation of loop engineering in THIS repo: - propose() reads telemetry and emits a candidate delta. - evaluate() runs a significance gate (two-proportion z-test, p<0.05). - the commit goes through an adapter that is ADVISORY until the owner service exposes a live
-runtime setter — so no tuner can destabilize a service it does not own.
+runtime setter â€” so no tuner can destabilize a service it does not own.
 Apply the same discipline to your own area: changes are proposed, verified against the gate
 (compile + tests), and only then considered done. Never bypass the VERIFY step.
 
@@ -122,7 +124,7 @@ Apply the same discipline to your own area: changes are proposed, verified again
 AGENT SECTIONS
 ================================================================================
 
-## FORGE (1) — Kernel, Scheduler & Runtime Loop
+## FORGE (1) â€” Kernel, Scheduler & Runtime Loop
 
 NAMESPACE (edit ONLY these):
 server/src/services/kernel*.ts, scheduler.ts, task-worker.ts, task-notifier.ts, message-bus.ts,
@@ -144,7 +146,7 @@ FIRST OBJECTIVES:
 - Fairness correction loop (11.22+): implement and test.
 - Expose live runtime-loop setters (configureWorker, setSchedulingPolicy) consumed by Pulse.
 
-## ATLAS (2) — Orchestration, DAG & Agent Runtime
+## ATLAS (2) â€” Orchestration, DAG & Agent Runtime
 
 NAMESPACE:
 server/src/services/{orchestrator,blackboard,dag-executor,planner,agent-dag,agent-runtime,
@@ -154,7 +156,7 @@ graph-engine,pipeline-io}.ts, routes/{agents,agent-lifecycle,a2a,automation}.ts,
 packages/a2a-server/**
 FIRST OBJECTIVES:
 
-- Ensure agent-runtime.ts + agent-loop.ts are fully implemented (real loop: perceive→plan→act→
+- Ensure agent-runtime.ts + agent-loop.ts are fully implemented (real loop: perceiveâ†’planâ†’actâ†’
   reflect) with no stubs; unit tests for each transition.
 - Integrate deadlock-detector.ts into the DAG executor with compensation; tests.
 - Implement workflow-dsl.ts, conditional-router.ts, merge-strategies.ts, specialization-registry.ts,
@@ -164,7 +166,7 @@ FIRST OBJECTIVES:
   compile and are tested.
 - Wire orchestrator to Forge's kernel admission seam (enqueueTask) via the public interface only.
 
-## MNEMOSYNE (3) — Memory Core & Recall
+## MNEMOSYNE (3) â€” Memory Core & Recall
 
 NAMESPACE:
 server/src/services/memory-service.ts, memory-search-suggest.ts, memory-search-explanation.ts,
@@ -185,10 +187,10 @@ FIRST OBJECTIVES:
   memory-search-suggest.ts, memory-search-explanation.ts: real impls + tests.
 - Confirm recall.ts / federated-recall.ts / embeddings.ts integrate the above; extend
   server/tests/federated-recall.test.ts.
-- If a feature needs new `memories` columns, DO NOT edit db/schema.ts — propose migration to
+- If a feature needs new `memories` columns, DO NOT edit db/schema.ts â€” propose migration to
   dispatcher.
 
-## LETHE (4) — Memory Lifecycle, Training & Maintenance
+## LETHE (4) â€” Memory Lifecycle, Training & Maintenance
 
 NAMESPACE:
 server/src/services/{memory-decay,memory-forget,memory-hierarchy,memory-templates,memory-quota,
@@ -205,7 +207,7 @@ FIRST OBJECTIVES:
 - Ensure all are invoked (a scheduler/cron hook or a service entry the kernel/loop calls). Coordinate
   callable entry points with the dispatcher.
 
-## CEREBRUM (5) — LLM Gateway & Inference
+## CEREBRUM (5) â€” LLM Gateway & Inference
 
 NAMESPACE:
 server/src/services/{llm,llm-scheduler,llm-router,llm-gateway-v2,llm-client,omniroute,
@@ -222,7 +224,7 @@ FIRST OBJECTIVES:
 - NOTE: the omniroute security-circumvention docs were DELETED (see AGENTS.md omniroute verdict). Do
   NOT reintroduce them; keep omniroute/omniroute-bridge wired but clean.
 
-## SENTINEL (6) — Security Core, Crypto & Guardrails
+## SENTINEL (6) â€” Security Core, Crypto & Guardrails
 
 NAMESPACE:
 server/src/services/{guardrails,guardrail-types,guardrail-registry,guardrail-patterns,
@@ -243,7 +245,7 @@ FIRST OBJECTIVES:
   security-posture.ts, runtime-security.ts: real scanners + tests.
 - vault.ts: real secret store (integrates crypto-suite); tests. scripts/audit-keys-leakage.ts: runnable.
 
-## AEGIS (7) — Reliability, Resilience, Audit & Compliance
+## AEGIS (7) â€” Reliability, Resilience, Audit & Compliance
 
 NAMESPACE:
 server/src/services/{audit-engine,audit-worker,audit-watchdog,audit-analytics,incident-response,
@@ -253,7 +255,7 @@ blockchain}.ts, lib/{audit,auditing}.ts, routes/audit-routes.ts
 FIRST OBJECTIVES:
 
 - audit-engine.ts + audit-worker.ts + audit-watchdog.ts: hash-chained append-only audit (SHA-256),
-  real worker loop; tests. (supply-chain.ts had 7 undefined-guard errors in an older ledger —
+  real worker loop; tests. (supply-chain.ts had 7 undefined-guard errors in an older ledger â€”
   verify clean now and harden.)
 - incident-response.ts, breach-notifier.ts, anomaly-detector.ts, ransomware-detector.ts,
   insider-threat.ts, compliance-reporter.ts, fairness-corrector.ts, evidence-collector.ts, cspm.ts,
@@ -263,22 +265,22 @@ FIRST OBJECTIVES:
 - routes/audit-routes.ts: wire all audit endpoints with correct ok/err arity; tests.
 - chaos/SLO/healing modules: implement where present; tests.
 
-## PULSE (8) — Self-Optimization & Improvement
+## PULSE (8) â€” Self-Optimization & Improvement
 
 NAMESPACE:
 server/src/services/self-improvement-harness.ts, ranking-trainer.ts, self-opt/**, routes/self-opt.ts
 FIRST OBJECTIVES:
 
-- The 5 tsc errors in self-opt/tuners.ts are FIXED (gate is green) — do not revisit.
+- The 5 tsc errors in self-opt/tuners.ts are FIXED (gate is green) â€” do not revisit.
 - self-opt/*: ensure index, types, tuners, telemetry, guardrail-guard, gap-items, controller,
   bootstrap, adapters are real and compile; tests.
 - self-improvement-harness.ts + ranking-trainer.ts: real auto-tuner control plane that tunes the
-  runtime loop live via PUBLIC setters (configureWorker, setSchedulingPolicy) from Forge — never edit
+  runtime loop live via PUBLIC setters (configureWorker, setSchedulingPolicy) from Forge â€” never edit
   Forge's files; tests.
 - routes/self-opt.ts: wire endpoints; tests.
 - Document the interface-only integration contract with Forge.
 
-## METRON (9) — Performance, Observability & Health
+## METRON (9) â€” Performance, Observability & Health
 
 NAMESPACE:
 server/src/services/{metrics,metrics-validation,tracing,trace-exporter,span-context,
@@ -293,7 +295,7 @@ FIRST OBJECTIVES:
 - routes/perf.ts, routes/analytics.ts: wire endpoints; tests.
 - Stateless pool / replica router / cache (Phase 15) modules where present: real impls; tests.
 
-## ARTISAN (10) — DevEx, SDK, Skills, Marketplace & Plugins
+## ARTISAN (10) â€” DevEx, SDK, Skills, Marketplace & Plugins
 
 NAMESPACE:
 server/src/services/{marketplace.service,skill.service,skill-compiler,skill-template-engine,
@@ -303,7 +305,7 @@ scripts/import-skills.ts, packages/sdk/src/{types,index,errors,client,bindings}.
 FIRST OBJECTIVES:
 
 - marketplace.service.ts + routes/marketplace-routes.ts: REAL backend (list/publish/install/rate,
-  reviews) — no stubs; tests. (An older ledger showed marketplace.service.ts had 1 error — verify
+  reviews) â€” no stubs; tests. (An older ledger showed marketplace.service.ts had 1 error â€” verify
   clean.)
 - skill.service.ts, skill-compiler.ts, skill-template-engine.ts, plugin-manifest.ts: real skill
   compile/validate; tests.
@@ -314,18 +316,18 @@ FIRST OBJECTIVES:
   packages/devtools/**: real devtools; tests.
 - scripts/import-skills.ts: runnable.
 
-## HELIX (11) — Enterprise, Org/Tenant & Federated Mesh
+## HELIX (11) â€” Enterprise, Org/Tenant & Federated Mesh
 
 NAMESPACE:
 server/src/services/{enterprise.service,p2p-swarm}.ts, routes/enterprise.ts
 FIRST OBJECTIVES:
 
-- enterprise.service.ts: REAL OIDC/SAML, RBAC, multi-tenant orgs/workspaces, billing hooks — no
-  stubs; tests. (Older ledger: 6 errors — verify clean now.)
+- enterprise.service.ts: REAL OIDC/SAML, RBAC, multi-tenant orgs/workspaces, billing hooks â€” no
+  stubs; tests. (Older ledger: 6 errors â€” verify clean now.)
 - p2p-swarm.ts: real federated mesh (peer discovery, sync); tests.
 - routes/enterprise.ts: wire endpoints with correct ok/err arity; tests.
 
-## PRISM (12) — Primary Dashboard UI & State
+## PRISM (12) â€” Primary Dashboard UI & State
 
 NAMESPACE:
 src/pages/_.tsx, src/components/\**, src/store.ts, src/lib/_.ts (except os/ and mcp.ts), src/lib/vault.ts
@@ -333,14 +335,14 @@ FIRST OBJECTIVES:
 
 - Root tsc=0 (verified). Ensure every page/component is functional and wired to the backend API (no
   dead UI, no placeholder buttons).
-- Fix known gap: src/lib/types.ts only exports Envelope — pages importing Memory/MemoryInput/
+- Fix known gap: src/lib/types.ts only exports Envelope â€” pages importing Memory/MemoryInput/
   MEMORY_KINDS must use ApiMemory from src/lib/api-types.ts (canonical). Reconcile imports; tests.
-- Charts: there is NO charting library in the repo — visualize with Tailwind CSS bars / custom SVG /
+- Charts: there is NO charting library in the repo â€” visualize with Tailwind CSS bars / custom SVG /
   motion only.
 - src/store.ts: ensure zustand/jotai/react-query state is complete and consistent; tests.
 - Add/extend component unit tests (Vitest + RTL) to raise coverage.
 
-## HALCYON (13) — OS Kernel Admin & Enterprise Admin Pages
+## HALCYON (13) â€” OS Kernel Admin & Enterprise Admin Pages
 
 NAMESPACE:
 src/pages/os/**, src/pages/admin/**, src/osStore.ts, src/lib/os/**
@@ -351,7 +353,7 @@ FIRST OBJECTIVES:
 - src/osStore.ts + src/lib/os/*: complete kernel-admin state + operations; tests.
 - No stubs; every control (kill-switch, ring policy, scheduler policy, approvals) calls the real API.
 
-## FERRIC (14) — Rust Core, Config, Provider-Types & Providers
+## FERRIC (14) â€” Rust Core, Config, Provider-Types & Providers
 
 NAMESPACE:
 crates/core/**, crates/config/**, crates/provider-types/**, crates/providers/**
@@ -360,7 +362,7 @@ FIRST OBJECTIVES:
 - Keep cargo build/clippy/test green for these crates.
 - crates/provider-types: canonical types (conversation, thinking, formats openai/anthropic/ollama/
   ollama_responses, request_log, retry, mcp_utils, canonical registry/name_builder/model, json,
-  base, errors, utils, permission, goose_mode) — real, consistent; tests.
+  base, errors, utils, permission, goose_mode) â€” real, consistent; tests.
 - crates/providers: real provider clients (openai, anthropic, ollama, openai_compatible, api_client,
   stream, tokens, http_status, declarative) implementing ProviderAdapter-like traits; tests (mock
   HTTP).
@@ -369,7 +371,7 @@ FIRST OBJECTIVES:
 - NOTE: Rust is decoupled from TS app (ADR-0007); editing here does not change server behavior, but
   keep it production-grade & tested.
 
-## RUSTY (15) — Rust Tools, Safety, Installer, Observability, Search & CLI
+## RUSTY (15) â€” Rust Tools, Safety, Installer, Observability, Search & CLI
 
 NAMESPACE:
 crates/tools/**, crates/safety/**, crates/installer/**, crates/observability/**,
@@ -377,14 +379,14 @@ crates/nexus-search/**, crates/cli/**, crates/nexus-cli/**
 FIRST OBJECTIVES:
 
 - Keep cargo build/clippy/test green.
-- crates/safety: real safety_checker (injection, jailbreak, pii, profanity) — real detectors + tests.
-- crates/tools: tool registry/lifecycle/builtin/tool — real registry; tests.
-- crates/installer: download/installer/self_update — real; tests.
+- crates/safety: real safety_checker (injection, jailbreak, pii, profanity) â€” real detectors + tests.
+- crates/tools: tool registry/lifecycle/builtin/tool â€” real registry; tests.
+- crates/installer: download/installer/self_update â€” real; tests.
 - crates/observability: real tracing/metrics; tests.
 - crates/nexus-search: real semantic search; tests.
 - crates/cli + crates/nexus-cli: real CLI commands; tests.
 
-## TESS (16) — Tauri Desktop Shell
+## TESS (16) â€” Tauri Desktop Shell
 
 NAMESPACE:
 nexus-tauri/**
@@ -392,24 +394,24 @@ FIRST OBJECTIVES:
 
 - Ensure nexus-tauri/src-tauri/{lib.rs,main.rs,build.rs} + nexus-tauri/src/{App.tsx,vite.config.ts}
   build and run; `cargo build` in src-tauri green.
-- Wire the desktop shell to the backend (API/WS) — no dead UI; real commands/events.
+- Wire the desktop shell to the backend (API/WS) â€” no dead UI; real commands/events.
 - Add tests for Rust command handlers / TS components where feasible.
 
-## AEON (17) — Protocols, MCP & External Connectors
+## AEON (17) â€” Protocols, MCP & External Connectors
 
 NAMESPACE:
 server/src/mcp.ts, mcp-http.ts, services/mcp-registry.ts, connectors/**, src/lib/mcp.ts,
 packages/sdk/src/acp.ts, packages/sdk/src/webhooks.ts
 FIRST OBJECTIVES:
 
-- mcp.ts + mcp-http.ts + mcp-registry.ts: full MCP server (14 tools, 4 resource URI patterns) — real
+- mcp.ts + mcp-http.ts + mcp-registry.ts: full MCP server (14 tools, 4 resource URI patterns) â€” real
   impls, no stubs; tests.
 - connectors/** (e.g. hermes.ts): real connector adapters; tests.
 - src/lib/mcp.ts (frontend) + packages/sdk/src/acp.ts (Agent Client Protocol) + webhooks.ts: real,
   typed; tests.
 - Ensure MCP tools are registered and callable end-to-end; extend with new tools as needed.
 
-## LOREKEEPER (18) — Docs, ADRs, Plans & Personas
+## LOREKEEPER (18) â€” Docs, ADRs, Plans & Personas
 
 NAMESPACE:
 docs/**, README*, CHANGELOG.md, CONTRIBUTING.md, SECURITY.md, MASTER_MISSION_BRIEF.md, PLAN.md,
@@ -418,13 +420,13 @@ FIRST OBJECTIVES:
 
 - Keep docs coherent with ACTUAL repo state (the "Current Reality" block in AGENTS.md is the
   coherence anchor). Correct any doc claiming something the code does not do.
-- ADRs 0001–0009 are referenced; 0002/0003/0006 are MISSING from docs/adr/ — author them (or mark
+- ADRs 0001â€“0009 are referenced; 0002/0003/0006 are MISSING from docs/adr/ â€” author them (or mark
   reserved with rationale) in consultation with the owning agents.
 - Maintain PLAN_TRACKER.md as the single source of truth: after each fleet wave, update the tsc error
   ledger and phase statuses with GROUND TRUTH (verify via tsc; don't trust stale numbers).
 - PERSONA_REGISTRY.md: keep aligned with ADR-0008 AgentCapability and the fleet.
 
-## QUILL (19) — Quality, Testing & Merge Gate
+## QUILL (19) â€” Quality, Testing & Merge Gate
 
 NAMESPACE:
 server/tests/**, tests/** (root), server/src/tests/**, _.test.ts/_.spec.ts, server/tests/helpers/**,
@@ -436,10 +438,10 @@ FIRST OBJECTIVES:
   tests that don't import the native DB module; use server/tests/helpers (db-setup, mock-llm) and
   mocks. Coordinate with Bastion to rebuild the native module so `pnpm run validate` can go green.
 - Do NOT edit production code outside test files (your namespace is tests only). If you find a bug in
-  production code, report it to the dispatcher with the owning agent — do not patch their files.
+  production code, report it to the dispatcher with the owning agent â€” do not patch their files.
 - Add/extend tests for any stub/low-coverage area you discover; track coverage.
 
-## BASTION (20) — Build, CI/CD, Infra & Tooling Config
+## BASTION (20) â€” Build, CI/CD, Infra & Tooling Config
 
 NAMESPACE:
 Dockerfile*, docker-compose*, nginx*, entrypoint.sh, .github/workflows/**, vite.config.ts,
@@ -451,7 +453,7 @@ FIRST OBJECTIVES:
 - Ensure `pnpm run validate` (lint + typecheck + test + build) can go GREEN. Currently blocked ONLY
   by the better-sqlite3 Node-ABI mismatch (native module built for ABI 127, runtime is 147). Rebuild
   better-sqlite3 for the runtime Node (or pin Node) so `vitest run` works; verify.
-- CODEOWNERS (just created) is the collision-free map — ensure CI enforces it (add a check or document
+- CODEOWNERS (just created) is the collision-free map â€” ensure CI enforces it (add a check or document
   the review rule).
 - Dockerfile*/docker-compose*/nginx*/entrypoint.sh: production-ready, multi-stage, non-root;
   tests/smoke where feasible.

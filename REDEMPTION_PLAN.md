@@ -1,3 +1,5 @@
+﻿> ⚠️ **SUPERSEDED (2026-08-24, WS7 coherence sweep):** This is a campaign-era document retained for historical traceability only. Its completion claims, scores, and phase states are **NOT release evidence**. Current authority: `docs/bmad/baseline-2026-07-24-gate0.md` (Gate-0 baseline) and the ratified `docs/bmad/progression-plan-2026-08-21.md`; live evidence lives in `docs/bmad/releases/evidence/`.
+
 # AGENTIC OS V4: ZERO-COMPROMISE REDEMPTION & ENGINEERING ROADMAP
 
 **Document Version:** 4.1.0  
@@ -103,7 +105,7 @@ _Goal: Purge all root clutter, establish standard pnpm + cargo workspace archite
 - [x] 1.17. Create authoritative directory structure documentation in `docs/ARCHITECTURE.md`.
 - [x] 1.18. Configure `.lintstagedrc` and initialize `husky` pre-commit hooks.
 - [x] 1.19. Run full workspace check (`pnpm install`, `cargo check`) and confirm zero failures.
-- [x] 1.20. Git checkpoint: `chore: phase 1 — repository hygiene and workspace unification`.
+- [x] 1.20. Git checkpoint: `chore: phase 1 â€” repository hygiene and workspace unification`.
 
 ---
 
@@ -138,7 +140,7 @@ _Goal: Eliminate all TypeScript compilation errors across the entire codebase (`
 - [x] 2.17. Fix compilation and build pipeline for `@agentic-os/sdk` in `packages/sdk/`.
 - [x] 2.18. Fix compilation and build pipeline for `@agentic-os/devtools` in `packages/devtools/`.
 - [x] 2.19. Verify `pnpm run typecheck` produces **0 errors** across all workspaces.
-- [x] 2.20. Git checkpoint: `fix: phase 2 — strict esm typescript compilation zero errors`.
+- [x] 2.20. Git checkpoint: `fix: phase 2 â€” strict esm typescript compilation zero errors`.
 
 ---
 
@@ -173,7 +175,7 @@ _Goal: Eliminate VM prototype-climbing vulnerabilities, implement worker thread 
 - [x] 3.17. Add telemetry logging for sandbox execution latency, memory consumption, and error rates.
 - [x] 3.18. Update `docs/SECURITY.md` with full sandbox threat model and isolation architecture.
 - [x] 3.19. Run full sandbox test suite and verify 100% pass rate.
-- [x] 3.20. Git checkpoint: `security: phase 3 — zero-trust worker sandbox implementation`.
+- [x] 3.20. Git checkpoint: `security: phase 3 â€” zero-trust worker sandbox implementation`.
 
 ---
 
@@ -199,16 +201,16 @@ _Goal: Resolve SQLite concurrent async transaction lock races, configure WAL jou
 - [x] 4.8. Add transaction execution timeout safety (auto-rollback after 30 seconds).
 - [x] 4.9. Implement exponential backoff retry handler for transient `SQLITE_BUSY` errors (up to 5 retries).
 - [x] 4.10. Ensure Postgres backend client (`drizzle-orm/postgres-js`) operates smoothly when `DATABASE_URL` is set to PostgreSQL.
-- [x] 4.11. Clean schema definitions verified — 30 tables across both `schema-sqlite.ts` and `schema.ts` are properly defined.
+- [x] 4.11. Clean schema definitions verified â€” 30 tables across both `schema-sqlite.ts` and `schema.ts` are properly defined.
 - [x] 4.12. Generate clean Drizzle migration files for SQLite (`drizzle/0000_dark_misty_knight.sql` with all 30 tables).
 - [x] 4.13. Add auto-migration execution on server startup via `drizzle-kit migrate` in `setup.ts` `ensureSchemaOrDie()`.
-- [x] 4.14. Create database concurrency test suite (`server/tests/db-concurrency.test.ts`) running 50 parallel write operations — **6 tests, all passing**.
+- [x] 4.14. Create database concurrency test suite (`server/tests/db-concurrency.test.ts`) running 50 parallel write operations â€” **6 tests, all passing**.
 - [x] 4.15. Create rollback verification tests asserting partial failures correctly revert database state.
 - [x] 4.16. Implement database connection health check function (`dbHealthy()`) in `server/src/db/client.ts`.
 - [x] 4.17. Expose database health status in `/api/v1/health` endpoint (via `dbReachable()` from setup.ts).
 - [x] 4.18. Add automatic `CREATE EXTENSION IF NOT EXISTS vector;` check for Postgres deployments (already in `setup.ts`).
 - [x] 4.19. Update database documentation in `docs/DATABASE.md` (infrastructure documented).
-- [x] 4.20. Git checkpoint: `fix: phase 4 — database mutex serialization and migration integrity`.
+- [x] 4.20. Git checkpoint: `fix: phase 4 â€” database mutex serialization and migration integrity`.
 
 ---
 
@@ -243,7 +245,7 @@ _Goal: Restore unit and integration test suites, configure mock providers, setup
 - [x] 5.17. Configure GitHub Actions dependency caching for pnpm store and cargo build targets.
 - [x] 5.18. Run full test suite (`pnpm run test`) and confirm **100% pass rate** (177/177 unit tests passing).
 - [x] 5.19. Document testing conventions in `docs/TESTING.md`.
-- [x] 5.20. Git checkpoint: `test: phase 5 — test suite restoration and ci pipeline configuration`.
+- [x] 5.20. Git checkpoint: `test: phase 5 â€” test suite restoration and ci pipeline configuration`.
 
 ---
 
@@ -278,7 +280,7 @@ _Goal: Replace O(n) JavaScript array search with native SQLite FTS5 full-text in
 - [ ] 6.17. Add telemetry spans for lexical search, vector search, and RRF rank fusion steps.
 - [ ] 6.18. Implement LRU memory result caching layer (30-second TTL) for identical queries.
 - [ ] 6.19. Verify search parity across both SQLite and Postgres database backends.
-- [ ] 6.20. Git checkpoint: `perf: phase 6 — native fts5 and vector hybrid search engine`.
+- [ ] 6.20. Git checkpoint: `perf: phase 6 â€” native fts5 and vector hybrid search engine`.
 
 ---
 
@@ -313,7 +315,7 @@ _Goal: Resolve Portkey gateway dependencies, restore TypeScript compilation, wir
 - [ ] 7.17. Document Portkey setup, supported models, and API key environment variables in `docs/PORTKEY_GATEWAY.md`.
 - [ ] 7.18. Prune unused or cloud-only proprietary Portkey adapter files.
 - [ ] 7.19. Verify full project typecheck (`pnpm run typecheck`) succeeds.
-- [ ] 7.20. Git checkpoint: `feat: phase 7 — portkey multi-provider llm gateway integration`.
+- [ ] 7.20. Git checkpoint: `feat: phase 7 â€” portkey multi-provider llm gateway integration`.
 
 ---
 
@@ -348,7 +350,7 @@ _Goal: Integrate OmniRoute smart routing, cost optimization, dynamic latency fal
 - [ ] 8.17. Add telemetry logging for every routing decision, including cost savings estimates.
 - [ ] 8.18. Assert OmniRoute decision evaluation overhead adds < 5ms to total request processing time.
 - [ ] 8.19. Run typecheck and full test suite to confirm zero regressions.
-- [ ] 8.20. Git checkpoint: `feat: phase 8 — omniroute smart routing and fallback engine`.
+- [ ] 8.20. Git checkpoint: `feat: phase 8 â€” omniroute smart routing and fallback engine`.
 
 ---
 
@@ -383,7 +385,7 @@ _Goal: Implement real Rust code across `crates/safety`, `crates/tools`, `crates/
 - [x] 9.17. Run `cargo test --workspace` and confirm **100% pass rate**.
 - [x] 9.18. Build release binary (`cargo build --workspace --release`).
 - [x] 9.19. Document Rust crate architecture in `docs/RUST_CRATES.md`.
-- [x] 9.20. Git checkpoint: `feat: phase 9 — production rust workspace implementation`.
+- [x] 9.20. Git checkpoint: `feat: phase 9 â€” production rust workspace implementation`.
 
 ---
 
@@ -418,7 +420,7 @@ _Goal: Port Block's Goose Rust provider infrastructure into `crates/providers`, 
 - [ ] 10.17. Create C-ABI or NAPI binding interfaces for calling Rust provider clients from Node.js runtime.
 - [ ] 10.18. Run benchmark comparing Rust native provider throughput against Node.js `fetch()`.
 - [ ] 10.19. Document Goose provider integration in `docs/GOOSE_PROVIDERS.md`.
-- [ ] 10.20. Git checkpoint: `feat: phase 10 — goose rust provider framework port`.
+- [ ] 10.20. Git checkpoint: `feat: phase 10 â€” goose rust provider framework port`.
 
 ---
 
@@ -453,7 +455,7 @@ _Goal: Harden the TypeScript agent runtime, action registry, kernel syscall inte
 - [ ] 11.17. Connect emergency global kill switch to halt all active agent runtime threads instantly.
 - [ ] 11.18. Clean up `task-worker.ts` to prevent process leaks or unhandled background promises.
 - [ ] 11.19. Benchmark agent loop overhead under 20 concurrent active agent runtimes (< 50ms per loop iteration).
-- [ ] 11.20. Git checkpoint: `feat: phase 11 — agent runtime execution engine hardening`.
+- [ ] 11.20. Git checkpoint: `feat: phase 11 â€” agent runtime execution engine hardening`.
 
 ---
 
@@ -488,7 +490,7 @@ _Goal: Build production-ready MCP tool registry supporting stdio, HTTP-SSE, and 
 - [ ] 12.17. Document MCP server setup, custom tool creation, and configuration in `docs/MCP.md`.
 - [ ] 12.18. Ensure cross-platform path compatibility (Windows `cmd.exe` vs Linux `/bin/sh`) for stdio execution.
 - [ ] 12.19. Verify `pnpm run typecheck` passes cleanly.
-- [ ] 12.20. Git checkpoint: `feat: phase 12 — model context protocol integration`.
+- [ ] 12.20. Git checkpoint: `feat: phase 12 â€” model context protocol integration`.
 
 ---
 
@@ -523,7 +525,7 @@ _Goal: Extract and integrate Google's Agent-to-Agent (A2A) protocol server into 
 - [x] 13.17. Update `pnpm-workspace.yaml` to ensure clean workspace linking.
 - [x] 13.18. Document A2A inter-agent protocol integration in `docs/HERMES.md` / `docs/A2A_PROTOCOL.md`.
 - [x] 13.19. Confirm `pnpm run typecheck` and `pnpm run build` succeed across all workspace packages.
-- [x] 13.20. Git checkpoint: `feat: phase 13 — google a2a inter-agent protocol server`.
+- [x] 13.20. Git checkpoint: `feat: phase 13 â€” google a2a inter-agent protocol server`.
 
 ---
 
@@ -558,7 +560,7 @@ _Goal: Build SHA-256 Merkle tree verification for audit logs, construct EVM tran
 - [ ] 14.17. Export blockchain anchor metrics (total anchors, gas spent, RPC failures) to Prometheus.
 - [ ] 14.18. Document blockchain verification in `docs/SECURITY.md`.
 - [ ] 14.19. Verify zero TypeScript errors.
-- [ ] 14.20. Git checkpoint: `feat: phase 14 — on-chain audit log merkle verification`.
+- [ ] 14.20. Git checkpoint: `feat: phase 14 â€” on-chain audit log merkle verification`.
 
 ---
 
@@ -593,7 +595,7 @@ _Goal: Implement desktop GUI actuator abstraction supporting Windows (PowerShell
 - [ ] 15.17. Document actuator prerequisites and OS permissions in `docs/CONTROL_PLANE_UX_SPEC.md`.
 - [ ] 15.18. Verify `pnpm run typecheck` passes cleanly.
 - [ ] 15.19. All unit tests pass.
-- [ ] 15.20. Git checkpoint: `feat: phase 15 — cross-platform desktop gui actuator`.
+- [ ] 15.20. Git checkpoint: `feat: phase 15 â€” cross-platform desktop gui actuator`.
 
 ---
 
@@ -628,7 +630,7 @@ _Goal: Build hardened, multi-stage production Docker images for server and front
 - [x] 16.17. Verify `/api/v1/health` returns HTTP 200 OK from running container stack.
 - [x] 16.18. Document container deployment workflows in `docs/DEPLOYMENT.md`.
 - [x] 16.19. Verify full clean checkout builds and launches via Docker without errors.
-- [x] 16.20. Git checkpoint: `ops: phase 16 — docker containerization and compose orchestration`.
+- [x] 16.20. Git checkpoint: `ops: phase 16 â€” docker containerization and compose orchestration`.
 
 ---
 
@@ -663,7 +665,7 @@ _Goal: Integrate OpenTelemetry distributed tracing, Prometheus metrics export, s
 - [ ] 17.17. Document telemetry setup and Grafana configuration in `docs/DEPLOYMENT.md`.
 - [ ] 17.18. Verify zero performance impact (< 2ms) from telemetry instrumentation.
 - [ ] 17.19. Confirm `pnpm run typecheck` passes cleanly.
-- [ ] 17.20. Git checkpoint: `feat: phase 17 — opentelemetry tracing and prometheus metrics`.
+- [ ] 17.20. Git checkpoint: `feat: phase 17 â€” opentelemetry tracing and prometheus metrics`.
 
 ---
 
@@ -698,7 +700,7 @@ _Goal: Refactor Vite + React frontend, implement visual Agent DAG pipeline build
 - [ ] 18.17. Write component unit tests using React Testing Library and Vitest.
 - [ ] 18.18. Document frontend UI architecture in `docs/CONTROL_PLANE_UX_SPEC.md`.
 - [ ] 18.19. Confirm zero console errors or warnings in browser devtools during navigation.
-- [ ] 18.20. Git checkpoint: `feat: phase 18 — react control plane and visual pipeline builder`.
+- [ ] 18.20. Git checkpoint: `feat: phase 18 â€” react control plane and visual pipeline builder`.
 
 ---
 
@@ -733,7 +735,7 @@ _Goal: Execute comprehensive end-to-end integration test scenarios validating mu
 - [ ] 19.17. Generate consolidated test coverage report verifying > 80% coverage across all workspace packages.
 - [ ] 19.18. Document E2E test scenarios and execution commands in `docs/TESTING.md`.
 - [ ] 19.19. Confirm zero typescript, lint, or test failures workspace-wide.
-- [ ] 19.20. Git checkpoint: `test: phase 19 — full end-to-end system integration and validation`.
+- [ ] 19.20. Git checkpoint: `test: phase 19 â€” full end-to-end system integration and validation`.
 
 ---
 
@@ -768,7 +770,7 @@ _Goal: Finalize repository documentation, license headers, release notes, securi
 - [ ] 20.17. Conduct final security and license compliance sign-off.
 - [ ] 20.18. Perform final repository verification check.
 - [ ] 20.19. Push finalized codebase to GitHub main branch (`git push origin main --tags`).
-- [ ] 20.20. Git checkpoint: `release: phase 20 — agentic os v4.0.0 open-source release`.
+- [ ] 20.20. Git checkpoint: `release: phase 20 â€” agentic os v4.0.0 open-source release`.
 
 ---
 

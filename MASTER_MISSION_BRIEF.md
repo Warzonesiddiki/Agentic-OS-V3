@@ -1,4 +1,6 @@
-# MASTER MISSION BRIEF — NEXUS 2.0 Agentic OS
+﻿> ⚠️ **SUPERSEDED (2026-08-24, WS7 coherence sweep):** This is a campaign-era document retained for historical traceability only. Its completion claims, scores, and phase states are **NOT release evidence**. Current authority: `docs/bmad/baseline-2026-07-24-gate0.md` (Gate-0 baseline) and the ratified `docs/bmad/progression-plan-2026-08-21.md`; live evidence lives in `docs/bmad/releases/evidence/`.
+
+# MASTER MISSION BRIEF â€” NEXUS 2.0 Agentic OS
 
 ## Zero Compromise. Full Autonomy. Complete Ownership.
 
@@ -16,20 +18,20 @@ This is a **self-contained mission brief** for an autonomous AI agent. You are t
 
 1. No `: any` in TypeScript (no file-level `@typescript-eslint/no-explicit-any` disables)
 2. No `anyhow::Result` in public Rust APIs
-3. No inline `db.query.*` in route handlers — all DB calls go through services
+3. No inline `db.query.*` in route handlers â€” all DB calls go through services
 4. No hardcoded secrets in docker-compose, env files, or source
-5. No stubs in production — every feature either works or is removed
+5. No stubs in production â€” every feature either works or is removed
 6. Every mutation is audited (hash-chained SHA-256, append-only)
 7. Every agent action is scoped by ring + scope
 8. Coverage thresholds enforced before merge: 60% branches, 60% functions, 60% lines
-9. No `any` type `Tx` in audit.ts — use proper Drizzle transaction types
-10. No dead code — commented-out imports, stub functions, and unused variables are deleted
+9. No `any` type `Tx` in audit.ts â€” use proper Drizzle transaction types
+10. No dead code â€” commented-out imports, stub functions, and unused variables are deleted
 
 **Execution order (DO NOT REORDER):**
 
 ---
 
-## PHASE 1: SECURITY (Critical — do first)
+## PHASE 1: SECURITY (Critical â€” do first)
 
 ### 1.1 Stop env mutation
 
@@ -51,7 +53,7 @@ Add `NEXUS_BLOCKCHAIN_ENCRYPTION_KEY=` with comment: "Must be set if NEXUS_BLOCK
 
 **File:** `server/src/services/mcp-registry.ts:209`
 Replace `{ ...process.env, ...this.config.env }` with a filtered object containing ONLY: `PATH`, `HOME`, `NODE_ENV`, `NEXUS_LLM_PROVIDER`, `NEXUS_LLM_API_KEY`. Explicitly BLOCK: `NEXUS_API_KEY`, `NEXUS_BLOCKCHAIN_PRIVATE_KEY`, `DATABASE_URL`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GOOGLE_API_KEY`, all provider keys, `NEXUS_OTEL_API_KEY`.
-**Verify:** `grep -n 'process.env' server/src/services/mcp-registry.ts` — only the filter function.
+**Verify:** `grep -n 'process.env' server/src/services/mcp-registry.ts` â€” only the filter function.
 
 ### 1.4 CSP nonce-based (no unsafe-inline)
 
@@ -75,7 +77,7 @@ Add ALL missing scopes: `brain:admin`, `vault:read`, `vault:write`, `safety:writ
 
 **File:** `server/src/services/services.ts:17-25` (or equivalent after split)
 Modify `isKillSwitchOn()` to accept optional `tx` parameter. When inside a transaction, use `SELECT ... FOR UPDATE`. Add `assertOperational(tx)` call inside every transaction callback.
-**Verify:** Every mutation function calls `assertOperational()` twice — once before `db.transaction()`, once inside with `tx`.
+**Verify:** Every mutation function calls `assertOperational()` twice â€” once before `db.transaction()`, once inside with `tx`.
 
 ### 1.8 Per-key rate limiting
 
@@ -97,18 +99,18 @@ Replace Content-Length header check with streaming body size enforcement. Read b
 
 **Action:** DELETE `server/src/services.ts` (505 lines). CREATE:
 
-- `server/src/services/memory.service.ts` — `createMemory`, `updateMemory`, `deleteMemory`, `checkpoint`, `captureSession`, `MemoryRow`, `CaptureReport`
-- `server/src/services/skill.service.ts` — `createSkill`, `updateSkill`, `deleteSkill`, `recordOutcome`, `SkillRow`
-- `server/src/services/project.service.ts` — `transferProject`, `ensureProject`
-- `server/src/services/feedback.service.ts` — `recordFeedback`
-- `server/src/services/safety.service.ts` — `isKillSwitchOn`, `assertOperational`
-- `server/src/services/session.service.ts` — `setKillSwitch`
+- `server/src/services/memory.service.ts` â€” `createMemory`, `updateMemory`, `deleteMemory`, `checkpoint`, `captureSession`, `MemoryRow`, `CaptureReport`
+- `server/src/services/skill.service.ts` â€” `createSkill`, `updateSkill`, `deleteSkill`, `recordOutcome`, `SkillRow`
+- `server/src/services/project.service.ts` â€” `transferProject`, `ensureProject`
+- `server/src/services/feedback.service.ts` â€” `recordFeedback`
+- `server/src/services/safety.service.ts` â€” `isKillSwitchOn`, `assertOperational`
+- `server/src/services/session.service.ts` â€” `setKillSwitch`
 
 **Update ALL imports** in:
 
-- `server/src/routes.ts` — replace barrel import with individual service imports
-- `server/src/mcp.ts` — same
-- `server/src/services/agent-runtime.ts` — same
+- `server/src/routes.ts` â€” replace barrel import with individual service imports
+- `server/src/mcp.ts` â€” same
+- `server/src/services/agent-runtime.ts` â€” same
 - All 31 test files that reference `services.js`
 
 **Verify:** `grep -rn "from './services.js'\|from '../services.js'" server/src/` returns 0.
@@ -118,40 +120,40 @@ Replace Content-Length header check with streaming body size enforcement. Read b
 **File:** `server/src/routes.ts`
 Move EVERY `db.query.*` call to a service function. Exact inventory:
 
-- Lines 117-122 (`db.select({ n: count })` ... 4 tables) → `getSystemCounts()` in system service
-- Lines 149-154 (`db.query.memories.findMany`) → `listMemories()` in memory.service
-- Line 181 (`db.query.memories.findFirst`) → `getMemoryById()` in memory.service
-- Line 220 (`db.query.skills.findMany`) → `listSkills()` in skill.service
-- Line 233 (`db.query.skills.findFirst`) → `getSkillById()` in skill.service
-- Line 299 (`db.query.projects.findMany`) → `listProjects()` in project.service
-- Line 372 (`db.query.notes.findMany`) → `listVaultNotes()` in vault.service
-- Lines 405-411 → `listLedgerEntries()`, `getLedgerTotals()` in new ledger service
-- Line 424 → `getSystemMetaMap()` in system service
-- Lines 451-457 → `recordHeartbeat()` in system service
-- Lines 633-666 → `getAnalyticsData()`, `getAnalyticsTotals()` in system service
+- Lines 117-122 (`db.select({ n: count })` ... 4 tables) â†’ `getSystemCounts()` in system service
+- Lines 149-154 (`db.query.memories.findMany`) â†’ `listMemories()` in memory.service
+- Line 181 (`db.query.memories.findFirst`) â†’ `getMemoryById()` in memory.service
+- Line 220 (`db.query.skills.findMany`) â†’ `listSkills()` in skill.service
+- Line 233 (`db.query.skills.findFirst`) â†’ `getSkillById()` in skill.service
+- Line 299 (`db.query.projects.findMany`) â†’ `listProjects()` in project.service
+- Line 372 (`db.query.notes.findMany`) â†’ `listVaultNotes()` in vault.service
+- Lines 405-411 â†’ `listLedgerEntries()`, `getLedgerTotals()` in new ledger service
+- Line 424 â†’ `getSystemMetaMap()` in system service
+- Lines 451-457 â†’ `recordHeartbeat()` in system service
+- Lines 633-666 â†’ `getAnalyticsData()`, `getAnalyticsTotals()` in system service
 
 **Verify:** `grep -n 'db\.' server/src/routes.ts` returns 0.
 
 ### 2.3 Delete dead code
 
-- **DELETE** `server/src/lib/protocol-integration.ts` (142 lines — dead code)
-- **DELETE** ALL commented-out imports: `grep -rn '^// import' server/src/` — delete every match
-- **REMOVE** dead variables in `server/src/services/guardrails.ts:681-684` — `blocked`, `warned`, `modified`, `loggedOnly` are always 0. Either implement real tracking or remove from `GuardrailReport` interface.
+- **DELETE** `server/src/lib/protocol-integration.ts` (142 lines â€” dead code)
+- **DELETE** ALL commented-out imports: `grep -rn '^// import' server/src/` â€” delete every match
+- **REMOVE** dead variables in `server/src/services/guardrails.ts:681-684` â€” `blocked`, `warned`, `modified`, `loggedOnly` are always 0. Either implement real tracking or remove from `GuardrailReport` interface.
 
 ### 2.4 Integrate or remove MessageBus
 
-**Decision:** Wire into kernel. (The code is 602 lines of robust IPC — don't waste it.)
+**Decision:** Wire into kernel. (The code is 602 lines of robust IPC â€” don't waste it.)
 
 - Inject bus into `kernel.ts`: publish `agent.spawned`, `task.enqueued` events
-- Create `server/src/services/sse-bridge.ts` — subscribes to bus events, forwards to `broadcastSSE()`
-- Wire into `task-worker.ts` — replace direct SSE broadcasts with bus events
+- Create `server/src/services/sse-bridge.ts` â€” subscribes to bus events, forwards to `broadcastSSE()`
+- Wire into `task-worker.ts` â€” replace direct SSE broadcasts with bus events
 
 ### 2.5 Split large files
 
-- `server/src/routes.ts` (720 lines) — extract analytics endpoints into `server/src/routes/analytics.ts`, audit endpoints into `server/src/routes/audit-routes.ts`
-- `server/src/services/guardrails.ts` (735 lines) — split into `guardrail-types.ts`, `guardrail-patterns.ts`, `guardrail-registry.ts`
-- `server/src/services/agent-runtime.ts` (1054 lines) — split into `action-registry.ts`, `agent-loop.ts`, `agent-persistence.ts`
-- `server/src/services/tracing.ts` (1062 lines) — split into `span-context.ts`, `propagation.ts`, `trace-exporter.ts`
+- `server/src/routes.ts` (720 lines) â€” extract analytics endpoints into `server/src/routes/analytics.ts`, audit endpoints into `server/src/routes/audit-routes.ts`
+- `server/src/services/guardrails.ts` (735 lines) â€” split into `guardrail-types.ts`, `guardrail-patterns.ts`, `guardrail-registry.ts`
+- `server/src/services/agent-runtime.ts` (1054 lines) â€” split into `action-registry.ts`, `agent-loop.ts`, `agent-persistence.ts`
+- `server/src/services/tracing.ts` (1062 lines) â€” split into `span-context.ts`, `propagation.ts`, `trace-exporter.ts`
 
 ---
 
@@ -161,23 +163,23 @@ Move EVERY `db.query.*` call to a service function. Exact inventory:
 
 Primary targets (ordered by impact):
 
-1. `server/src/db/client.ts:33-34` (`_sqlite: any`, `_pgClient: any`) → type as `BetterSQLite3Database<typeof sqliteSchema> | PostgresJsDatabase<typeof pgSchema>`
-2. `server/src/lib/audit.ts:28` (`export type Tx = any`) → `BetterSQLite3Transaction<typeof sqliteSchema> | PostgresJsTransaction<typeof pgSchema>`
-3. `server/src/lib/security.ts` (6 `db: any` params) → import `db` type from client
-4. `server/src/setup.ts:27` (`let db: any`) → type from client module
-5. All 20 file-level `/* eslint-disable @typescript-eslint/no-explicit-any */` — remove every one. Replace with per-line disables only, each with a justification comment.
+1. `server/src/db/client.ts:33-34` (`_sqlite: any`, `_pgClient: any`) â†’ type as `BetterSQLite3Database<typeof sqliteSchema> | PostgresJsDatabase<typeof pgSchema>`
+2. `server/src/lib/audit.ts:28` (`export type Tx = any`) â†’ `BetterSQLite3Transaction<typeof sqliteSchema> | PostgresJsTransaction<typeof pgSchema>`
+3. `server/src/lib/security.ts` (6 `db: any` params) â†’ import `db` type from client
+4. `server/src/setup.ts:27` (`let db: any`) â†’ type from client module
+5. All 20 file-level `/* eslint-disable @typescript-eslint/no-explicit-any */` â€” remove every one. Replace with per-line disables only, each with a justification comment.
 
 **Verify:** `grep -rn 'eslint-disable @typescript-eslint/no-explicit-any' server/src/ | grep -v 'eslint-disable-next-line'` returns 0.
 
 ### 3.2 Standardize catch-block error handling
 
-**Create:** `server/src/lib/format-error.ts` — a `formatError(err: unknown): string` utility.
+**Create:** `server/src/lib/format-error.ts` â€” a `formatError(err: unknown): string` utility.
 Replace ALL 56+ `catch (e)` blocks. Remove unsafe `e.message` and `String(e)` patterns.
 **Verify:** `grep -rn '\.message' server/src/ | grep -E 'catch|error' | grep -v 'formatError'` returns 0.
 
 ### 3.3 Fix missing await
 
-**File:** `server/src/setup.ts:263` — `db.values(sql`SELECT 1`)` → `await db.values(sql`SELECT 1`)`.
+**File:** `server/src/setup.ts:263` â€” `db.values(sql`SELECT 1`)` â†’ `await db.values(sql`SELECT 1`)`.
 
 ### 3.4 Extend ApiError
 
@@ -197,11 +199,11 @@ Split into `crates/providers/src/openai/chat.rs`, `openai/responses.rs`, `openai
 
 ### 3.7 Implement or remove safety checker
 
-**File:** `crates/safety/src/checker.rs` — The `check_content()` method is a no-op. Either implement real regex-based PII (email, phone, SSN, credit card), jailbreak, and injection detection, or remove the file entirely.
+**File:** `crates/safety/src/checker.rs` â€” The `check_content()` method is a no-op. Either implement real regex-based PII (email, phone, SSN, credit card), jailbreak, and injection detection, or remove the file entirely.
 
 ### 3.8 Add noUncheckedIndexedAccess to root tsconfig.json
 
-**File:** `tsconfig.json` — add `"noUncheckedIndexedAccess": true`.
+**File:** `tsconfig.json` â€” add `"noUncheckedIndexedAccess": true`.
 
 ### 3.9 Replace once_cell::Lazy with std::sync::LazyLock
 
@@ -222,12 +224,12 @@ Add HNSW indexes on `memories.embedding`, `skills.embedding`, `notes.embedding` 
 
 ### 4.2 Add composite indexes for common queries
 
-- `agent_tasks (status, priority, queue)` — worker poll query
-- `agent_tasks WHERE status = 'queued' ON (priority, created_at)` — partial index
-- `cron_jobs WHERE enabled = true ON (next_run_at)` — partial index
+- `agent_tasks (status, priority, queue)` â€” worker poll query
+- `agent_tasks WHERE status = 'queued' ON (priority, created_at)` â€” partial index
+- `cron_jobs WHERE enabled = true ON (next_run_at)` â€” partial index
 - `pipeline_runs (pipeline_id, status)`
-- `span_logs (trace_id, parent_id)` — replace separate trace/parent indexes
-- `memories (kind, importance)` — replace separate kind/importance indexes
+- `span_logs (trace_id, parent_id)` â€” replace separate trace/parent indexes
+- `memories (kind, importance)` â€” replace separate kind/importance indexes
 - `agent_tasks (agent_id, status)`
 
 ### 4.3 Add CHECK constraints
@@ -236,19 +238,19 @@ Add to ALL enum-like columns. Minimum: `memories.kind`, `agents.kind`, `agents.s
 
 ### 4.4 Add missing foreign keys
 
-- `agent_tasks.agent_id → agents.id ON DELETE CASCADE`
-- `sandbox_executions.agent_id → agents.id ON DELETE CASCADE`
-- `trajectory_logs.agent_id → agents.id ON DELETE CASCADE`
-- `tool_receipts.agent_id → agents.id ON DELETE CASCADE`
-- `plugin_receipts.agent_id → agents.id ON DELETE SET NULL`
-- `state_snapshots.agent_id → agents.id ON DELETE CASCADE`
+- `agent_tasks.agent_id â†’ agents.id ON DELETE CASCADE`
+- `sandbox_executions.agent_id â†’ agents.id ON DELETE CASCADE`
+- `trajectory_logs.agent_id â†’ agents.id ON DELETE CASCADE`
+- `tool_receipts.agent_id â†’ agents.id ON DELETE CASCADE`
+- `plugin_receipts.agent_id â†’ agents.id ON DELETE SET NULL`
+- `state_snapshots.agent_id â†’ agents.id ON DELETE CASCADE`
 
 ### 4.5 Fix type mismatches
 
-- `plugins.wasm_bytes`: PG migration `BYTEA` vs Drizzle `text` — add comment acknowledging
-- `plugin_receipts.fuel_used`: SQLite schema uses `integer` (32-bit) — change to `text` for 64-bit WASM fuel
-- `federated_memory_proofs.embedding`: uses `jsonb`/`text` — change to `real('embedding').array()` to match other tables
-- `dev-schema.ts apiKeys.scopes`: missing `.default([])` — add it
+- `plugins.wasm_bytes`: PG migration `BYTEA` vs Drizzle `text` â€” add comment acknowledging
+- `plugin_receipts.fuel_used`: SQLite schema uses `integer` (32-bit) â€” change to `text` for 64-bit WASM fuel
+- `federated_memory_proofs.embedding`: uses `jsonb`/`text` â€” change to `real('embedding').array()` to match other tables
+- `dev-schema.ts apiKeys.scopes`: missing `.default([])` â€” add it
 
 ### 4.6 Add GIN indexes
 
@@ -258,7 +260,7 @@ Add to ALL enum-like columns. Minimum: `memories.kind`, `agents.kind`, `agents.s
 
 ### 4.7 Add FTS5 for skills and notes in SQLite
 
-**File:** `server/src/db/client.ts` — currently creates FTS5 only for `memories`. Add equivalent virtual tables and triggers for `skills` and `notes`.
+**File:** `server/src/db/client.ts` â€” currently creates FTS5 only for `memories`. Add equivalent virtual tables and triggers for `skills` and `notes`.
 
 ### 4.8 Unify migration systems
 
@@ -270,25 +272,25 @@ Generate a Drizzle migration for V3 tables. Create `server/src/db/migrations/REA
 
 ### 5.1 Gate vite-plugin-singlefile
 
-**CREATE** `vite.config.standalone.ts` — normal build without singlefile (code splitting enabled, separate vendor chunks for react, motion, xyflow, tanstack).
-**MODIFY** `vite.config.ts` — keep as-is but REMOVE the singlefile plugin import.
-**MODIFY** `package.json` — add `"build:standalone": "vite build --config vite.config.standalone.ts"`.
+**CREATE** `vite.config.standalone.ts` â€” normal build without singlefile (code splitting enabled, separate vendor chunks for react, motion, xyflow, tanstack).
+**MODIFY** `vite.config.ts` â€” keep as-is but REMOVE the singlefile plugin import.
+**MODIFY** `package.json` â€” add `"build:standalone": "vite build --config vite.config.standalone.ts"`.
 **Verify:** `npx vite build` produces 5+ chunk files in `dist/assets/`.
 
 ### 5.2 Connect frontend to backend API
 
-**CREATE** `src/lib/api-client.ts` — typed fetch wrapper for all Hono REST endpoints.
-**CREATE** `src/lib/store-cache.ts` — observable in-memory cache populated via API calls.
-**MODIFY** `src/store.ts` — delegate to `api-client.ts` instead of localStorage + `engine.ts`.
+**CREATE** `src/lib/api-client.ts` â€” typed fetch wrapper for all Hono REST endpoints.
+**CREATE** `src/lib/store-cache.ts` â€” observable in-memory cache populated via API calls.
+**MODIFY** `src/store.ts` â€” delegate to `api-client.ts` instead of localStorage + `engine.ts`.
 **Export:** `hydrateFromApi()` called on app mount; every CRUD operation calls API then updates local cache.
 **Verify:** `grep -rn 'localStorage' src/store.ts src/lib/store-cache.ts src/lib/api-client.ts` returns 0.
 
 ### 5.3 Add React Router with lazy routes
 
 **Install:** `react-router-dom`.
-**CREATE** `src/router.tsx` — `createBrowserRouter` with paths for ALL 21+ pages, each wrapped in `<ErrorBoundary><Suspense>`.
-**MODIFY** `src/main.tsx` — replace `<App>` with `<RouterProvider router={router} />`.
-**MODIFY** `src/components/Shell.tsx` — use `useLocation()`, `useNavigate()`, `<Outlet>` instead of `useState<PageId>`. Add `aria-current="page"` to active nav items. Add skip-to-content link.
+**CREATE** `src/router.tsx` â€” `createBrowserRouter` with paths for ALL 21+ pages, each wrapped in `<ErrorBoundary><Suspense>`.
+**MODIFY** `src/main.tsx` â€” replace `<App>` with `<RouterProvider router={router} />`.
+**MODIFY** `src/components/Shell.tsx` â€” use `useLocation()`, `useNavigate()`, `<Outlet>` instead of `useState<PageId>`. Add `aria-current="page"` to active nav items. Add skip-to-content link.
 **Verify:** `curl -s http://localhost:1422/memories` returns the Memories page (not 404).
 
 ### 5.4 Add React.memo to card components
@@ -301,7 +303,7 @@ Add `useMemories()`, `useSkills()`, `useProjects()`, `useAudit()` that subscribe
 
 ### 5.6 Extract DataList shared component
 
-**CREATE** `src/components/DataList.tsx` — generic CRUD list with search, filter, card grid, modal form. Refactor Memories.tsx (140→60 lines) and Skills.tsx (121→50 lines) to use it.
+**CREATE** `src/components/DataList.tsx` â€” generic CRUD list with search, filter, card grid, modal form. Refactor Memories.tsx (140â†’60 lines) and Skills.tsx (121â†’50 lines) to use it.
 
 ### 5.7 Per-page error boundaries
 
@@ -310,7 +312,7 @@ Each `<Route>` already wraps in `<ErrorBoundary>` from step 5.3. Verify that a c
 ### 5.8 Focus management + reduced motion
 
 - `Shell.tsx`: skip-to-content link, focus `<main>` on page change, `aria-current="page"`
-- `index.css`: `@media (prefers-reduced-motion: reduce)` — disable all animations
+- `index.css`: `@media (prefers-reduced-motion: reduce)` â€” disable all animations
 - `FluidBackground.tsx`: return null when reduced motion
 - `EventTicker.tsx`: disable scroll animation
 
@@ -320,7 +322,7 @@ Each `<Route>` already wraps in `<ErrorBoundary>` from step 5.3. Verify that a c
 
 ### 6.1 Introduce DI container
 
-**CREATE** `server/src/lib/container.ts` — zero-dependency Container class with `register<T>()`, `resolve<T>()`, `reset()`. Singleton lazily instantiated.
+**CREATE** `server/src/lib/container.ts` â€” zero-dependency Container class with `register<T>()`, `resolve<T>()`, `reset()`. Singleton lazily instantiated.
 Register at bootstrap in `server/src/index.ts`: `db`, `messageBus`, `scheduler`, `traceProvider`, `metricsRegistry`, `desktopActuator`, `mcpRegistry`.
 Migrate each singleton from `let _instance` + `getX()` pattern to `container.resolve<T>('token')`.
 **Verify:** `grep -rn 'let _instance' server/src/services/` returns 0.
@@ -332,21 +334,21 @@ Migrate each singleton from `let _instance` + `getX()` pattern to `container.res
 
 ### 6.3 Replace poll-based task worker
 
-**CREATE** `server/src/services/task-notifier.ts` — Postgres `LISTEN/NOTIFY` based wake mechanism.
-**CREATE** `server/src/db/migrations/0003_task_notify.sql` — DB trigger `notify_task_queued()` on `agent_tasks` INSERT.
-**MODIFY** `task-worker.ts` — replace `setInterval` poll with notification-driven wake. Keep a 30s fallback poll as safety net.
-**Wire** into `kernel.ts` — call `notifyTaskQueued(task.id)` in `enqueueTask()`.
+**CREATE** `server/src/services/task-notifier.ts` â€” Postgres `LISTEN/NOTIFY` based wake mechanism.
+**CREATE** `server/src/db/migrations/0003_task_notify.sql` â€” DB trigger `notify_task_queued()` on `agent_tasks` INSERT.
+**MODIFY** `task-worker.ts` â€” replace `setInterval` poll with notification-driven wake. Keep a 30s fallback poll as safety net.
+**Wire** into `kernel.ts` â€” call `notifyTaskQueued(task.id)` in `enqueueTask()`.
 
 ### 6.4 Implement proper Saga Orchestrator
 
-**MODIFY** `server/src/services/agent-dag.ts` — replace compensation section with proper saga state machine.
-States: `pending → active → compensating → completed | failed`.
+**MODIFY** `server/src/services/agent-dag.ts` â€” replace compensation section with proper saga state machine.
+States: `pending â†’ active â†’ compensating â†’ completed | failed`.
 Execute compensations in REVERSE topological order.
 Replace generic `runAgent()` compensation with targeted service-layer rollback functions.
 
 ### 6.5 Add business operation metrics
 
-**File:** `server/src/services/metrics.ts` — add 6 new Prometheus metrics:
+**File:** `server/src/services/metrics.ts` â€” add 6 new Prometheus metrics:
 
 - `nexus_recall_latency_seconds` (histogram, labels: mode, status)
 - `nexus_recall_result_count` (histogram, labels: mode)
@@ -364,7 +366,7 @@ Replace generic `runAgent()` compensation with targeted service-layer rollback f
 
 ### 7.1 Delete stub crates
 
-**File:** `Cargo.toml` — remove `installer`, `safety`, `cli`, `observability` from `members`.
+**File:** `Cargo.toml` â€” remove `installer`, `safety`, `cli`, `observability` from `members`.
 **Disk:** `Remove-Item -Recurse -Force crates/installer crates/safety crates/cli crates/observability`
 **Verify:** `cargo check --workspace` compiles clean.
 
@@ -375,18 +377,18 @@ Remove from `Cargo.toml` `[workspace.dependencies]`: `ratatui`, `crossterm`, `ru
 
 ### 7.3 Create workspace README
 
-**CREATE** `crates/README.md` — document status, preserved crates, deleted crates, future integration path.
+**CREATE** `crates/README.md` â€” document status, preserved crates, deleted crates, future integration path.
 
 ### 7.4 Fix ts-rs codegen
 
-**File:** `crates/core/src/types.rs` — add `#[derive(TS)]` to `ProviderKind`, `ModelId`, `Message`, `MessageRole`, `Session`, `ProviderConfig`.
+**File:** `crates/core/src/types.rs` â€” add `#[derive(TS)]` to `ProviderKind`, `ModelId`, `Message`, `MessageRole`, `Session`, `ProviderConfig`.
 **Verify:** `cargo build -p agentic-os-core --features ts-rs` generates TS bindings.
 
 ### 7.5 Update docs
 
-- `CLAUDE.md` — update Rust section to say "5 crates preserved after P1-02 decommissioning"
-- `README.md` — update Phase 9 reference
-- `TASKBOARD.md` — mark P1-02 as completed `[x]`
+- `CLAUDE.md` â€” update Rust section to say "5 crates preserved after P1-02 decommissioning"
+- `README.md` â€” update Phase 9 reference
+- `TASKBOARD.md` â€” mark P1-02 as completed `[x]`
 
 ---
 
@@ -394,57 +396,57 @@ Remove from `Cargo.toml` `[workspace.dependencies]`: `ratatui`, `crossterm`, `ru
 
 Write hard minimums. Test files are new unless marked EXISTING.
 
-### 8.1 Kernel tests (NEW — 40+ cases)
+### 8.1 Kernel tests (NEW â€” 40+ cases)
 
 **File:** `server/tests/services/kernel.test.ts`
 Cover: spawnAgent with ring enforcement, privilege escalation denial, getAgent, listAgents, updateAgentState, pause/resume/terminate/quarantine, incrementTokenUsage, enqueueTask with idempotency, pickNextTask with starvation, failTask with retry + dead-letter, completeTask, checkACL at all rings, authorizeToolCall (allowed/denied/quarantined), recoverAgentProcesses, schedulerStatus.
 Use `createTestDb` from helpers. Mock `appendAudit` with `vi.fn()`.
 
-### 8.2 LLM Gateway tests (NEW — 20+ cases)
+### 8.2 LLM Gateway tests (NEW â€” 20+ cases)
 
 **File:** `server/tests/services/llm-gateway-v2.test.ts`
 Cover: pickProvider (force/preferred/fallback/none), canCallProvider (closed/open/half_open states), recordSuccess (threshold to closed), recordFailure (threshold to open), chargeBudget (within/exceeded/expired/hard_kill), setBudget, killSession, estimateTokens, callLLMGateway with OmniRoute fallback.
 Mock all provider adapters. Do NOT make real HTTP calls.
 
-### 8.3 Agent Runtime tests (NEW — 20+ cases)
+### 8.3 Agent Runtime tests (NEW â€” 20+ cases)
 
 **File:** `server/tests/services/agent-runtime.test.ts`
 Cover: ActionRegistry register/unregister/find/fuzzyFind/execute, schema validation, timeout, AgentRuntime constructor (default actions), validateAction, getAvailableActions, buildSystemPrompt, saveAgentProcessState, loadAgentProcessState, runAgent with finish tool.
 Use `mock-llm.ts` helper.
 
-### 8.4 Recall tests (NEW — 12+ cases)
+### 8.4 Recall tests (NEW â€” 12+ cases)
 
 **File:** `server/tests/services/recall.test.ts`
 Cover: empty corpus, BM25-only, semantic mode, RRF fusion boost, importance weighting, recency weighting, feedback bonus, token budget packing, cursor pagination, FTS5 SQLite fallback, corpus proportional limits, token ledger side effects.
 Create inline test data via `createTestDb`.
 
-### 8.5 Embeddings tests (NEW — 10+ cases)
+### 8.5 Embeddings tests (NEW â€” 10+ cases)
 
 **File:** `server/tests/services/embeddings.test.ts`
 Cover: available check (no provider/with provider), rebuildEmbeddings (no provider/when done/dimension mismatch/API error/success), embedQuery (no provider/success/failure).
 
-### 8.6 Brain tests (NEW — 10+ cases)
+### 8.6 Brain tests (NEW â€” 10+ cases)
 
 **File:** `server/tests/services/brain.test.ts`
 Cover: exportBrain, importBrain (valid/duplicate/invalid schema/empty arrays), compressBrain (prunable/non-prunable).
 
-### 8.7 Scheduler tests (NEW — 20+ cases)
+### 8.7 Scheduler tests (NEW â€” 20+ cases)
 
 **File:** `server/tests/services/scheduler.test.ts`
 Cover: CronParser (valid/invalid/multiple/matches), scheduleJob (valid/invalid cron), cancelJob (existing/nonexistent), tick (no due/one due), runWithRetry (success/exhausted), triggerEvent (matching/no matching), stop/start idempotency, singleton pattern.
 Use `vi.useFakeTimers()`.
 
-### 8.8 SSE Bus tests (NEW — 6+ cases)
+### 8.8 SSE Bus tests (NEW â€” 6+ cases)
 
 **File:** `server/tests/services/sse-bus.test.ts`
 Cover: add/remove client, broadcast to all, writer removal on error, empty set, message format.
 
 ### 8.9 Lib tests (NEW)
 
-**File:** `server/tests/lib/errors.test.ts` (10+ cases) — ApiError construction, statusForCode for ALL codes.
-**File:** `server/tests/lib/auth-context.test.ts` (10+ cases) — parse, safeJson, fail, resolvePrincipal, requireScope.
-**File:** `server/tests/lib/envelope.test.ts` (14+ cases) — ok, err, statusForCode for ALL codes.
-**File:** `server/tests/lib/security-headers.test.ts` (8+ cases) — dev vs production HSTS, CSP structure, all required headers.
+**File:** `server/tests/lib/errors.test.ts` (10+ cases) â€” ApiError construction, statusForCode for ALL codes.
+**File:** `server/tests/lib/auth-context.test.ts` (10+ cases) â€” parse, safeJson, fail, resolvePrincipal, requireScope.
+**File:** `server/tests/lib/envelope.test.ts` (14+ cases) â€” ok, err, statusForCode for ALL codes.
+**File:** `server/tests/lib/security-headers.test.ts` (8+ cases) â€” dev vs production HSTS, CSP structure, all required headers.
 
 ### 8.10 Route tests (NEW)
 
@@ -462,7 +464,7 @@ Scenarios 4, 6, 10 are trivial string/boolean assertions. Either implement real 
 
 ### 8.12 Enable coverage
 
-**File:** `server/vitest.config.ts` — add:
+**File:** `server/vitest.config.ts` â€” add:
 
 ```ts
 coverage: {
@@ -480,11 +482,11 @@ Remove ALL `try/catch` silent swallowing in `server/tests/health.test.ts`. Use `
 
 ### 8.14 Add migration tests
 
-**File:** `server/tests/migration.test.ts` — verify SQL migration creates all expected tables.
+**File:** `server/tests/migration.test.ts` â€” verify SQL migration creates all expected tables.
 
 ### 8.15 Add test:rust script
 
-**File:** root `package.json` — add `"test:rust": "cargo test --workspace"`.
+**File:** root `package.json` â€” add `"test:rust": "cargo test --workspace"`.
 
 ---
 
@@ -497,21 +499,21 @@ Replace `npm ci || npm install` with `test -f package-lock.json || (echo "FATAL:
 
 ### 9.2 Add HTTPS to nginx.conf
 
-**File:** `nginx.conf` — add `listen 443 ssl`, self-signed or env-var-based cert paths, HTTP→HTTPS redirect.
+**File:** `nginx.conf` â€” add `listen 443 ssl`, self-signed or env-var-based cert paths, HTTPâ†’HTTPS redirect.
 
 ### 9.3 Add Docker build+push to CI
 
-**File:** `.github/workflows/ci.yml` — append `docker-build-push` job. Push to GHCR with `git sha` and `latest` tags.
+**File:** `.github/workflows/ci.yml` â€” append `docker-build-push` job. Push to GHCR with `git sha` and `latest` tags.
 
 ### 9.4 Add integration tests to CI
 
-**File:** `.github/workflows/ci.yml` — add `integration-tests` job with pgvector/pgvector:pg16 service container.
+**File:** `.github/workflows/ci.yml` â€” add `integration-tests` job with pgvector/pgvector:pg16 service container.
 
 ### 9.5 Fix Husky hooks
 
-- **CREATE** `.husky/pre-push` — run `pnpm run validate`
-- **VERIFY** `.husky/pre-commit` — run `npx lint-staged`
-- **MODIFY** `.lintstagedrc` — add `eslint --fix --max-warnings 0` before `prettier --write` for `*.{ts,tsx}`.
+- **CREATE** `.husky/pre-push` â€” run `pnpm run validate`
+- **VERIFY** `.husky/pre-commit` â€” run `npx lint-staged`
+- **MODIFY** `.lintstagedrc` â€” add `eslint --fix --max-warnings 0` before `prettier --write` for `*.{ts,tsx}`.
 
 ### 9.6 Remove hardcoded secrets
 
@@ -520,37 +522,37 @@ Replace hardcoded `POSTGRES_PASSWORD: nexus_password` with `${POSTGRES_PASSWORD:
 
 ### 9.7 Add deployment workflow
 
-**CREATE** `.github/workflows/deploy.yml` — on tag push `v*`, build and push to GHCR, deploy via SSH.
+**CREATE** `.github/workflows/deploy.yml` â€” on tag push `v*`, build and push to GHCR, deploy via SSH.
 
 ### 9.8 Add production compose overrides
 
-**CREATE** `docker-compose.prod.yml` — TLS certs, json-file logging with rotation, resource limits, health checks, restart policies.
+**CREATE** `docker-compose.prod.yml` â€” TLS certs, json-file logging with rotation, resource limits, health checks, restart policies.
 
 ### 9.9 Fix format script
 
-**File:** `package.json:17` — change to `"format": "prettier --write '**/*.{ts,tsx,json,yaml,yml,md,css}'"`.
+**File:** `package.json:17` â€” change to `"format": "prettier --write '**/*.{ts,tsx,json,yaml,yml,md,css}'"`.
 
 ### 9.10 Add clean script
 
-**File:** `package.json` — add `"clean": "pnpm -r exec -- rm -rf dist coverage *.tsbuildinfo"`.
+**File:** `package.json` â€” add `"clean": "pnpm -r exec -- rm -rf dist coverage *.tsbuildinfo"`.
 
 ### 9.11 Fix .gitignore
 
-**File:** `.gitignore:84` — remove `Dockerfile.frontend` entry (it's a tracked file).
+**File:** `.gitignore:84` â€” remove `Dockerfile.frontend` entry (it's a tracked file).
 
 ### 9.12 Add security scanning
 
-**File:** `.github/workflows/ci.yml` — add `security-scan` job with `github/codeql-action`.
+**File:** `.github/workflows/ci.yml` â€” add `security-scan` job with `github/codeql-action`.
 
 ### 9.13 Add monitoring stack
 
-**CREATE** `docker-compose.monitoring.yml` — Prometheus + Grafana + Loki.
-**CREATE** `docs/monitoring/prometheus.yml` — scrape config for nexus server.
-**CREATE** `docs/monitoring/grafana-dashboard.json` — RED metrics for HTTP, LLM, DB, Cache (12 panels).
+**CREATE** `docker-compose.monitoring.yml` â€” Prometheus + Grafana + Loki.
+**CREATE** `docs/monitoring/prometheus.yml` â€” scrape config for nexus server.
+**CREATE** `docs/monitoring/grafana-dashboard.json` â€” RED metrics for HTTP, LLM, DB, Cache (12 panels).
 
 ### 9.14 Pin Dependabot
 
-**File:** `.github/dependabot.yml` — increase `open-pull-requests-limit` to 10, add `groups` for `@opentelemetry/*` and `eslint-*`.
+**File:** `.github/dependabot.yml` â€” increase `open-pull-requests-limit` to 10, add `groups` for `@opentelemetry/*` and `eslint-*`.
 
 ---
 
@@ -558,28 +560,28 @@ Replace hardcoded `POSTGRES_PASSWORD: nexus_password` with `${POSTGRES_PASSWORD:
 
 ### 10.1 Rewrite ARCHITECTURE.md
 
-**File:** `docs/ARCHITECTURE.md` — complete replacement. Use C4 model (Context → Container → Component). List ALL 19 pages, 15 components, 51 services, 6 route modules, 8 middleware layers. Include recall pipeline diagram, ring kernel flow, hash-chained audit flow, MCP and A2A integration points.
+**File:** `docs/ARCHITECTURE.md` â€” complete replacement. Use C4 model (Context â†’ Container â†’ Component). List ALL 19 pages, 15 components, 51 services, 6 route modules, 8 middleware layers. Include recall pipeline diagram, ring kernel flow, hash-chained audit flow, MCP and A2A integration points.
 
 ### 10.2 Rewrite TESTING.md
 
-**File:** `docs/TESTING.md` — complete replacement. Remove "no test runner" lie. Document Vitest config, directory structure, naming conventions, mocking strategy, SQLite isolation, integration prerequisites, CI pipeline, coverage thresholds, test coverage map.
+**File:** `docs/TESTING.md` â€” complete replacement. Remove "no test runner" lie. Document Vitest config, directory structure, naming conventions, mocking strategy, SQLite isolation, integration prerequisites, CI pipeline, coverage thresholds, test coverage map.
 
 ### 10.3 Create ADRs
 
 **CREATE** directory `docs/adr/` with files:
 
-- `0002-database-choice.md` — PostgreSQL + SQLite dual support
-- `0003-mcp-protocol-integration.md` — MCP Streamable HTTP
-- `0004-a2a-protocol.md` — Google A2A protocol
-- `0005-ring-based-kernel.md` — Ring 0–4 privilege model
-- `0006-sandbox-architecture.md` — Worker threads + Docker dual path
-- `0007-rust-typescript-boundary.md` — Current decoupled state
+- `0002-database-choice.md` â€” PostgreSQL + SQLite dual support
+- `0003-mcp-protocol-integration.md` â€” MCP Streamable HTTP
+- `0004-a2a-protocol.md` â€” Google A2A protocol
+- `0005-ring-based-kernel.md` â€” Ring 0â€“4 privilege model
+- `0006-sandbox-architecture.md` â€” Worker threads + Docker dual path
+- `0007-rust-typescript-boundary.md` â€” Current decoupled state
 
 ### 10.4 Create docs
 
-- `docs/PRODUCTION_CHECKLIST.md` — secrets, TLS, proxy, backend, DB, networking, Docker, monitoring, backup, security, DNS
-- `docs/OBSERVABILITY_GUIDE.md` — OTel, Prometheus metrics, Grafana, logging
-- `docs/CONTRIBUTING.md` — verify exists and is accurate
+- `docs/PRODUCTION_CHECKLIST.md` â€” secrets, TLS, proxy, backend, DB, networking, Docker, monitoring, backup, security, DNS
+- `docs/OBSERVABILITY_GUIDE.md` â€” OTel, Prometheus metrics, Grafana, logging
+- `docs/CONTRIBUTING.md` â€” verify exists and is accurate
 
 ### 10.5 Fix remaining docs
 
@@ -689,50 +691,50 @@ echo "=== ALL VALIDATIONS PASSED ==="
 
 ### Files to CREATE
 
-- `server/src/lib/container.ts` — DI container
-- `server/src/lib/format-error.ts` — error formatting utility
-- `server/src/services/memory.service.ts` — memory domain service
-- `server/src/services/skill.service.ts` — skill domain service
-- `server/src/services/project.service.ts` — project domain service
-- `server/src/services/feedback.service.ts` — feedback domain service
-- `server/src/services/safety.service.ts` — kill switch + assertOperational
-- `server/src/services/session.service.ts` — session + kill switch setter
-- `server/src/services/task-notifier.ts` — LISTEN/NOTIFY task wake
-- `server/src/services/sse-bridge.ts` — MessageBus → SSE bridge
-- `server/src/services/action-registry.ts` — from agent-runtime.ts split
-- `server/src/services/agent-loop.ts` — from agent-runtime.ts split
-- `server/src/services/agent-persistence.ts` — from agent-runtime.ts split
-- `server/src/services/span-context.ts` — from tracing.ts split
-- `server/src/services/propagation.ts` — from tracing.ts split
-- `server/src/services/trace-exporter.ts` — from tracing.ts split
-- `server/src/services/sampling.ts` — from tracing.ts split
-- `server/src/db/migrations/0047_audit_log_append_only.sql` — audit trigger
-- `server/src/db/migrations/0047_vector_hnsw_indexes.sql` — HNSW + composite indexes
-- `vite.config.standalone.ts` — standalone build config
-- `src/lib/api-client.ts` — typed REST API client
-- `src/lib/store-cache.ts` — observable API cache
-- `src/router.tsx` — React Router definition
-- `src/components/DataList.tsx` — shared CRUD list
-- `.husky/pre-push` — pre-push validation hook
-- `.github/workflows/deploy.yml` — deployment pipeline
-- `docker-compose.prod.yml` — production overrides
-- `docker-compose.monitoring.yml` — monitoring stack
-- `docs/monitoring/prometheus.yml` — Prometheus scrape config
-- `docs/monitoring/grafana-dashboard.json` — RED metrics dashboard
-- `docs/PRODUCTION_CHECKLIST.md` — production readiness checklist
-- `docs/OBSERVABILITY_GUIDE.md` — monitoring configuration guide
-- `docs/adr/0002-database-choice.md` through `0007-rust-typescript-boundary.md` — 6 ADRs
-- `crates/README.md` — Rust workspace documentation
+- `server/src/lib/container.ts` â€” DI container
+- `server/src/lib/format-error.ts` â€” error formatting utility
+- `server/src/services/memory.service.ts` â€” memory domain service
+- `server/src/services/skill.service.ts` â€” skill domain service
+- `server/src/services/project.service.ts` â€” project domain service
+- `server/src/services/feedback.service.ts` â€” feedback domain service
+- `server/src/services/safety.service.ts` â€” kill switch + assertOperational
+- `server/src/services/session.service.ts` â€” session + kill switch setter
+- `server/src/services/task-notifier.ts` â€” LISTEN/NOTIFY task wake
+- `server/src/services/sse-bridge.ts` â€” MessageBus â†’ SSE bridge
+- `server/src/services/action-registry.ts` â€” from agent-runtime.ts split
+- `server/src/services/agent-loop.ts` â€” from agent-runtime.ts split
+- `server/src/services/agent-persistence.ts` â€” from agent-runtime.ts split
+- `server/src/services/span-context.ts` â€” from tracing.ts split
+- `server/src/services/propagation.ts` â€” from tracing.ts split
+- `server/src/services/trace-exporter.ts` â€” from tracing.ts split
+- `server/src/services/sampling.ts` â€” from tracing.ts split
+- `server/src/db/migrations/0047_audit_log_append_only.sql` â€” audit trigger
+- `server/src/db/migrations/0047_vector_hnsw_indexes.sql` â€” HNSW + composite indexes
+- `vite.config.standalone.ts` â€” standalone build config
+- `src/lib/api-client.ts` â€” typed REST API client
+- `src/lib/store-cache.ts` â€” observable API cache
+- `src/router.tsx` â€” React Router definition
+- `src/components/DataList.tsx` â€” shared CRUD list
+- `.husky/pre-push` â€” pre-push validation hook
+- `.github/workflows/deploy.yml` â€” deployment pipeline
+- `docker-compose.prod.yml` â€” production overrides
+- `docker-compose.monitoring.yml` â€” monitoring stack
+- `docs/monitoring/prometheus.yml` â€” Prometheus scrape config
+- `docs/monitoring/grafana-dashboard.json` â€” RED metrics dashboard
+- `docs/PRODUCTION_CHECKLIST.md` â€” production readiness checklist
+- `docs/OBSERVABILITY_GUIDE.md` â€” monitoring configuration guide
+- `docs/adr/0002-database-choice.md` through `0007-rust-typescript-boundary.md` â€” 6 ADRs
+- `crates/README.md` â€” Rust workspace documentation
 - All 15+ test files listed in Phase 8
 
 ### Files to DELETE
 
 - `server/src/lib/protocol-integration.ts` (142 lines of dead code)
-- `server/src/services.ts` (505 lines — replaced by domain modules)
-- `crates/installer/` (entire directory — 5 stub files)
-- `crates/safety/` (entire directory — 4 stub files)
-- `crates/cli/` (entire directory — 6 stub files)
-- `crates/observability/` (entire directory — 1 stub file)
+- `server/src/services.ts` (505 lines â€” replaced by domain modules)
+- `crates/installer/` (entire directory â€” 5 stub files)
+- `crates/safety/` (entire directory â€” 4 stub files)
+- `crates/cli/` (entire directory â€” 6 stub files)
+- `crates/observability/` (entire directory â€” 1 stub file)
 
 ---
 
