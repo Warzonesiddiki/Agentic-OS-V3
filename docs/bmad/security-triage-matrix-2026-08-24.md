@@ -17,14 +17,15 @@
 | SEC-08 | Release gate incomplete: clean-machine drill, rollback plan, down migrations absent (CC §1.8) | **High** | n/a — operational risk | DB/R1 boundary + Artisan | 🔴 OPEN → WS3/WS4 | Migrations 0049–0054 are forward-only pairs; entire rollback dimension must be authored + drilled |
 | SEC-09 | Production dependency advisories incl. high `fast-uri@3.1.3` (CC §1.9; re-audited 2026-08-24) | **High** | Medium — SSRF/host-confusion surface | Bastion/Sentinel | 🔶 FIXES DECLARED, VERIFICATION PENDING | `ab38fb7`: hono ^4.12.34, fast-uri ^3.1.5 override, ip-address ^10.3.1 override; clean re-audit required after lockfile regen |
 | SEC-10 | BMAD scores/status documents conflict (94/98/100) (CC §1.10) | Moderate | n/a — governance trust | Lorekeeper | ✅ REMEDIATED | WS7 passes 1–2 (`b82aa6f`, `899769c`): primary guidance corrected; 14 campaign reports bannered superseded; single authority = Gate-0 baseline + ratified plan |
-| SEC-11 | Federated peer signature literal `'placeholder'` (`federated-node-discovery.ts:237`, "Would be Ed25519") | Moderate | Medium — peer spoofing IF federated mode enabled | Helix/Mnemosyne | 🔴 OPEN — DECISION REQUIRED | Recommend: R1 ships federated discovery **disabled by default** behind an explicit flag + README note; Ed25519 signing implemented post-R1. Leader ratification needed (tracked on board) |
-| SEC-12 | `Sessions.tsx:8` TODO — rate-limit recall endpoint before public exposure | Low-Medium | Medium if dashboard exposed publicly | Prism/Sentinel | 🔴 OPEN | Either add rate-limit wiring to recall route (small, Sentinel namespace) or document local-only exposure limit for R1 |
+| SEC-11 | Federated peer signature literal `'placeholder'` (`federated-node-discovery.ts:237`, "Would be Ed25519") | Moderate | **Unreachable** — repo-wide grep shows zero importers of the module; not instantiated by any route/service | Helix/Mnemosyne | 🔶 MITIGATED-BY-DISCONNECT | Module is unwired in R1 (verified 2026-08-24). Standing rule: wiring it REQUIRES Ed25519 peer signing first (post-R1 item); until then any PR importing this module fails review |
+| SEC-12 | `Sessions.tsx:8` TODO — rate-limit recall endpoint before public exposure | Low-Medium | Covered — `app.ts:87` applies global `rateLimit` middleware (`app.use('*')`) to every `/api/v1/*` route incl. `/recall`; configurable via `NEXUS_RATE_LIMIT_PER_MINUTE` | Prism/Sentinel | ✅ REMEDIATED (already enforced at app level) | Evidence: server/src/app.ts:87, proxy.ts rateLimit implementation; TODO comment in Sessions.tsx is stale relative to app-level control — cleanup rides with WS8 UI pass |
 
 ## Disposition summary
 
-- ✅ Remediated with evidence: SEC-01, SEC-02, SEC-10
+- ✅ Remediated with evidence: SEC-01, SEC-02, SEC-10, SEC-12
 - 🔶 Declared, awaiting verification run: SEC-09
+- 🔶 Mitigated by disconnect (unwired module; wiring requires Ed25519 signing first): SEC-11
 - ⏳ Claimed-fixed upstream, verification owed: SEC-03, SEC-04, SEC-05
-- 🔴 Open, scheduled: SEC-06/07 (→ WS8), SEC-08 (→ WS3/WS4), SEC-11/SEC-12 (decision or small fix, this week)
+- 🔴 Open, scheduled: SEC-06/07 (→ WS8), SEC-08 (→ WS3/WS4)
 
-Gate-0 exit requires: every ⏳ row converted to ✅/🔴 with rerun evidence; SEC-11/12 dispositioned; then E10-S30 independent review of this matrix + ledger.
+Gate-0 exit requires: every ⏳ row converted to ✅/🔴 with rerun evidence; then E10-S30 independent review of this matrix + ledger.
