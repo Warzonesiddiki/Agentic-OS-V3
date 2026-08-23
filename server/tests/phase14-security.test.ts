@@ -4,8 +4,13 @@
  */
 import { describe, it, expect, beforeAll, vi } from 'vitest';
 
-// Set HSM key before any env-caching module loads
-process.env.HSM_LOCAL_KEY = Buffer.alloc(32, 7).toString('base64');
+// Set HSM key before any env-caching module loads. Static ESM imports are
+// hoisted above plain statements, so this must run via vi.hoisted to execute
+// before module evaluation (lib/env.ts caches a parsed env snapshot on first
+// getEnv(), and hsm-provider caches that snapshot into its own config).
+vi.hoisted(() => {
+  process.env.HSM_LOCAL_KEY = Buffer.alloc(32, 7).toString('base64');
+});
 
 vi.mock('../src/db/client.js', () => ({ db: {}, systemMeta: {}, auditLog: {} }));
 vi.mock('../src/lib/audit.js', () => ({
@@ -199,7 +204,8 @@ describe('jit-elevation', () => {
     expect(() => requestElevation('p', 'x', '')).toThrow(/justification/);
   });
   it('purges expired', () => {
-    requestElevation('p', 'x', 'ok', -1);
+    // Product contract (jit-elevation.ts): justification must be >= 4 chars.
+    requestElevation('p', 'x', 'ops incident', -1);
     expect(purgeExpired()).toBeGreaterThanOrEqual(1);
   });
 });
@@ -220,8 +226,22 @@ describe('rate-limit.service', () => {
     configurePolicy({ key: 'test:u1', cap: 2, refillPerSec: 1000 });
     expect(check('test:u1').allowed).toBe(true);
     expect(check('test:u1').allowed).toBe(true);
-    expect(check('test:u1').allowed).toBe(false);
-    expect(() => guard('test:u1')).toThrow(/RATE_LIMITED/);
+    // With refillPerSec=1000 the bucket re-fills between millisecond-spaced
+    // unit-test calls, so exhaustion is asserted with one large cost that cap
+    // plus any plausible refill cannot cover — deterministic, still proves
+    // that limiting actually denies.
+    const denied = check('test:u1', 20);
+    expect(denied.allowed).toBe(false);
+    expect(denied.retryAfterMs).toBeGreaterThan(0);
+    // guard throws ApiError(code='RATE_LIMITED'); the code rides the .code
+    // property (lib/errors.ts), not the message text.
+    try {
+      guard('test:u1');
+      expect.unreachable('guard must throw when the bucket is exhausted');
+    } catch (e) {
+      expect((e as { code?: string }).code).toBe('RATE_LIMITED');
+      expect((e as { status?: number }).status).toBe(429);
+    }
   });
 });
 
@@ -229,7 +249,9 @@ describe('data-classification', () => {
   it('classifies by sensitivity', () => {
     expect(classify('social security number 123-45-6789')).toBe('restricted');
     expect(classify('contact email@x.com')).toBe('confidential');
-    expect(classify('public roadmap draft')).toBe('internal');
+    // The engine is pattern-based (DEFAULT_RULES); the 'internal' tier is
+    // reached via the ip_address rule, not free-text keywords.
+    expect(classify('gateway 192.168.1.7 reachable')).toBe('internal');
     expect(classify('hello world')).toBe('public');
     expect(requiredControls('restricted')).toContain('encrypt-at-rest');
   });
@@ -329,14 +351,11 @@ describe('incident-response', () => {
 
 describe('probe-harness', () => {
   it('runs registered probes', async () => {
-    registerProbe('unit_probe', () => ({
-      probe: 'unit_probe',
-      status: 'pass',
-      detail: 'ok',
-      ts: Date.now(),
-    }));
+    // Current API (probe-harness.ts): registerProbe(Probe | {id, fn}), and a
+    // ProbeFn reports {ok, message}. Results carry status 'ok' when ok=true.
+    registerProbe({ id: 'unit_probe', fn: () => ({ ok: true, message: 'ok' }) });
     const results = await runAllProbes();
-    expect(results.some((r) => r.probe === 'unit_probe' && r.status === 'pass')).toBe(true);
+    expect(results.some((r) => r.probe === 'unit_probe' && r.status === 'ok')).toBe(true);
   });
 });
 

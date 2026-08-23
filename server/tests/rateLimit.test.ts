@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, afterAll } from "vitest";
 
 process.env.DATABASE_URL ??= "postgres://p:pass@localhost:5432/nexus_test";
 process.env.NODE_ENV ??= "test";
 process.env.NEXUS_RATE_LIMIT_PER_MINUTE ??= "60";
 
 import { consume, clientIpFromHeaders } from "../src/lib/rate-limit.js";
+import { resetEnv } from "../src/lib/env.js";
 
 describe("rate limiter — token bucket", () => {
   it("allows requests within budget", async () => {
@@ -27,6 +28,21 @@ describe("rate limiter — token bucket", () => {
 });
 
 describe("rate limiter — client IP extraction", () => {
+  // lib/rate-limit.ts only honors X-Forwarded-For when NEXUS_TRUST_PROXY=true
+  // (anti-forgery gate: an untrusted client must not rotate its rate-limit
+  // identity via headers). Toggle the flag + reset the cached env per case.
+  const prevTrust = process.env.NEXUS_TRUST_PROXY;
+  afterAll(() => {
+    if (prevTrust === undefined) delete process.env.NEXUS_TRUST_PROXY;
+    else process.env.NEXUS_TRUST_PROXY = prevTrust;
+    resetEnv();
+  });
+
+  function withTrust(value: string): void {
+    process.env.NEXUS_TRUST_PROXY = value;
+    resetEnv();
+  }
+
   it("returns fallback when no headers", () => {
     const ip = clientIpFromHeaders({}, "192.168.1.1");
     expect(ip).toBe("192.168.1.1");
@@ -37,12 +53,20 @@ describe("rate limiter — client IP extraction", () => {
     expect(ip).toBe("unknown");
   });
 
-  it("uses x-forwarded-for header", () => {
+  it("ignores x-forwarded-for when proxy is not trusted (anti-forgery)", () => {
+    withTrust("false");
+    const ip = clientIpFromHeaders({ "x-forwarded-for": "1.2.3.4, 5.6.7.8" }, "10.0.0.1");
+    expect(ip).toBe("10.0.0.1");
+  });
+
+  it("uses x-forwarded-for header when proxy is trusted", () => {
+    withTrust("true");
     const ip = clientIpFromHeaders({ "x-forwarded-for": "1.2.3.4, 5.6.7.8" }, "10.0.0.1");
     expect(ip).toBe("1.2.3.4");
   });
 
-  it("handles array x-forwarded-for", () => {
+  it("handles array x-forwarded-for when proxy is trusted", () => {
+    withTrust("true");
     const ip = clientIpFromHeaders({ "x-forwarded-for": ["3.3.3.3", "4.4.4.4"] }, "10.0.0.1");
     expect(ip).toBe("3.3.3.3");
   });
