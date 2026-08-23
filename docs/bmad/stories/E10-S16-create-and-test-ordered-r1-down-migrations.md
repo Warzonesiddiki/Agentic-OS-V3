@@ -53,6 +53,12 @@ As a release engineer, I need ordered destructive-data-aware down migrations for
 
 This story remains `in_progress`, `review`, or `blocked` until every acceptance criterion has passing, retained evidence and an adversarial review. It may not be marked `done` by the author or used to advance the R1 release decision.
 
+## Evidence (2026-08-24)
+
+- Full down-chain authored for both engines: `server/src/db/migrations/down/0049…0054 *.down(.sqlite).sql` + convention README with drill procedure (commits `d8db0e8`, `c17fde7`, `4ca11a8`).
+- Safety verification: runtime runner (`setup.ts runMigrations`) is drizzle-kit forward-only against `server/drizzle/`; all consumers of `src/db/migrations/` use explicit file paths — no glob can execute `down/` accidentally.
+- Remaining for this story's DoD: execute the forward/rollback/restore matrix per the procedure and retain per-step transcripts (blocked only on WS1 green → CI availability).
+
 ## References
 
 - `docs/bmad/baseline-2026-07-24-gate0.md`

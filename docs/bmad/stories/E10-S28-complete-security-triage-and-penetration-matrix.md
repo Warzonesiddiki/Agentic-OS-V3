@@ -53,6 +53,13 @@ As a security decision maker, I need a formal finding matrix and retest evidence
 
 This story remains `in_progress`, `review`, or `blocked` until every acceptance criterion has passing, retained evidence and an adversarial review. It may not be marked `done` by the author or used to advance the R1 release decision.
 
+## Evidence (2026-08-24)
+
+- Triage matrix authored and committed: `docs/bmad/security-triage-matrix-2026-08-24.md` (`668c925`, `695bb20`, `8b3132b`) — 12 findings from the Correct-Course audit + honesty-debt scan, each with severity, exploitability, owner, status, evidence pointer.
+- Dispositions: 6 remediated-with-evidence · 1 declared-pending-re-audit (SEC-09) · 1 mitigated-by-disconnect (SEC-11, unwired module verified by repo-wide grep) · 1 pending upstream verification (SEC-04) · 2 open mapped to WS8/WS3.
+- Reviewer: independent stateless E10-S30 agent per decision D2; brief at `docs/bmad/releases/evidence/reviews/E10-S30-reviewer-brief.md`; signs at Gate-0 exit.
+- Remaining for DoD: SEC-04 conversion at next full-suite rerun; adversarial review of the matrix itself by E10-S30.
+
 ## References
 
 - `docs/bmad/baseline-2026-07-24-gate0.md`

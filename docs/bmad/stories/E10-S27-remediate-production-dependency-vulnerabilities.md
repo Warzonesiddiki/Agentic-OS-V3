@@ -53,6 +53,13 @@ As a deployer, I need production dependency advisories remediated or formally mi
 
 This story remains `in_progress`, `review`, or `blocked` until every acceptance criterion has passing, retained evidence and an adversarial review. It may not be marked `done` by the author or used to advance the R1 release decision.
 
+## Evidence (2026-08-24)
+
+- Preliminary audit retained: `docs/bmad/releases/evidence/2026-08-24-ws2-pnpm-audit-prod-preliminary.txt` (2 high, 5 moderate, 1 low).
+- Fixes declared commit `ab38fb7`: hono `^4.6.14`→`^4.12.34` (direct), fast-uri override `^3.1.4`→`^3.1.5`, new ip-address override `^10.3.1`.
+- **Verification:** after lockfile regen, `pnpm audit --prod` → exit 0, "No known vulnerabilities found" (`1178750`). Proof: `docs/bmad/releases/evidence/2026-08-24-ws2-audit-clean.md`. Server true-gate typecheck re-run post-bump: exit 0.
+- Adversarial review: owed to E10-S30 at Gate-0 exit (this note is implementation evidence, not the review).
+
 ## References
 
 - `docs/bmad/baseline-2026-07-24-gate0.md`
