@@ -1,0 +1,122 @@
+﻿FILE: tests/a2a.test.ts
+  ERR: Error: [vitest] No "createApplicationSqlExecutor" export is defined on the "../src/db/client.js" mock. Did you forget to
+FILE: tests/memory-storage.test.ts
+  ERR: Error: No test suite found in file C:/Users/Tahir/Documents/GitHub/Agentic-OS-V3/server/tests/memory-storage.test.ts
+FILE: tests/plugin-manifest.test.ts
+FILE: tests/project.service.test.ts
+  ERR: Error: [vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top
+FILE: tests/sse-bridge.test.ts
+  ERR: Error: [vitest] There was an error when mocking a module. If you are using "vi.mock" factory, make sure there are no top
+FILE: tests/services/feedback.service.test.ts
+  ERR: Error: Cannot find module '../services/feedback.service.js' imported from 'C:/Users/Tahir/Documents/GitHub/Agentic-OS-V3
+FILE: tests/services/llm-gateway-v2.pure.test.ts
+  ERR: Error: [vitest] No "portkeyBridge" export is defined on the "../../src/services/portkey-bridge.js" mock. Did you forget
+FILE: tests/services/session-recorder.test.ts
+  ERR: Error: Cannot find module '../services/session-recorder.js' imported from 'C:/Users/Tahir/Documents/GitHub/Agentic-OS-V3
+FILE: tests/enterprise-rbac.test.ts
+  ERR: AssertionError: expected 401 to be 200 // Object.is equality
+FILE: tests/enterprise-rbac.test.ts
+  ERR: AssertionError: expected 401 to be 403 // Object.is equality
+FILE: tests/enterprise-rbac.test.ts
+  ERR: AssertionError: expected 401 to be 200 // Object.is equality
+FILE: tests/enterprise-rbac.test.ts
+  ERR: AssertionError: expected 401 to be 403 // Object.is equality
+FILE: tests/enterprise-rbac.test.ts
+  ERR: AssertionError: expected undefined to be 'BAD_REQUEST' // Object.is equality
+FILE: tests/enterprise.test.ts
+  ERR: AssertionError: expected [] to include 'u1'
+FILE: tests/enterprise.test.ts
+  ERR: Error: USER_NOT_FOUND
+FILE: tests/enterprise.test.ts
+  ERR: Error: USER_NOT_FOUND
+FILE: tests/enterprise.test.ts
+  ERR: AssertionError: expected [] to include 'u2'
+FILE: tests/enterprise.test.ts
+FILE: tests/enterprise.test.ts
+FILE: tests/enterprise.test.ts
+FILE: tests/enterprise.test.ts
+FILE: tests/enterprise.test.ts
+  ERR: TypeError: SQLite3 can only bind numbers, strings, bigints, buffers, and null
+FILE: tests/enterprise.test.ts
+  ERR: AssertionError: expected 'free' to be 'enterprise' // Object.is equality
+FILE: tests/enterprise.test.ts
+FILE: tests/enterprise.test.ts
+  ERR: AssertionError: expected +0 to be 3 // Object.is equality
+FILE: tests/enterprise.test.ts
+  ERR: AssertionError: expected +0 to be close to 5, received difference is 5, but expected 0.0000049999999999999996
+FILE: tests/fairness-corrector.test.ts
+  ERR: AssertionError: expected [] to include 'beta'
+FILE: tests/fairness-corrector.test.ts
+  ERR: AssertionError: expected [] to include 'b'
+FILE: tests/feedback.service.test.ts
+FILE: tests/feedback.service.test.ts
+  ERR: Error: [vitest] No "feedback" export is defined on the "../src/db/client.js" mock. Did you forget to return it from "vi.
+FILE: tests/metron-tracing.test.ts
+  ERR: AssertionError: expected "spy" to be called at least once
+FILE: tests/migration.test.ts
+  ERR: AssertionError: Table 'projects' expected 11 columns, got 14: expected 14 to be 11 // Object.is equality
+FILE: tests/phase11-kernel.test.ts
+  ERR: AssertionError: export "RingPolicyStore" should exist on the module: expected false to be true // Object.is equality
+FILE: tests/phase14-security.test.ts
+FILE: tests/phase14-security.test.ts
+FILE: tests/phase14-security.test.ts
+FILE: tests/phase14-security.test.ts
+  ERR: AssertionError: expected [Function] to throw error matching /RATE_LIMITED/ but got 'Rate limit exceeded for test:u1; ret
+FILE: tests/phase14-security.test.ts
+  ERR: AssertionError: expected 'public' to be 'internal' // Object.is equality
+FILE: tests/phase14-security.test.ts
+  ERR: TypeError: Cannot use 'in' operator to search for 'name' in unit_probe
+FILE: tests/phase14-security.test.ts
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: promise rejected "Error: Windows constrained-command execut…" instead of resolving
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: expected [Function] to throw error including 'Command not allowed by constrained ru…' but got 'Windows c
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: expected [Function] to throw error including 'Constrained runner timeout must be an…' but got 'Windows c
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: expected [Function] to throw error including 'timed out' but got 'Windows constrained-command execution…
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: promise rejected "Error: Windows constrained-command execut…" instead of resolving
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: expected [Function] to throw error including 'symlink traversal' but got 'Windows constrained-command ex
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: expected [Function] to throw error including 'resolves outside the project root' but got 'Windows constr
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: promise rejected "Error: Windows constrained-command execut…" instead of resolving
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: expected { ok: false, …(2) } to match object { ok: true, …(1) }
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: expected false to be true // Object.is equality
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: promise rejected "Error: Windows constrained-command execut…" instead of resolving
+FILE: tests/r1-sandbox-runner.test.ts
+  ERR: AssertionError: expected [Function] to throw error including 'exceeded 1000000 output bytes' but got 'Windows constraine
+FILE: tests/rateLimit.test.ts
+  ERR: AssertionError: expected '10.0.0.1' to be '1.2.3.4' // Object.is equality
+FILE: tests/rateLimit.test.ts
+  ERR: AssertionError: expected '10.0.0.1' to be '3.3.3.3' // Object.is equality
+FILE: tests/resource-quota.test.ts
+FILE: tests/scheduler-core.test.ts
+  ERR: AssertionError: expected false to be true // Object.is equality
+FILE: tests/scheduler-property.test.ts
+  ERR: AssertionError: [{"id":"t0","queue":"Q4","priority":91,"deadline":null,"createdAt":"2026-08-23T21:23:59.568Z"},{"id":"t1
+FILE: tests/scheduler-resilience-risk.test.ts
+  ERR: AssertionError: expected 80 to be less than 0
+FILE: tests/security-mcp.test.ts
+  ERR: TypeError: server.listResources is not a function
+FILE: tests/security-mcp.test.ts
+FILE: tests/security-mcp.test.ts
+  ERR: TypeError: server.listTools is not a function
+FILE: tests/security-mcp.test.ts
+  ERR: AssertionError: expected 34 to be greater than or equal to 35
+FILE: tests/self-improvement-harness-control.test.ts
+  ERR: AssertionError: expected false to be true // Object.is equality
+FILE: tests/session.service.test.ts
+  ERR: Error: [vitest] No "withTransaction" export is defined on the "../src/db/client.js" mock. Did you forget to return it fr
+FILE: tests/session.service.test.ts
+  ERR: Error: [vitest] No "withTransaction" export is defined on the "../src/db/client.js" mock. Did you forget to return it fr
+FILE: tests/session.service.test.ts
+  ERR: Error: [vitest] No "withTransaction" export is defined on the "../src/db/client.js" mock. Did you forget to return it fr
+FILE: tests/e2e/system.e2e.test.ts
+FILE: tests/services/audit-routes.test.ts
+  ERR: AssertionError: expected "spy" to be called with arguments: [ Anything, 'audit:read' ]
