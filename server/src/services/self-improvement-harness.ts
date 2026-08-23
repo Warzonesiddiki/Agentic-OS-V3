@@ -463,7 +463,12 @@ export const ENV_OVERRIDE_ALLOWLIST = new Set([
   'NEXUS_LOG_LEVEL',
   'NEXUS_AUTONOMOUS_MODE',
   'NEXUS_MEMORY_RECALL_K',
-  'NEXUS_MEMORY_IMPORTANCE_THRESHOLD'
+  'NEXUS_MEMORY_IMPORTANCE_THRESHOLD',
+  // Live-tuning keys: applyPatch mutates these and then calls Forge's public
+  // setters (setSchedulingPolicy / configureWorker); both are also in
+  // TOML_PERSIST_ALLOWLIST for cross-restart durability.
+  'NEXUS_SCHEDULER_POLICY',
+  'NEXUS_WORKER_MAX_CONCURRENCY',
 ]);
 export const ENV_AUDIT_TRAIL: Array<{ key: string; value: string; timestamp: Date }> = [];
 
