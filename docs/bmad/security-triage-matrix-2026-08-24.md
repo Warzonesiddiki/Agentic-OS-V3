@@ -22,10 +22,10 @@
 
 ## Disposition summary
 
-- ✅ Remediated with evidence: SEC-01, SEC-02, SEC-10, SEC-12
+- ✅ Remediated with evidence: SEC-01, SEC-02, SEC-03, SEC-05, SEC-10, SEC-12
 - 🔶 Declared, awaiting verification run: SEC-09
 - 🔶 Mitigated by disconnect (unwired module; wiring requires Ed25519 signing first): SEC-11
-- ⏳ Claimed-fixed upstream, verification owed: SEC-03, SEC-04, SEC-05
+- ⏳ Claimed-fixed upstream, verification owed: SEC-04 (converts at the next full-suite rerun)
 - 🔴 Open, scheduled: SEC-06/07 (→ WS8), SEC-08 (→ WS3/WS4)
 
 Gate-0 exit requires: every ⏳ row converted to ✅/🔴 with rerun evidence; then E10-S30 independent review of this matrix + ledger.
