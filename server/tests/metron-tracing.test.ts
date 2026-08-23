@@ -7,6 +7,20 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const fetchMock = vi.fn(() => Promise.resolve({ ok: true, status: 200, text: () => Promise.resolve('') }));
 vi.stubGlobal('fetch', fetchMock);
 
+// DatabaseSpanExporter lazily imports { db, spanLogs } from db/client.js.
+// The mock must live at module scope with vi.hoisted so the factory can run
+// when that dynamic import fires mid-test (an in-test vi.mock closes over a
+// not-yet-initialized const and explodes with a TDZ error).
+const dbMock = vi.hoisted(() => ({
+  db: {
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => Promise.resolve()) })),
+    })),
+  },
+  spanLogs: {},
+}));
+vi.mock('../src/db/client.js', () => ({ db: dbMock.db, spanLogs: dbMock.spanLogs, isSqlite: false, isPg: true }));
+
 import {
   withSpan,
   runWithTraceContext,
@@ -168,12 +182,11 @@ describe('trace-exporter', () => {
   });
 
   it('DatabaseSpanExporter writes via db', async () => {
-    const db: any = { insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => Promise.resolve()) })) })) };
-    vi.mock('../src/db/client.js', () => ({ db, isSqlite: false, isPg: true }));
+    dbMock.db.insert.mockClear();
     const { DatabaseSpanExporter: DBExp } = await import('../src/services/trace-exporter.js');
     const exp = new DBExp();
     await exp.export([fakeSpan({ end: Date.now(), traceId: 't1' })]);
-    expect(db.insert).toHaveBeenCalled();
+    expect(dbMock.db.insert).toHaveBeenCalled();
   });
 
   it('OtlpSpanExporter POSTs JSON to endpoint', async () => {
