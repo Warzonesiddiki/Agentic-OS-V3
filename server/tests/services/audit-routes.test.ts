@@ -14,7 +14,8 @@ const mockOk = vi.fn((data: unknown, _reqId: string) => ({ ok: true, data }));
 const mockErr = vi.fn((code: string, msg: string, _reqId: string) => ({ ok: false, error: { code, msg } }));
 
 vi.mock('../../src/lib/auth-context.js', () => ({
-  requireScope: (c: unknown, _s: string) => mockRequireScope(c),
+  // Forward BOTH args so the spy can assert the enforced scope per route.
+  requireScope: (c: unknown, s: string) => mockRequireScope(c, s),
   parse: (_s: unknown, v: unknown) => mockParse(_s, v),
   safeJson: (c: unknown) => mockSafeJson(c as never),
 }));
