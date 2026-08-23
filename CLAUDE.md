@@ -37,7 +37,7 @@ This repo has **two independent deliverables** plus a **Rust CLI layer**:
 
 ### 1. Browser Dashboard (`src/`)
 
-React 19 + Vite 7 SPA. The UI layer for the agentic OS. Tailwind CSS v4, React Router.
+React 18.3 + Vite 5.4 SPA. The UI layer for the agentic OS. Tailwind CSS v4, React Router.
 
 ### 2. Backend Server (`server/`)
 
@@ -52,7 +52,7 @@ Hono-based HTTP server on port 9900. The core brain — 30+ service modules:
 
 ### 3. Rust Crates (`crates/`, `Cargo.toml`)
 
-Standalone CLI/tooling layer — **NOT integrated** with the TypeScript server (no FFI, no napi-rs bridge). Cargo workspace of 9 crates: `core`, `config`, `installer`, `safety`, `cli`, `provider-types`, `providers`, `tools`, `observability`.
+Standalone CLI/tooling layer — **NOT integrated** with the TypeScript server (no FFI, no napi-rs bridge; ADR-0007). Cargo workspace of **7 members**: `core`, `config`, `provider-types`, `providers`, `tools`, `nexus-search`, `nexus-cli`. (`installer`, `safety`, `observability`, and a separate `cli` crate do **not** exist.)
 
 ## Project conventions
 
@@ -63,7 +63,7 @@ Standalone CLI/tooling layer — **NOT integrated** with the TypeScript server (
 - **Config** — TOML-first for Rust, validated via JSON Schema from Rust types. Server uses `.env` with `.env.example` as template.
 - **Naming** — camelCase in TS/JS, snake_case in Rust. File names match the primary export.
 - **Formatting** — 2-space indent, LF endings, single quotes, trailing commas. Enforced by `.editorconfig` + `.prettierrc` + lint-staged.
-- **Core types in Rust** — defined in `crates/core/src/types/`, auto-generate TS bindings via `ts-rs`. No duplicate type definitions.
+- **No ts-rs binding generation** — there is no auto-generated TS from Rust (ADR-0007/ADR-0026). Core Rust types live in `crates/core/src/types.rs` (a file, not a directory); SDK types are OpenAPI-derived in `packages/sdk`. Do not assume TS types mirror Rust types.
 - **ACP (Agent Client Protocol)** — internal service-to-service communication. External APIs via REST/MCP/SSE.
 - **Workspace packages** — `packages/sdk`, `packages/a2a-server`, `packages/devtools` are consumed by the server and the dashboard. The server resolves them via tsconfig `paths` aliases (`@agentic-os/sdk`, `@agentic-os/a2a-server`, `@agentic-os/devtools`); the dashboard resolves `@agentic-os/sdk` the same way. Each package builds with `tsc` and tests with `vitest run`. Do not edit compiled output in `dist/` — edit source under `packages/*/src`.
 

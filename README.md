@@ -6,7 +6,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/status-Phase%2011%2B%20in%20progress-orange" alt="Phase 11+ in progress">
   <img src="https://img.shields.io/badge/typescript-5.8-3178c6" alt="TypeScript 5.8">
-  <img src="https://img.shields.io/badge/node-%3E%3D20-339933" alt="Node >=20">
+  <img src="https://img.shields.io/badge/node-%5E22.x-339933" alt="Node ^22.x">
   <img src="https://img.shields.io/badge/postgresql-17-336791" alt="PostgreSQL 17">
   <img src="https://img.shields.io/badge/pgvector-0.8-4169e1" alt="pgvector 0.8">
   <img src="https://img.shields.io/badge/license-Apache%202.0-blue" alt="Apache 2.0 License">
@@ -183,7 +183,8 @@ Fused scores are then blended with importance, recency, and feedback weights for
 
 ### Prerequisites
 
-- **Node.js** >= 20
+- **Node.js** ^22.x (pinned via `engines` + `engine-strict`; `.nvmrc` provided — see ADR-0031; on Windows use WSL2 for server-side work)
+- **pnpm** 9.15.0 (pinned via `packageManager`; `corepack enable && corepack prepare pnpm@9.15.0 --activate`)
 - **PostgreSQL** 16+ (for the backend server)
 - **npm** (or pnpm/yarn)
 

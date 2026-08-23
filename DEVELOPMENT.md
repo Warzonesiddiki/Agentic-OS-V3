@@ -2,7 +2,8 @@
 
 ## Prerequisites
 
-- Node.js >= 20
+- Node.js ^22.x (pinned via `engines` + `.npmrc` `engine-strict`; `.nvmrc` provided — ADR-0031)
+- pnpm 9.15.0 (pinned via root `packageManager`; `corepack enable && corepack prepare pnpm@9.15.0 --activate`)
 - PostgreSQL 16+ (optional for development)
 - Docker & Docker Compose (optional)
 

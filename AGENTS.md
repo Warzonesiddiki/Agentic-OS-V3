@@ -54,7 +54,7 @@ This is a **pnpm workspace monorepo** (`package.json` workspaces: `packages/*`, 
 - **`src/` — Browser Dashboard.** React + Vite SPA (root `src/`). The user-facing control plane: agent tree, console, event ticker, pipeline builder, kernel/scheduler views, settings. State lives in `src/store.ts` + `src/osStore.ts` (zustand/jotai/react-query). Built to `dist/` and served statically by the server.
 - **`server/` — Backend (Hono/TypeScript, port 9900).** The core brain. `src/index.ts` boots the app; `src/routes.ts` + `src/routes/*.ts` define REST; `src/mcp.ts` + `src/mcp-http.ts` expose the MCP server; `src/services/*.ts` hold ~190 business modules. Storage is Drizzle ORM over a **dual backend**: `db/client-postgres.ts` (production Postgres + pgvector) and `db/client-sqlite.ts` (local/dev), selected by `db/client.ts`. Schema defined in `db/schema.ts` (Postgres) and `db/schema-sqlite.ts`.
 - **`packages/` — Shared TS libraries** (`sdk`, `a2a-server`, `devtools`), consumed by server and dashboard via tsconfig `paths` aliases (`@agentic-os/sdk`, `@agentic-os/a2a-server`, `@agentic-os/devtools`). Build with `tsc`, test with `vitest run`. Edit source under `packages/*/src`, never the `dist/` output.
-- **`crates/` — Rust workspace** (`Cargo.toml`, 10 members + standalone `nexus-cli`). LLM provider implementations, canonical types, config, tools, safety filters, installer, observability, CLI. **Decoupled from the running TS app** — see Cross-language boundary below.
+- **`crates/` — Rust workspace** (`Cargo.toml`, **7 members**: `core`, `config`, `provider-types`, `providers`, `tools`, `nexus-search`, `nexus-cli`). LLM provider implementations, canonical types, config, tools, search, CLI. (`installer`, `safety`, `observability` crates do **not** exist; `nexus-cli` is a workspace member, not standalone.) **Decoupled from the running TS app** — see Cross-language boundary below.
 - **`nexus-tauri/` — Tauri desktop app** (workspace member). Rust in `src-tauri/` (`lib.rs`, `main.rs`, `build.rs`), UI in `src/` (`App.tsx`, `vite.config.ts`).
 - **`docs/` — Architecture/ADRs (`docs/adr/0001`–`0009`, indexed in `docs/adr/README.md`), plan/phase tracking (`docs/PLAN_TRACKER.md`), governance (`docs/TEAM_OWNERSHIP_GOVERNANCE.md`, `docs/RUNTIME_LOOP_REFERENCE.md`, `docs/AGENT_DEV_GUIDE.md`, `docs/PERSONA_REGISTRY.md`), the operating standard (`docs/AUTONOMOUS_OPERATIONS_MANUAL_v4.0.0.md` — ML-001/002/003 meta-loops, kill-switch, hash-chained audit, perfection metrics), and the live perfection dashboard (`docs/PERFECTION_METRICS.md`).**
 
@@ -156,7 +156,7 @@ Consequences for agents:
 
 - **Editing `crates/` does NOT change the behavior of the server, dashboard, or any user-facing feature.** The npm TS packages are the single source of truth for LLM/provider logic.
 - CI still validates Rust (`cargo build`/`clippy`/`test`) so it does not rot — treat Rust changes as isolated (owned by **Ferric** / **Rusty**).
-- **Workspace crates (10):** `core`, `config`, `installer`, `safety`, `cli`, `provider-types`, `providers`, `tools`, `observability`, `nexus-search`. Plus a standalone `nexus-cli` crate (not in workspace `members`).
+- **Workspace crates (7):** `core`, `config`, `provider-types`, `providers`, `tools`, `nexus-search`, `nexus-cli`. (`installer`, `safety`, `observability`, and a separate `cli` crate do not exist; `nexus-cli` is a workspace member.)
 - **No `ts-rs` binding generation** — there is no auto-generated TS from Rust. Core Rust types live in `crates/core/src/types.rs` (a file, not a directory). Do not assume TS types mirror Rust types.
 
 ## Key environment variables
@@ -184,8 +184,8 @@ Read-only reconciliation so contributors don't trust stale audit notes (source o
 - **Pipeline, Message-Bus, SSE-Bridge, A2A are implemented server-side** and wired with tests. A2A packaging ratified in ADR-0008.
 - **LLM layer is the TS provider-adapter gateway**, not the npm `openai`/`@anthropic-ai/sdk` packages ADR-0007 describes (those are not in `server/package.json`). Use `services/providers/*` + `unified-gateway/portkey`.
 - **Database:** `server/src/db/schema.ts` defines **~60 Drizzle tables** (memories, skills, projects, audit, agents/tasks, scheduler, telemetry, plugins, marketplace, self-opt, orgs/workspaces, …) — far more than the "19 tables" mentioned in the top-level README. Dual Postgres/SQLite backend.
-- **Phases 11–20 are IN_PROGRESS under the compile gate** (server `tsc --noEmit` = 0 as of 2026-07-09 per PLAN_TRACKER; full `pnpm run validate` blocked in some shells by a `better-sqlite3` Node-ABI mismatch, an env issue not a code defect). Frontend↔backend wiring continues (owner: Prism/Halcyon) — verify before assuming a feature is fully bridged.
-- **CLAUDE.md is partially stale** — it claims `ts-rs` binding generation and a `crates/core/src/types/` directory; neither exists (see Cross-language boundary). Trust this file and ADR-0007.
+- **CLAUDE.md staleness resolved (2026-08-24)** — React/Vite versions, crate count, and ts-rs claims were corrected in both files; trust AGENTS.md/CLAUDE.md/ADR-0007 for boundary facts.
+- **Current release position:** R1 ("Governed Agent Workbench") is **release-blocked** per `docs/bmad/baseline-2026-07-24-gate0.md`; the authoritative execution plan is the ratified `docs/bmad/progression-plan-2026-08-21.md` (§9 decisions D1–D5, commit `8024bdd`). Toolchain is pinned: **Node ^22.x (`engines` + `.nvmrc` + `engine-strict`), pnpm@9.15.0 (`packageManager`) — ADR-0031.** The historical "Phases 11–20 IN_PROGRESS under the compile gate" narrative above predates E10-R1 requalification; do not use it to claim completion.
 
 ## Things to avoid
 
