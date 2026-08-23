@@ -1,0 +1,172 @@
+﻿node.exe : npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+At line:1 char:1
++ & "C:\Users\Tahir\AppData\Local\Temp\node22p\node-v22.23.2-win-x64/no ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn Unknow...config options.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See `npm help npmrc` for supported config options.
+npm warn install-scripts .npmrc allow-scripts setting is being ignored because --allow-scripts was passed on the command line
+npm notice run agentic-os-v3@2.1.0 npx
+npm notice run pnpm audit --prod
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ fast-uri vulnerable to host confusion via backslash    │
+│                     │ authority introducer                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ fast-uri                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=3.0.0 <3.1.5                                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=3.1.5                                                │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ server > @modelcontextprotocol/sdk@1.29.0 > ajv@8.20.0 │
+│                     │ > fast-uri@3.1.4                                       │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ ajv-formats@3.0.1 > ajv@8.20.0 > fast-uri@3.1.4        │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-7p8r-x3mc-p8w7      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ high                │ ip-address: Address4 decodes leading-zero octets as    │
+│                     │ decimal while resolvers decode them as octal, allowing │
+│                     │ SSRF and trust-boundary bypass                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ ip-address                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <=10.3.0                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=10.3.1                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ express-rate-limit@8.5.2 > ip-address@10.2.0           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-mwp4-54f8-5fhr      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ ip-address: a CIDR suffix on the parsed address        │
+│                     │ suppresses special-use classification and can bypass   │
+│                     │ SSRF and trust-boundary checks                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ ip-address                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=10.1.1 <=10.2.1                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=10.2.2                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ express-rate-limit@8.5.2 > ip-address@10.2.0           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-4xrf-jv44-h6hh      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ ip-address: misclassification of IPv4-mapped/NAT64     │
+│                     │ IPv6 addresses can bypass SSRF and trust-boundary      │
+│                     │ checks                                                 │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ ip-address                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=10.1.1 <=10.2.0                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=10.2.1                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ express-rate-limit@8.5.2 > ip-address@10.2.0           │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-22jq-vg5j-6vgg      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Hono: ReDoS in CORS middleware via                     │
+│                     │ Access-Control-Request-Headers                         │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ hono                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ <4.12.34                                               │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.12.34                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ server > @hono/node-server@2.0.11 > hono@4.12.27       │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ @hono/node-server@1.19.17 > hono@4.12.27               │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ hono@4.12.27                                           │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why hono` for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-8j4g-w8fx-2239      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Hono: `memo()` retains SSR output across requests,     │
+│                     │ leading to cross-user data disclosure                  │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ hono                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=3.8.0 <4.12.34                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.12.34                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ server > @hono/node-server@2.0.11 > hono@4.12.27       │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ @hono/node-server@1.19.17 > hono@4.12.27               │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ hono@4.12.27                                           │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why hono` for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-f23p-vx2j-j53r      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ moderate            │ Hono: Algorithmic Complexity DoS in Language           │
+│                     │ Middleware                                             │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ hono                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.12.0 <4.12.34                                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.12.34                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ server > @hono/node-server@2.0.11 > hono@4.12.27       │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ @hono/node-server@1.19.17 > hono@4.12.27               │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ hono@4.12.27                                           │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why hono` for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-54fx-42gc-7vw4      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+┌─────────────────────┬────────────────────────────────────────────────────────┐
+│ low                 │ Hono: Proxy Helper does not remove response headers    │
+│                     │ listed in the `Connection` header                      │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Package             │ hono                                                   │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Vulnerable versions │ >=4.7.0 <4.12.34                                       │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Patched versions    │ >=4.12.34                                              │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ Paths               │ server > @hono/node-server@2.0.11 > hono@4.12.27       │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ @hono/node-server@1.19.17 > hono@4.12.27               │
+│                     │                                                        │
+│                     │ server > @modelcontextprotocol/sdk@1.29.0 >            │
+│                     │ hono@4.12.27                                           │
+│                     │                                                        │
+│                     │ ... Found 4 paths, run `pnpm why hono` for more        │
+│                     │ information                                            │
+├─────────────────────┼────────────────────────────────────────────────────────┤
+│ More info           │ https://github.com/advisories/GHSA-79qm-7rj5-m7r9      │
+└─────────────────────┴────────────────────────────────────────────────────────┘
+8 vulnerabilities found
+Severity: 1 low | 5 moderate | 2 high
+
