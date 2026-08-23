@@ -34,6 +34,9 @@ export default defineConfig({
   webServer: {
     command: 'pnpm dev',
     url: 'http://localhost:1422',
+    // Root `pnpm dev` boots the Hono server; PORT is wired here so the bounded
+    // e2e target matches this config's baseURL in every environment.
+    env: { PORT: '1422', NODE_ENV: 'test' },
     reuseExistingServer: !process.env.CI,
     timeout: 30_000,
   },
