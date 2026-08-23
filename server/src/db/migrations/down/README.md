@@ -25,7 +25,13 @@ artifacts** applied manually during the WS3 drill (blocker B3) or an emergency r
 
 | Step | PostgreSQL down | SQLite down |
 |---|---|---|
+| 0049 r1_contracts | ✅ authored | ✅ authored |
+| 0050 r1_durable_task_metadata | ✅ authored | ✅ authored |
+| 0051 r1_capability_governance | ✅ authored | ✅ authored |
 | 0052 r1_extended | ✅ authored | ✅ authored |
 | 0053 r1_sync | ✅ authored | ✅ authored |
 | 0054 r1_effect_claims | ✅ authored | ✅ authored |
-| 0049, 0050, 0051 | ⏳ queued (WS3) | ⏳ queued (WS3) |
+
+Full rollback chain 0054→0049 is now authorable-complete; execution evidence (the actual
+drill) is the remaining B3 requirement and runs per the procedure above once WS1/WS8 gates
+are green.
