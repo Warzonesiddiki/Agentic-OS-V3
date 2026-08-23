@@ -52,7 +52,11 @@ describe('Phase 11.21 — Deterministic risk model', () => {
       createdAt: new Date(0),
       risk: 90,
     };
-    expect(compareRisk(a, b)).toBeLessThan(0);
+    // Contract (scheduler.ts): "Risk-aware tiebreaker: higher risk first" —
+    // a descending comparator, identical to the live dispatch pre-sort in
+    // kernel.ts pickNextTask ((b.risk ?? 0) - (a.risk ?? 0)). The higher-risk
+    // task b must therefore sort before a.
+    expect(compareRisk(b, a)).toBeLessThan(0);
   });
 
   it('MLFQ applies the risk tiebreaker within the same queue (high-risk wins ties)', async () => {

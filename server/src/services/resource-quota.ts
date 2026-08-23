@@ -125,8 +125,25 @@ export class ResourceQuotaEnforcer {
       b.tokens -= bytes;
       return;
     }
-    this.emitExceeded(kind, bytes);
-    throw new NetworkQuotaExceededError(this.agentId, bytes);
+    if (bytes > b.capacity) {
+      // A single request larger than the burst capacity can never be satisfied
+      // by waiting — this is a hard-cap breach: emit the budget event and fail
+      // loudly. Over-capacity writes must never silently succeed.
+      this.emitExceeded(kind, bytes);
+      throw new NetworkQuotaExceededError(this.agentId, bytes);
+    }
+    // Throttle (documented contract, module header): wait until the bucket has
+    // refilled enough tokens for this request, then debit them. The request is
+    // delayed, never silently passed, so over-quota work pays latency instead of
+    // bypassing the limit.
+    const deficit = bytes - b.tokens;
+    await this.sleepImpl(Math.ceil((deficit / bps) * 1000));
+    // Credit whatever accrued while sleeping (no-op under a frozen test clock)
+    // then debit. Clamping at 0 keeps injected non-advancing clocks from driving
+    // tokens negative; a single sleep always covers the deficit on a monotonic
+    // clock because refill accrues deficit/bps seconds × bps tokens.
+    this.refill(b, bps);
+    b.tokens = Math.max(0, b.tokens - bytes);
   }
 
   private emitExceeded(kind: 'diskRead' | 'diskWrite' | 'netEgress', bytes: number): void {

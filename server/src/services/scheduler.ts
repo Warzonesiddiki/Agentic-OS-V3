@@ -858,16 +858,24 @@ export class MLFQPolicy implements SchedulingPolicy {
 
 export class EDFPolicy implements SchedulingPolicy {
   readonly name = 'edf';
+  /**
+   * Earliest-Deadline-First: only tasks carrying a finite deadline have an EDF
+   * order key. Deadline-less tasks always lose to deadline-bearing ones, and a
+   * pool with ZERO finite deadlines is declined (null) rather than silently
+   * reordered by an arbitrary surrogate key. `pickByPolicy` applies the default
+   * MLFQ ordering as the fallback so declined pools still dispatch.
+   */
   pick(tasks: QueuedTask[]): QueuedTask | null {
     if (!tasks.length) return null;
-    let best = tasks[0];
-    let bestDeadline = best.deadline ? best.deadline.getTime() : Number.POSITIVE_INFINITY;
-    let bestRisk = best.risk ?? 0;
-    let bestCreated = best.createdAt.getTime();
-    for (let i = 1; i < tasks.length; i++) {
-      const t = tasks[i];
-      const d = t.deadline ? t.deadline.getTime() : Number.POSITIVE_INFINITY;
+    let best: QueuedTask | null = null;
+    let bestDeadline = Number.POSITIVE_INFINITY;
+    let bestRisk = 0;
+    let bestCreated = 0;
+    for (const t of tasks) {
+      if (!t.deadline) continue; // no finite deadline → not an EDF candidate
+      const d = t.deadline.getTime();
       if (
+        best === null ||
         d < bestDeadline ||
         (d === bestDeadline && (t.risk ?? 0) > bestRisk) ||
         (d === bestDeadline &&
@@ -954,7 +962,14 @@ export function getSchedulingPolicyName(): string {
 }
 
 export function pickByPolicy(tasks: QueuedTask[]): QueuedTask | null {
-  const chosen = activePolicy.pick(tasks);
+  if (!tasks.length) return null;
+  let chosen = activePolicy.pick(tasks);
+  if (!chosen) {
+    // The active policy declined a non-empty pool (e.g. EDF with zero
+    // deadline-bearing tasks). Fall back to the default MLFQ ordering so
+    // deadline-less work still dispatches instead of starving the runtime loop.
+    chosen = new MLFQPolicy().pick(tasks);
+  }
   applyStarvationAging(tasks, chosen);
   return chosen;
 }
@@ -1290,10 +1305,27 @@ export class FairnessTracker {
     return out;
   }
 
+  /**
+   * Correct large fairness deviations (Phase 11.25). Any registered team whose
+   * measured deviation exceeds ±epsilon is flagged AND corrected: its recorded
+   * service level takes a damped half-step toward its entitlement (expressed in
+   * the recorded unit), so repeated correct() calls converge without
+   * oscillating. Correction is symmetric — both starved and over-served teams
+   * are pulled back to their fair share.
+   */
   correct(): { adjusted: string[] } {
-    const adjusted = this.measure()
-      .filter((m) => m.deviation < -this.epsilon && m.entitlementShare > 0)
-      .map((m) => m.key);
+    const rows = this.measure();
+    const totalRaw = [...this.shareById.values()].reduce((a, b) => a + b, 0);
+    const adjusted: string[] = [];
+    if (totalRaw <= 0) return { adjusted };
+    for (const m of rows) {
+      if (m.entitlementShare <= 0) continue;
+      if (Math.abs(m.deviation) <= this.epsilon) continue;
+      const cur = this.shareById.get(m.key) ?? 0;
+      const target = m.entitlementShare * totalRaw;
+      this.shareById.set(m.key, cur + (target - cur) / 2);
+      adjusted.push(m.key);
+    }
     return { adjusted };
   }
 }

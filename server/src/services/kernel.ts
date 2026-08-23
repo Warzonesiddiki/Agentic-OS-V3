@@ -1009,7 +1009,11 @@ function defaultRingPolicy(ring: number): RingPolicy {
   };
 }
 
-class RingPolicyStore {
+// Exported per the documented runtime surface (AGENTS.md "Current Reality"):
+// the runtime uses `RingPolicyStore` (class in kernel.ts); consumers import the
+// class for typing / alternate stores while `ringPolicyStore` stays the shared
+// singleton instance.
+export class RingPolicyStore {
   private cache = new Map<number, RingPolicy>();
   private loaded = false;
 
