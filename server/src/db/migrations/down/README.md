@@ -26,4 +26,6 @@ artifacts** applied manually during the WS3 drill (blocker B3) or an emergency r
 | Step | PostgreSQL down | SQLite down |
 |---|---|---|
 | 0052 r1_extended | ✅ authored | ✅ authored |
-| 0049, 0050, 0051, 0053, 0054 | ⏳ queued (WS3) | ⏳ queued (WS3) |
+| 0053 r1_sync | ✅ authored | ✅ authored |
+| 0054 r1_effect_claims | ✅ authored | ✅ authored |
+| 0049, 0050, 0051 | ⏳ queued (WS3) | ⏳ queued (WS3) |
