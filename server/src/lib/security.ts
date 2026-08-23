@@ -129,6 +129,14 @@ export const ALL_SCOPES = [
   'marketplace:review',
   'integrations:read',
   'integrations:write',
+  // Enterprise + self-opt scopes: part of the Scope union and enforced by
+  // routes/enterprise.ts and routes/self-opt.ts — the registry must list them
+  // or isValidScope() rejects keys that legitimately hold them.
+  'selfopt:read',
+  'selfopt:write',
+  'enterprise.*',
+  'enterprise:read',
+  'enterprise:write',
 ] as const satisfies readonly Scope[];
 
 export function isValidScope(s: string): s is Scope {
@@ -263,12 +271,13 @@ export function hasScope(principal: Principal | null, scope: Scope): boolean {
   if (!principal) return false;
   // Fast path: exact match
   if (principal.scopes.includes(scope)) return true;
-  // Wildcard matching: convert scope patterns to prefix checks
-  // e.g. principal has 'admin.*' → check if scope starts with 'admin.'
+  // Wildcard matching: convert scope patterns to family prefix checks.
+  // A family wildcard 'X.*' grants every scope in family X under EITHER
+  // separator — dot ('admin.read') or colon ('enterprise:read').
   for (const granted of principal.scopes) {
     if (granted.endsWith('.*')) {
-      const prefix = granted.slice(0, -1); // e.g. 'admin.'
-      if (scope.startsWith(prefix)) return true;
+      const family = granted.slice(0, -2); // e.g. 'admin' | 'enterprise'
+      if (scope.startsWith(`${family}.`) || scope.startsWith(`${family}:`)) return true;
     }
   }
   return false;

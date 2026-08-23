@@ -222,15 +222,20 @@ function makeFakeDb() {
   };
 }
 
-const fakeDb: any = makeFakeDb();
-vi.mock('../db/client.js', () => ({ db: fakeDb }));
-vi.mock('../lib/audit.js', () => ({ auditLog: vi.fn(async () => ({})) }));
-vi.mock('../services/security/index.js', () => ({ forward: vi.fn(async () => ({})) }));
+// Built inside vi.hoisted so the factory can run while static imports
+// (lib/security.ts -> db/client.js) are still being evaluated.
+const fakeDb: any = vi.hoisted(() => makeFakeDb());
+// Specifiers must match how src files resolve them ('../src/...' from tests/),
+// otherwise the mocks miss and the real modules bind instead. security.ts also
+// destructures { apiKeys, isSqlite } from this module — provide them.
+vi.mock('../src/db/client.js', () => ({ db: fakeDb, apiKeys: {}, isSqlite: false }));
+vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(async () => ({})), Tx: class {} }));
+vi.mock('../src/services/security/index.js', () => ({ forward: vi.fn(async () => ({})) }));
 
 // Mock auth-context so requireScope enforces RBAC via the REAL hasScope over a test principal,
 // throwing ApiError('FORBIDDEN') (-> 403) when the principal lacks the scope. No DB needed.
 let testPrincipal: { scopes: string[] } = { scopes: [] };
-vi.mock('../lib/auth-context.js', () => ({
+vi.mock('../src/lib/auth-context.js', () => ({
   requireScope: (c: any, scope: string) => {
     if (!hasScope(testPrincipal as any, scope as any)) {
       throw new ApiError('FORBIDDEN', `missing scope ${scope}`);
@@ -310,7 +315,8 @@ describe('Enterprise OIDC/SAML stub validation - rejects tampered/invalid SSO', 
     });
     expect(res.status).toBe(400);
     const body = await res.json();
-    expect(body.code).toBe('BAD_REQUEST');
+    // Canonical envelope (lib/envelope.ts): err() nests the code under error.
+    expect(body.error.code).toBe('BAD_REQUEST');
   });
 
   it('unknown SSO provider -> 400', async () => {
