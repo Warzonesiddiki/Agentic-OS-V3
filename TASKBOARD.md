@@ -1,4 +1,4 @@
-﻿> ⚠️ **SUPERSEDED (2026-08-24, WS7 coherence sweep):** This is a campaign-era document retained for historical traceability only. Its completion claims, scores, and phase states are **NOT release evidence**. Current authority: `docs/bmad/baseline-2026-07-24-gate0.md` (Gate-0 baseline) and the ratified `docs/bmad/progression-plan-2026-08-21.md`; live evidence lives in `docs/bmad/releases/evidence/`.
+> ⚠️ **SUPERSEDED (2026-08-24, WS7 coherence sweep):** This is a campaign-era document retained for historical traceability only. Its completion claims, scores, and phase states are **NOT release evidence**. Current authority: `docs/bmad/baseline-2026-07-24-gate0.md` (Gate-0 baseline) and the ratified `docs/bmad/progression-plan-2026-08-21.md`; live evidence lives in `docs/bmad/releases/evidence/`.
 
 # NEXUS 2.0 â€” Project Taskboard & Brutal Audit Findings
 
@@ -57,6 +57,7 @@
 - [x] **P2-04:** Implement true federated node discovery with HTTP transport for cross-node queries. Created `federated-node-discovery.ts` with PeerRegistry, heartbeat monitoring, gossip protocol, fan-out queries, and Reciprocal Rank Fusion (RRF) merge.
 - [x] **P2-05:** Add frontend component tests (React Testing Library + Vitest). 33 component tests across ErrorBoundary (8), ui primitives (20), KillSwitchBanner (5). All use jsdom environment.
 - [x] **P2-06:** Add Playwright E2E browser tests for critical flows. Config + 3 spec files: dashboard navigation, API console interactions, memories page rendering, pipeline builder.
+  - ⚠️ **Reconciled 2026-08-24 (WS7):** specs exist on disk but are wired to **no CI job** — enforcement lands with WS8 (progression-plan §4). "Done" above means authored, not enforced. P2-05 component tests run under the root vitest config (`src/**`).
 - [x] **P2-07:** Implement actual skill compilation (AST parsing for deterministic functions). `skill-ast-compiler.ts` with 17 AST node types, code generator, patternâ†’AST compiler, transform classification (identity/field_mapping/computed_fields/array_transform/filter/aggregation/nested_extraction), determinism validation, capability inference. 36 tests.
 - [x] **P2-08:** Add an auto-migration runner on server startup (`server/src/setup.ts`). `runMigrations()` in setup.ts runs `drizzle-kit migrate` on startup for both SQLite and PostgreSQL.
 - [x] **P2-09:** Connect the visual DAG editor in Pipeline Builder to real pipeline execution (`pipeline-executor.ts`). PipelineBuilder now uses api-client.ts for CRUD. Added `GET /api/v1/pipelines/:name` route and `getPipelineByName()` service function.
