@@ -32,17 +32,26 @@ export class FairnessCorrector {
     recommendations: FairShareRecommendation[];
   } {
     const measurements = tracker.measure();
+    // measure() reports actualShare in the RECORDED unit (e.g. CPU-ms), while
+    // entitlementShare is a normalized fraction of total weight. Normalize the
+    // actuals to fractions of the recorded total so deviations are comparable;
+    // without this, a starved team (small but positive raw share) always looks
+    // over-served and no correction is ever recommended.
+    const totalRaw = measurements.reduce((a, m) => a + Math.max(0, m.actualShare), 0);
     const recommendations: FairShareRecommendation[] = [];
     const adjusted: string[] = [];
     for (const m of measurements) {
-      const deviation = m.deviation;
-      if (deviation < -0.1 && m.entitlementShare > 0) {
+      if (m.entitlementShare <= 0 || totalRaw <= 0) continue;
+      const actualNormalized = m.actualShare / totalRaw;
+      const deviation =
+        (actualNormalized - m.entitlementShare) / (m.entitlementShare || 1e-9);
+      if (deviation < -0.1) {
         const boost = Math.min(3, Math.ceil(Math.abs(deviation) * 10));
         adjusted.push(m.key);
         recommendations.push({
           teamId: m.key,
           entitlement: m.entitlementShare,
-          actual: m.actualShare,
+          actual: actualNormalized,
           deviation,
           boost,
         });
