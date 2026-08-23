@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 
-const onMock = vi.fn();
-const broadcastMock = vi.fn();
+const { onMock, broadcastMock } = vi.hoisted(() => ({
+  onMock: vi.fn(),
+  broadcastMock: vi.fn(),
+}));
 
 vi.mock("../src/services/message-bus.js", () => ({
   getMessageBus: () => ({ on: onMock }),

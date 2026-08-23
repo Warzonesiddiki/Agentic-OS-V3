@@ -22,7 +22,9 @@ vi.mock('../src/db/client.js', () => {
     },
     transaction: vi.fn((fn: any) => fn(txMock)),
   };
-  return { db: dbMock, systemMeta: { key: 'killSwitch' }, isSqlite: false, isPg: true };
+  // session.service.ts writes via the cross-backend withTransaction helper.
+  const withTransaction = vi.fn((fn: any) => fn(txMock));
+  return { db: dbMock, systemMeta: { key: 'killSwitch' }, withTransaction, isSqlite: false, isPg: true };
 });
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/services/safety.service.js', () => ({
@@ -37,8 +39,8 @@ describe('session.service kill switch', () => {
 
   it('setKillSwitch engages within a transaction (double assert)', async () => {
     await setKillSwitch(true, 'incident', 'op_1');
-    const { db } = (await import('../src/db/client.js')) as any;
-    expect(db.transaction).toHaveBeenCalled();
+    const client = (await import('../src/db/client.js')) as any;
+    expect(client.withTransaction).toHaveBeenCalled();
     // pre-flight + in-tx assertOperational + assertKillSwitchConsistent all invoked
     const safety = (await import('../src/services/safety.service.js')) as any;
     expect(safety.assertOperational).toHaveBeenCalled();
@@ -54,7 +56,7 @@ describe('session.service kill switch', () => {
 
   it('setKillSwitch without reason skips reason row', async () => {
     await setKillSwitch(false, undefined, 'op_3');
-    const { db } = (await import('../src/db/client.js')) as any;
-    expect(db.transaction).toHaveBeenCalled();
+    const client = (await import('../src/db/client.js')) as any;
+    expect(client.withTransaction).toHaveBeenCalled();
   });
 });

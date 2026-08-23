@@ -11,7 +11,31 @@ vi.mock('../src/db/client.js', () => ({
     from: vi.fn().mockReturnThis(),
     where: vi.fn().mockReturnThis(),
   },
+  // Mirrors server/src/db/client.ts export surface consumed by src/routes.ts
+  // (R1 runtime wiring runs at module-load time, before any test executes).
+  createApplicationSqlExecutor: vi.fn(() => ({
+    query: vi.fn(async <T extends object>(): Promise<readonly T[]> => []),
+  })),
+  executeApplicationSql: vi.fn().mockResolvedValue(undefined),
 }));
+
+// The perimeter authBackstop (frozen src/proxy.ts) requires an authenticated
+// principal for every mutating request. Partially mock authenticate() so A2A
+// task creation flows through the same perimeter contract as production;
+// all other security helpers stay real.
+vi.mock(import('../src/lib/security.js'), async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../src/lib/security.js')>();
+  return {
+    ...actual,
+    authenticate: vi.fn(async () => ({
+      id: 'principal-a2a-test',
+      name: 'a2a-test-principal',
+      keyHash: 'test-hash',
+      scopes: ['admin.*'],
+      status: 'active',
+    })),
+  };
+});
 
 vi.mock('../src/lib/audit.js', () => ({
   appendAudit: vi.fn().mockResolvedValue({
@@ -84,7 +108,7 @@ describe('Google Gemini A2A Protocol Server Integration', () => {
   it('POST /api/v1/a2a/tasks creates an A2A task and triggers execution', async () => {
     const res = await app.request('/api/v1/a2a/tasks', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer a2a-test-key' },
       body: JSON.stringify({
         goal: 'Perform security scan of codebase',
         input: { depth: 'full' },
@@ -102,7 +126,7 @@ describe('Google Gemini A2A Protocol Server Integration', () => {
   it('GET /api/v1/a2a/tasks/:id returns status of created task', async () => {
     const createRes = await app.request('/api/v1/a2a/tasks', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer a2a-test-key' },
       body: JSON.stringify({
         goal: 'Query memory indices',
         actor: 'peer-agent',
@@ -123,7 +147,7 @@ describe('Google Gemini A2A Protocol Server Integration', () => {
   it('GET /api/v1/a2a/tasks/:id/stream initializes SSE event stream', async () => {
     const createRes = await app.request('/api/v1/a2a/tasks', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer a2a-test-key' },
       body: JSON.stringify({
         goal: 'Stream progress test task',
         actor: 'stream-agent',

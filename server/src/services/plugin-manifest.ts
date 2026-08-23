@@ -89,7 +89,7 @@ export const PluginManifestSchema = z.object({
   /** Dependencies — names of other plugins this one requires. */
   dependsOn: z.array(z.string()).max(20).default([]),
   /** Author/publisher id (used for signature attestation). */
-  author: z.string().min(1).max(200).default(''),
+  author: z.string().max(200).default(''),
   /** Ed25519 signature (hex) over the manifest body, for attestation. */
   signature: z.string().min(64).max(256).optional(),
   /** Hard execution wall-clock timeout (ms) for the resource fuse. */

@@ -8,11 +8,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 // Mock the audit sink so the in-memory chain can run without a DB connection.
-vi.mock('../lib/audit.js', () => ({
+vi.mock('../../src/lib/audit.js', () => ({
   appendAudit: vi.fn(async () => undefined),
 }));
 
-import * as recorder from '../services/session-recorder.js';
+import * as recorder from '../../src/services/session-recorder.js';
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -64,7 +64,7 @@ describe('session-recorder — tamper-evident chain', () => {
   });
 
   it('record() writes an audit event', async () => {
-    const { appendAudit } = await import('../lib/audit.js');
+    const { appendAudit } = await import('../../src/lib/audit.js');
     recorder.record('s6', 'actor1', 'did.thing');
     expect(appendAudit).toHaveBeenCalled();
   });

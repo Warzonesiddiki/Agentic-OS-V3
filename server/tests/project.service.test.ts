@@ -4,26 +4,38 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-const returningChain = (rows: unknown[] = [{ id: 'prj_1' }]) => {
-  const p: any = Promise.resolve(rows);
-  p.$dynamic = () => Promise.resolve(rows);
-  return p;
-};
-const txMock: any = {
-  insert: vi.fn(() => ({ values: vi.fn(() => ({ returning: vi.fn(() => returningChain([{ id: 'prj_1' }])) })) })),
-  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) })),
-  query: {
-    projects: { findFirst: vi.fn(() => Promise.resolve({ id: 'prj_1', ownerId: 'u1' })) },
-    skills: { findFirst: vi.fn(() => Promise.resolve(null)) },
-  },
-};
-const dbMock: any = {
-  insert: vi.fn(() => ({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => returningChain([{ id: 'prj_1' }])), returning: vi.fn(() => returningChain([{ id: 'prj_1' }])) })) })),
-  update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) })),
-  query: { projects: { findFirst: vi.fn(() => Promise.resolve({ id: 'prj_1', ownerId: 'u1' })) }, skills: { findFirst: vi.fn(() => Promise.resolve(null)) } },
-  transaction: vi.fn((fn: any) => fn(txMock)),
-};
-vi.mock('../src/db/client.js', () => ({ db: dbMock, isSqlite: false, isPg: true }));
+const { returningChain, txMock, dbMock } = vi.hoisted(() => {
+  const returningChain = (rows: unknown[] = [{ id: 'prj_1' }]) => {
+    const p: any = Promise.resolve(rows);
+    p.$dynamic = () => Promise.resolve(rows);
+    return p;
+  };
+  // Drizzle-shaped insert chain: values() → [onConflictDoNothing() →] returning().
+  const insertBuilder = (rows: unknown[]) => ({
+    values: vi.fn(() => ({
+      onConflictDoNothing: vi.fn(() => ({ returning: vi.fn(() => returningChain(rows)) })),
+      returning: vi.fn(() => returningChain(rows)),
+    })),
+  });
+  const txMock: any = {
+    insert: vi.fn(() => insertBuilder([{ id: 'prj_1' }])),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) })),
+    query: {
+      projects: { findFirst: vi.fn(() => Promise.resolve({ id: 'prj_1', ownerId: 'u1' })) },
+      skills: { findFirst: vi.fn(() => Promise.resolve(null)) },
+    },
+  };
+  const dbMock: any = {
+    insert: vi.fn(() => insertBuilder([{ id: 'prj_1' }])),
+    update: vi.fn(() => ({ set: vi.fn(() => ({ where: vi.fn(() => Promise.resolve()) })) })),
+    query: { projects: { findFirst: vi.fn(() => Promise.resolve({ id: 'prj_1', ownerId: 'u1' })) }, skills: { findFirst: vi.fn(() => Promise.resolve(null)) } },
+    transaction: vi.fn((fn: any) => fn(txMock)),
+  };
+  return { returningChain, txMock, dbMock };
+});
+// memories/skills/projects mirror the schema-table re-exports on db/client.ts
+// consumed by project.service.ts; only passed into the mocked builders.
+vi.mock('../src/db/client.js', () => ({ db: dbMock, memories: {}, skills: {}, projects: {}, isSqlite: false, isPg: true }));
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/lib/tokens.js', () => ({ estimateTokens: () => 5 }));
 vi.mock('../src/services/safety.service.js', () => ({ assertOperational: vi.fn(() => Promise.resolve()) }));
@@ -55,7 +67,11 @@ describe('project.service', () => {
   });
 
   it('ensureProject returns existing project when conflict (no row)', async () => {
-    txMock.insert.mockReturnValueOnce({ values: vi.fn(() => ({ onConflictDoNothing: vi.fn(() => returningChain([])), returning: vi.fn(() => returningChain([])) })) });
+    txMock.insert.mockReturnValueOnce({
+      values: vi.fn(() => ({
+        onConflictDoNothing: vi.fn(() => ({ returning: vi.fn(() => returningChain([])) })),
+      })),
+    });
     txMock.query.projects.findFirst.mockResolvedValueOnce({ id: 'prj_1', ownerId: 'u1' });
     const r = await ensureProject('proj_1', 'transfer');
     expect(r.id).toBe('prj_1');

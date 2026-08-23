@@ -134,8 +134,12 @@ export function pickProvider(
   model: string,
   policy: RoutingPolicy
 ): { adapter: ProviderAdapter; apiKey?: string } | null {
-  if (policy.force && REGISTRY[policy.force]) {
-    return { adapter: REGISTRY[policy.force]!, apiKey: apiKeyFor(policy.force) };
+  // `force` is a hard override: an unknown forced provider must fail routing
+  // instead of silently falling back to the preference list.
+  if (policy.force) {
+    const forced = REGISTRY[policy.force];
+    if (!forced) return null;
+    return { adapter: forced, apiKey: apiKeyFor(policy.force) };
   }
   for (const name of policy.preferred) {
     const adapter = REGISTRY[name];

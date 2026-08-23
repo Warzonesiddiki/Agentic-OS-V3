@@ -16,7 +16,9 @@ const { dbMock, txMock } = vi.hoisted(() => {
   };
   return { dbMock: db, txMock: tx };
 });
-vi.mock('../src/db/client.js', () => ({ db: dbMock, isSqlite: false, isPg: true }));
+// `feedback` mirrors the schema-table re-export on server/src/db/client.ts
+// (imported by feedback.service.ts; consumed only via the mocked tx.insert).
+vi.mock('../src/db/client.js', () => ({ db: dbMock, feedback: {}, isSqlite: false, isPg: true }));
 vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(() => Promise.resolve()) }));
 vi.mock('../src/services/safety.service.js', () => ({ assertOperational: vi.fn(() => Promise.resolve()) }));
 

@@ -7,27 +7,30 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
-const insertFn = vi.fn(async () => undefined);
-const auditFn = vi.fn(async () => undefined);
-const txObj = { insert: vi.fn(() => ({ values: insertFn })) };
-const dbTransaction = vi.fn(async (cb: (tx: unknown) => Promise<void>) => {
-  await cb(txObj);
+const { insertFn, auditFn, txObj, dbTransaction } = vi.hoisted(() => {
+  const insertFn = vi.fn(async () => undefined);
+  const auditFn = vi.fn(async () => undefined);
+  const txObj = { insert: vi.fn(() => ({ values: insertFn })) };
+  const dbTransaction = vi.fn(async (cb: (tx: unknown) => Promise<void>) => {
+    await cb(txObj);
+  });
+  return { insertFn, auditFn, txObj, dbTransaction };
 });
 
-vi.mock('../db/client.js', () => ({
+vi.mock('../../src/db/client.js', () => ({
   db: { transaction: dbTransaction },
   feedback: { __table: true },
 }));
 
-vi.mock('../lib/audit.js', () => ({
+vi.mock('../../src/lib/audit.js', () => ({
   appendAudit: auditFn,
 }));
 
-vi.mock('../services/safety.service.js', () => ({
+vi.mock('../../src/services/safety.service.js', () => ({
   assertOperational: vi.fn(async () => undefined),
 }));
 
-import { recordFeedback } from '../services/feedback.service.js';
+import { recordFeedback } from '../../src/services/feedback.service.js';
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -61,7 +64,7 @@ describe('feedback.service — persistence + audit', () => {
   });
 
   it('asserts operational kill-switch before writing', async () => {
-    const { assertOperational } = await import('../services/safety.service.js');
+    const { assertOperational } = await import('../../src/services/safety.service.js');
     await recordFeedback(
       { query: 'q', itemId: 'sk_3', itemType: 'skill', helpful: true },
       'u'

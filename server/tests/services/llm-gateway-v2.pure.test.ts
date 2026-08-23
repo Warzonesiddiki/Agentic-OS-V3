@@ -60,18 +60,44 @@ vi.mock('../../src/services/unified-gateway/llm-cache.js', () => ({
 vi.mock('../../src/services/unified-gateway/connection-pool.js', () => ({
   defaultConnectionPool: { run: vi.fn(async (fn: () => Promise<any>) => fn()) },
 }));
-vi.mock('../../src/services/portkey-bridge.js', () => ({
-  streamPortkeyBridge: vi.fn(async (req: any, _cfg: any) => ({
-    provider: _cfg?.provider ?? 'openai',
-    model: req.model,
-    text: 'gateway-hello',
-    toolCalls: undefined,
-    promptTokens: 1,
-    completionTokens: 2,
-    totalTokens: 3,
-    durationMs: 5,
-  })),
-}));
+vi.mock('../../src/services/portkey-bridge.js', () => {
+  // Mirror the ProviderAdapter export surface of src/services/portkey-bridge.ts
+  // consumed by llm-gateway-v2's registry (7 sub-adapters + stream bridge).
+  const makePortkeyAdapter = (name: string) => ({
+    name,
+    capabilities: new Set(['vision', 'tools', 'json_mode', '1m_context']),
+    models: ['gpt-4o'],
+    invoke: vi.fn(async () => ({
+      provider: name,
+      model: 'gpt-4o',
+      text: 'gateway-hello',
+      toolCalls: undefined,
+      promptTokens: 1,
+      completionTokens: 2,
+      totalTokens: 3,
+      durationMs: 5,
+    })),
+  });
+  return {
+    streamPortkeyBridge: vi.fn(async (req: any, _cfg: any) => ({
+      provider: _cfg?.provider ?? 'openai',
+      model: req.model,
+      text: 'gateway-hello',
+      toolCalls: undefined,
+      promptTokens: 1,
+      completionTokens: 2,
+      totalTokens: 3,
+      durationMs: 5,
+    })),
+    portkeyBridge: makePortkeyAdapter('portkey'),
+    portkeyOpenAIProvider: makePortkeyAdapter('portkey-openai'),
+    portkeyAnthropicProvider: makePortkeyAdapter('portkey-anthropic'),
+    portkeyGeminiProvider: makePortkeyAdapter('portkey-gemini'),
+    portkeyGroqProvider: makePortkeyAdapter('portkey-groq'),
+    portkeyMistralProvider: makePortkeyAdapter('portkey-mistral'),
+    portkeyAzureProvider: makePortkeyAdapter('portkey-azure'),
+  };
+});
 vi.mock('../../src/services/omniroute-bridge.js', () => ({
   resolveOmniRoute: vi.fn(() => ({
     chosenProvider: 'openai',
@@ -85,6 +111,41 @@ vi.mock('../../src/services/omniroute-bridge.js', () => ({
   is5xxOrTransientError: vi.fn((e: any) => ({ is5xx: false, status: 0, reason: String(e) })),
   isProviderHealthy: vi.fn(() => true),
   canCallProvider: vi.fn(async () => true),
+}));
+// The registry's base adapters must be intercepted too — the pure variant runs
+// with no provider API keys and no network. Shapes mirror services/providers/*.
+vi.mock('../../src/services/providers/openai.js', () => ({
+  openaiProvider: {
+    name: 'openai',
+    capabilities: new Set(['vision', 'tools', 'json_mode']),
+    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4.1'],
+    invoke: vi.fn(async () => ({
+      provider: 'openai',
+      model: 'gpt-4o',
+      text: 'hello',
+      promptTokens: 1,
+      completionTokens: 2,
+      totalTokens: 3,
+      durationMs: 10,
+    })),
+  },
+}));
+vi.mock('../../src/services/providers/anthropic.js', () => ({
+  anthropicProvider: {
+    name: 'anthropic',
+    // NOTE: no '1m_context' — pickProvider capability-skip test relies on this.
+    capabilities: new Set(['vision', 'tools', 'json_mode']),
+    models: ['claude-3-5-sonnet-20241022'],
+    invoke: vi.fn(async () => ({
+      provider: 'anthropic',
+      model: 'claude-3-5-sonnet-20241022',
+      text: 'hello',
+      promptTokens: 1,
+      completionTokens: 2,
+      totalTokens: 3,
+      durationMs: 10,
+    })),
+  },
 }));
 
 import {
