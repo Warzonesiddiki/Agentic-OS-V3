@@ -1,0 +1,306 @@
+﻿**********************
+Windows PowerShell transcript start
+Start time: 20260824032838
+Username: DESKTOP-HI525Q3\Tahir
+RunAs User: DESKTOP-HI525Q3\Tahir
+Configuration Name: 
+Machine: DESKTOP-HI525Q3 (Microsoft Windows NT 10.0.26200.0)
+Host Application: C:\WINDOWS\System32\WindowsPowerShell\v1.0\powershell.exe -NoProfile -ExecutionPolicy Bypass -File C:\Users\Tahir\AppData\Local\Temp\ws0-clone.ps1
+Process ID: 13376
+PSVersion: 5.1.26100.8972
+PSEdition: Desktop
+PSCompatibleVersions: 1.0, 2.0, 3.0, 4.0, 5.0, 5.1.26100.8972
+BuildVersion: 10.0.26100.8972
+CLRVersion: 4.0.30319.42000
+WSManStackVersion: 3.0
+PSRemotingProtocolVersion: 2.3
+SerializationVersion: 1.1.0.1
+**********************
+Transcript started, output file is C:\Users\Tahir\Documents\GitHub\Agentic-OS-V3\docs\bmad\releases\evidence\2026-08-24-ws0-windows-node22-cleanclone-transcript.log
+=== WS0 clean-clone verification (fresh machine simulation, Windows, Node 22) ===
+STARTED: 2026-08-24T03:28:38.7650681+05:30
+node -v => v22.23.2
+Cloning into 'C:\Users\Tahir\AppData\Local\Temp\ws0-clone-032838'...
+done.
+Updating files:  60% (1561/2601)
+Updating files:  61% (1587/2601)
+Updating files:  62% (1613/2601)
+Updating files:  63% (1639/2601)
+Updating files:  64% (1665/2601)
+Updating files:  65% (1691/2601)
+Updating files:  66% (1717/2601)
+Updating files:  67% (1743/2601)
+Updating files:  68% (1769/2601)
+Updating files:  69% (1795/2601)
+Updating files:  70% (1821/2601)
+Updating files:  71% (1847/2601)
+Updating files:  72% (1873/2601)
+Updating files:  73% (1899/2601)
+Updating files:  74% (1925/2601)
+Updating files:  75% (1951/2601)
+Updating files:  76% (1977/2601)
+Updating files:  77% (2003/2601)
+Updating files:  78% (2029/2601)
+Updating files:  79% (2055/2601)
+Updating files:  80% (2081/2601)
+Updating files:  81% (2107/2601)
+Updating files:  82% (2133/2601)
+Updating files:  83% (2159/2601)
+Updating files:  84% (2185/2601)
+Updating files:  85% (2211/2601)
+Updating files:  86% (2237/2601)
+Updating files:  87% (2263/2601)
+Updating files:  88% (2289/2601)
+Updating files:  89% (2315/2601)
+Updating files:  90% (2341/2601)
+Updating files:  91% (2367/2601)
+Updating files:  92% (2393/2601)
+Updating files:  93% (2419/2601)
+Updating files:  94% (2445/2601)
+Updating files:  95% (2471/2601)
+Updating files:  96% (2497/2601)
+Updating files:  97% (2523/2601)
+Updating files:  98% (2549/2601)
+Updating files:  99% (2575/2601)
+Updating files: 100% (2601/2601)
+Updating files: 100% (2601/2601), done.
+--- files present at clone root (bootstrap surface) ---
+.agent
+.agent-genome.json
+.agents
+.audit-queue.json
+.augment
+.claude
+.clinerules
+.codebuddy
+.codegraph
+.codex
+.crush
+.cursor
+.dockerignore
+.editorconfig
+.env.example
+.gemini
+.gitattributes
+.github
+.gitignore
+.husky
+.iflow
+.kilocode
+.kilocodemodes
+.kiro
+.lintstagedrc
+.local
+.loop-state.json
+.mimocode
+.npmrc
+.nvmrc
+.opencode
+.post-mortems.md
+.prettierignore
+.prettierrc
+.qwen
+.roo
+.rovodev
+.serena
+.strategic-roadmap.json
+.tool-registry.json
+.trae
+.windsurf
+__check.cjs
+__check.mjs
+__check_tables.mjs
+_bmad
+_bmad-output
+agent-dag-real.txt
+AGENTS.md
+BASTION_BUILD_REPORT.md
+BASTION_NS_REPORT.md
+BENCHMARK.md
+Cargo.lock
+Cargo.toml
+certs
+CHANGELOG.md
+CLAUDE.md
+CODE_OF_CONDUCT.md
+CODEOWNERS
+CONTRIBUTING.md
+crates
+dd-real.txt
+DEVELOPMENT.md
+docker-compose.dev.yml
+docker-compose.monitoring.yml
+docker-compose.prod.yml
+docker-compose.yml
+Dockerfile
+Dockerfile.frontend
+Dockerfile.standalone
+docs
+e2e
+entrypoint.sh
+eslint.config.mjs
+fleet
+FLEET_BRIEF.md
+index.html
+LICENSE
+marketplace.service.ts
+MASTER_MISSION_BRIEF.md
+meta.ts
+nexus-tauri
+nginx.conf
+nginx.prod.conf
+package.json
+packages
+PERFECTION_PROGRESS.md
+PERFECTION_PROGRESS_V2.md
+PHASES_11_30_GAP_UPDATE.md
+PHASES_11_30_MASTER_PLAN.md
+PLAN.md
+playwright.config.ts
+pnpm-lock.yaml
+pnpm-workspace.yaml
+PROGRESS_REPORT.md
+PROJECT_ANALYSIS.md
+README.md
+REDEMPTION_PLAN.md
+scripts
+SECURITY.md
+server
+src
+TASKBOARD.md
+tests
+TROUBLESHOOTING.md
+tsconfig.json
+vite.config.standalone.ts
+vite.config.ts
+vitest.config.ts
+WORK_SUMMARY.md
+=== CLONE INSTALL BEGIN ===
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm he
+lp npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See
+ `npm help npmrc` for supported config options.
+npm warn install-scripts .npmrc allow-scripts setting is being ignored because --allow-scripts was passed on the command
+ line
+npm notice run agentic-os-v3@2.1.0 npx
+npm notice run pnpm install
+Scope: all 6 workspace projects
+server                                   |  WARN  deprecated @types/acorn@6.0.4
+ WARN  deprecated recharts@2.15.4: 1.x and 2.x branches are no longer active. Bump to Recharts v3 to receive latest feat
+ures and bugfixes. See https://github.com/recharts/recharts/wiki/3.0-migration-guide
+ WARN  4 deprecated subdependencies found: @esbuild-kit/core-utils@3.3.2, @esbuild-kit/esm-loader@2.6.5, prebuild-instal
+l@7.1.3, whatwg-encoding@3.1.1
+Packages: +684
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 832, reused 683, downloaded 0, added 684, done
+node_modules/.pnpm/esbuild@0.21.5/node_modules/esbuild: Running postinstall script, done in 390ms
+node_modules/.pnpm/esbuild@0.18.20/node_modules/esbuild: Running postinstall script, done in 392ms
+node_modules/.pnpm/esbuild@0.25.12/node_modules/esbuild: Running postinstall script, done in 400ms
+node_modules/.pnpm/esbuild@0.28.1/node_modules/esbuild: Running postinstall script, done in 403ms
+
+dependencies:
++ @tanstack/react-query 5.101.2
++ @tanstack/react-virtual 3.14.5
++ @xyflow/react 12.11.2
++ clsx 2.1.1
++ hash-wasm 4.12.0
++ jotai 2.20.1
++ motion 12.42.2
++ react 18.3.1
++ react-dom 18.3.1
++ react-router 8.3.0
++ recharts 2.15.4 deprecated
++ tailwind-merge 3.6.0
++ zod 3.25.76
++ zustand 5.0.14
+
+devDependencies:
++ @eslint/js 9.39.4
++ @playwright/test 1.61.1
++ @tailwindcss/vite 4.3.2
++ @testing-library/jest-dom 6.9.1
++ @testing-library/react 16.3.2
++ @types/react 18.3.31
++ @types/react-dom 18.3.7
++ @typescript-eslint/eslint-plugin 8.62.1
++ @typescript-eslint/parser 8.62.1
++ @vitejs/plugin-react 4.7.0
++ eslint 9.39.4
++ eslint-formatter-compact 9.0.1
++ eslint-plugin-react 7.37.5
++ eslint-plugin-react-hooks 5.2.0
++ globals 15.15.0
++ husky 9.1.7
++ jsdom 26.1.0 (30.0.1 is available)
++ lint-staged 17.0.8
++ prettier 3.9.4
++ tsx 4.22.5 (4.23.12 is available)
++ typescript 5.8.3
++ vite 5.4.21
++ vite-plugin-singlefile 2.3.3
++ vitest 3.2.6
+
+ WARN  Issues with peer dependencies found
+.
+└─┬ react-router 8.3.0
+  ├── ✕ unmet peer react@>=19.2.7: found 18.3.1
+  └── ✕ unmet peer react-dom@>=19.2.7: found 18.3.1
+
+server
+└─┬ @vitest/coverage-v8 4.1.9
+  └── ✕ unmet peer vitest@4.1.9: found 3.2.6
+
+Done in 9.6s
+INSTALL EXIT: 0
+=== CLONE TYPECHECK BEGIN ===
+npm warn Unknown project config "shamefully-hoist". This will stop working in the next major version of npm. See `npm he
+lp npmrc` for supported config options.
+npm warn Unknown project config "strict-peer-dependencies". This will stop working in the next major version of npm. See
+ `npm help npmrc` for supported config options.
+npm notice run agentic-os-v3@2.1.0 typecheck
+npm notice run cd server && npm run typecheck
+npm warn Unknown env config "shamefully-hoist". This will error in a future major version of npm. See `npm help npmrc` f
+or supported config options.
+npm notice run @agentic-os/server@2.1.0 pretypecheck
+npm notice run npm --prefix ../packages/a2a-server run build && npm --prefix ../packages/sdk run build
+npm warn Unknown env config "shamefully-hoist". This will error in a future major version of npm. See `npm help npmrc` f
+or supported config options.
+npm notice run @agentic-os/a2a-server@2.0.0 build
+npm notice run tsc
+npm warn Unknown env config "shamefully-hoist". This will error in a future major version of npm. See `npm help npmrc` f
+or supported config options.
+npm notice run @agentic-os/sdk@1.0.0 build
+npm notice run npm run build:esm && npm run build:cjs
+
+> @agentic-os/sdk@1.0.0 build:esm
+> tsc -p tsconfig.json
+
+
+> @agentic-os/sdk@1.0.0 build:cjs
+> tsc -p tsconfig.cjs.json
+
+npm notice run @agentic-os/server@2.1.0 typecheck
+npm notice run tsc --noEmit --incremental false
+TYPECHECK EXIT: 0
+=== CLONE TARGETED SUITE BEGIN ===
+npm warn install-scripts .npmrc allow-scripts setting is being ignored because --allow-scripts was passed on the command
+ line
+npm notice run @agentic-os/server@2.1.0 npx
+npm notice run vitest run tests/services/recall.test.ts tests/services/kernel.test.ts tests/security.test.ts
+
+ RUN  v3.2.6 C:/Users/Tahir/AppData/Local/Temp/ws0-clone-032838/server
+
+ ✓ tests/services/kernel.test.ts (51 tests) 369ms
+ ✓ tests/services/recall.test.ts (19 tests) 405ms
+ ✓ tests/security.test.ts (10 tests) 520ms
+
+ Test Files  3 passed (3)
+      Tests  80 passed (80)
+   Start at  03:29:36
+   Duration  3.32s (transform 788ms, setup 0ms, collect 5.57s, tests 1.29s, environment 1ms, prepare 702ms)
+TARGETED EXIT: 0
+FINISHED: 2026-08-24T03:29:40.4080631+05:30
+**********************
+Windows PowerShell transcript end
+End time: 20260824032940
+**********************
