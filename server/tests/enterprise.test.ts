@@ -103,8 +103,9 @@ function evalNode(node: any, row: any): boolean {
   }
 }
 function makeFakeDb() {
-  const store = new Map<string, any[]>();
-  function tblName(t: any): string {
+  const store = new Map<string | object, any[]>();
+  const tableKeys = new WeakMap<object, string | object>();
+  function tblName(t: any): string | object {
     if (t && t.name) return t.name;
     if (t && t.queryChunks) {
       const text = t.queryChunks.map((c: any) => (typeof c === 'string' ? c : c && c.value ? c.value.join('') : '')).join('');
@@ -113,7 +114,15 @@ function makeFakeDb() {
       const first = text.match(/[a-zA-Z_][a-zA-Z0-9_]*/);
       return first ? first[0] : String(t);
     }
-    return String(t);
+    // Tables without a resolvable name get a STABLE per-table-object key so
+    // distinct tables never share a bucket (previously they all collapsed
+    // onto '[object Object]' and leaked rows across tables).
+    let k = tableKeys.get(t);
+    if (k === undefined) {
+      k = `table#${tableKeys.size + 1}`;
+      tableKeys.set(t, k);
+    }
+    return k;
   }
   function ensure(t: any): any[] {
     const n = tblName(t);
@@ -170,28 +179,40 @@ function makeFakeDb() {
       return builder(null);
     },
     insert(table: any) {
-      const t = tblName(table);
-      return {
+      // Key derivation happens exactly once, inside ensure(rawTable). Deriving
+      // up-front AND again in ensure collapsed every table onto one bucket
+      // (drizzle tables expose `.name` as their "name" COLUMN object).
+      let pendingRows: any[] | null = null;
+      const chain: any = {
         values(row: any) {
-          const rows = Array.isArray(row) ? row : [row];
-          const dest = ensure(t);
-          for (const r of rows) dest.push({ ...r });
-          return {
-            returning() {
-              return Promise.resolve(rows.map((r) => ({ ...r })));
-            },
-            onConflictDoNothing() {
-              return Promise.resolve([]);
-            },
-          };
+          pendingRows = Array.isArray(row) ? row : [row];
+          const dest = ensure(table);
+          for (const r of pendingRows) dest.push({ ...r });
+          // Awaitable tail: services do `await db.insert(t).values(v)` without
+          // .returning() (real drizzle QueryPromise executes on await).
+          chain.then = (resolve: any) =>
+            Promise.resolve(pendingRows!.map((r) => ({ ...r }))).then(resolve);
+          return chain;
+        },
+        returning() {
+          return Promise.resolve((pendingRows ?? []).map((r) => ({ ...r })));
+        },
+        onConflictDoNothing() {
+          return Promise.resolve([]);
         },
       };
+      return chain;
     },
     update(table: any) {
-      const t = tblName(table);
       let setObj: any = {};
       let cond: any = null;
-      return {
+      function applyMatched(): any[] {
+        const dest = ensure(table);
+        const matched = cond ? dest.filter((r) => evalNode(cond, r)) : dest.slice();
+        for (const m of matched) Object.assign(m, setObj);
+        return matched;
+      }
+      const chain: any = {
         set(o: any) {
           setObj = o;
           return this;
@@ -201,47 +222,51 @@ function makeFakeDb() {
           return this;
         },
         returning() {
-          const dest = ensure(t);
-          const matched = dest.filter((r) => evalNode(cond, r));
-          for (const m of matched) Object.assign(m, setObj);
-          return Promise.resolve(matched.map((r) => ({ ...r })));
+          return Promise.resolve(applyMatched().map((r) => ({ ...r })));
         },
         async execute() {
-          const dest = ensure(t);
-          const matched = dest.filter((r) => evalNode(cond, r));
-          for (const m of matched) Object.assign(m, setObj);
-          return matched;
+          return applyMatched();
         },
       };
+      // Awaitable tail for `await db.update(t).set(..).where(..)`.
+      chain.then = (resolve: any) => Promise.resolve(applyMatched()).then(resolve);
+      return chain;
     },
     delete(table: any) {
-      const t = tblName(table);
       let cond: any = null;
-      return {
+      const chain: any = {
         where(c: any) {
           cond = c;
           return this;
         },
         async execute() {
-          const dest = ensure(t);
-          const keep = dest.filter((r) => !evalNode(cond, r));
-          store.set(t, keep);
-          return keep.length;
+          const dest = ensure(table);
+          const doomed = cond ? dest.filter((r) => evalNode(cond, r)) : dest.slice();
+          const keep = dest.filter((r) => !doomed.includes(r));
+          dest.length = 0;
+          for (const r of keep) dest.push(r);
+          return doomed.length;
         },
       };
+      // Awaitable tail for `await db.delete(t).where(..)`.
+      chain.then = (resolve: any) => Promise.resolve(chain.execute()).then(resolve);
+      return chain;
     },
   };
   return db;
 }
 
 // --- mock the DB + audit/forward side-effects BEFORE importing the service ---
+// Specifiers must match how the SERVICE resolves them (from src/services/*):
+// '../src/db/client.js', '../src/lib/audit.js', '../src/services/security/index.js'.
+// Mocking '../db/client.js' (server/db/) misses the real module entirely and the
+// service silently binds the live better-sqlite3 database instead of the fake.
 const fakeDb = makeFakeDb();
-vi.mock('../db/client.js', () => ({ db: fakeDb }));
-vi.mock('../lib/audit.js', () => ({ auditLog: vi.fn(async () => ({})) }));
-vi.mock('../services/security/index.js', () => ({ forward: vi.fn(async () => ({})) }));
+vi.mock('../src/db/client.js', () => ({ db: fakeDb, auditLog: {} }));
+vi.mock('../src/lib/audit.js', () => ({ appendAudit: vi.fn(async () => ({})), Tx: class {} }));
+vi.mock('../src/services/security/index.js', () => ({ forward: vi.fn(async () => ({})) }));
 
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
 import {
   orgs,
   workspaces,
@@ -454,9 +479,11 @@ describe('EnterpriseService — SIEM sinks & onboarding (config isolation)', () 
   it('completeOnboarding records steps per org (isolation)', async () => {
     await es.completeOnboarding('o1', 'sso');
     await es.completeOnboarding('o1', 'rbac');
-    const st1 = await fakeDb.select().from(onboardingState).where(eq(onboardingState.orgId, 'o1'));
+    // Read back through the fake-interpreter condition shape (real drizzle
+    // `eq()` chunks are not decodable by this interpreter's parser).
+    const st1 = await fakeDb.select().from(onboardingState).where(eqOnboarding('o1'));
     expect((st1[0].completedSteps as string[]).sort()).toEqual(['rbac', 'sso']);
-    const st2 = await fakeDb.select().from(onboardingState).where(eq(onboardingState.orgId, 'o2'));
+    const st2 = await fakeDb.select().from(onboardingState).where(eqOnboarding('o2'));
     expect(st2.length).toBe(0);
   });
 });
@@ -490,7 +517,9 @@ describe('EnterpriseService - multi-tenant quota enforcement', () => {
   it('multi-tenant quota isolation - org billing totals are not cross-contaminated', async () => {
     const b1 = await es.getBilling('o1');
     const b2 = await es.getBilling('o2');
-    expect(b1.currentPeriodCostUsd).toBeCloseTo(5.0, 5);
+    // This describe seeds an invoice for o2 only ($2.00 paid); o1 has none,
+    // so its period cost must be 0 while seats stay org-local.
+    expect(b1.currentPeriodCostUsd).toBe(0);
     expect(b1.seatUsage).toBe(3);
     expect(b2.currentPeriodCostUsd).toBeCloseTo(2.0, 5);
     expect(b2.seatUsage).toBe(1);

@@ -598,6 +598,7 @@ export async function upsertSso(
     ssoUrl: string;
     entityId: string;
     cert: string;
+    acsUrl: string;
     idpInitiated: boolean;
     jitProvisioning: boolean;
     domainRestriction: string[];
@@ -608,6 +609,8 @@ export async function upsertSso(
   if (patch.ssoUrl !== undefined) set.ssoSsoUrl = patch.ssoUrl;
   if (patch.entityId !== undefined) set.ssoEntityId = patch.entityId;
   if (patch.cert !== undefined) set.ssoCert = patch.cert;
+  // Persist the ACS/reply URL — startSsoLogin embeds it as redirect_uri.
+  if (patch.acsUrl !== undefined) set.ssoAcsUrl = patch.acsUrl;
   if (patch.idpInitiated !== undefined) set.ssoIdpInitiated = patch.idpInitiated;
   if (patch.jitProvisioning !== undefined) set.ssoJitProvisioning = patch.jitProvisioning;
   if (patch.domainRestriction !== undefined) set.ssoDomainRestriction = patch.domainRestriction;
