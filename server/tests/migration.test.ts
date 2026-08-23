@@ -26,7 +26,8 @@ const SCHEMA_PATH = resolve(import.meta.dirname, '..', 'src', 'db', 'schema-sqli
 
 /**
  * Expected tables and their column count (spot-check via pragma).
- * Derived from drizzle/0000_baseline_schema.sql.
+ * Derived from drizzle/0000_baseline_schema.sql. projects grew to 14 columns
+ * (mode, scope, idempotency_key added) — matches db/schema-sqlite.ts exactly.
  */
 const EXPECTED_TABLES: Record<string, number> = {
   agent_memory_quotas: 6,
@@ -78,7 +79,7 @@ const EXPECTED_TABLES: Record<string, number> = {
   plugin_security_reviews: 9,
   plugin_signing_keys: 6,
   plugins: 18,
-  projects: 11,
+  projects: 14,
   rbac_roles: 6,
   ring_policies: 7,
   sandbox_executions: 11,
