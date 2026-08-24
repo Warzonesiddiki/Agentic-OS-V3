@@ -235,6 +235,8 @@ describe('E1-S3 transfer — PostgreSQL engine', () => {
     return harness;
   }
 
+  // PGlite WASM init + two full databases + migrations is legitimately heavy;
+  // 120s explicit budget (default 30s times out on warm/contended machines).
   it('round-trips a redacted bundle between two PostgreSQL databases and rejects tampering', async () => {
     const source = await openPg();
     const project = makeProject();
@@ -266,7 +268,7 @@ describe('E1-S3 transfer — PostgreSQL engine', () => {
     expect(tamperPlan.wouldApply).toBe(false);
     expect(tamperPlan.rejected[0]?.reason).toBe('integrity-mismatch');
     await expect(createSqlR1Repositories(other.executor).projects.list()).resolves.toEqual([]);
-  });
+  }, 120_000);
 });
 
 describe('E1-S3 transfer — governed routes', () => {

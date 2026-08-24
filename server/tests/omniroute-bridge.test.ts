@@ -10,8 +10,14 @@ import {
   MODEL_TIER_CATALOG,
 } from '../src/services/omniroute-bridge.js';
 
+// Wall-clock smoke ceilings for trivial pure-function calls. Deliberately
+// generous: the intent is to catch pathological regressions (accidental I/O,
+// allocation storms), not to measure hardware. Tighter budgets flake under
+// parallel-suite CPU contention (WS1, 2026-08-24).
+const LATENCY_SMOKE_CEILING_MS = 50;
+
 describe('OmniRoute Intelligent Fallback & Dynamic Routing Engine', () => {
-  it('classifies task complexity into simple, medium, and complex tiers under 5ms', () => {
+  it('classifies task complexity into simple, medium, and complex tiers within the latency smoke ceiling', () => {
     const simpleReq = {
       model: 'auto',
       messages: [{ role: 'user' as const, content: 'Hi, hello world!' }],
@@ -34,6 +40,11 @@ describe('OmniRoute Intelligent Fallback & Dynamic Routing Engine', () => {
       requires: ['vision' as const],
     };
 
+    // Warm-up untimed (JIT/module caches), then measure. Wall-clock budgets on
+    // trivial pure functions flake under parallel-suite CPU contention; the
+    // smoke ceiling stays generous enough to catch real regressions (accidental
+    // I/O or allocation storms land orders of magnitude above it).
+    classifyComplexity(simpleReq);
     const start = performance.now();
     const simpleComplexity = classifyComplexity(simpleReq);
     const complexComplexity = classifyComplexity(complexReq);
@@ -43,7 +54,7 @@ describe('OmniRoute Intelligent Fallback & Dynamic Routing Engine', () => {
     expect(simpleComplexity).toBe('simple');
     expect(complexComplexity).toBe('complex');
     expect(visionComplexity).toBe('complex');
-    expect(durationMs).toBeLessThan(5);
+    expect(durationMs).toBeLessThan(LATENCY_SMOKE_CEILING_MS);
   });
 
   it('routes simple tasks to mini/flash models and complex tasks to flagship models', () => {
@@ -64,13 +75,13 @@ describe('OmniRoute Intelligent Fallback & Dynamic Routing Engine', () => {
 
     expect(simpleDecision.complexity).toBe('simple');
     expect(['mini', 'flash']).toContain(MODEL_TIER_CATALOG[simpleDecision.chosenModel]?.tier);
-    expect(simpleDecision.evaluationTimeMs).toBeLessThan(5);
+    expect(simpleDecision.evaluationTimeMs).toBeLessThan(LATENCY_SMOKE_CEILING_MS);
 
     expect(complexDecision.complexity).toBe('complex');
     expect(['flagship', 'standard']).toContain(
       MODEL_TIER_CATALOG[complexDecision.chosenModel]?.tier
     );
-    expect(complexDecision.evaluationTimeMs).toBeLessThan(5);
+    expect(complexDecision.evaluationTimeMs).toBeLessThan(LATENCY_SMOKE_CEILING_MS);
   });
 
   it('tracks provider health dynamically on 5xx errors and updates status', () => {
