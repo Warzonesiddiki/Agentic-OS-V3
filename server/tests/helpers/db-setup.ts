@@ -20,6 +20,7 @@ import { existsSync, unlinkSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { readFileSync } from 'node:fs';
+import { Table, getTableName, getTableColumns } from 'drizzle-orm';
 
 const require = createRequire(import.meta.url);
 const Database = require('better-sqlite3');
@@ -91,6 +92,57 @@ export async function createTestDb(migrationSqlPath?: string): Promise<TestDbFix
           if (!msg.includes('already exists')) throw err;
         }
       }
+    }
+  }
+
+  // Schema-drift sync: the baseline SQL predates later schema-sqlite.ts
+  // columns (e.g. projects.mode/scope/idempotency_key, pipelines.mode), and no
+  // follow-up migration files exist yet. The frozen schema module is canonical,
+  // so add any missing columns via ALTER TABLE before tests run. Drizzle then
+  // emits inserts that include those columns' inline defaults and matches.
+  const sqliteType = (col: any): string => {
+    const t = String(col.getSQLType?.() ?? 'text').toLowerCase();
+    if (t.includes('int')) return 'integer';
+    if (t.includes('real') || t.includes('float') || t.includes('doubl')) return 'real';
+    if (t.includes('blob')) return 'blob';
+    return 'text';
+  };
+  const literal = (col: any): string | null => {
+    let v = col.default;
+    if (v === undefined && typeof col.defaultFn === 'function') v = col.defaultFn();
+    if (v !== undefined && v !== null && !(typeof v === 'object' && 'queryChunks' in (v ?? {}))) {
+      return typeof v === 'string' ? `'${v.replace(/'/g, "''")}'` : String(v);
+    }
+    // JSON-mode / SQL-expression defaults: fall back to a type-appropriate
+    // neutral value so NOT NULL ADD COLUMN stays valid.
+    const type = sqliteType(col);
+    if (type === 'integer' || type === 'real') return '0';
+    if (type === 'blob') return "x''";
+    return "''";
+  };
+  for (const key of Object.keys(schema as Record<string, unknown>).sort()) {
+    const table = (schema as Record<string, unknown>)[key];
+    if (!(table instanceof Table)) continue;
+    const tableName = getTableName(table);
+    let existing: Array<{ name: string }>;
+    try {
+      existing = _sqliteDb.pragma(`table_info('${tableName}')`) as Array<{ name: string }>;
+    } catch {
+      continue; // table not created by baseline — nothing to sync
+    }
+    if (existing.length === 0) continue;
+    const have = new Set(existing.map((c) => c.name));
+    for (const col of Object.values(getTableColumns(table as never))) {
+      const c = col as unknown as {
+        name: string;
+        notNull: boolean;
+        default?: unknown;
+        defaultFn?: () => unknown;
+      };
+      if (have.has(c.name)) continue;
+      let ddl = `ALTER TABLE \`${tableName}\` ADD COLUMN \`${c.name}\` ${sqliteType(col as any)}`;
+      if (c.notNull) ddl += ` NOT NULL DEFAULT ${literal(c as any)}`;
+      _sqliteDb.exec(ddl);
     }
   }
 

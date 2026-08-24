@@ -1286,6 +1286,11 @@ export class FairnessTracker {
     deviation: number;
   }> {
     const totalWeight = [...this.weightById.values()].reduce((a, b) => a + b, 0) || 1;
+    // Deviation must be unit-consistent: normalize each team's recorded service
+    // level by the total recorded level BEFORE comparing against the fractional
+    // entitlement. Comparing raw units against a fraction silently marks
+    // starved teams as over-served (and vice versa).
+    const totalActual = [...this.shareById.values()].reduce((a, b) => a + Math.max(0, b), 0) || 1;
     const out: Array<{
       key: string;
       actualShare: number;
@@ -1295,11 +1300,12 @@ export class FairnessTracker {
     for (const [key, weight] of this.weightById) {
       const entitlement = weight / totalWeight;
       const actual = this.shareById.get(key) ?? 0;
+      const actualNormalized = Math.max(0, actual) / totalActual;
       out.push({
         key,
         actualShare: actual,
         entitlementShare: entitlement,
-        deviation: entitlement > 0 ? (actual - entitlement) / entitlement : 0,
+        deviation: entitlement > 0 ? (actualNormalized - entitlement) / entitlement : 0,
       });
     }
     return out;

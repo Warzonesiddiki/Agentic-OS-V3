@@ -65,7 +65,10 @@ function drain(policy: SchedulingPolicy, tasks: QueuedTask[]): string[] {
 function makeEdfPool(rand: () => number, count: number): QueuedTask[] {
   const tasks: QueuedTask[] = [];
   for (let i = 0; i < count; i++) {
-    const hasDeadline = rand() < 0.7;
+    // Task 0 always carries a deadline: EDFPolicy.pick() DECLINES pools with
+    // zero finite deadlines (returns null by contract), so a randomized
+    // all-deadline-less pool would fail the invariants spuriously.
+    const hasDeadline = i === 0 || rand() < 0.7;
     const deadline = hasDeadline ? new Date(1_000_000 + Math.floor(rand() * 100_000)) : null;
     tasks.push({
       id: `t${i}`,

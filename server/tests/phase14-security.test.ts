@@ -2,14 +2,23 @@
  * Phase 14 security hardening — unit tests (pure logic, no DB).
  * Audit/DB side-effects are mocked so the suite stays in the unit tier.
  */
-import { describe, it, expect, beforeAll, vi } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi } from 'vitest';
 
 // Set HSM key before any env-caching module loads. Static ESM imports are
 // hoisted above plain statements, so this must run via vi.hoisted to execute
 // before module evaluation (lib/env.ts caches a parsed env snapshot on first
 // getEnv(), and hsm-provider caches that snapshot into its own config).
-vi.hoisted(() => {
+// The previous value is captured and restored in afterAll so this file stays
+// hermetic — a leaked HSM_LOCAL_KEY poisons every later file in the worker.
+const __savedHsmLocalKey: string | undefined = vi.hoisted(() => {
+  const saved = process.env.HSM_LOCAL_KEY;
   process.env.HSM_LOCAL_KEY = Buffer.alloc(32, 7).toString('base64');
+  return saved;
+});
+
+afterAll(() => {
+  if (__savedHsmLocalKey === undefined) delete process.env.HSM_LOCAL_KEY;
+  else process.env.HSM_LOCAL_KEY = __savedHsmLocalKey;
 });
 
 vi.mock('../src/db/client.js', () => ({ db: {}, systemMeta: {}, auditLog: {} }));
@@ -223,14 +232,13 @@ describe('env-sanitizer', () => {
 
 describe('rate-limit.service', () => {
   it('allows until exhausted then blocks', () => {
-    configurePolicy({ key: 'test:u1', cap: 2, refillPerSec: 1000 });
+    // Low drip (1 token/sec) makes exhaustion deterministic: no realistic
+    // inter-call gap can refill a whole token, unlike a fast-drip bucket
+    // where wall-clock jitter re-fills between assertions.
+    configurePolicy({ key: 'test:u1', cap: 2, refillPerSec: 1 });
     expect(check('test:u1').allowed).toBe(true);
     expect(check('test:u1').allowed).toBe(true);
-    // With refillPerSec=1000 the bucket re-fills between millisecond-spaced
-    // unit-test calls, so exhaustion is asserted with one large cost that cap
-    // plus any plausible refill cannot cover — deterministic, still proves
-    // that limiting actually denies.
-    const denied = check('test:u1', 20);
+    const denied = check('test:u1');
     expect(denied.allowed).toBe(false);
     expect(denied.retryAfterMs).toBeGreaterThan(0);
     // guard throws ApiError(code='RATE_LIMITED'); the code rides the .code

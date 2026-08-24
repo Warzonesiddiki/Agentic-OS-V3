@@ -32,30 +32,25 @@ export class FairnessCorrector {
     recommendations: FairShareRecommendation[];
   } {
     const measurements = tracker.measure();
-    // measure() reports actualShare in the RECORDED unit (e.g. CPU-ms), while
-    // entitlementShare is a normalized fraction of total weight. Normalize the
-    // actuals to fractions of the recorded total so deviations are comparable;
-    // without this, a starved team (small but positive raw share) always looks
-    // over-served and no correction is ever recommended.
-    const totalRaw = measurements.reduce((a, m) => a + Math.max(0, m.actualShare), 0);
+    // The tracker owns unit semantics: measure() supplies `deviation` already
+    // computed in its own terms (see FairnessTracker.measure()), so consumers
+    // must use it directly. Re-deriving deviation here (e.g. re-normalizing
+    // actualShare by its own total) silently misclassifies fully-starved
+    // single-team pools and breaks the documented boost cap contract.
     const recommendations: FairShareRecommendation[] = [];
     const adjusted: string[] = [];
     for (const m of measurements) {
-      if (m.entitlementShare <= 0 || totalRaw <= 0) continue;
-      const actualNormalized = m.actualShare / totalRaw;
-      const deviation =
-        (actualNormalized - m.entitlementShare) / (m.entitlementShare || 1e-9);
-      if (deviation < -0.1) {
-        const boost = Math.min(3, Math.ceil(Math.abs(deviation) * 10));
-        adjusted.push(m.key);
-        recommendations.push({
-          teamId: m.key,
-          entitlement: m.entitlementShare,
-          actual: actualNormalized,
-          deviation,
-          boost,
-        });
-      }
+      if (m.entitlementShare <= 0) continue;
+      if (!(m.deviation < -0.1)) continue;
+      const boost = Math.min(3, Math.ceil(Math.abs(m.deviation) * 10));
+      adjusted.push(m.key);
+      recommendations.push({
+        teamId: m.key,
+        entitlement: m.entitlementShare,
+        actual: m.actualShare,
+        deviation: m.deviation,
+        boost,
+      });
     }
     return { adjusted, recommendations };
   }
