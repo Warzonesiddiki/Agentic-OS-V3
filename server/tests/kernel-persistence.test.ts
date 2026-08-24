@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, beforeEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,6 +18,10 @@ describe('kernel persistence', () => {
     __resetPersistence();
   });
   afterEach(async () => {
+    // Stop any live ticker BEFORE removing the temp dir: a tick that fired
+    // after cleanup used to race `rm` and log kernel_state_save_failed
+    // ENOENT against the already-deleted tick.json path.
+    __resetPersistence();
     if (dir) await rm(dir, { recursive: true, force: true });
     dir = '';
   });
@@ -59,14 +63,33 @@ describe('kernel persistence', () => {
     const path = join(dir, 'tick.json');
     setKernelStatePath(path);
     let calls = 0;
-    const stop = startPersistenceTicker(() => {
-      calls += 1;
-      return defaultKernelState();
-    }, 10);
-    await new Promise((r) => setTimeout(r, 35));
-    stop();
-    expect(calls).toBeGreaterThanOrEqual(2);
-    const loaded = await loadKernelState();
-    expect(loaded.version).toBe(1);
+    // Fake timers make the ticker deterministic under parallel full-suite
+    // load: exactly one tick per 10 ms of advanced virtual time. Real-timer
+    // scheduling previously starved the fixed 35 ms sleep below the >= 2
+    // threshold when the event loop stalled (libuv coalesces missed
+    // interval periods), and a test-timeout teardown could rm the temp dir
+    // while the real interval was still live (ENOENT on tick.json).
+    vi.useFakeTimers();
+    try {
+      const ticker = startPersistenceTicker(() => {
+        calls += 1;
+        return defaultKernelState();
+      }, 10);
+      await vi.advanceTimersByTimeAsync(35);
+      expect(calls).toBeGreaterThanOrEqual(2);
+      const callsAtStop = calls;
+      // `startPersistenceTicker` returns a CALLABLE manual-flush handle
+      // ({ (): void; stop(): void }) — invoking it fires exactly one extra
+      // tick. Only `.stop()` clears the underlying interval; calling the
+      // handle itself (the old test did) never stopped the ticker, leaving a
+      // live interval writing into the removed temp dir (ENOENT tick.json).
+      ticker.stop();
+      await vi.advanceTimersByTimeAsync(60);
+      expect(calls).toBe(callsAtStop);
+      const loaded = await loadKernelState();
+      expect(loaded.version).toBe(1);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

@@ -245,88 +245,99 @@ describe('kernel introspection', () => {
   });
 
   it('returns 200 with the expected snapshot shape', async () => {
-    const agentId = `agt_${randomUUID()}`;
-    h.raw
-      .prepare(
-        `INSERT INTO agents (id, name, ring, scopes, status) VALUES (?, 'a', 2, '[]', 'idle')`
-      )
-      .run(agentId);
-
-    // Seed ring policies for rings 0..4.
-    for (let ring = 0; ring < 5; ring++) {
+    // Pin the wall clock (faking Date only — promises/microtasks stay real)
+    // so quantum accounting is deterministic under parallel full-suite load.
+    // The service computes remaining = quantum - (Date.now() - started_at);
+    // previously a >2s scheduling gap between seeding (started_at = now-1s)
+    // and snapshot generation broke the asserted remaining > 3000ms bound.
+    vi.useFakeTimers({ now: Date.now(), toFake: ['Date'] });
+    try {
+      const agentId = `agt_${randomUUID()}`;
       h.raw
         .prepare(
-          `INSERT INTO ring_policies (id, ring, tools, max_concurrency, max_tokens_per_min, max_api_calls_per_min)
-           VALUES (?, ?, '[]', ?, 1000, 50)`
+          `INSERT INTO agents (id, name, ring, scopes, status) VALUES (?, 'a', 2, '[]', 'idle')`
         )
-        .run(`rp_${ring}`, ring, ring === 2 ? 2 : 0);
+        .run(agentId);
+
+      // Seed ring policies for rings 0..4.
+      for (let ring = 0; ring < 5; ring++) {
+        h.raw
+          .prepare(
+            `INSERT INTO ring_policies (id, ring, tools, max_concurrency, max_tokens_per_min, max_api_calls_per_min)
+             VALUES (?, ?, '[]', ?, 1000, 50)`
+          )
+          .run(`rp_${ring}`, ring, ring === 2 ? 2 : 0);
+      }
+
+      const now = Date.now();
+      // Running task in ring 2 (agent ring 2) with a 5000ms quantum.
+      h.raw
+        .prepare(
+          `INSERT INTO agent_tasks (id, agent_id, label, kind, queue, priority, status, started_at, quantum_ms, gang_id)
+           VALUES (?, ?, 'run1', 'interactive', 'Q1', 90, 'running', ?, 5000, 'gangA')`
+        )
+        .run(`tsk_${randomUUID()}`, agentId, new Date(now - 1000).toISOString());
+      // Queued task in Q1.
+      h.raw
+        .prepare(
+          `INSERT INTO agent_tasks (id, agent_id, label, kind, queue, priority, status)
+           VALUES (?, ?, 'q1', 'interactive', 'Q1', 80, 'queued')`
+        )
+        .run(`tsk_${randomUUID()}`, agentId);
+      // Queued task in Q0 (safety).
+      h.raw
+        .prepare(
+          `INSERT INTO agent_tasks (id, agent_id, label, kind, queue, priority, status)
+           VALUES (?, ?, 'q0', 'safety', 'Q0', 99, 'queued')`
+        )
+        .run(`tsk_${randomUUID()}`, agentId);
+
+      const res = await kernelIntrospectRouter.request('/api/kernel/introspect', {
+        method: 'GET',
+      });
+      expect(res.status).toBe(200);
+
+      const body = (await res.json()) as { ok: boolean; data: KernelIntrospection };
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.data.queueDepths)).toBe(true);
+      expect(body.data.queueDepths).toHaveLength(5);
+
+      const q1 = body.data.queueDepths.find((q) => q.queue === 'Q1');
+      expect(q1?.queued).toBe(1);
+      expect(q1?.running).toBe(1);
+
+      const q0 = body.data.queueDepths.find((q) => q.queue === 'Q0');
+      expect(q0?.queued).toBe(1);
+      expect(q0?.running).toBe(0);
+
+      expect(Array.isArray(body.data.runningTasks)).toBe(true);
+      expect(body.data.runningTasks).toHaveLength(1);
+      const rt = body.data.runningTasks[0]!;
+      expect(rt.queue).toBe('Q1');
+      expect(rt.gangId).toBe('gangA');
+      expect(rt.quantumMs).toBe(5000);
+      // Quantum started exactly 1000ms ago (pinned clock) with a 5000ms
+      // slice → deterministically ~4000ms remaining under any load.
+      expect(rt.quantumRemainingMs).toBeGreaterThan(3000);
+      expect(rt.quantumRemainingMs).toBeLessThanOrEqual(5000);
+
+      expect(Array.isArray(body.data.ringBudgets)).toBe(true);
+      expect(body.data.ringBudgets).toHaveLength(5);
+      const ring2 = body.data.ringBudgets.find((r) => r.ring === 2);
+      expect(ring2?.runningTasks).toBe(1);
+      expect(ring2?.maxConcurrency).toBe(2);
+      expect(ring2?.concurrencyUsedPct).toBeCloseTo(0.5, 5);
+
+      expect(Array.isArray(body.data.gangLocks)).toBe(true);
+      expect(body.data.gangLocks).toHaveLength(1);
+      expect(body.data.gangLocks[0]!.gangId).toBe('gangA');
+      expect(body.data.gangLocks[0]!.runningMembers).toBe(1);
+
+      expect(body.data.barrierWaiters).toEqual([]);
+      expect(typeof body.data.generatedAt).toBe('string');
+    } finally {
+      vi.useRealTimers();
     }
-
-    const now = Date.now();
-    // Running task in ring 2 (agent ring 2) with a 5000ms quantum.
-    h.raw
-      .prepare(
-        `INSERT INTO agent_tasks (id, agent_id, label, kind, queue, priority, status, started_at, quantum_ms, gang_id)
-         VALUES (?, ?, 'run1', 'interactive', 'Q1', 90, 'running', ?, 5000, 'gangA')`
-      )
-      .run(`tsk_${randomUUID()}`, agentId, new Date(now - 1000).toISOString());
-    // Queued task in Q1.
-    h.raw
-      .prepare(
-        `INSERT INTO agent_tasks (id, agent_id, label, kind, queue, priority, status)
-         VALUES (?, ?, 'q1', 'interactive', 'Q1', 80, 'queued')`
-      )
-      .run(`tsk_${randomUUID()}`, agentId);
-    // Queued task in Q0 (safety).
-    h.raw
-      .prepare(
-        `INSERT INTO agent_tasks (id, agent_id, label, kind, queue, priority, status)
-         VALUES (?, ?, 'q0', 'safety', 'Q0', 99, 'queued')`
-      )
-      .run(`tsk_${randomUUID()}`, agentId);
-
-    const res = await kernelIntrospectRouter.request('/api/kernel/introspect', {
-      method: 'GET',
-    });
-    expect(res.status).toBe(200);
-
-    const body = (await res.json()) as { ok: boolean; data: KernelIntrospection };
-    expect(body.ok).toBe(true);
-    expect(Array.isArray(body.data.queueDepths)).toBe(true);
-    expect(body.data.queueDepths).toHaveLength(5);
-
-    const q1 = body.data.queueDepths.find((q) => q.queue === 'Q1');
-    expect(q1?.queued).toBe(1);
-    expect(q1?.running).toBe(1);
-
-    const q0 = body.data.queueDepths.find((q) => q.queue === 'Q0');
-    expect(q0?.queued).toBe(1);
-    expect(q0?.running).toBe(0);
-
-    expect(Array.isArray(body.data.runningTasks)).toBe(true);
-    expect(body.data.runningTasks).toHaveLength(1);
-    const rt = body.data.runningTasks[0]!;
-    expect(rt.queue).toBe('Q1');
-    expect(rt.gangId).toBe('gangA');
-    expect(rt.quantumMs).toBe(5000);
-    // Quantum started 1000ms ago with 5000ms slice → ~4000ms remaining.
-    expect(rt.quantumRemainingMs).toBeGreaterThan(3000);
-    expect(rt.quantumRemainingMs).toBeLessThanOrEqual(5000);
-
-    expect(Array.isArray(body.data.ringBudgets)).toBe(true);
-    expect(body.data.ringBudgets).toHaveLength(5);
-    const ring2 = body.data.ringBudgets.find((r) => r.ring === 2);
-    expect(ring2?.runningTasks).toBe(1);
-    expect(ring2?.maxConcurrency).toBe(2);
-    expect(ring2?.concurrencyUsedPct).toBeCloseTo(0.5, 5);
-
-    expect(Array.isArray(body.data.gangLocks)).toBe(true);
-    expect(body.data.gangLocks).toHaveLength(1);
-    expect(body.data.gangLocks[0]!.gangId).toBe('gangA');
-    expect(body.data.gangLocks[0]!.runningMembers).toBe(1);
-
-    expect(body.data.barrierWaiters).toEqual([]);
-    expect(typeof body.data.generatedAt).toBe('string');
   });
 
   it('service returns empty structures when DB has no tasks', async () => {
