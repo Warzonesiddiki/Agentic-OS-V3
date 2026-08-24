@@ -1,0 +1,614 @@
+﻿node.exe : npm warn install-scripts .npmrc allow-scripts setting is being ignored because --allow-scripts was passed on the command line
+At line:1 char:1
++ & "C:\Users\Tahir\AppData\Local\Temp\node22p\node-v22.23.2-win-x64/no ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (npm warn instal...he command line:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+npm notice run @agentic-os/server@2.1.0 npx
+npm notice run vitest run
+
+ RUN  v3.2.6 C:/Users/Tahir/Documents/GitHub/Agentic-OS-V3/server
+
+{"level":"warn","msg":"portkey.fetch_retry","ts":"2026-08-24T00:02:55.274Z","attempt":1,"status":429,"url":"https://api.portkey.ai/v1/chat/completions","errorS
+nippet":"rate"}
+{"level":"warn","msg":"portkey.fetch_retry","ts":"2026-08-24T00:02:57.353Z","attempt":2,"status":429,"url":"https://api.portkey.ai/v1/chat/completions","errorS
+nippet":"rate"}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:02:58.661Z","instance":"container"}
+{"level":"error","msg":"kernel_panic","ts":"2026-08-24T00:02:58.737Z","reason":"phase11-test"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-08-24T00:02:58.738Z"}
+ ✓ tests/phase11-kernel.test.ts (32 tests) 4234ms
+   ✓ Phase 11 baseline — kernel.ts already-present surface > loads and exposes the event bus, ring budgets, deadlock & gang surfaces  3638ms
+stdout | tests/bench-scheduler.test.ts > scheduler pick hot-path benchmark > MLFQPolicy.pick is O(N) with no sort over 10000 tasks (p95 < threshold)
+[scheduler bench] MLFQ pick n=10000 iters=1000 avg=1.1257ms p95=2.8848ms
+
+stdout | tests/bench-scheduler.test.ts > scheduler pick hot-path benchmark > EDFPolicy.pick is O(N) with no sort over 10000 tasks
+[scheduler bench] EDF pick n=10000 iters=1000 avg=0.8389ms p95=2.5661ms
+
+ ✓ tests/sandbox-security.test.ts (22 tests) 4953ms
+   ✓ sandbox — timeout enforcement > terminates infinite loops via timeout  2080ms
+   ✓ sandbox — timeout enforcement > terminates long-running synchronous computation  1534ms
+   ✓ sandbox — memory limit enforcement > rejects memory bomb via large array allocation  469ms
+{"level":"warn","msg":"portkey.fetch_retry","ts":"2026-08-24T00:03:01.398Z","attempt":3,"status":429,"url":"https://api.portkey.ai/v1/chat/completions","errorS
+nippet":"rate"}
+stdout | tests/bench-scheduler.test.ts > scheduler pick hot-path benchmark > FairSharePolicy.pick is O(N) single pass over 10000 tasks
+[scheduler bench] FairShare pick n=10000 iters=1000 avg=1.5640ms p95=3.1313ms
+
+ ✓ tests/bench-scheduler.test.ts (4 tests) 3619ms
+   ✓ scheduler pick hot-path benchmark > MLFQPolicy.pick is O(N) with no sort over 10000 tasks (p95 < threshold)  1161ms
+   ✓ scheduler pick hot-path benchmark > EDFPolicy.pick is O(N) with no sort over 10000 tasks  859ms
+   ✓ scheduler pick hot-path benchmark > FairSharePolicy.pick is O(N) single pass over 10000 tasks  1585ms
+ ✓ tests/r1-effect-claims-contract.test.ts (2 tests) 7149ms
+   ✓ E10-S9 SQL effect-claim contract > atomically scopes claims on PGlite PostgreSQL semantics  7093ms
+ ✓ tests/r1-application-sqlite-contract.test.ts (2 tests) 3147ms
+   ✓ R1 SQLite application-client contract > runs repository contracts through the application SQLite client  2769ms
+   ✓ R1 SQLite application-client contract > persists committed project and task state after the application client restarts  375ms
+ ✓ tests/scheduler-phase11.test.ts (8 tests) 2593ms
+   ✓ Phase 11 Scheduling Policies > MLFQ ordering — highest queue (Q0) is picked first regardless of age  2566ms
+{"level":"warn","msg":"dag.executor.step.failed","ts":"2026-08-24T00:03:04.843Z","stepId":"a","attempt":1,"err":"boom"}
+{"level":"info","msg":"dag.executor.compensate","ts":"2026-08-24T00:03:05.151Z","runId":"2SBZrwfYT8GMwRJzSpXInV","stepId":"a"}
+{"level":"warn","msg":"dag.executor.step.failed","ts":"2026-08-24T00:03:05.155Z","stepId":"a","attempt":1,"err":"boom"}
+{"level":"error","msg":"dag.executor.stall","ts":"2026-08-24T00:03:05.465Z","runId":"6QQeTWdRknRItWMBKL64g1","pending":["b"]}
+{"level":"info","msg":"dag.executor.compensate","ts":"2026-08-24T00:03:05.465Z","runId":"6QQeTWdRknRItWMBKL64g1","stepId":"b"}
+{"level":"info","msg":"dag.executor.compensate","ts":"2026-08-24T00:03:05.465Z","runId":"6QQeTWdRknRItWMBKL64g1","stepId":"a"}
+{"level":"warn","msg":"dag.executor.step.failed","ts":"2026-08-24T00:03:05.469Z","stepId":"a","attempt":1,"err":"boom"}
+{"level":"warn","msg":"dag.executor.step.retry","ts":"2026-08-24T00:03:05.577Z","stepId":"a","attempt":1,"err":"step a exceeded soft timeout of 30ms"}
+{"level":"warn","msg":"dag.executor.step.failed","ts":"2026-08-24T00:03:05.640Z","stepId":"a","attempt":1,"err":"boom"}
+{"level":"error","msg":"dag.executor.stall","ts":"2026-08-24T00:03:05.874Z","runId":"3V7MrBd2JcdbAiij9hhFIw","pending":["b","c"]}
+{"level":"info","msg":"dag.executor.compensate","ts":"2026-08-24T00:03:05.875Z","runId":"3V7MrBd2JcdbAiij9hhFIw","stepId":"b"}
+{"level":"info","msg":"dag.executor.compensate","ts":"2026-08-24T00:03:05.875Z","runId":"3V7MrBd2JcdbAiij9hhFIw","stepId":"c"}
+{"level":"info","msg":"dag.executor.compensate","ts":"2026-08-24T00:03:05.876Z","runId":"3V7MrBd2JcdbAiij9hhFIw","stepId":"a"}
+{"level":"warn","msg":"dag.executor.step.failed","ts":"2026-08-24T00:03:05.882Z","stepId":"a","attempt":1,"err":"boom"}
+ ✓ tests/services/embeddings.test.ts (16 tests) 1718ms
+ ✓ tests/services/siem-forwarder.test.ts (10 tests) 1890ms
+   ✓ network sinks (splunk/elastic/datadog/webhook) > records a failed-forward error when no endpoint configured (flush swallows it)  633ms
+   ✓ network sinks (splunk/elastic/datadog/webhook) > records a failed-forward error for elastic sink without endpoint  617ms
+   ✓ network sinks (splunk/elastic/datadog/webhook) > includes the missing-endpoint reason in the logged failure  615ms
+{"level":"info","msg":"dag.executor.compensate","ts":"2026-08-24T00:03:06.141Z","runId":"4vW9F5QdXaaFEYCgs94FVb","stepId":"a"}
+{"level":"warn","msg":"dag.executor.step.failed","ts":"2026-08-24T00:03:06.145Z","stepId":"a","attempt":1,"err":"boom"}
+{"level":"info","msg":"dag.executor.compensate","ts":"2026-08-24T00:03:06.505Z","runId":"47KVcclpk7pCdSnEkx3MKV","stepId":"a"}
+{"level":"error","msg":"dag.executor.compensate.fail","ts":"2026-08-24T00:03:06.505Z","runId":"47KVcclpk7pCdSnEkx3MKV","stepId":"a","err":"undo failed"}
+ ✓ tests/services/dag-executor.test.ts (9 tests) 1679ms
+   ✓ dag-executor — correctness > records a step as FAILED when runAgent returns ok=false (does not poison the board)  325ms
+   ✓ dag-executor — correctness > propagates a failed dependency to dependents by NEVER executing them (blocked, not run)  313ms
+   ✓ dag-executor — real compensation (self-healing) > records compensation FAILURE when onCompensate throws  361ms
+ ✓ tests/services/unified-gateway/portkey.test.ts (27 tests) 14175ms
+   ✓ dispatchPortkeyRequest > throws portkey_<provider>_<status>:<text> on non-ok response  14146ms
+ ✓ tests/services/recall.test.ts (19 tests) 1573ms
+   ✓ recall service > returns relevant results for keyword queries  429ms
+ ✓ tests/security.test.ts (10 tests) 1030ms
+   ✓ api key hashing > verifies a correct key  369ms
+   ✓ api key hashing > rejects a wrong key  316ms
+   ✓ api key hashing > produces salted hashes (different per call)  326ms
+ ✓ tests/services/scheduler-property.test.ts (16 tests) 1453ms
+   ✓ Scheduler property-based invariants (Phase 11.34) > MLFQ fairness > no task with a strictly lower queue rank is bypassed  343ms
+ ✓ tests/services/skill-template-engine.test.ts (3 tests) 849ms
+   ✓ skill-template-engine — env-threshold gate > default threshold is 1.0 (100%) — a partial-match script does NOT pass  684ms
+{"level":"info","msg":"headless_actuator_screenshot","ts":"2026-08-24T00:03:12.009Z","cropped":false}
+{"level":"info","msg":"headless_actuator_moveMouse","ts":"2026-08-24T00:03:12.013Z","x":10,"y":20}
+{"level":"info","msg":"headless_actuator_click","ts":"2026-08-24T00:03:12.126Z","x":10,"y":20,"button":"left"}
+{"level":"info","msg":"headless_actuator_type","ts":"2026-08-24T00:03:12.235Z","text":"Test typing"}
+{"level":"info","msg":"headless_actuator_scroll","ts":"2026-08-24T00:03:12.344Z","amount":5,"direction":"down"}
+{"level":"info","msg":"headless_actuator_keypress","ts":"2026-08-24T00:03:12.453Z","key":"enter"}
+{"level":"info","msg":"desktop_actuation_start","ts":"2026-08-24T00:03:12.457Z","traceId":"vlm_78078fab","prompt":"Click on start button","mode":"headless"}
+{"level":"info","msg":"headless_actuator_screenshot","ts":"2026-08-24T00:03:12.457Z","cropped":false}
+{"level":"info","msg":"headless_actuator_click","ts":"2026-08-24T00:03:12.458Z","x":100,"y":200,"button":"left"}
+{"level":"info","msg":"headless_actuator_type","ts":"2026-08-24T00:03:12.565Z","text":"Hello World"}
+{"level":"info","msg":"desktop_actuation_done","ts":"2026-08-24T00:03:12.565Z","traceId":"vlm_78078fab","actionsExecuted":2,"screenshotCount":1,"summary":"Mock task completed"}
+ ✓ tests/desktop-actuator.test.ts (10 tests) 793ms
+   ✓ HeadlessActuator Implementation > executes GUI actions without error  442ms
+ ✓ tests/siem-forwarder.test.ts (5 tests) 641ms
+   ✓ Aegis: siem-forwarder > webhook without endpoint fails validation and is dropped after retries (no crash)  618ms
+ ✓ tests/services/llm-gateway-v2.test.ts (40 tests) 942ms
+ ✓ tests/services/agent-runtime.test.ts (42 tests) 829ms
+   ✓ ActionRegistry > execute runs handler and succeeds  325ms
+ ✓ tests/mcp-server.test.ts (27 tests) 452ms
+ ✓ tests/self-opt-controller.test.ts (3 tests) 444ms
+   ✓ SelfOptController — live tuning end-to-end > applies live tuners through Forge's public setters when not dry-run  430ms
+{"level":"info","msg":"wasm_guest_log","ts":"2026-08-24T00:03:15.762Z","pluginId":"test-plugin-1","message":"info"}
+{"level":"warn","msg":"wasm_http_denied","ts":"2026-08-24T00:03:15.778Z","pluginId":"test-plugin-1","host":"evil.example.com"}
+{"level":"info","msg":"wasm_http_fetch","ts":"2026-08-24T00:03:16.240Z","pluginId":"test-plugin-1","agentId":"agent-1","host":"api.github.com","status":404,"fuelUsed":10}
+{"level":"info","msg":"wasm_http_fetch","ts":"2026-08-24T00:03:16.252Z","pluginId":"test-plugin-1","agentId":"agent-1","host":"api.github.com","status":200,"fuelUsed":10}
+ ✓ tests/wasm-host-functions.test.ts (30 tests) 557ms
+   ✓ wasm-host-functions > createHostFunctions > all operations consume fuel  359ms
+ ✓ tests/brain-v3.test.ts (4 tests) 997ms
+   ✓ brain v3 export/import > round-trips all Phase 12 structures  750ms
+ ✓ tests/sandbox.test.ts (12 tests) 520ms
+ ✓ tests/services/kernel.test.ts (51 tests) 530ms
+ ✓ tests/services/brain.test.ts (8 tests) 487ms
+   ✓ brain service > importBrain > inserts valid payload  318ms
+ ✓ tests/bench-scheduler-equivalence.test.ts (3 tests) 350ms
+ ✓ tests/otel.test.ts (3 tests) 130ms
+ ✓ tests/r1-project-transfer-contract.test.ts (5 tests) 21812ms
+   ✓ E1-S3 transfer — SQLite application client > exports from SQLite and restores into a fresh database after migration  629ms
+   ✓ E1-S3 transfer — SQLite application client > rolls the whole import back when the transaction is interrupted mid-apply  481ms
+   ✓ E1-S3 transfer — PostgreSQL engine > round-trips a redacted bundle between two PostgreSQL databases and rejects tampering  20628ms
+{"level":"info","msg":"db_backend","ts":"2026-08-24T00:03:20.972Z","backend":"sqlite","path":"./agentic-os.db"}
+ ✓ tests/killswitch-race.test.ts (4 tests) 399ms
+   ✓ Phase 1.7 — kill-switch race hardening > double assert after kill-switch: re-read matches written state (engaged)  324ms
+stdout | tests/bench-metrics-overhead.test.ts > metrics / overhead hot-path benchmark > recordExport with labels stays cheap at 20000 calls (p95 < threshold)
+[metrics bench] recordExport iters=20000 avg=0.0038ms p95=0.0061ms
+
+stdout | tests/bench-metrics-overhead.test.ts > metrics / overhead hot-path benchmark > accountOverhead (kernel nanosecond accounting) is O(1) at 100000 calls
+[overhead bench] accountOverhead iters=100000 avg=0.00034ms p95=0.00050ms totalNs=123400000
+
+ ✓ tests/bench-metrics-overhead.test.ts (2 tests) 279ms
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:03:22.398Z","instance":"container"}
+{"level":"info","msg":"dag.created","ts":"2026-08-24T00:03:22.530Z","id":"dag_ac1144b1-fd9","name":"wf"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.534Z","dagId":"dag_ac1144b1-fd9","nodeId":"node_1ab62938-234","agentId":"a"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.534Z","dagId":"dag_ac1144b1-fd9","nodeId":"node_28d7df1c-25b","agentId":"b"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.534Z","dagId":"dag_ac1144b1-fd9","nodeId":"node_a4f8d3f1-b7c","agentId":"c"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.535Z","dagId":"dag_ac1144b1-fd9","nodeId":"node_a6fd6f61-be3","agentId":"d"}
+{"level":"info","msg":"dag.edge_added","ts":"2026-08-24T00:03:22.535Z","dagId":"dag_ac1144b1-fd9","from":"node_1ab62938-234","to":"node_28d7df1c-25b"}
+{"level":"info","msg":"dag.edge_added","ts":"2026-08-24T00:03:22.535Z","dagId":"dag_ac1144b1-fd9","from":"node_1ab62938-234","to":"node_a4f8d3f1-b7c"}
+{"level":"info","msg":"dag.edge_added","ts":"2026-08-24T00:03:22.535Z","dagId":"dag_ac1144b1-fd9","from":"node_28d7df1c-25b","to":"node_a6fd6f61-be3"}
+{"level":"info","msg":"dag.edge_added","ts":"2026-08-24T00:03:22.535Z","dagId":"dag_ac1144b1-fd9","from":"node_a4f8d3f1-b7c","to":"node_a6fd6f61-be3"}
+{"level":"info","msg":"dag.compiled","ts":"2026-08-24T00:03:22.536Z","dagId":"dag_ac1144b1-fd9","waves":3}
+{"level":"info","msg":"dag.created","ts":"2026-08-24T00:03:22.543Z","id":"dag_4b506a7a-447","name":"cyclic"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.543Z","dagId":"dag_4b506a7a-447","nodeId":"node_d9e60cb7-c38","agentId":"a"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.543Z","dagId":"dag_4b506a7a-447","nodeId":"node_3984e0d1-aee","agentId":"b"}
+{"level":"info","msg":"dag.edge_added","ts":"2026-08-24T00:03:22.544Z","dagId":"dag_4b506a7a-447","from":"node_d9e60cb7-c38","to":"node_3984e0d1-aee"}
+{"level":"info","msg":"dag.edge_added","ts":"2026-08-24T00:03:22.544Z","dagId":"dag_4b506a7a-447","from":"node_3984e0d1-aee","to":"node_d9e60cb7-c38"}
+{"level":"info","msg":"dag.created","ts":"2026-08-24T00:03:22.548Z","id":"dag_da713af6-399","name":"bad"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.548Z","dagId":"dag_da713af6-399","nodeId":"node_791527e1-f8c","agentId":"a"}
+{"level":"info","msg":"dag.created","ts":"2026-08-24T00:03:22.551Z","id":"dag_81109bc0-be4","name":"routed"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.551Z","dagId":"dag_81109bc0-be4","nodeId":"node_443c8892-9f8","agentId":"a"}
+{"level":"info","msg":"dag.node_added","ts":"2026-08-24T00:03:22.551Z","dagId":"dag_81109bc0-be4","nodeId":"node_1d57b021-bb9","agentId":"b"}
+{"level":"info","msg":"dag.edge_added","ts":"2026-08-24T00:03:22.551Z","dagId":"dag_81109bc0-be4","from":"node_443c8892-9f8","to":"node_1d57b021-bb9"}
+{"level":"warn","msg":"agent.tool.retry","ts":"2026-08-24T00:03:22.557Z","agentId":"retry-agent","attempt":1,"err":"Error: ETIMEDOUT transient"}
+ ✓ tests/routes/kernel-introspect.test.ts (2 tests) 303ms
+{"level":"info","msg":"guardrail.threshold.updated","ts":"2026-08-24T00:03:22.656Z","id":"smoke.concurrency","metric":"concurrency"}
+ ✓ tests/services/audit-worker.test.ts (7 tests) 256ms
+ ✓ tests/smoke-new-services.test.ts (32 tests) 271ms
+ ✓ tests/agent-dag.test.ts (10 tests) 271ms
+(node:2284) ExperimentalWarning: SQLite is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+ ✓ tests/r1-sqlite-restart.test.ts (1 test) 279ms
+stderr | tests/gate.test.ts
+Using an object as a third argument is deprecated. Vitest 4 will throw an error if the third argument is not a timeout number. Please use the second argument 
+for options. See more at https://vitest.dev/guide/migration
+
+ ✓ tests/bench-llm-cache.test.ts (6 tests) 241ms
+ ✓ tests/gate.test.ts (4 tests) 210ms
+{"level":"info","msg":"warmup-scheduler: registered","ts":"2026-08-24T00:03:24.370Z","name":"perf-cache","weight":50}
+stdout | tests/e2e/system.e2e.test.ts
+[2026-08-24T00:03:24.370Z] [INFO] perf-bridge: booted {"seedNodes":0,"circuitBreakers":0}
+
+stdout | tests/bench-message-bus.test.ts > message-bus publish hot-path benchmark > publishes 5000 events to 50 subscribers with p95 latency under threshold
+[message-bus bench] subs=50 iters=5000 avg=0.0282ms p95=0.0469ms
+
+ ✓ tests/bench-message-bus.test.ts (2 tests) 167ms
+ ✓ tests/file-watcher.test.ts (4 tests) 109ms
+ ✓ tests/migration.test.ts (11 tests) 176ms
+ ✓ tests/self-improvement-toml.test.ts (10 tests) 101ms
+ ✓ tests/metrics.test.ts (3 tests) 165ms
+{"level":"info","msg":"db_backend","ts":"2026-08-24T00:03:26.092Z","backend":"sqlite","path":"./agentic-os.db"}
+ ✓ tests/security-mcp.test.ts (43 tests) 270ms
+{"level":"info","msg":"response-cache: invalidated tags","ts":"2026-08-24T00:03:26.838Z","tags":["x"],"count":2}
+{"level":"info","msg":"response-cache: cleared","ts":"2026-08-24T00:03:26.876Z","count":1}
+{"level":"info","msg":"kernel-node-pool: registered","ts":"2026-08-24T00:03:26.881Z","id":"n1","url":"http://n1"}
+{"level":"info","msg":"kernel-node-pool: registered","ts":"2026-08-24T00:03:26.882Z","id":"n2","url":"http://n2"}
+{"level":"warn","msg":"slow-query-advisor: slow query observed","ts":"2026-08-24T00:03:26.889Z","norm":"select * from users where id = ?","p95":300,"avg":300}
+{"level":"warn","msg":"slow-query-advisor: slow query observed","ts":"2026-08-24T00:03:26.890Z","norm":"select * from users where id = ?","p95":300,"avg":300}
+{"level":"warn","msg":"slow-query-advisor: slow query observed","ts":"2026-08-24T00:03:26.890Z","norm":"select * from users where id = ?","p95":300,"avg":300}
+{"level":"warn","msg":"slow-query-advisor: slow query observed","ts":"2026-08-24T00:03:26.890Z","norm":"select * from users where id = ?","p95":300,"avg":300}
+{"level":"warn","msg":"slow-query-advisor: slow query observed","ts":"2026-08-24T00:03:26.890Z","norm":"select * from users where id = ?","p95":300,"avg":300}
+{"level":"info","msg":"warmup-scheduler: registered","ts":"2026-08-24T00:03:26.906Z","name":"a","weight":10}
+{"level":"info","msg":"warmup-scheduler: registered","ts":"2026-08-24T00:03:26.906Z","name":"b","weight":90}
+{"level":"info","msg":"warmup-scheduler: cold-start warmAll complete","ts":"2026-08-24T00:03:26.906Z","count":2}
+{"level":"info","msg":"warmup-scheduler: registered","ts":"2026-08-24T00:03:26.907Z","name":"fail","weight":1}
+{"level":"info","msg":"warmup-scheduler: cold-start warmAll complete","ts":"2026-08-24T00:03:26.907Z","count":1}
+{"level":"info","msg":"circuit-breaker-pool: registered resource","ts":"2026-08-24T00:03:26.908Z","name":"db","failureThreshold":2}
+{"level":"info","msg":"circuit-breaker-pool: registered resource","ts":"2026-08-24T00:03:26.909Z","name":"api","failureThreshold":2,"cooldownMs":20}
+{"level":"info","msg":"event-loop-lag: started","ts":"2026-08-24T00:03:26.912Z","sampleMs":10}
+{"level":"info","msg":"graceful-drain: begin","ts":"2026-08-24T00:03:26.913Z"}
+{"level":"info","msg":"graceful-drain: cancelled","ts":"2026-08-24T00:03:26.914Z"}
+{"level":"info","msg":"graceful-drain: begin","ts":"2026-08-24T00:03:26.914Z"}
+{"level":"info","msg":"graceful-drain: complete","ts":"2026-08-24T00:03:26.914Z","inFlight":0}
+{"level":"info","msg":"graceful-drain: begin","ts":"2026-08-24T00:03:26.914Z"}
+{"level":"warn","msg":"warmup-scheduler: task failed","ts":"2026-08-24T00:03:26.907Z","err":{},"name":"fail"}
+{"level":"warn","msg":"circuit-breaker-pool: breaker OPENED","ts":"2026-08-24T00:03:26.910Z","name":"api"}
+{"level":"info","msg":"circuit-breaker-pool: attempting self-heal","ts":"2026-08-24T00:03:26.939Z","name":"api"}
+{"level":"info","msg":"circuit-breaker-pool: healed, breaker reset","ts":"2026-08-24T00:03:26.940Z","name":"api"}
+{"level":"info","msg":"graceful-drain: complete","ts":"2026-08-24T00:03:26.940Z","inFlight":0}
+stderr | tests/phase15-performance.test.ts > nodeReplicaRegistry > upserts, routes and drains replicas
+[2026-08-24T00:03:26.958Z] [WARN] replica-registry: unhealthy {"id":"n2"}
+
+ ✓ tests/phase15-performance.test.ts (27 tests) 141ms
+ ✓ tests/kernel-persistence.test.ts (3 tests) 91ms
+{"level":"error","msg":"kernel_state_save_failed","ts":"2026-08-24T00:03:27.074Z","error":"ENOENT: no such file or directory, open 
+'C:\\Users\\Tahir\\AppData\\Local\\Temp\\kernel-state-rrBpHk\\tick.json'"}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:27.381Z","intervalMs":60000}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:27.381Z","intervalMs":60000}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:27.382Z","intervalMs":60000}
+ ✓ tests/db-concurrency.test.ts (6 tests) 159ms
+{"level":"info","msg":"db_backend","ts":"2026-08-24T00:03:27.757Z","backend":"sqlite","path":"./agentic-os.db"}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:27.849Z","dir":"../dist","note":"API-only mode."}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:03:27.945Z","instance":"container"}
+ ✓ tests/r1-performance-reliability.test.ts (5 tests) 165ms
+{"level":"info","msg":"headless_actuator_screenshot","ts":"2026-08-24T00:03:27.991Z","cropped":false}
+ ✓ tests/e2e/system.e2e.test.ts (10 tests) 407ms
+ ✓ tests/env.test.ts (4 tests) 107ms
+{"level":"info","msg":"warmup-scheduler: registered","ts":"2026-08-24T00:03:28.606Z","name":"perf-cache","weight":50}
+stdout | tests/a2a.test.ts
+[2026-08-24T00:03:28.606Z] [INFO] perf-bridge: booted {"seedNodes":0,"circuitBreakers":0}
+
+ ✓ tests/connectors.test.ts (6 tests) 111ms
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:29.250Z","intervalMs":60000}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:29.251Z","intervalMs":60000}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:29.251Z","intervalMs":60000}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:29.315Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:29.362Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:29.374Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:29.394Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:29.411Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:29.431Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:29.434Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:29.438Z","dir":"../dist","note":"API-only mode."}
+ ✓ tests/a2a.test.ts (8 tests) 143ms
+ ✓ tests/self-improvement-harness-control.test.ts (8 tests) 80ms
+{"level":"info","msg":"db_backend","ts":"2026-08-24T00:03:30.801Z","backend":"sqlite","path":"./agentic-os.db"}
+{"level":"info","msg":"warmup-scheduler: registered","ts":"2026-08-24T00:03:31.261Z","name":"perf-cache","weight":50}
+stdout | tests/health.test.ts
+[2026-08-24T00:03:31.270Z] [INFO] perf-bridge: booted {"seedNodes":0,"circuitBreakers":0}
+
+{"level":"info","msg":"worker_prewarm_cache_intent","ts":"2026-08-24T00:03:31.364Z","hint":100}
+ ✓ tests/task-worker.test.ts (13 tests) 83ms
+ ✓ tests/kernel-introspect.test.ts (2 tests) 54ms
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:31.887Z","intervalMs":60000}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:31.888Z","intervalMs":60000}
+{"level":"info","msg":"self_opt_tick_started","ts":"2026-08-24T00:03:31.888Z","intervalMs":60000}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:31.956Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:32.004Z","dir":"../dist","note":"API-only mode."}
+{"level":"warn","msg":"dashboard_absent","ts":"2026-08-24T00:03:32.018Z","dir":"../dist","note":"API-only mode."}
+ ✓ tests/health.test.ts (3 tests) 81ms
+ ✓ tests/self-opt-emit.test.ts (6 tests) 89ms
+ ✓ tests/r1-application-postgres-contract.test.ts (3 tests) 33021ms
+   ✓ R1 PostgreSQL application contract > runs the full R1 repository, idempotency and append-only contract on PostgreSQL  13994ms
+   ✓ R1 PostgreSQL application contract > persists and evaluates governed capabilities and the policy API on PostgreSQL  7030ms
+   ✓ R1 PostgreSQL application contract > preserves committed project and task state across an engine restart  11975ms
+{"level":"info","msg":"network-policy set","ts":"2026-08-24T00:03:32.261Z","agentId":"a1"}
+{"level":"info","msg":"network-policy set","ts":"2026-08-24T00:03:32.268Z","agentId":"a2"}
+ ✓ tests/sentinel-core.test.ts (29 tests) 71ms
+ ✓ tests/enterprise-rbac.test.ts (6 tests) 42ms
+ ✓ tests/services/lib-audit.test.ts (10 tests) 34ms
+ ✓ tests/services/audit-routes.test.ts (8 tests) 54ms
+ ✓ tests/skill-ast-compiler.test.ts (36 tests) 97ms
+ ✓ tests/r1-sandbox-runner.test.ts (16 tests) 120ms
+ ✓ tests/memory-templates.test.ts (20 tests) 76ms
+ ✓ tests/enterprise.test.ts (16 tests) 94ms
+ ✓ tests/cache-stampede-severity.test.ts (25 tests) 78ms
+{"level":"info","msg":"network-policy set","ts":"2026-08-24T00:03:35.314Z","agentId":"a1"}
+ ✓ tests/phase14-security.test.ts (30 tests) 87ms
+{"level":"warn","msg":"signal_hook_error","ts":"2026-08-24T00:03:35.640Z","event":"on_agent_end","name":"slow","error":"Hook \"slow\" timed out after 
+20ms","elapsedMs":35}
+{"level":"warn","msg":"signal_hook_error","ts":"2026-08-24T00:03:35.644Z","event":"on_handoff","name":"bad","error":"boom","elapsedMs":1}
+ ✓ tests/signal-hooks.test.ts (11 tests) 70ms
+ ✓ tests/r1-routes.test.ts (7 tests) 91ms
+ ✓ tests/ranking-trainer.test.ts (10 tests) 71ms
+ ✓ tests/routes/v3-upgrade.test.ts (8 tests) 51ms
+ ✓ tests/memory-search-suggest.test.ts (6 tests) 89ms
+ ✓ tests/security-lib-negative.test.ts (36 tests) 62ms
+ ✓ tests/federated-recall.test.ts (15 tests) 48ms
+ ✓ tests/memory-quota.test.ts (15 tests) 48ms
+{"level":"info","msg":"hsm.key.rotated","ts":"2026-08-24T00:03:37.736Z","backend":"local"}
+{"level":"info","msg":"hsm.key.rotated","ts":"2026-08-24T00:03:37.739Z","backend":"local"}
+ ✓ tests/crypto-audit.test.ts (21 tests) 61ms
+ ✓ tests/scheduler-property.test.ts (7 tests) 88ms
+ ✓ tests/routes/agent-lifecycle.test.ts (10 tests) 49ms
+ ✓ tests/services/llm.test.ts (12 tests) 53ms
+ ✓ tests/bench-trace-exporter.test.ts (4 tests) 50ms
+ ✓ tests/services/llm-gateway-v2.pure.test.ts (11 tests) 36ms
+ ✓ tests/routes/agents.test.ts (10 tests) 58ms
+ ✓ tests/plugin-manifest.test.ts (15 tests) 30ms
+ ✓ tests/lib/auth-context.test.ts (17 tests) 95ms
+ ✓ tests/wasm-plugin-runtime.test.ts (14 tests) 60ms
+ ✓ tests/memory-perfection.test.ts (29 tests) 37ms
+ ✓ tests/services/vdp.test.ts (5 tests) 44ms
+ ✓ tests/llm-coalesce.test.ts (2 tests) 50ms
+ ✓ tests/marketplace.service.test.ts (5 tests) 92ms
+ ✓ tests/r1-security-isolation.test.ts (7 tests) 33ms
+ ✓ tests/memory-encryption.test.ts (4 tests) 17ms
+ ✓ tests/pipeline-dag-validation.test.ts (10 tests) 33ms
+ ✓ tests/memory-lifecycle.test.ts (7 tests) 22ms
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:03:43.167Z","instance":"container"}
+ ✓ tests/resource-quota.test.ts (5 tests) 25ms
+ ✓ tests/phase20-reliability.test.ts (31 tests) 44ms
+ ✓ tests/memory-analysis.test.ts (8 tests) 15ms
+ ✓ tests/memory-recall-eval.test.ts (28 tests) 48ms
+ ✓ tests/memory-forget.test.ts (7 tests) 38ms
+ ✓ tests/services/reliability/core.test.ts (27 tests) 40ms
+ ✓ tests/guardrails-negative.test.ts (19 tests) 44ms
+ ✓ tests/mcp-http.test.ts (9 tests) 31ms
+{"level":"info","msg":"p2p_swarm_started","ts":"2026-08-24T00:03:44.554Z","myId":"nexus-test-9900","port":9900}
+{"level":"info","msg":"p2p_peer_discovered","ts":"2026-08-24T00:03:44.558Z","peerId":"peer-1","host":"10.0.0.1"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.563Z"}
+{"level":"info","msg":"p2p_swarm_started","ts":"2026-08-24T00:03:44.565Z","myId":"nexus-test-9900","port":9900}
+{"level":"info","msg":"p2p_peer_discovered","ts":"2026-08-24T00:03:44.565Z","peerId":"peer-1","host":"10.0.0.1"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.565Z"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.566Z"}
+{"level":"info","msg":"p2p_swarm_started","ts":"2026-08-24T00:03:44.566Z","myId":"nexus-test-9900","port":9900}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.566Z"}
+{"level":"info","msg":"p2p_swarm_started","ts":"2026-08-24T00:03:44.567Z","myId":"nexus-test-9900","port":9900}
+{"level":"info","msg":"p2p_peer_discovered","ts":"2026-08-24T00:03:44.567Z","peerId":"peer-9","host":"10.0.0.9"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.568Z"}
+{"level":"info","msg":"p2p_swarm_started","ts":"2026-08-24T00:03:44.569Z","myId":"nexus-test-9900","port":9900}
+{"level":"info","msg":"p2p_peer_discovered","ts":"2026-08-24T00:03:44.569Z","peerId":"peer-1","host":"10.0.0.1"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.571Z"}
+{"level":"info","msg":"p2p_swarm_started","ts":"2026-08-24T00:03:44.572Z","myId":"nexus-test-9900","port":9900}
+{"level":"info","msg":"p2p_peer_discovered","ts":"2026-08-24T00:03:44.572Z","peerId":"peer-1","host":"10.0.0.1"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.573Z"}
+{"level":"info","msg":"p2p_swarm_started","ts":"2026-08-24T00:03:44.573Z","myId":"nexus-test-9900","port":9900}
+{"level":"info","msg":"p2p_peer_discovered","ts":"2026-08-24T00:03:44.574Z","peerId":"peer-1","host":"10.0.0.1"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.575Z"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.577Z"}
+{"level":"info","msg":"p2p_swarm_stopped","ts":"2026-08-24T00:03:44.578Z"}
+ ✓ tests/p2p-swarm.test.ts (9 tests) 36ms
+ ✓ tests/metron-tracing.test.ts (20 tests) 51ms
+ ✓ tests/memory-storage.test.ts (10 tests) 43ms
+ ✓ tests/routes/sse.test.ts (6 tests | 1 skipped) 40ms
+ ✓ tests/services/feedback.service.test.ts (3 tests) 16ms
+ ✓ tests/lib/envelope.test.ts (17 tests) 20ms
+ ✓ tests/services/audit-engine.test.ts (22 tests) 48ms
+ ✓ tests/incident-response.test.ts (8 tests) 20ms
+ ✓ tests/scheduler-core.test.ts (8 tests) 41ms
+ ✓ tests/perf-cache.test.ts (9 tests) 23ms
+ ✓ tests/metron-probe-health.test.ts (12 tests) 39ms
+{"level":"info","msg":"guardrail.threshold.updated","ts":"2026-08-24T00:03:47.478Z","id":"test.tokens","metric":"tokens"}
+{"level":"info","msg":"guardrail.threshold.updated","ts":"2026-08-24T00:03:47.486Z","id":"test.tokens","metric":"tokens"}
+ ✓ tests/guardrails.test.ts (22 tests) 39ms
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.224Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.232Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.235Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"Q0","msg":"scheduler_quantum_set","ts":"2026-08-24T00:03:48.236Z","ms":100}
+{"level":"info","msg":"scheduler_pid_gain_set","ts":"2026-08-24T00:03:48.238Z","gain":{"kp":4,"ki":0.1,"kd":0.01}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.245Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.248Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"Q2","msg":"scheduler_quantum_set","ts":"2026-08-24T00:03:48.250Z","ms":175}
+{"level":"info","msg":"scheduler_pid_gain_set","ts":"2026-08-24T00:03:48.254Z","gain":{"kp":1.53,"ki":0.1,"kd":0.01}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.255Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.256Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.256Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.257Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.257Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":10,"enabled":true}}
+{"level":"Q3","msg":"scheduler_quantum_set","ts":"2026-08-24T00:03:48.257Z","ms":10}
+{"level":"info","msg":"scheduler_pid_gain_set","ts":"2026-08-24T00:03:48.258Z","gain":{"kp":4,"ki":0.1,"kd":0.01}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.260Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.261Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"Q0","msg":"scheduler_quantum_set","ts":"2026-08-24T00:03:48.261Z","ms":100}
+{"level":"info","msg":"scheduler_pid_gain_set","ts":"2026-08-24T00:03:48.261Z","gain":{"kp":4,"ki":0.1,"kd":0.01}}
+{"level":"info","msg":"mlfq_tuner_configured","ts":"2026-08-24T00:03:48.264Z","cfg":{"intervalMs":15000,"highLatencyMs":1500,"lowLatencyMs":200,"maxStepMs":50,"minQuantumMs":10,"maxQuantumMs":2000,"enabled":true}}
+{"level":"info","msg":"quota_registry_swept","ts":"2026-08-24T00:03:48.270Z","count":1}
+{"level":"warn","msg":"preemption_leak_reaped","ts":"2026-08-24T00:03:48.273Z","count":1,"ids":["stuck"]}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.277Z","from":"closed","to":"open","reason":"failure_threshold_exceeded","active"
+:0}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.278Z","from":"open","to":"half-open","reason":"cooldown_elapsed","active":0}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.278Z","from":"half-open","to":"closed","reason":"probe_succeeded","active":0}
+ ✓ tests/forge-selfheal.test.ts (20 tests) 91ms
+ ✓ tests/lib/tokens.test.ts (23 tests) 29ms
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.462Z","from":"closed","to":"open","reason":"boom","active":0}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.468Z","from":"closed","to":"open","reason":"failure_threshold_exceeded","active"
+:0}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.469Z","from":"open","to":"half-open","reason":"cooldown_elapsed","active":0}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.469Z","from":"half-open","to":"closed","reason":"probe_succeeded","active":0}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.471Z","from":"closed","to":"open","reason":"kernel_panic","active":0}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.471Z","from":"open","to":"closed","reason":"manual_reset","active":0}
+{"level":"warn","msg":"scheduler_breaker_transition","ts":"2026-08-24T00:03:48.471Z","from":"closed","to":"open","reason":"db_unreachable","active":0}
+ ✓ tests/scheduler-resilience-risk.test.ts (14 tests) 47ms
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.492Z","peerId":"peer-1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.499Z","peerId":"peer-1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.499Z","peerId":"peer-1","endpoint":"https://updated.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.500Z","peerId":"peer-1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_removed","ts":"2026-08-24T00:03:48.501Z","peerId":"peer-1"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.502Z","peerId":"p1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.502Z","peerId":"p2","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.502Z","peerId":"p3","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.505Z","peerId":"p1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.506Z","peerId":"p2","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.506Z","peerId":"p3","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.507Z","peerId":"p0","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.507Z","peerId":"p1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.507Z","peerId":"p2","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.507Z","peerId":"p3","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.507Z","peerId":"p4","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.508Z","peerId":"p1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.509Z","peerId":"p1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.510Z","peerId":"p1","endpoint":"https://example.com"}
+{"level":"warn","msg":"peer_offline","ts":"2026-08-24T00:03:48.510Z","peerId":"p1","missed":2}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.511Z","peerId":"p1","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.511Z","peerId":"p2","endpoint":"https://example.com"}
+{"level":"info","msg":"peer_registered","ts":"2026-08-24T00:03:48.511Z","peerId":"p3","endpoint":"https://example.com"}
+ ✓ tests/federated-node-discovery.test.ts (16 tests) 35ms
+ ✓ tests/memory-query.test.ts (4 tests) 52ms
+ ✓ tests/mcp-registry.test.ts (13 tests) 68ms
+ ✓ tests/services/insider-threat.test.ts (6 tests) 39ms
+ ✓ tests/consensus-perf.test.ts (4 tests) 36ms
+ ✓ tests/audit-chain.test.ts (7 tests) 26ms
+ ✓ tests/services/omniroute.test.ts (22 tests) 25ms
+ ✓ tests/self-improvement-harness.test.ts (8 tests) 51ms
+ ✓ tests/agent-persistence.test.ts (5 tests) 32ms
+ ✓ tests/services/blockchain.test.ts (13 tests) 44ms
+ ✓ tests/orchestrator.test.ts (5 tests) 33ms
+ ✓ tests/services/wasm-capability-resolution.test.ts (8 tests) 62ms
+ ✓ tests/routes/automation.test.ts (5 tests) 35ms
+ ✓ tests/secrets-scanner.test.ts (20 tests) 32ms
+ ✓ tests/self-opt.test.ts (20 tests) 105ms
+ ✓ tests/services/llm-scheduler.test.ts (15 tests) 31ms
+ ✓ tests/memory-encryption-v2.test.ts (9 tests) 23ms
+ ✓ tests/guards-extended.test.ts (34 tests) 39ms
+ ✓ tests/services/providers/anthropic.test.ts (8 tests) 30ms
+ ✓ tests/services/providers/openai.test.ts (12 tests) 38ms
+ ✓ tests/services/skill-compiler-capability.test.ts (6 tests) 91ms
+ ✓ tests/lib/errors.test.ts (14 tests) 46ms
+{"level":"warn","msg":"preemption_leak_reaped","ts":"2026-08-24T00:03:54.299Z","count":2,"ids":["old1","old2"]}
+{"level":"warn","msg":"preemption_leak_reaped","ts":"2026-08-24T00:03:54.304Z","count":1,"ids":["fresh"]}
+ ✓ tests/preemption-leak-guard.test.ts (6 tests) 31ms
+{"level":"info","msg":"guardrail.threshold.updated","ts":"2026-08-24T00:03:54.655Z","id":"g1","metric":"tokens"}
+ ✓ tests/guardrails-quarantine.test.ts (6 tests) 29ms
+ ✓ tests/fairness-corrector.test.ts (3 tests) 42ms
+ ✓ tests/services/providers/vllm.test.ts (7 tests) 27ms
+ ✓ tests/crypto-suite.test.ts (21 tests) 30ms
+ ✓ tests/memory-graph-browser.test.ts (13 tests) 45ms
+ ✓ tests/services/vlm.test.ts (10 tests) 22ms
+{"level":"error","msg":"task_queued_listener_error","ts":"2026-08-24T00:03:56.037Z","error":"boom"}
+ ✓ tests/task-notifier.test.ts (4 tests) 29ms
+{"level":"info","msg":"workflow.compiled","ts":"2026-08-24T00:03:56.168Z","name":"research","steps":3,"order":3}
+ ✓ tests/workflow-dsl.test.ts (4 tests) 30ms
+ ✓ tests/kernel-schema-validation.test.ts (15 tests) 30ms
+ ✓ tests/memory-tag-taxonomy.async.test.ts (12 tests) 28ms
+ ✓ tests/memory-priming.test.ts (10 tests) 30ms
+ ✓ tests/dlp-scanner.test.ts (17 tests) 28ms
+ ✓ tests/services/providers/google.test.ts (8 tests) 28ms
+ ✓ tests/memory-multilingual.test.ts (4 tests) 22ms
+ ✓ tests/services/providers/m3.test.ts (7 tests) 27ms
+ ✓ tests/data-classification.test.ts (20 tests) 25ms
+stdout | tests/bench-sse-bus.test.ts > sse-bus fan-out benchmark > publishes to 100 subscribers with p95 latency under threshold
+[sse-bus bench] N=100 iters=200 avg=0.2795ms p95=0.0641ms
+
+ ✓ tests/bench-sse-bus.test.ts (2 tests) 75ms
+ ✓ tests/self-opt-tuners.test.ts (24 tests) 29ms
+ ✓ tests/pipeline-executor.test.ts (11 tests) 27ms
+ ✓ tests/blackboard.test.ts (5 tests) 26ms
+{"level":"warn","msg":"omniroute.health_degraded","ts":"2026-08-24T00:03:58.632Z","provider":"test-provider-5xx","status":"degraded","consecutive5xxCount":1,"s
+tatusCode":503,"reason":"Service Unavailable"}
+{"level":"warn","msg":"omniroute.health_degraded","ts":"2026-08-24T00:03:58.635Z","provider":"test-provider-5xx","status":"degraded","consecutive5xxCount":2,"s
+tatusCode":500,"reason":"Internal Server Error"}
+{"level":"warn","msg":"omniroute.health_degraded","ts":"2026-08-24T00:03:58.635Z","provider":"test-provider-5xx","status":"down","consecutive5xxCount":3,"statu
+sCode":502,"reason":"Bad Gateway"}
+ ✓ tests/omniroute-bridge.test.ts (4 tests) 26ms
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-08-24T00:03:58.976Z"}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:03:58.980Z","instance":"container"}
+{"level":"error","msg":"kernel_panic","ts":"2026-08-24T00:03:58.982Z","reason":"test reason","extra":{"foo":"bar"}}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-08-24T00:03:58.986Z"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-08-24T00:03:58.987Z"}
+{"level":"error","msg":"kernel_panic","ts":"2026-08-24T00:03:58.988Z","reason":"first"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-08-24T00:03:58.989Z"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-08-24T00:03:58.989Z"}
+{"level":"error","msg":"kernel_panic","ts":"2026-08-24T00:03:58.989Z","reason":"reason"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-08-24T00:03:58.990Z"}
+{"level":"info","msg":"kernel_panic_cleared","ts":"2026-08-24T00:03:58.990Z"}
+ ✓ tests/kernel-panic.test.ts (3 tests) 26ms
+{"level":"info","msg":"hotpatch_applied","ts":"2026-08-24T00:03:59.336Z","mod":"mod","version":1}
+{"level":"info","msg":"hotpatch_applied","ts":"2026-08-24T00:03:59.341Z","mod":"mod","version":2}
+{"level":"info","msg":"hotpatch_applied","ts":"2026-08-24T00:03:59.345Z","mod":"m","version":1}
+{"level":"info","msg":"hotpatch_applied","ts":"2026-08-24T00:03:59.345Z","mod":"m","version":2}
+{"level":"info","msg":"hotpatch_applied","ts":"2026-08-24T00:03:59.345Z","mod":"m","version":3}
+{"level":"info","msg":"hotpatch_rolled_back","ts":"2026-08-24T00:03:59.345Z","mod":"m","version":2}
+{"level":"info","msg":"hotpatch_applied","ts":"2026-08-24T00:03:59.346Z","mod":"x","version":1}
+{"level":"info","msg":"hotpatch_rolled_back","ts":"2026-08-24T00:03:59.346Z","mod":"x","version":1}
+{"level":"info","msg":"hotpatch_applied","ts":"2026-08-24T00:03:59.347Z","mod":"shared","version":1}
+{"level":"info","msg":"hotpatch_rolled_back","ts":"2026-08-24T00:03:59.348Z","mod":"shared","version":1}
+ ✓ tests/kernel-hotpatch.test.ts (5 tests) 27ms
+ ✓ tests/marketplace.test.ts (8 tests) 28ms
+ ✓ tests/consensus.test.ts (13 tests) 26ms
+{"level":"info","msg":"message_bus_reset","ts":"2026-08-24T00:03:59.840Z"}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:03:59.844Z","instance":"container"}
+{"level":"info","msg":"message_bus_reset","ts":"2026-08-24T00:03:59.851Z"}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:03:59.851Z","instance":"container"}
+{"level":"info","msg":"message_bus_reset","ts":"2026-08-24T00:03:59.852Z"}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:03:59.853Z","instance":"container"}
+{"level":"info","msg":"message_bus_reset","ts":"2026-08-24T00:03:59.854Z"}
+{"level":"info","msg":"message_bus_initialized","ts":"2026-08-24T00:03:59.854Z","instance":"container"}
+ ✓ tests/bus.test.ts (4 tests) 27ms
+ ✓ tests/config/kernel-schema.test.ts (3 tests) 17ms
+ ✓ tests/services/session-recorder.test.ts (7 tests) 41ms
+ ✓ tests/services/portkey-bridge.test.ts (16 tests) 37ms
+ ✓ tests/agent-permissions.test.ts (11 tests) 22ms
+{"level":"info","msg":"scheduler_pid_gain_set","ts":"2026-08-24T00:04:00.753Z","gain":{"kp":2.5,"ki":0.1,"kd":0.01}}
+{"level":"info","msg":"scheduler_pid_gain_set","ts":"2026-08-24T00:04:00.759Z","gain":{"kp":1,"ki":0.1,"kd":0.01}}
+{"level":"info","msg":"scheduler_queue_capacity_set","ts":"2026-08-24T00:04:00.764Z","capacity":2048}
+{"level":"info","msg":"scheduler_rl_policy_set","ts":"2026-08-24T00:04:00.765Z","policy":"fairshare"}
+{"level":"info","msg":"scheduler_rl_policy_set","ts":"2026-08-24T00:04:00.766Z","policy":"mlfq"}
+{"level":"info","msg":"hotpatch_applied","ts":"2026-08-24T00:04:00.770Z","mod":"scheduler","version":1}
+ ✓ tests/forge-live-seam.test.ts (6 tests) 24ms
+ ✓ tests/specialization-registry.test.ts (5 tests) 26ms
+ ✓ tests/memory-backup.test.ts (7 tests) 24ms
+ ✓ tests/memory-export-v3.test.ts (9 tests) 21ms
+ ✓ tests/services/supply-chain.test.ts (10 tests) 34ms
+ ✓ tests/gap-items.test.ts (18 tests) 24ms
+ ✓ tests/memory-trainer.test.ts (7 tests) 23ms
+ ✓ tests/services/providers/ollama.test.ts (6 tests) 24ms
+ ✓ tests/memory-privacy-zones.test.ts (5 tests) 25ms
+ ✓ tests/memory-decay.test.ts (4 tests) 10ms
+ ✓ tests/rateLimit.test.ts (8 tests) 23ms
+ ✓ tests/services/ransomware-detector.test.ts (13 tests) 21ms
+ ✓ tests/memory-attachments.store.test.ts (8 tests) 28ms
+ ✓ tests/memory-nl-query.answer.test.ts (5 tests) 24ms
+ ✓ tests/services/llm-router.test.ts (13 tests) 23ms
+ ✓ tests/metron-caches.test.ts (11 tests) 25ms
+ ✓ tests/memory-cold-storage.test.ts (6 tests) 21ms
+ ✓ tests/skill-template-engine.test.ts (6 tests) 20ms
+ ✓ tests/memory-multimodal.test.ts (18 tests) 20ms
+ ✓ tests/memory-provenance.test.ts (4 tests) 29ms
+ ✓ tests/sse-bus.test.ts (4 tests) 20ms
+ ✓ tests/dedup-engine.test.ts (3 tests) 19ms
+ ✓ tests/memory-batch.apply.test.ts (7 tests) 17ms
+ ✓ tests/conditional-router.test.ts (6 tests) 18ms
+ ✓ tests/services/cspm.test.ts (11 tests) 17ms
+ ✓ tests/shadow-daemon-zscore.test.ts (12 tests) 19ms
+ ✓ tests/agent-loop.test.ts (5 tests) 25ms
+ ✓ tests/lib/security-headers.test.ts (9 tests) 20ms
+ ✓ tests/services/compliance-reporter.test.ts (8 tests) 22ms
+ ✓ tests/vault.test.ts (6 tests) 24ms
+ ✓ tests/blockchain.test.ts (7 tests) 67ms
+ ✓ tests/capability-governance.test.ts (1 test) 17ms
+ ✓ tests/metron-overhead.test.ts (8 tests) 18ms
+ ✓ tests/services/reliability/gap.test.ts (9 tests) 17ms
+ ✓ tests/planner.test.ts (7 tests) 19ms
+ ✓ tests/audit.test.ts (5 tests) 12ms
+ ✓ tests/lib/graph.test.ts (10 tests) 35ms
+ ✓ tests/self-opt-adapters.test.ts (6 tests) 18ms
+ ✓ tests/memory-cluster.ops.test.ts (7 tests) 17ms
+ ✓ tests/kernel-bootstrap.test.ts (6 tests) 21ms
+ ✓ tests/services/fairness-corrector.test.ts (7 tests) 19ms
+ ✓ tests/services/vendor-assessor.test.ts (9 tests) 16ms
+ ✓ tests/services/reliability/slo-load-shedder.test.ts (10 tests) 16ms
+ ✓ tests/dag-executor.test.ts (2 tests) 16ms
+ ✓ tests/rate-limit.service.test.ts (7 tests) 16ms
+ ✓ tests/metrics-validation.test.ts (1 test) 16ms
+ ✓ tests/self-opt-gap-items.test.ts (8 tests) 15ms
+ ✓ tests/memory-stitcher.test.ts (6 tests) 16ms
+ ✓ tests/tokens.test.ts (5 tests) 15ms
+ ✓ tests/memory-search-explanation.deep.test.ts (6 tests) 15ms
+ ✓ tests/project.service.test.ts (3 tests) 17ms
+ ✓ tests/services/reliability/degraded-mode.test.ts (6 tests) 14ms
+ ✓ tests/merge-strategies.test.ts (7 tests) 14ms
+ ✓ tests/kernel-schema.test.ts (3 tests) 15ms
+ ✓ tests/ring-audit.test.ts (4 tests) 25ms
+ ✓ tests/overhead-accounting.test.ts (5 tests) 13ms
+ ✓ tests/deadlock-detector.test.ts (5 tests) 14ms
+ ✓ tests/sse-bridge.test.ts (1 test) 16ms
+ ✓ tests/services/anomaly-detector.test.ts (6 tests) 16ms
+ ✓ tests/compliance-reporter.test.ts (4 tests) 14ms
+ ✓ tests/self-opt-guardrail.test.ts (8 tests) 19ms
+ ✓ tests/memory-tag-taxonomy.test.ts (7 tests) 13ms
+ ✓ tests/services/breach-notifier.test.ts (6 tests) 13ms
+ ✓ tests/memory-nl-query.test.ts (3 tests) 17ms
+ ✓ tests/session.service.test.ts (3 tests) 12ms
+ ✓ tests/memory-diff-sync.test.ts (2 tests) 9ms
+ ✓ tests/services/auditing.test.ts (6 tests) 11ms
+ ✓ tests/memory-causal-chains.test.ts (7 tests) 13ms
+ ✓ tests/services/evidence-collector.test.ts (4 tests) 11ms
+ ✓ tests/memory-emotion.test.ts (4 tests) 13ms
+ ✓ tests/llm.test.ts (3 tests) 11ms
+ ✓ tests/feedback.service.test.ts (2 tests) 12ms
+ ✓ tests/memory-hierarchy.test.ts (6 tests) 13ms
+ ✓ tests/lib/strings.test.ts (6 tests) 9ms
+ ✓ tests/self-opt-telemetry.test.ts (3 tests) 10ms
+ ✓ tests/memory-attachments.test.ts (5 tests) 11ms
+ ✓ tests/memory-search-explanation.test.ts (2 tests) 9ms
+ ✓ tests/memory-dedup.test.ts (5 tests) 11ms
+ ✓ tests/r1-runtime.test.ts (1 test) 8ms
+ ✓ tests/memory-fragmentation.test.ts (2 tests) 9ms
+ ✓ tests/pulse-probe.test.ts (1 test) 7ms
+ ✓ tests/memory-batch.test.ts (3 tests) 9ms
+ ✓ tests/memory-contradiction.test.ts (3 tests) 10ms
+ ✓ tests/memory-rehearsal.test.ts (4 tests) 8ms
+ ✓ tests/memory-cluster.test.ts (2 tests) 5ms
+ ✓ tests/memory-conflict-resolver.test.ts (4 tests) 5ms
+
+ Test Files  255 passed (255)
+      Tests  2548 passed | 1 skipped (2549)
+   Start at  05:32:53
+   Duration  84.64s (transform 21.25s, setup 0ms, collect 238.57s, tests 124.25s, environment 168ms, prepare 82.97s)
+
