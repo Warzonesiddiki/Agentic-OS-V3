@@ -371,6 +371,10 @@ _bmad-output/                                @lorekeeper
 .gitattributes                            @Warzonesiddiki
 .editorconfig                             @Warzonesiddiki
 .npmrc                                    @Warzonesiddiki
+.nvmrc                                    @Warzonesiddiki
+AGENTS.md                                 @Warzonesiddiki
+CLAUDE.md                                 @Warzonesiddiki
+.agents/                                  @Warzonesiddiki
 .prettierrc                               @Warzonesiddiki
 .prettierignore                           @Warzonesiddiki
 .lintstagedrc                             @Warzonesiddiki
