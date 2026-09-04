@@ -1,0 +1,42 @@
+{
+  "project_name": "NEXUS 2.0 / Agentic OS V3",
+  "active_milestone": "WS1: Full-suite green (B1) with R1 release preparation",
+  "velocity_metrics": {
+    "total_tasks_completed": 180,
+    "total_tasks_pending": 45,
+    "blocked_tasks": 12
+  },
+  "drift_analysis": {
+    "docs_vs_code": "STABLE - docs reflect honest state; campaign claims superseded",
+    "taskboard_vs_code": "MINOR DRIFT - Some P0-P2 items checked done but code gaps exist (e.g., omniroute stub, localStorage disconnect)",
+    "notes": ["TASKBOARD P2-06: e2e specs authored but not enforced in CI until WS8", "omniroute.ts still has STUB comment at line 14", "frontend still uses localStorage for state management"]
+  },
+  "current_sprint_focus": "WS1: Complete full-suite green - 35 exact-file repairs still await green confirmation",
+  "recent_decisions": [
+    {
+      "id": "D1",
+      "decision": "Adopt progression-plan-2026-08-21.md as master execution plan",
+      "rationale": "Leader ratification under WS7 coherence sweep; all 5 decisions (D1-D5) accepted"
+    },
+    {
+      "id": "D2",
+      "decision": "External stateless audit agent as reviewer for E10-S30",
+      "rationale": "Independent sign-off authority for R1 release"
+    },
+    {
+      "id": "D3",
+      "decision": "Pin Node ^22.x, pnpm@9.15.0, better-sqlite3@11 for R1",
+      "rationale": "Ensure build compatibility and native binding support"
+    },
+    {
+      "id": "D4",
+      "decision": "POSIX-first for R1 Windows via WSL2",
+      "rationale": "Platform consistency for sandbox execution"
+    },
+    {
+      "id": "D5",
+      "decision": "DSH integration via existing MCP transport, no bespoke plugin pre-M4",
+      "rationale": "No-new-features discipline until M4"
+    }
+  ]
+}

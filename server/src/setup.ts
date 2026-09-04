@@ -73,15 +73,13 @@ export async function ensureSchema(): Promise<
 
     let present: string[];
     if (isSqlite) {
-      const rows = await db.execute(sql`
-        SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%' AND name NOT LIKE '_%'
-      `);
-      const existing = new Set(
-        (Array.isArray(rows) ? rows : []).map((r: unknown) => {
-          const row = r as Record<string, unknown>;
-          return (row.name || row['name']) as string;
-        })
-      );
+      // better-sqlite3's drizzle driver exposes .all/.run/.get (no .execute).
+      // Exclude only sqlite-internal tables; note `NOT LIKE '_%'` would match
+      // every non-empty name and must not be used here.
+      const rows = (await db.all(sql`
+        SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'
+      `)) as Array<{ name: string }>;
+      const existing = new Set(rows.map((r) => r.name));
       present = requiredTables.filter((t) => existing.has(t));
     } else {
       const rows = await db.execute(sql`
@@ -121,35 +119,28 @@ export async function ensureSchema(): Promise<
 async function runMigrations(): Promise<void> {
   const cwd = resolve(dirname(fileURLToPath(import.meta.url)), '..');
   if (isSqlite) {
-    log.info('db_migrate_sqlite', { note: 'Running SQLite migrations...' });
-    try {
-      execSync('npx drizzle-kit migrate --config=drizzle.config.ts', {
-        cwd,
-        stdio: 'inherit',
-        timeout: 30_000,
-      });
-      log.info('db_migrate_sqlite_ok', { note: 'SQLite migrations applied.' });
-    } catch (e) {
-      log.error('db_migrate_sqlite_failed', {
-        error: e instanceof Error ? e.message : String(e),
-      });
-      throw e;
-    }
-  } else {
-    log.info('db_migrate_pg', { note: 'Running PostgreSQL migrations...' });
-    try {
-      execSync('npx drizzle-kit migrate --config=drizzle.config.ts --dialect=postgresql', {
-        cwd,
-        stdio: 'inherit',
-        timeout: 30_000,
-      });
-      log.info('db_migrate_pg_ok', { note: 'PostgreSQL migrations applied.' });
-    } catch (e) {
-      log.error('db_migrate_pg_failed', {
-        error: e instanceof Error ? e.message : String(e),
-      });
-      throw e;
-    }
+    // SQLite mode intentionally does NOT run drizzle-kit migrate: the generated
+    // files in server/drizzle/ are PostgreSQL-dialect. Table creation happens
+    // via the auto-create/push fallback below (drizzle.config.sqlite.ts), which
+    // is idempotent and runs on every boot.
+    log.info('db_migrate_sqlite', {
+      note: 'SQLite mode: skipping PG-dialect migrate; schema ensured via auto-create/push.',
+    });
+    return;
+  }
+  log.info('db_migrate_pg', { note: 'Running PostgreSQL migrations...' });
+  try {
+    execSync('npx drizzle-kit migrate --config=drizzle.config.ts --dialect=postgresql', {
+      cwd,
+      stdio: 'inherit',
+      timeout: 30_000,
+    });
+    log.info('db_migrate_pg_ok', { note: 'PostgreSQL migrations applied.' });
+  } catch (e) {
+    log.error('db_migrate_pg_failed', {
+      error: e instanceof Error ? e.message : String(e),
+    });
+    throw e;
   }
 }
 
@@ -161,7 +152,7 @@ async function autoCreateTables(): Promise<void> {
   log.info('auto_create_tables', { note: 'Pushing SQLite schema via drizzle-kit...' });
   try {
     const cwd = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-    execSync('npx drizzle-kit push --config=drizzle.config.ts --force', {
+    execSync('npx drizzle-kit push --config=drizzle.config.sqlite.ts --force', {
       cwd,
       stdio: 'inherit',
       timeout: 60_000,

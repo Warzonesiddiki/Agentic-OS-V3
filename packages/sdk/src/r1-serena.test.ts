@@ -6,14 +6,29 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { SerenaCodeIntelligence, SymbolKindSchema, CodeSymbolSchema } from './r1-serena.js';
 
-function makeMockFileSystem(files: Record<string, string>) {
+function normalizePath(p: string): string {
+  // Normalize Windows backslashes to forward slashes for cross-platform compatibility
+  return p.replace(/\\/g, '/');
+}
+
+function makeMockFileSystem(files: Record<string, string>, projectRoot: string) {
+  const resolvedFiles: Record<string, string> = {};
+  for (const [key, value] of Object.entries(files)) {
+    // Normalize Windows backslashes and resolve relative paths against project root
+    const normalizedKey = key.replace(/\\/g, '/');
+    const resolvedKey = normalizedKey.startsWith('/') ? normalizedKey : `${projectRoot}/${normalizedKey}`;
+    resolvedFiles[resolvedKey] = value;
+  }
   return {
     readFile: (p: string) => {
-      const content = files[p];
+      // Normalize Windows backslashes and resolve relative paths against project root
+      const normalizedPath = p.replace(/\\/g, '/');
+      const resolvedKey = normalizedPath.startsWith('/') ? normalizedPath : `${projectRoot}/${normalizedPath}`;
+      const content = resolvedFiles[resolvedKey];
       if (content === undefined) throw new Error(`File not found: ${p}`);
       return Promise.resolve(content);
     },
-    glob: async (_pattern: string, _root: string) => Promise.resolve(Object.keys(files)),
+    glob: async (_pattern: string, _root: string) => Promise.resolve(Object.keys(resolvedFiles)),
   };
 }
 
@@ -58,7 +73,7 @@ describe('SerenaCodeIntelligence', () => {
 
   beforeEach(() => {
     serena = new SerenaCodeIntelligence({
-      fileSystem: makeMockFileSystem(files),
+      fileSystem: makeMockFileSystem(files, projectRoot),
       symbolProvider: makeMockSymbolProvider,
       now: () => '2026-07-23T00:00:00.000Z',
     });
@@ -226,7 +241,7 @@ describe('SerenaCodeIntelligence', () => {
     it('handles absolute and relative file paths', async () => {
       const abs = await serena.getSymbolInfo({ projectId, file: '/tmp/test-project/src/math.ts', line: 0 }, projectRoot);
       const rel = await serena.getSymbolInfo({ projectId, file: 'src/math.ts', line: 0 }, projectRoot);
-      expect(abs.name).toBe(rel.name);
+      expect(normalizePath(abs.name)).toBe(normalizePath(rel.name));
     });
 
     it('returns unknown symbol when no symbol near line', async () => {
@@ -365,7 +380,7 @@ describe('SerenaCodeIntelligence', () => {
         projectId, file: 'src/math.ts', symbolName: 'add',
         newContent: 'return a + b;', projectRoot,
       });
-      expect(result.file).toBe('/tmp/test-project/src/math.ts');
+      expect(normalizePath(result.file)).toBe(normalizePath('/tmp/test-project/src/math.ts'));
     });
   });
 

@@ -1,0 +1,238 @@
+{
+  "version": 1,
+  "cards": [
+    {
+      "id": "card-1418408b-bb1c-44a3-80b6-9bb32f2cd0b8",
+      "title": "P0: Ratify & commit progression-plan-2026-08-21.md",
+      "description": "docs/bmad/progression-plan-2026-08-21.md sits untracked and PROPOSED. Commit it, adopt it in PLAN_TRACKER/sprint-status.yaml, and make the 4 Leader calls listed in its ratification footer: WS order approval, E10-S30 reviewer assignment, better-sqlite3/Node pin decision (recommend Node ^22.x), platform stance (recommend POSIX-first for R1).",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "done",
+      "tags": [
+        "decision",
+        "r1"
+      ],
+      "createdAt": 1787518758395,
+      "updatedAt": 1787519382160,
+      "summary": "Ratified 2026-08-24 under Leader delegation. §9 Ratification Record appended to the plan (decisions D1–D5); committed as 8024bdd on main. D1 plan adopted as master execution plan; D2 reviewer = external stateless audit agent per evidence batch; D3 Node ^22.x + pnpm@9.15.0 pin, better-sqlite3@11 for R1; D4 POSIX-first + WSL2 official Windows path; D5 DSH integration via existing MCP transport, no bespoke plugin pre-M4."
+    },
+    {
+      "id": "card-67d3019e-c042-4f48-8bda-34fb8a65f2a6",
+      "title": "WS3: Migration matrix 0049–0054 + rollback drill",
+      "description": "B3 — AUTHORING COMPLETE (commits d8db0e8, c17fde7, 4ca11a8): full rollback chain 0054→0049 authored as down/ pairs for BOTH PostgreSQL and SQLite, with convention README + drill procedure. Runtime runner confirmed forward-only (explicit-path consumers, no glob — down/ cannot execute accidentally). REMAINING: execute the forward/rollback/restore matrix per the README procedure once WS1 green + CI available; retain per-step transcripts in ledger.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "r1-blocker",
+        "ws3",
+        "b3"
+      ],
+      "createdAt": 1787518758794,
+      "updatedAt": 1787526013826
+    },
+    {
+      "id": "card-84c97087-f546-42e9-bd53-4504547962b1",
+      "title": "WS4: Clean-machine golden-path drill (14/14 steps)",
+      "description": "Run documented 14-step golden path (init→capture→governed task→approval pause→execute→crash-injection recovery→export/import dry-run) on pristine machine incl. kill-worker recovery. Log/screen-record everything to ledger. Owners: Artisan+Prism. Size M. AFTER WS0 + WS8.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "r1-blocker",
+        "ws4",
+        "b4"
+      ],
+      "createdAt": 1787518758837,
+      "updatedAt": 1787518758837
+    },
+    {
+      "id": "card-5790f8ad-7b4f-495a-8519-d9921ac20d74",
+      "title": "WS6: Platform-support decision — declare POSIX-first for R1",
+      "description": "COMPLETE. r1-sandbox-runner.ts: typed R1PlatformUnsupportedError (code R1_SANDBOX_PLATFORM_UNSUPPORTED) + isR1ConstrainedExecutionSupported() export + validation-before-platform-gate ordering (policy rejections now identical cross-platform). Tests: 16/16 green on Windows — every execution test asserts its platform contract explicitly (fail-closed degraded on win32, full POSIX behavior otherwise), no skips, new dedicated degraded-mode test added. README Platform Support matrix added. tsc true gate EXIT 0 after change. Exact-file rerun evidence retained in session log; committed as part of WS6 commit.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "done",
+      "tags": [
+        "decision",
+        "ws6"
+      ],
+      "createdAt": 1787518758852,
+      "updatedAt": 1787523368663
+    },
+    {
+      "id": "card-7d3435e5-8d14-4cea-be1b-83a1345fd1d3",
+      "title": "Post-R1: Interop surface — MCP registry + A2A agent cards + OTel GenAI + SKILL.md",
+      "description": "Ecosystem research (Aug 2026): interop is the entry fee. List MCP server in official registry (registry.modelcontextprotocol.io), emit A2A agent cards (packages/a2a-server exists per ADR-0008), adopt OTel GenAI semantic conventions for trace export, add SKILL.md import/export bridge to the skills marketplace (cross-vendor skill format adopted by Claude Code/Codex/Cursor/Gemini CLI).",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "post-r1",
+        "strategy"
+      ],
+      "createdAt": 1787518758867,
+      "updatedAt": 1787518758867
+    },
+    {
+      "id": "card-d4a2ded6-2c4c-44f7-8699-41b624bab164",
+      "title": "Post-R1: Sleep-time consolidation worker",
+      "description": "Highest-leverage published memory pattern of 2025–26 (Letta sleep-time compute). Offline cron worker: dedup→summarize→re-embed→consolidate episodic→semantic. Maps onto existing consolidation/memory-decay/memory-dedup services. Area: Lethe+Mnemosyne+Forge (scheduler seam).",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "post-r1",
+        "strategy",
+        "memory"
+      ],
+      "createdAt": 1787518758885,
+      "updatedAt": 1787518758885
+    },
+    {
+      "id": "card-67f55acd-cab0-4719-b0ad-3477045544d6",
+      "title": "Post-R1: Rust layer decision — freeze vs fund",
+      "description": "ADR-0007 keeps crates runtime-decoupled; 7 members, builtin tools are stubs, zero runtime value today while burning CI time. Either fund to first real use (nexus-cli as distribution vehicle) or freeze behind maintenance-only CI profile and say so honestly in docs. Decision owner: Leader + Ferric/Rusty.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "post-r1",
+        "decision"
+      ],
+      "createdAt": 1787518758903,
+      "updatedAt": 1787518758903
+    },
+    {
+      "id": "card-c09402ba-3559-4b87-90df-56cb3da72892",
+      "title": "Post-R1: Recall v2 — cross-encoder reranker + contextual annotation + memory evals",
+      "description": "Recall pipeline already matches 2026 consensus (BM25+dense RRF). Published next steps: cross-encoder reranker post-RRF (Anthropic contextual retrieval cuts failures 49–67% with rerank); write-time contextual annotation or late-chunking embeddings; honest benchmark vs LongMemEval/LoCoMo; replace Ebbinghaus decay curves with Zep-style temporal validity invalidation + conflict resolution; defer GraphRAG until multi-hop need is proven. Areas: Mnemosyne+Lethe+Cerebrum.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "post-r1",
+        "strategy",
+        "memory"
+      ],
+      "createdAt": 1787518815752,
+      "updatedAt": 1787518815752
+    },
+    {
+      "id": "card-be13a89b-d4f3-4bbd-8db5-70d8a2af282c",
+      "title": "WS5: Security triage matrix + assign E10-S30 reviewer",
+      "description": "Sentinel triages all E8-S1 adversarial findings into severity matrix; close security-flavored honesty items (federated-node-discovery.ts:237 peer-signature 'placeholder', Sessions.tsx rate-limit TODO) or ticket them post-R1 with README note; Leader assigns independent E10-S30 reviewer NOW so they watch evidence accumulate. Owners: Sentinel+Aegis+Leader. Size M. Exit: triage matrix in ledger, named reviewer acknowledged.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "r1-blocker",
+        "ws5",
+        "b5"
+      ],
+      "createdAt": 1787518899244,
+      "updatedAt": 1787518899244
+    },
+    {
+      "id": "card-e1fc6b5d-849d-436e-976d-6c79fb80ccd1",
+      "title": "WS8: Wire Playwright e2e into CI + localStorage design calls",
+      "description": "Wire existing Playwright specs (e2e/*.spec.ts expect server :1422) into CI reusing pgvector-service pattern from ci.yml — zero e2e enforcement today. Decide localStorage items: r1-project-id + auth-key storage (move to proper storage or document local-mode design). Sweep /r1/* screens against PRD state matrix (loading/empty/offline/degraded/permission); resolve 3 placeholder Tauri views. Must land BEFORE WS4 drill. Owners: Prism/Halcyon + Quill/Bastion. Size M.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "r1-blocker",
+        "ws8"
+      ],
+      "createdAt": 1787518899267,
+      "updatedAt": 1787518899267
+    },
+    {
+      "id": "card-baf382fe-b43a-4e4e-8261-0cf8136899a7",
+      "title": "M4: Gate-0 exit → E10-S30 sign-off → tag v2.2.0-r1",
+      "description": "Milestone card. When B1–B5 all have ledger evidence: Gate-0 exit review (5 exit criteria of baseline doc), then E10-S30 independent sign-off (sole release authority), then tag v2.2.0-r1 + deploy.yml smoke + retrospective. After that, open post-R1 strategy cards.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "milestone",
+        "r1"
+      ],
+      "createdAt": 1787518899283,
+      "updatedAt": 1787518899283
+    },
+    {
+      "id": "card-6bc80bf6-6c83-4360-a17a-8b2f4e9fbd6d",
+      "title": "WS7: Docs coherence sweep",
+      "description": "COMPLETE (passes 1-3, commits b82aa6f / 899769c / 9305dc4): factual drift fixed in CLAUDE.md/AGENTS.md/README.md/DEVELOPMENT.md (crates=7, no ts-rs, React 18.3/Vite 5.4, Node ^22.x+pnpm 9.15 prereqs); Current Reality anchor now points at Gate-0 baseline + ratified progression plan; 14 campaign-era root reports bannered SUPERSEDED; TASKBOARD P2-06 reconciled (e2e authored-not-enforced until WS8). No doc contradicts disk or ledger for primary guidance surfaces.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "done",
+      "tags": [
+        "hygiene",
+        "ws7"
+      ],
+      "createdAt": 1787518934659,
+      "updatedAt": 1787524064733
+    },
+    {
+      "id": "card-935166f4-54f4-4b39-94f8-fc2b0f3b1fcc",
+      "title": "WS2: Dependency audit clean",
+      "description": "B2 CLOSED. Audit --prod EXIT 0 \"No known vulnerabilities found\" after ab38fb7 fixes (hono ^4.12.34, fast-uri ^3.1.5 override, ip-address ^10.3.1 override) and lockfile regen. Evidence: docs/bmad/releases/evidence/2026-08-24-ws2-audit-clean.md (+ preliminary pre-fix output retained). Non-fatal dev-dep peer warnings tracked post-R1.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "done",
+      "tags": [
+        "r1-blocker",
+        "ws2",
+        "b2"
+      ],
+      "createdAt": 1787518988878,
+      "updatedAt": 1787525130204
+    },
+    {
+      "id": "card-235fab03-31d7-42cc-97a4-73bbfcb92988",
+      "title": "WS1: Full-suite green — 63 files in 3 owner-grouped waves",
+      "description": "B1 — LOCAL SUITE GREEN & DETERMINISTIC: 255/255 files · 2548 tests under --maxWorkers=2 (fa8b28e retained log; first green 613a8ac). All Wave-1/2 repairs committed with independent verification. Root cause of residual flakes was machine contention, fixed by worker cap + per-test determinism hardening. REMAINING: push → CI ubuntu/Node22 authority run = B1 confirmation + WS0 POSIX twin + WS8 e2e enforcement. Then WS3/WS4 drills → Gate-0 assembly → E10-S30.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "in_progress",
+      "tags": [
+        "r1-blocker",
+        "ws1",
+        "b1"
+      ],
+      "createdAt": 1787519007336,
+      "updatedAt": 1787533185394,
+      "summary": "Wave-1 (20 files) + Wave-2 (13 files) green. S=10/D=5 this wave; tsc=0. Next: Wave-3 file list from Leader transcript."
+    },
+    {
+      "id": "card-19bddaa1-35c4-47f9-88b9-7350bf2c9356",
+      "title": "WS0: Reproducible bootstrap & toolchain pinning (do first)",
+      "description": "COMPLETE on Windows with documented caveat. Committed: ccabfe1 (pins+ADR-0031), e60e8ba (evidence). Cold install EXIT 0, typecheck EXIT 0, clean-clone install/typecheck/targeted(80 tests) all EXIT 0. Suite delta: 67→27 failing files (env class eliminated by Node22+cold install). POSIX twin deferred to first CI run post-WS1-wave1 (WSL not installed locally) — recorded honestly in ledger entry 2026-08-24-ws0-bootstrap-verification.md.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "done",
+      "tags": [
+        "r1-blocker",
+        "ws0",
+        "m0"
+      ],
+      "createdAt": 1787519028791,
+      "updatedAt": 1787522698417
+    },
+    {
+      "id": "card-1746bebb-7870-4fec-a5d0-e4e2e56da6a4",
+      "title": "Integration: NEXUS ↔ DSH via MCP bridge (pilot after WS0)",
+      "description": "D5 decision: NEXUS connects to DeepSeek Harness through its EXISTING MCP server (server/src/mcp-http.ts, 14 tools, scoped auth) — configuration only, zero new code, preserving Track A no-new-features discipline until M4. Wiring once WS0 lands: ① boot server local SQLite mode on Node 22 → operator key printed once; ② create scoped key via POST /api/v1/admin/keys (memory:read/write + skill:read); ③ add stdio MCP entry in DSH settings pointing at mcp-http.js with NEXUS_API_KEY env; ④ verify nexus_recall/nexus_remember from a live DSH session. Positioning: NEXUS = project/team governed memory with audit trails; complements (not replaces) DSH built-in personal memory. Post-R1 optional: thin cordis client plugin for rich tool cards in the DSH GUI.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "integration",
+        "mcp",
+        "dsh"
+      ],
+      "createdAt": 1787519382193,
+      "updatedAt": 1787519382193
+    },
+    {
+      "id": "card-ec012420-f2d8-4916-800c-a53f5fd8996d",
+      "title": "WS2-followup: Reconcile GitHub Dependabot alerts vs clean pnpm audit --prod",
+      "description": "GitHub reported 23 vulnerabilities on default branch (2 critical, 7 high, 12 moderate, 2 low) at push time — while our gate `pnpm audit --prod` is CLEAN (1178750). Discrepancy classes to reconcile: (a) dev-dependency-only advisories (Dependabot counts full graph), (b) stale alert DB lagging our ab38fb7 patches, (c) true production paths our audit misses. ACTION: after CI run, open Security→Dependabot tab, classify each alert prod-vs-dev with evidence; patch any true production critical/high IMMEDIATELY via override/bump; document dispositions in ledger per WS2 protocol.",
+      "sourceSessionId": "session-3bb06d3a-d928-475a-b6d6-e0935265d16b",
+      "status": "todo",
+      "tags": [
+        "ws2",
+        "follow-up",
+        "security"
+      ],
+      "createdAt": 1787535051348,
+      "updatedAt": 1787535051348
+    }
+  ]
+}
