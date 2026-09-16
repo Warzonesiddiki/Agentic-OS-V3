@@ -53,7 +53,7 @@ opentelemetry-otlp = "0.30"
 reqwest = { version = "0.12", features = ["json", "stream", "rustls-tls", "multipart"] }
 
 # MCP Protocol
-rmcp = { version = "1.4", default-features = false, features = ["schemars", "auth", "server", "macros"] }
+rmcp = { version = "2.0", default-features = false, features = ["schemars", "auth", "server", "macros"] }
 
 # WebSocket
 tokio-tungstenite = "0.26"
